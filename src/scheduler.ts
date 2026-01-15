@@ -1,8 +1,10 @@
 import cron from 'node-cron';
 import { config } from './config.js';
 import { postScheduleToChannel } from './bot.js';
+import { deleteOldRows } from './sheets.js';
 
 let scheduledTask: cron.ScheduledTask | null = null;
+let cleanupTask: cron.ScheduledTask | null = null;
 
 function parseTime(timeStr: string): { hour: number; minute: number } {
   const [hourStr, minuteStr] = timeStr.split(':');
@@ -38,6 +40,27 @@ export function startScheduler(): void {
   );
 
   console.log('Scheduler started successfully.');
+
+  // Daily cleanup at 00:00 to delete old rows
+  console.log('Setting up daily cleanup at 00:00 to remove old rows...');
+  
+  cleanupTask = cron.schedule(
+    '0 0 * * *', // Every day at 00:00
+    async () => {
+      console.log(`[${new Date().toISOString()}] Running scheduled cleanup...`);
+      try {
+        const deletedCount = await deleteOldRows();
+        console.log(`Cleanup completed. Deleted ${deletedCount} old row(s).`);
+      } catch (error) {
+        console.error('Error during scheduled cleanup:', error);
+      }
+    },
+    {
+      timezone: config.scheduling.timezone,
+    }
+  );
+
+  console.log('Cleanup scheduler started successfully.');
 }
 
 export function stopScheduler(): void {
@@ -45,6 +68,11 @@ export function stopScheduler(): void {
     scheduledTask.stop();
     scheduledTask = null;
     console.log('Scheduler stopped.');
+  }
+  if (cleanupTask) {
+    cleanupTask.stop();
+    cleanupTask = null;
+    console.log('Cleanup scheduler stopped.');
   }
 }
 

@@ -16,6 +16,19 @@ function formatPlayer(player: PlayerAvailability): string {
   return `❌ ~~${player.name}~~`;
 }
 
+function convertUKTimeToUnixTimestamp(date: string, time: string): number {
+  // date format: "DD.MM.YYYY" or similar
+  // time format: "HH:MM"
+  const [day, month, year] = date.split('.').map(Number);
+  const [hours, minutes] = time.split(':').map(Number);
+  
+  // Create date in UK timezone (UTC+0 or UTC+1 depending on DST)
+  // Using UTC as baseline for UK time
+  const ukDate = new Date(Date.UTC(year, month - 1, day, hours, minutes));
+  
+  return Math.floor(ukDate.getTime() / 1000);
+}
+
 export function buildScheduleEmbed(result: ScheduleResult): EmbedBuilder {
   const { schedule, status, commonTimeRange, canProceed } = result;
 
@@ -47,33 +60,44 @@ export function buildScheduleEmbed(result: ScheduleResult): EmbedBuilder {
   const mainLines = schedule.mainPlayers.map(formatPlayer).join('\n');
   embed.addFields({ name: 'Main Roster', value: mainLines, inline: false });
 
-  // Subs
-  const subLines = schedule.subs.map(p => {
-    const line = formatPlayer(p);
-    return result.requiredSubs.includes(p.name) ? line + ' 🔄' : line;
-  }).join('\n');
-  embed.addFields({ name: 'Subs', value: subLines || '—', inline: false });
+  // Subs - nur Subs anzeigen, die entweder eine Zeit haben oder einen angepassten Namen
+  const visibleSubs = schedule.subs.filter(p => 
+    p.timeRange !== null || (p.name !== 'Sub1' && p.name !== 'Sub2')
+  );
+  
+  if (visibleSubs.length > 0) {
+    const subLines = visibleSubs.map(p => {
+      const line = formatPlayer(p);
+      return result.requiredSubs.includes(p.name) ? line + ' 🔄' : line;
+    }).join('\n');
+    embed.addFields({ name: 'Subs', value: subLines || '—', inline: false });
+  }
 
-  // Coach
-  const coachLine = schedule.coach.available && schedule.coach.timeRange
-    ? `✅ ${schedule.coachName} \`${schedule.coach.timeRange.start} - ${schedule.coach.timeRange.end}\``
-    : `❌ ~~${schedule.coachName}~~`;
+  // Coach - nur anzeigen, wenn Zeit eingetragen ist oder Name angepasst wurde
+  const shouldShowCoach = schedule.coach.timeRange !== null || schedule.coachName !== 'Coach';
+  
+  if (shouldShowCoach) {
+    const coachLine = schedule.coach.available && schedule.coach.timeRange
+      ? `✅ ${schedule.coachName} \`${schedule.coach.timeRange.start} - ${schedule.coach.timeRange.end}\``
+      : `❌ ~~${schedule.coachName}~~`;
 
-  embed.addFields({ name: 'Coach', value: coachLine, inline: false });
+    embed.addFields({ name: 'Coach', value: coachLine, inline: false });
+  }
 
   // Status
   let statusText = '';
   if (status === 'FULL_ROSTER') {
     statusText = '✅ Full roster available';
   } else if (status === 'WITH_SUBS') {
-    statusText = `⚠️ With subs (${result.unavailableMains.join(', ')} unavailable)`;
+    statusText = '⚠️ With subs';
   } else {
-    statusText = `❌ Not enough players (${result.availableMainCount + result.availableSubCount}/5)`;
+    statusText = '❌ Not enough players';
   }
 
   if (commonTimeRange && canProceed) {
     const duration = getOverlapDuration(commonTimeRange);
-    statusText += `\n⏰ Start: \`${commonTimeRange.start}\` (${duration}h)`;
+    const unixTimestamp = convertUKTimeToUnixTimestamp(schedule.date, commonTimeRange.start);
+    statusText += `\n⏰ Start: <t:${unixTimestamp}:t> (${duration}h)`;
   }
 
   embed.addFields({ name: 'Status', value: statusText, inline: false });

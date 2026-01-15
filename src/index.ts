@@ -1,6 +1,6 @@
 import { startBot, client } from './bot.js';
 import { startScheduler, stopScheduler, getNextScheduledTime } from './scheduler.js';
-import { testConnection } from './sheets.js';
+import { testConnection, deleteOldRows } from './sheets.js';
 import { config } from './config.js';
 
 async function main(): Promise<void> {
@@ -16,6 +16,16 @@ async function main(): Promise<void> {
     process.exit(1);
   }
   console.log('Google Sheets connection successful!');
+
+  // Run cleanup job on startup
+  console.log('\nRunning table cleanup and maintenance...');
+  try {
+    await deleteOldRows();
+    console.log('Table cleanup completed successfully!');
+  } catch (error) {
+    console.error('Error during table cleanup:', error);
+    // Don't exit, just log the error
+  }
 
   // Start Discord bot
   console.log('\nStarting Discord bot...');
