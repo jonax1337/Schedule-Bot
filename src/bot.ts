@@ -94,7 +94,12 @@ export async function postScheduleToChannel(date?: string): Promise<void> {
     const result = analyzeSchedule(schedule);
     const embed = buildScheduleEmbed(result);
 
-    await channel.send({ embeds: [embed] });
+    // Ping role if configured
+    const pingContent = config.discord.pingRoleId
+      ? `<@&${config.discord.pingRoleId}>`
+      : undefined;
+
+    await channel.send({ content: pingContent, embeds: [embed] });
     console.log(`Schedule posted to channel for date: ${displayDate}`);
   } catch (error) {
     console.error('Error posting schedule to channel:', error);

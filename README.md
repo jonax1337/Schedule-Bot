@@ -64,11 +64,14 @@ Discord Bot der Google Sheets Daten ausliest und Team-Verfuegbarkeit fuer Valora
    DISCORD_TOKEN=dein_discord_bot_token
    DISCORD_CHANNEL_ID=deine_channel_id
    DISCORD_GUILD_ID=deine_guild_id
+   DISCORD_PING_ROLE_ID=deine_role_id    # Optional: Rolle die gepingt wird
    GOOGLE_SHEET_ID=deine_sheet_id
    GOOGLE_CREDENTIALS_PATH=./credentials.json
    DAILY_POST_TIME=10:00
    TIMEZONE=Europe/Berlin
    ```
+
+   **Role ID finden:** Rechtsklick auf die Rolle in den Server-Einstellungen > "Copy Role ID"
 
 ### 5. Google Sheet Format
 

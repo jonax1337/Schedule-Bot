@@ -20,6 +20,7 @@ export const config = {
     token: requireEnv('DISCORD_TOKEN'),
     channelId: requireEnv('DISCORD_CHANNEL_ID'),
     guildId: requireEnv('DISCORD_GUILD_ID'),
+    pingRoleId: process.env.DISCORD_PING_ROLE_ID || null,
   },
   googleSheets: {
     sheetId: requireEnv('GOOGLE_SHEET_ID'),
