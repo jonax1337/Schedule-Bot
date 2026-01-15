@@ -3,126 +3,105 @@ import { getOverlapDuration } from './analyzer.js';
 import type { ScheduleResult, PlayerAvailability } from './types.js';
 
 const COLORS = {
-  SUCCESS: 0x00ff00,      // Green
-  WARNING: 0xffaa00,      // Orange
-  ERROR: 0xff0000,        // Red
-  OFF_DAY: 0x808080,      // Gray
+  SUCCESS: 0x2ecc71,
+  WARNING: 0xf39c12,
+  ERROR: 0xe74c3c,
+  OFF_DAY: 0x9b59b6,
 };
 
-function formatPlayerLine(player: PlayerAvailability): string {
+function formatPlayer(player: PlayerAvailability): string {
   if (player.available && player.timeRange) {
-    return `${player.name}: ${player.timeRange.start}-${player.timeRange.end}`;
+    return `✅ ${player.name} \`${player.timeRange.start} - ${player.timeRange.end}\``;
   }
-  return `${player.name}: nicht verfuegbar`;
-}
-
-function getStatusEmoji(available: boolean): string {
-  return available ? '>' : 'x';
+  return `❌ ~~${player.name}~~`;
 }
 
 export function buildScheduleEmbed(result: ScheduleResult): EmbedBuilder {
   const { schedule, status, commonTimeRange, canProceed } = result;
 
-  // Off-Day special embed
+  // Off-Day
   if (status === 'OFF_DAY') {
     return new EmbedBuilder()
-      .setTitle(`${schedule.dateFormatted} - OFF DAY`)
-      .setDescription('Heute ist kein Training geplant.\nNutzt die Zeit zur Erholung!')
+      .setTitle(`📅 ${schedule.dateFormatted}`)
+      .setDescription('🏖️ **Off-Day** — No practice today.')
       .setColor(COLORS.OFF_DAY)
+      .setFooter({ text: 'Schedule Bot' })
       .setTimestamp();
   }
 
-  // Build main embed
   const embed = new EmbedBuilder()
-    .setTitle(`Valorant Training - ${schedule.dateFormatted}`)
     .setColor(canProceed ? (status === 'FULL_ROSTER' ? COLORS.SUCCESS : COLORS.WARNING) : COLORS.ERROR)
+    .setTitle(`📅 ${schedule.dateFormatted}`)
+    .setFooter({ text: 'Schedule Bot' })
     .setTimestamp();
 
-  // Reason and Focus
+  // Reason & Focus
   if (schedule.reason || schedule.focus) {
-    let infoText = '';
-    if (schedule.reason) infoText += `**Reason:** ${schedule.reason}\n`;
-    if (schedule.focus) infoText += `**Focus:** ${schedule.focus}`;
-    embed.setDescription(infoText.trim());
+    const parts = [];
+    if (schedule.reason) parts.push(`📋 ${schedule.reason}`);
+    if (schedule.focus) parts.push(`🎯 ${schedule.focus}`);
+    embed.setDescription(parts.join('  •  '));
   }
 
-  // Main Roster
-  const mainRosterLines = schedule.mainPlayers.map(p => {
-    const emoji = getStatusEmoji(p.available);
-    return `\`${emoji}\` ${formatPlayerLine(p)}`;
-  });
-  embed.addFields({
-    name: 'MAIN ROSTER',
-    value: mainRosterLines.join('\n'),
-    inline: false,
-  });
+  // Main Roster - split into two columns
+  const mainLeft = schedule.mainPlayers.slice(0, 3).map(formatPlayer).join('\n');
+  const mainRight = schedule.mainPlayers.slice(3).map(formatPlayer).join('\n');
 
-  // Subs
+  embed.addFields(
+    { name: 'Main Roster', value: mainLeft, inline: true },
+    { name: '\u200B', value: mainRight, inline: true },
+    { name: '\u200B', value: '\u200B', inline: false },
+  );
+
+  // Subs & Coach side by side
   const subLines = schedule.subs.map(p => {
-    const emoji = getStatusEmoji(p.available);
-    const neededIndicator = result.requiredSubs.includes(p.name) ? ' **(einspringend)**' : '';
-    return `\`${emoji}\` ${formatPlayerLine(p)}${neededIndicator}`;
-  });
-  embed.addFields({
-    name: 'SUBS',
-    value: subLines.join('\n'),
-    inline: false,
-  });
+    const line = formatPlayer(p);
+    return result.requiredSubs.includes(p.name) ? line + ' 🔄' : line;
+  }).join('\n');
 
-  // Coach
-  const coachEmoji = getStatusEmoji(schedule.coach.available);
-  const coachText = schedule.coach.available && schedule.coach.timeRange
-    ? `${schedule.coach.timeRange.start}-${schedule.coach.timeRange.end}`
-    : 'nicht verfuegbar';
-  embed.addFields({
-    name: schedule.coachName.toUpperCase(),
-    value: `\`${coachEmoji}\` ${schedule.coachName}: ${coachText}`,
-    inline: false,
-  });
+  const coachLine = schedule.coach.available && schedule.coach.timeRange
+    ? `✅ ${schedule.coachName} \`${schedule.coach.timeRange.start} - ${schedule.coach.timeRange.end}\``
+    : `❌ ~~${schedule.coachName}~~`;
 
-  // Status summary
+  embed.addFields(
+    { name: 'Subs', value: subLines || '—', inline: true },
+    { name: 'Coach', value: coachLine, inline: true },
+  );
+
+  // Status
   let statusText = '';
-
-  if (status === 'WITH_SUBS') {
-    statusText += `**Status:** Mit Subs (${result.unavailableMains.join(', ')} nicht verfuegbar)\n`;
-  } else if (status === 'NOT_ENOUGH') {
-    statusText += `**Status:** Nicht genuegend Spieler\n`;
+  if (status === 'FULL_ROSTER') {
+    statusText = '✅ Full roster available';
+  } else if (status === 'WITH_SUBS') {
+    statusText = `⚠️ With subs (${result.unavailableMains.join(', ')} unavailable)`;
   } else {
-    statusText += `**Status:** Volles Main-Roster\n`;
+    statusText = `❌ Not enough players (${result.availableMainCount + result.availableSubCount}/5)`;
   }
 
-  if (commonTimeRange) {
+  if (commonTimeRange && canProceed) {
     const duration = getOverlapDuration(commonTimeRange);
-    statusText += `**Gemeinsame Zeit:** ab ${commonTimeRange.start} (${duration} Stunden)\n`;
+    statusText += `\n⏰ Start: \`${commonTimeRange.start}\` (${duration}h)`;
   }
 
-  if (canProceed) {
-    statusText += `\n**Training kann stattfinden!**`;
-  } else {
-    statusText += `\n**Training kann NICHT stattfinden.**`;
-  }
-
-  embed.addFields({
-    name: '\u200B', // Zero-width space for separator
-    value: statusText,
-    inline: false,
-  });
+  embed.addFields({ name: 'Status', value: statusText, inline: false });
 
   return embed;
 }
 
 export function buildNoDataEmbed(date: string): EmbedBuilder {
   return new EmbedBuilder()
-    .setTitle('Keine Daten gefunden')
-    .setDescription(`Fuer das Datum **${date}** wurden keine Daten im Schedule gefunden.`)
+    .setTitle('❌ No Data')
+    .setDescription(`No entries found for **${date}**.`)
     .setColor(COLORS.ERROR)
+    .setFooter({ text: 'Schedule Bot' })
     .setTimestamp();
 }
 
 export function buildErrorEmbed(error: string): EmbedBuilder {
   return new EmbedBuilder()
-    .setTitle('Fehler')
+    .setTitle('⚠️ Error')
     .setDescription(error)
     .setColor(COLORS.ERROR)
+    .setFooter({ text: 'Schedule Bot' })
     .setTimestamp();
 }

@@ -41,7 +41,7 @@ Discord Bot der Google Sheets Daten ausliest und Team-Verfuegbarkeit fuer Valora
 5. Aktiviere unter "Privileged Gateway Intents" nichts (nicht benoetigt)
 6. Gehe zu "OAuth2" > "URL Generator"
 7. Waehle Scopes: `bot`, `applications.commands`
-8. Waehle Bot Permissions: `Send Messages`, `Embed Links`
+8. Waehle Bot Permissions: `Send Messages`, `Embed Links`, `Mention Everyone` (fuer Rollen-Ping)
 9. Kopiere die generierte URL und oeffne sie im Browser, um den Bot zu deinem Server hinzuzufuegen
 
 ### 3. IDs finden
