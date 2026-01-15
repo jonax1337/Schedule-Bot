@@ -75,8 +75,8 @@ export function buildScheduleEmbed(result: ScheduleResult): EmbedBuilder {
     ? `${schedule.coach.timeRange.start}-${schedule.coach.timeRange.end}`
     : 'nicht verfuegbar';
   embed.addFields({
-    name: 'COACH',
-    value: `\`${coachEmoji}\` Coach: ${coachText}`,
+    name: schedule.coachName.toUpperCase(),
+    value: `\`${coachEmoji}\` ${schedule.coachName}: ${coachText}`,
     inline: false,
   });
 

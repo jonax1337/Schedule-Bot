@@ -76,12 +76,16 @@ Dein Google Sheet muss folgende Spalten haben (in dieser Reihenfolge):
 
 | A | B | C | D | E | F | G | H | I | J | K |
 |---|---|---|---|---|---|---|---|---|---|---|
-| Date | Player 1 | Player 2 | Player 3 | Player 4 | Player 5 | Sub 1 | Sub 2 | Coach | Reason | Focus |
+| Date | (Spieler 1) | (Spieler 2) | (Spieler 3) | (Spieler 4) | (Spieler 5) | (Sub 1) | (Sub 2) | (Coach) | Reason | Focus |
+
+**Die Spielernamen werden automatisch aus der Header-Zeile gelesen!**
+
+Schreibe die echten Namen/Gamertags deiner Spieler in die erste Zeile - diese werden dann in den Discord-Nachrichten verwendet.
 
 **Beispiel:**
 
-| Date | Player 1 | Player 2 | Player 3 | Player 4 | Player 5 | Sub 1 | Sub 2 | Coach | Reason | Focus |
-|------|----------|----------|----------|----------|----------|-------|-------|-------|--------|-------|
+| Date | TenZ | Shroud | Asuna | yay | Marved | Demon1 | Zekken | FNS | Reason | Focus |
+|------|------|--------|-------|-----|--------|--------|--------|-----|--------|-------|
 | 15.01.2026 | 14:00-22:00 | 15:00-21:00 | x | 14:00-20:00 | 16:00-23:00 | 14:00-19:00 | x | 15:00-21:00 | Scrim | Site Executes |
 | 16.01.2026 | | | | | | | | | Off-Day | |
 
@@ -139,14 +143,6 @@ schedule-bot/
 └── tsconfig.json
 ```
 
-## Spielernamen anpassen
+## Spielernamen
 
-Um die Spielernamen zu aendern, editiere `src/config.ts`:
-
-```typescript
-export const PLAYER_NAMES = {
-  [SHEET_COLUMNS.PLAYER_1]: 'MaxMustermann',
-  [SHEET_COLUMNS.PLAYER_2]: 'SpielerZwei',
-  // ...
-};
-```
+Die Spielernamen werden automatisch aus der **Header-Zeile (Zeile 1)** deines Google Sheets gelesen. Aendere einfach die Namen in der ersten Zeile des Sheets - beim naechsten Abruf werden die neuen Namen verwendet.

@@ -23,6 +23,7 @@ export interface DaySchedule {
   mainPlayers: PlayerAvailability[];
   subs: PlayerAvailability[];
   coach: CoachAvailability;
+  coachName: string;
   reason: string;
   focus: string;
 }
@@ -45,8 +46,7 @@ export interface ScheduleResult {
   statusMessage: string;
 }
 
-export interface SheetRow {
-  date: string;
+export interface PlayerNames {
   player1: string;
   player2: string;
   player3: string;
@@ -55,6 +55,21 @@ export interface SheetRow {
   sub1: string;
   sub2: string;
   coach: string;
+}
+
+export interface SheetData {
+  date: string;
+  players: {
+    player1: string;
+    player2: string;
+    player3: string;
+    player4: string;
+    player5: string;
+    sub1: string;
+    sub2: string;
+    coach: string;
+  };
+  names: PlayerNames;
   reason: string;
   focus: string;
 }

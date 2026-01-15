@@ -45,14 +45,3 @@ export const SHEET_COLUMNS = {
   REASON: 9,
   FOCUS: 10,
 };
-
-export const PLAYER_NAMES = {
-  [SHEET_COLUMNS.PLAYER_1]: 'Player 1',
-  [SHEET_COLUMNS.PLAYER_2]: 'Player 2',
-  [SHEET_COLUMNS.PLAYER_3]: 'Player 3',
-  [SHEET_COLUMNS.PLAYER_4]: 'Player 4',
-  [SHEET_COLUMNS.PLAYER_5]: 'Player 5',
-  [SHEET_COLUMNS.SUB_1]: 'Sub 1',
-  [SHEET_COLUMNS.SUB_2]: 'Sub 2',
-  [SHEET_COLUMNS.COACH]: 'Coach',
-};

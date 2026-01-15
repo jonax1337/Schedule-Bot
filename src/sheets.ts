@@ -4,7 +4,7 @@ import { resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import { config, SHEET_COLUMNS } from './config.js';
-import type { SheetRow } from './types.js';
+import type { SheetData, PlayerNames } from './types.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -62,7 +62,7 @@ function getTodayFormatted(): string {
   return `${day}.${month}.${year}`;
 }
 
-export async function getScheduleForDate(targetDate?: string): Promise<SheetRow | null> {
+export async function getScheduleForDate(targetDate?: string): Promise<SheetData | null> {
   const sheets = await getAuthenticatedClient();
   const dateToFind = targetDate ? formatDateForComparison(targetDate) : getTodayFormatted();
 
@@ -72,12 +72,25 @@ export async function getScheduleForDate(targetDate?: string): Promise<SheetRow 
   });
 
   const rows = response.data.values;
-  if (!rows || rows.length === 0) {
+  if (!rows || rows.length < 2) {
     console.log('No data found in sheet.');
     return null;
   }
 
-  // Skip header row (index 0) and search for the target date
+  // Read header row (index 0) for player names
+  const headerRow = rows[0];
+  const names: PlayerNames = {
+    player1: headerRow[SHEET_COLUMNS.PLAYER_1] || 'Player 1',
+    player2: headerRow[SHEET_COLUMNS.PLAYER_2] || 'Player 2',
+    player3: headerRow[SHEET_COLUMNS.PLAYER_3] || 'Player 3',
+    player4: headerRow[SHEET_COLUMNS.PLAYER_4] || 'Player 4',
+    player5: headerRow[SHEET_COLUMNS.PLAYER_5] || 'Player 5',
+    sub1: headerRow[SHEET_COLUMNS.SUB_1] || 'Sub 1',
+    sub2: headerRow[SHEET_COLUMNS.SUB_2] || 'Sub 2',
+    coach: headerRow[SHEET_COLUMNS.COACH] || 'Coach',
+  };
+
+  // Search for the target date starting from row 1
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
     if (!row || row.length === 0) continue;
@@ -87,14 +100,17 @@ export async function getScheduleForDate(targetDate?: string): Promise<SheetRow 
     if (rowDate === dateToFind) {
       return {
         date: row[SHEET_COLUMNS.DATE] || '',
-        player1: row[SHEET_COLUMNS.PLAYER_1] || '',
-        player2: row[SHEET_COLUMNS.PLAYER_2] || '',
-        player3: row[SHEET_COLUMNS.PLAYER_3] || '',
-        player4: row[SHEET_COLUMNS.PLAYER_4] || '',
-        player5: row[SHEET_COLUMNS.PLAYER_5] || '',
-        sub1: row[SHEET_COLUMNS.SUB_1] || '',
-        sub2: row[SHEET_COLUMNS.SUB_2] || '',
-        coach: row[SHEET_COLUMNS.COACH] || '',
+        players: {
+          player1: row[SHEET_COLUMNS.PLAYER_1] || '',
+          player2: row[SHEET_COLUMNS.PLAYER_2] || '',
+          player3: row[SHEET_COLUMNS.PLAYER_3] || '',
+          player4: row[SHEET_COLUMNS.PLAYER_4] || '',
+          player5: row[SHEET_COLUMNS.PLAYER_5] || '',
+          sub1: row[SHEET_COLUMNS.SUB_1] || '',
+          sub2: row[SHEET_COLUMNS.SUB_2] || '',
+          coach: row[SHEET_COLUMNS.COACH] || '',
+        },
+        names,
         reason: row[SHEET_COLUMNS.REASON] || '',
         focus: row[SHEET_COLUMNS.FOCUS] || '',
       };

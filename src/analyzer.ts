@@ -1,6 +1,5 @@
-import { PLAYER_NAMES, SHEET_COLUMNS } from './config.js';
 import type {
-  SheetRow,
+  SheetData,
   TimeRange,
   PlayerAvailability,
   CoachAvailability,
@@ -103,30 +102,33 @@ function parseCoachAvailability(value: string): CoachAvailability {
   };
 }
 
-export function parseSchedule(row: SheetRow): DaySchedule {
+export function parseSchedule(data: SheetData): DaySchedule {
+  const { players, names } = data;
+
   const mainPlayers: PlayerAvailability[] = [
-    parsePlayerAvailability(row.player1, PLAYER_NAMES[SHEET_COLUMNS.PLAYER_1], true),
-    parsePlayerAvailability(row.player2, PLAYER_NAMES[SHEET_COLUMNS.PLAYER_2], true),
-    parsePlayerAvailability(row.player3, PLAYER_NAMES[SHEET_COLUMNS.PLAYER_3], true),
-    parsePlayerAvailability(row.player4, PLAYER_NAMES[SHEET_COLUMNS.PLAYER_4], true),
-    parsePlayerAvailability(row.player5, PLAYER_NAMES[SHEET_COLUMNS.PLAYER_5], true),
+    parsePlayerAvailability(players.player1, names.player1, true),
+    parsePlayerAvailability(players.player2, names.player2, true),
+    parsePlayerAvailability(players.player3, names.player3, true),
+    parsePlayerAvailability(players.player4, names.player4, true),
+    parsePlayerAvailability(players.player5, names.player5, true),
   ];
 
   const subs: PlayerAvailability[] = [
-    parsePlayerAvailability(row.sub1, PLAYER_NAMES[SHEET_COLUMNS.SUB_1], false),
-    parsePlayerAvailability(row.sub2, PLAYER_NAMES[SHEET_COLUMNS.SUB_2], false),
+    parsePlayerAvailability(players.sub1, names.sub1, false),
+    parsePlayerAvailability(players.sub2, names.sub2, false),
   ];
 
-  const coach = parseCoachAvailability(row.coach);
+  const coach = parseCoachAvailability(players.coach);
 
   return {
-    date: row.date,
-    dateFormatted: row.date,
+    date: data.date,
+    dateFormatted: data.date,
     mainPlayers,
     subs,
     coach,
-    reason: row.reason,
-    focus: row.focus,
+    coachName: names.coach,
+    reason: data.reason,
+    focus: data.focus,
   };
 }
 
