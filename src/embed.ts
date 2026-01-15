@@ -22,8 +22,8 @@ export function buildScheduleEmbed(result: ScheduleResult): EmbedBuilder {
   // Off-Day
   if (status === 'OFF_DAY') {
     return new EmbedBuilder()
-      .setTitle(`📅 ${schedule.dateFormatted}`)
-      .setDescription('🏖️ **Off-Day** — No practice today.')
+      .setTitle(schedule.dateFormatted)
+      .setDescription('**Off-Day** — No practice today.')
       .setColor(COLORS.OFF_DAY)
       .setFooter({ text: 'Schedule Bot' })
       .setTimestamp();
@@ -31,42 +31,35 @@ export function buildScheduleEmbed(result: ScheduleResult): EmbedBuilder {
 
   const embed = new EmbedBuilder()
     .setColor(canProceed ? (status === 'FULL_ROSTER' ? COLORS.SUCCESS : COLORS.WARNING) : COLORS.ERROR)
-    .setTitle(`📅 ${schedule.dateFormatted}`)
+    .setTitle(schedule.dateFormatted)
     .setFooter({ text: 'Schedule Bot' })
     .setTimestamp();
 
   // Reason & Focus
   if (schedule.reason || schedule.focus) {
-    const parts = [];
-    if (schedule.reason) parts.push(`📋 ${schedule.reason}`);
-    if (schedule.focus) parts.push(`🎯 ${schedule.focus}`);
-    embed.setDescription(parts.join('  •  '));
+    let desc = '';
+    if (schedule.reason) desc += `**Reason:** ${schedule.reason}`;
+    if (schedule.focus) desc += `\n**Focus:** ${schedule.focus}`;
+    embed.setDescription(desc);
   }
 
-  // Main Roster - split into two columns
-  const mainLeft = schedule.mainPlayers.slice(0, 3).map(formatPlayer).join('\n');
-  const mainRight = schedule.mainPlayers.slice(3).map(formatPlayer).join('\n');
+  // Main Roster
+  const mainLines = schedule.mainPlayers.map(formatPlayer).join('\n');
+  embed.addFields({ name: 'Main Roster', value: mainLines, inline: false });
 
-  embed.addFields(
-    { name: 'Main Roster', value: mainLeft, inline: true },
-    { name: '\u200B', value: mainRight, inline: true },
-    { name: '\u200B', value: '\u200B', inline: false },
-  );
-
-  // Subs & Coach side by side
+  // Subs
   const subLines = schedule.subs.map(p => {
     const line = formatPlayer(p);
     return result.requiredSubs.includes(p.name) ? line + ' 🔄' : line;
   }).join('\n');
+  embed.addFields({ name: 'Subs', value: subLines || '—', inline: false });
 
+  // Coach
   const coachLine = schedule.coach.available && schedule.coach.timeRange
     ? `✅ ${schedule.coachName} \`${schedule.coach.timeRange.start} - ${schedule.coach.timeRange.end}\``
     : `❌ ~~${schedule.coachName}~~`;
 
-  embed.addFields(
-    { name: 'Subs', value: subLines || '—', inline: true },
-    { name: 'Coach', value: coachLine, inline: true },
-  );
+  embed.addFields({ name: 'Coach', value: coachLine, inline: false });
 
   // Status
   let statusText = '';
