@@ -124,7 +124,7 @@ async function handleScheduleCommand(interaction: ChatInputCommandInteraction): 
     const result = analyzeSchedule(schedule);
     const embed = buildScheduleEmbed(result);
 
-    const navigationButtons = createDateNavigationButtons(displayDate);
+    const navigationButtons = await createDateNavigationButtons(displayDate);
 
     await interaction.editReply({ 
       embeds: [embed],
@@ -154,9 +154,7 @@ async function handleAvailabilityCommand(interaction: ChatInputCommandInteractio
     const dateSelectMenu = await createDateSelectMenu();
 
     await interaction.editReply({
-      content: `Hello **${userMapping.sheetColumnName}**!
-
-Select a date to set your availability:`,
+      content: 'Select a date to set your availability:',
       components: [dateSelectMenu],
     });
   } catch (error) {

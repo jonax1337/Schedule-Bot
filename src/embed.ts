@@ -104,8 +104,7 @@ export function buildScheduleEmbed(result: ScheduleResult): EmbedBuilder {
 
   if (commonTimeRange && canProceed) {
     const duration = getOverlapDuration(commonTimeRange);
-    const unixTimestamp = convertUKTimeToUnixTimestamp(schedule.date, commonTimeRange.start);
-    statusText += `\n⏰ Start: <t:${unixTimestamp}:t> (${duration}h)`;
+    statusText += `\n⏰ ${commonTimeRange.start}-${commonTimeRange.end} (${duration}h)`;
   }
 
   embed.addFields({ name: 'Status', value: statusText, inline: false });

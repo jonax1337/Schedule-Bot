@@ -3,10 +3,19 @@ import { getUserMappings } from './userMapping.js';
 import { getScheduleForDate } from './sheets.js';
 import { createAvailabilityButtons } from './interactive.js';
 
+function normalizeDateFormat(dateStr: string): string {
+  const match = dateStr.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (!match) return dateStr;
+
+  const [, day, month, year] = match;
+  return `${day.padStart(2, '0')}.${month.padStart(2, '0')}.${year}`;
+}
+
 export async function sendRemindersToUsersWithoutEntry(client: Client, date?: string): Promise<void> {
   const targetDate = date || new Date().toLocaleDateString('de-DE');
+  const normalizedDate = normalizeDateFormat(targetDate);
   
-  console.log(`Checking for users without availability entry for ${targetDate}...`);
+  console.log(`Checking for users without availability entry for ${normalizedDate}...`);
 
   try {
     const userMappings = await getUserMappings();
@@ -58,7 +67,7 @@ export async function sendRemindersToUsersWithoutEntry(client: Client, date?: st
           const user = await client.users.fetch(mapping.discordId);
           
           await user.send({
-            content: `⏰ **Reminder: Availability for ${targetDate}**\n\n` +
+            content: `⏰ **Reminder: Availability for ${normalizedDate}**\n\n` +
                      `Hey **${mapping.sheetColumnName}**! You haven't set your availability for today yet.\n\n` +
                      `Please set your availability now:`,
             components: [createAvailabilityButtons(targetDate)],

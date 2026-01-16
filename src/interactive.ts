@@ -18,23 +18,42 @@ import { getScheduleForDate } from './sheets.js';
 import { parseSchedule, analyzeSchedule } from './analyzer.js';
 import { buildScheduleEmbed } from './embed.js';
 
-export function createDateNavigationButtons(currentDate: string): ActionRowBuilder<ButtonBuilder> {
+export async function createDateNavigationButtons(currentDate: string): Promise<ActionRowBuilder<ButtonBuilder>> {
   const prevDate = getAdjacentDate(currentDate, -1);
   const nextDate = getAdjacentDate(currentDate, 1);
+  const today = new Date().toLocaleDateString('de-DE');
+
+  // Get available dates from sheet
+  const availableDates = await getAvailableDates();
+  
+  // Normalize all dates to DD.MM.YYYY format with leading zeros
+  const normalizedAvailableDates = availableDates.map(d => normalizeDateFormat(d.trim()));
+  const normalizedPrevDate = normalizeDateFormat(prevDate);
+  const normalizedNextDate = normalizeDateFormat(nextDate);
+  const normalizedCurrentDate = normalizeDateFormat(currentDate);
+  const normalizedToday = normalizeDateFormat(today);
+  
+  // Check if prev/next dates are available
+  const canGoPrev = normalizedAvailableDates.includes(normalizedPrevDate) && isDateAfterOrEqual(normalizedPrevDate, normalizedToday);
+  const canGoNext = normalizedAvailableDates.includes(normalizedNextDate);
+  const isToday = normalizedCurrentDate === normalizedToday;
 
   return new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder()
       .setCustomId(`schedule_prev_${prevDate}`)
       .setLabel('← Previous Day')
-      .setStyle(ButtonStyle.Secondary),
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(!canGoPrev),
     new ButtonBuilder()
       .setCustomId('schedule_today')
       .setLabel('Today')
-      .setStyle(ButtonStyle.Primary),
+      .setStyle(ButtonStyle.Primary)
+      .setDisabled(isToday),
     new ButtonBuilder()
       .setCustomId(`schedule_next_${nextDate}`)
       .setLabel('Next Day →')
       .setStyle(ButtonStyle.Secondary)
+      .setDisabled(!canGoNext)
   );
 }
 
@@ -42,11 +61,11 @@ export function createAvailabilityButtons(date: string): ActionRowBuilder<Button
   return new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder()
       .setCustomId(`set_custom_${date}`)
-      .setLabel('⏰ Set Time')
+      .setLabel('Available')
       .setStyle(ButtonStyle.Success),
     new ButtonBuilder()
       .setCustomId(`set_unavailable_${date}`)
-      .setLabel('❌ Not Available')
+      .setLabel('Not Available')
       .setStyle(ButtonStyle.Danger)
   );
 }
@@ -124,7 +143,7 @@ export async function handleDateNavigation(
   const result = analyzeSchedule(schedule);
   const embed = buildScheduleEmbed(result);
 
-  const navigationButtons = createDateNavigationButtons(targetDate);
+  const navigationButtons = await createDateNavigationButtons(targetDate);
 
   await interaction.editReply({
     embeds: [embed],
@@ -340,4 +359,29 @@ function getAdjacentDate(dateStr: string, offset: number): string {
 function validateTimeFormat(time: string): boolean {
   const regex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
   return regex.test(time);
+}
+
+function isDateAfterOrEqual(dateStr1: string, dateStr2: string): boolean {
+  const date1 = parseDateString(dateStr1);
+  const date2 = parseDateString(dateStr2);
+  
+  if (!date1 || !date2) return false;
+  
+  return date1 >= date2;
+}
+
+function parseDateString(dateStr: string): Date | null {
+  const match = dateStr.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (!match) return null;
+
+  const [, day, month, year] = match;
+  return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+}
+
+function normalizeDateFormat(dateStr: string): string {
+  const match = dateStr.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (!match) return dateStr;
+
+  const [, day, month, year] = match;
+  return `${day.padStart(2, '0')}.${month.padStart(2, '0')}.${year}`;
 }
