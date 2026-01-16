@@ -29,6 +29,7 @@ export const config = {
   scheduling: {
     dailyPostTime: process.env.DAILY_POST_TIME || '10:00',
     timezone: process.env.TIMEZONE || 'Europe/Berlin',
+    reminderHoursBefore: parseInt(process.env.REMINDER_HOURS_BEFORE || '3', 10),
   },
 };
 

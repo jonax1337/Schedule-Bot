@@ -64,11 +64,11 @@ export function startScheduler(): void {
 
   console.log('Cleanup scheduler started successfully.');
 
-  // Reminder job 3 hours before daily post
-  const reminderTime = calculateReminderTime(hour, minute);
+  // Reminder job X hours before daily post
+  const reminderTime = calculateReminderTime(hour, minute, config.scheduling.reminderHoursBefore);
   const reminderCronExpression = `${reminderTime.minute} ${reminderTime.hour} * * *`;
 
-  console.log(`Setting up daily reminder at ${reminderTime.hour}:${String(reminderTime.minute).padStart(2, '0')} (3h before post)`);
+  console.log(`Setting up daily reminder at ${reminderTime.hour}:${String(reminderTime.minute).padStart(2, '0')} (${config.scheduling.reminderHoursBefore}h before post)`);
   console.log(`Reminder cron expression: ${reminderCronExpression}`);
 
   reminderTask = cron.schedule(
@@ -108,8 +108,8 @@ export function stopScheduler(): void {
   }
 }
 
-function calculateReminderTime(postHour: number, postMinute: number): { hour: number; minute: number } {
-  let reminderHour = postHour - 3;
+function calculateReminderTime(postHour: number, postMinute: number, hoursBefore: number): { hour: number; minute: number } {
+  let reminderHour = postHour - hoursBefore;
   let reminderMinute = postMinute;
 
   // Handle negative hours (e.g., 02:00 - 3h = 23:00 previous day)

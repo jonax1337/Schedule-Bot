@@ -87,9 +87,10 @@ export async function createDateSelectMenu(): Promise<ActionRowBuilder<StringSel
 }
 
 export function createTimeInputModal(date: string): ModalBuilder {
+  const normalizedDate = normalizeDateFormat(date);
   return new ModalBuilder()
     .setCustomId(`time_modal_${date}`)
-    .setTitle(`Availability for ${date}`)
+    .setTitle(`Availability for ${normalizedDate}`)
     .addComponents(
       new ActionRowBuilder<TextInputBuilder>().addComponents(
         new TextInputBuilder()
@@ -229,8 +230,9 @@ export async function handleTimeModal(
   const success = await updatePlayerAvailability(date, userMapping.sheetColumnName, timeRange);
 
   if (success) {
+    const normalizedDate = normalizeDateFormat(date);
     await interaction.editReply({
-      content: `✅ Your availability for ${date} has been set to ${timeRange}.`,
+      content: `✅ Your availability for ${normalizedDate} has been set to ${timeRange}.`,
     });
   } else {
     await interaction.editReply({

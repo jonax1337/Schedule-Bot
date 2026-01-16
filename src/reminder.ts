@@ -67,9 +67,7 @@ export async function sendRemindersToUsersWithoutEntry(client: Client, date?: st
           const user = await client.users.fetch(mapping.discordId);
           
           await user.send({
-            content: `⏰ **Reminder: Availability for ${normalizedDate}**\n\n` +
-                     `Hey **${mapping.sheetColumnName}**! You haven't set your availability for today yet.\n\n` +
-                     `Please set your availability now:`,
+            content: `⏰ **Reminder: Availability for ${normalizedDate}**\n\nYou haven't set your availability yet.`,
             components: [createAvailabilityButtons(targetDate)],
           });
 
@@ -90,11 +88,10 @@ export async function sendRemindersToUsersWithoutEntry(client: Client, date?: st
 export async function sendReminderToUser(client: Client, userId: string, date: string): Promise<boolean> {
   try {
     const user = await client.users.fetch(userId);
+    const normalizedDate = normalizeDateFormat(date);
     
     await user.send({
-      content: `⏰ **Reminder: Availability for ${date}**\n\n` +
-               `You haven't set your availability yet.\n\n` +
-               `Please set your availability now:`,
+      content: `⏰ **Reminder: Availability for ${normalizedDate}**\n\nYou haven't set your availability yet.`,
       components: [createAvailabilityButtons(date)],
     });
 
