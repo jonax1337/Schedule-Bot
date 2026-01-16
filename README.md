@@ -4,12 +4,28 @@ Discord Bot der Google Sheets Daten ausliest und Team-Verfuegbarkeit fuer Valora
 
 ## Features
 
+### 📊 Schedule Management
 - Liest Spieler-Verfuegbarkeit aus Google Sheets
 - Analysiert ob genuegend Spieler (5+) verfuegbar sind
 - Berechnet gemeinsame verfuegbare Zeit
 - Erkennt Off-Days automatisch
 - Taegliche automatische Posts zu konfigurierbarer Uhrzeit
-- `/schedule` Slash-Command fuer manuelles Abrufen
+
+### 🎮 Interaktive Discord-Integration (NEU!)
+- **Verfuegbarkeit direkt in Discord setzen** - Keine manuelle Sheet-Bearbeitung mehr noetig
+- **Interaktive Buttons & Modals** - Benutzerfreundliche Zeit-Eingabe
+- **DM-basiertes System** - Alle Verfuegbarkeitsabfragen per Direct Message
+- **Navigation zwischen Tagen** - Mit Buttons durch den Kalender navigieren
+- **Wochenuebersicht** - Kompakte Ansicht der naechsten 7 Tage
+- **Persoenliche Uebersicht** - Jeder Spieler sieht seine eigenen Eintraege
+
+### 💬 Slash-Commands
+- `/schedule [datum]` - Zeigt Verfuegbarkeit mit Navigation-Buttons
+- `/availability` - Setze deine Verfuegbarkeit interaktiv (per DM)
+- `/schedule-week` - Wochenuebersicht (per DM)
+- `/my-schedule` - Deine persoenliche Verfuegbarkeit (per DM)
+- `/register` - Registriere User fuer interaktives System (Admin)
+- `/unregister` - Entferne User aus dem System (Admin)
 
 ## Setup
 
@@ -73,7 +89,18 @@ Discord Bot der Google Sheets Daten ausliest und Team-Verfuegbarkeit fuer Valora
 
    **Role ID finden:** Rechtsklick auf die Rolle in den Server-Einstellungen > "Copy Role ID"
 
-### 5. Google Sheet Format
+### 5. User-Mapping Setup (NEU!)
+
+Fuer die interaktiven Features benoetigt der Bot ein zusaetzliches Tab im Google Sheet:
+
+1. Oeffne dein Google Sheet
+2. Erstelle ein neues Tab namens **"UserMapping"**
+3. Das Tab wird automatisch beim Bot-Start initialisiert, falls es nicht existiert
+4. Registriere Spieler mit `/register @user Spielername main` (siehe INTERACTIVE_GUIDE.md)
+
+**Wichtig:** Der Spaltenname bei `/register` muss exakt mit dem Header im Sheet uebereinstimmen!
+
+### 6. Google Sheet Format
 
 Dein Google Sheet muss folgende Spalten haben (in dieser Reihenfolge):
 
@@ -116,12 +143,23 @@ npm run dev
 
 ## Verwendung
 
-### Slash-Command
+### Interaktive Commands (NEU!)
 
+**Fuer alle Spieler:**
 ```
-/schedule           - Zeigt heutige Verfuegbarkeit
-/schedule 16.01.2026 - Zeigt Verfuegbarkeit fuer bestimmtes Datum
+/schedule [datum]    - Zeigt Verfuegbarkeit mit Navigation-Buttons
+/availability        - Setze deine Verfuegbarkeit (oeffnet DM)
+/schedule-week       - Zeigt naechste 7 Tage (per DM)
+/my-schedule         - Deine persoenliche Uebersicht (per DM)
 ```
+
+**Fuer Admins:**
+```
+/register @user Spielername main  - Registriere User
+/unregister @user                 - Entferne User
+```
+
+**Detaillierte Anleitung:** Siehe [INTERACTIVE_GUIDE.md](INTERACTIVE_GUIDE.md)
 
 ### Automatische Posts
 
@@ -132,16 +170,21 @@ Der Bot postet jeden Tag zur konfigurierten Zeit automatisch die Verfuegbarkeit 
 ```
 schedule-bot/
 ├── src/
-│   ├── index.ts      # Entry point
-│   ├── bot.ts        # Discord Bot & Commands
-│   ├── sheets.ts     # Google Sheets Integration
-│   ├── scheduler.ts  # Cron Job
-│   ├── analyzer.ts   # Verfuegbarkeits-Logik
-│   ├── embed.ts      # Discord Embed Builder
-│   ├── types.ts      # TypeScript Interfaces
-│   └── config.ts     # Konfiguration
+│   ├── index.ts         # Entry point
+│   ├── bot.ts           # Discord Bot & Commands
+│   ├── sheets.ts        # Google Sheets Integration
+│   ├── sheetUpdater.ts  # Google Sheets Update-Funktionen (NEU!)
+│   ├── userMapping.ts   # User-Registrierung System (NEU!)
+│   ├── interactive.ts   # Interaktive Components (NEU!)
+│   ├── scheduler.ts     # Cron Job
+│   ├── analyzer.ts      # Verfuegbarkeits-Logik
+│   ├── embed.ts         # Discord Embed Builder
+│   ├── types.ts         # TypeScript Interfaces
+│   └── config.ts        # Konfiguration
 ├── .env.example
-├── credentials.json  # Google Service Account Key (nicht committen!)
+├── credentials.json     # Google Service Account Key (nicht committen!)
+├── README.md
+├── INTERACTIVE_GUIDE.md # Detaillierte Anleitung fuer interaktive Features (NEU!)
 ├── package.json
 └── tsconfig.json
 ```

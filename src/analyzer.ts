@@ -146,7 +146,7 @@ export function analyzeSchedule(schedule: DaySchedule): ScheduleResult {
       requiredSubs: [],
       commonTimeRange: null,
       canProceed: false,
-      statusMessage: 'Heute ist Off-Day - kein Training geplant.',
+      statusMessage: 'Off-Day - no practice scheduled.',
     };
   }
 
@@ -168,7 +168,7 @@ export function analyzeSchedule(schedule: DaySchedule): ScheduleResult {
     // Full roster available
     status = 'FULL_ROSTER';
     canProceed = true;
-    statusMessage = 'Volles Main-Roster verfuegbar!';
+    statusMessage = 'Full main roster available!';
     allAvailableRanges = availableMains
       .filter(p => p.timeRange)
       .map(p => p.timeRange!);
@@ -180,7 +180,7 @@ export function analyzeSchedule(schedule: DaySchedule): ScheduleResult {
       status = 'WITH_SUBS';
       canProceed = true;
       requiredSubs = availableSubs.slice(0, neededSubs).map(p => p.name);
-      statusMessage = `Mit Subs (${unavailableMainNames.join(', ')} nicht verfuegbar)`;
+      statusMessage = `With subs (${unavailableMainNames.join(', ')} not available)`;
 
       // Calculate overlapping time with mains + required subs
       const subsToInclude = availableSubs.slice(0, neededSubs);
@@ -193,7 +193,7 @@ export function analyzeSchedule(schedule: DaySchedule): ScheduleResult {
       status = 'NOT_ENOUGH';
       canProceed = false;
       const totalAvailable = availableMainCount + availableSubCount;
-      statusMessage = `Nicht genuegend Spieler (${totalAvailable}/${REQUIRED_PLAYERS})`;
+      statusMessage = `Not enough players (${totalAvailable}/${REQUIRED_PLAYERS})`;
     }
   }
 

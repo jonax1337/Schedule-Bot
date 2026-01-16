@@ -68,7 +68,7 @@ export function buildScheduleEmbed(result: ScheduleResult): EmbedBuilder {
   const mainLines = schedule.mainPlayers.map(formatPlayer).join('\n');
   embed.addFields({ name: 'Main Roster', value: mainLines, inline: false });
 
-  // Subs - nur Subs anzeigen, die entweder eine Zeit haben oder einen angepassten Namen
+  // Subs - only show subs that either have a time or a custom name
   const visibleSubs = schedule.subs.filter(p =>
     p.timeRange !== null || (p.name !== 'Sub1' && p.name !== 'Sub2')
   );
@@ -81,7 +81,7 @@ export function buildScheduleEmbed(result: ScheduleResult): EmbedBuilder {
     embed.addFields({ name: 'Subs', value: subLines || '—', inline: false });
   }
 
-  // Coach - nur anzeigen, wenn Zeit eingetragen ist oder Name angepasst wurde
+  // Coach - only show if time is entered or name is customized
   const shouldShowCoach = schedule.coach.timeRange !== null || schedule.coachName !== 'Coach';
 
   if (shouldShowCoach) {
