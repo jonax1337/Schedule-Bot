@@ -23,17 +23,36 @@ function formatPlayer(player: PlayerAvailability): string {
 function convertTimeToUnixTimestamp(date: string, time: string, timezone: string): number {
   // date format: "DD.MM.YYYY"
   // time format: "HH:MM"
+  // timezone: IANA timezone string (e.g., "Europe/London", "Europe/Berlin", "America/New_York")
+  
   const [day, month, year] = date.split('.').map(Number);
   const [hours, minutes] = time.split(':').map(Number);
 
-  // Create date string in ISO format
+  // Create a date string in ISO format for the given timezone
   const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
   
-  // Parse as local time in the configured timezone
-  // Note: This assumes the times in the sheet are in the bot's configured timezone
+  // Use Intl API to get the timezone offset for the specific date/time
+  // This automatically handles DST (Daylight Saving Time) for any timezone
   const localDate = new Date(dateStr);
   
-  return Math.floor(localDate.getTime() / 1000);
+  // Get the offset in minutes for the configured timezone at this specific date/time
+  const timezoneOffset = getTimezoneOffset(localDate, timezone);
+  
+  // Convert to UTC by subtracting the timezone offset
+  const utcTimestamp = localDate.getTime() - (timezoneOffset * 60 * 1000);
+  
+  return Math.floor(utcTimestamp / 1000);
+}
+
+function getTimezoneOffset(date: Date, timezone: string): number {
+  // Get the time in the specified timezone
+  const tzDate = new Date(date.toLocaleString('en-US', { timeZone: timezone }));
+  
+  // Get the time in UTC
+  const utcDate = new Date(date.toLocaleString('en-US', { timeZone: 'UTC' }));
+  
+  // Calculate offset in minutes
+  return (tzDate.getTime() - utcDate.getTime()) / (60 * 1000);
 }
 
 export function buildScheduleEmbed(result: ScheduleResult): EmbedBuilder {

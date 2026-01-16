@@ -94,11 +94,38 @@ A Discord bot that reads Google Sheets data and manages team availability for Va
    GOOGLE_SHEET_ID=your_sheet_id
    GOOGLE_CREDENTIALS_PATH=./credentials.json
    DAILY_POST_TIME=12:00                       # Time for daily post (HH:MM)
-   TIMEZONE=Europe/London                      # Your timezone
+   TIMEZONE=Europe/London                      # IANA timezone (see below)
    REMINDER_HOURS_BEFORE=3                     # Hours before post to send reminders
    ```
 
    **Find Role ID:** Right-click on the role in server settings > "Copy Role ID"
+
+#### Important: Timezone Configuration
+
+The `TIMEZONE` setting is **critical** for correct time display:
+
+- **All times in your Google Sheet must be in this timezone**
+- Use IANA timezone format (e.g., `Europe/London`, `America/New_York`)
+- Discord will automatically convert times to each user's local timezone
+
+**Common Timezones:**
+- `Europe/London` - United Kingdom (GMT/BST)
+- `Europe/Berlin` - Germany, most of EU (CET/CEST)
+- `Europe/Paris` - France (CET/CEST)
+- `America/New_York` - US East Coast (EST/EDT)
+- `America/Chicago` - US Central (CST/CDT)
+- `America/Los_Angeles` - US West Coast (PST/PDT)
+- `Asia/Tokyo` - Japan (JST)
+- `Australia/Sydney` - Australia East (AEDT/AEST)
+
+**Full list:** [IANA Time Zone Database](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones)
+
+**Example:**
+- You set `TIMEZONE=Europe/London`
+- You enter `15:30-22:00` in the sheet (London time)
+- User in Berlin sees: `16:30-23:00` ✅
+- User in New York sees: `10:30-17:00` ✅
+- User in Tokyo sees: `00:30-07:00` (next day) ✅
 
 ### 5. User Mapping Setup
 
@@ -248,6 +275,12 @@ All personal commands (`/schedule`, `/availability`, `/my-schedule`, etc.) are e
 - Coaches are excluded from reminders
 - Beautiful embed format with action buttons
 
+### Timezone Handling
+- All times in the Google Sheet are in the configured `TIMEZONE`
+- Discord automatically converts times to each user's local timezone
+- Automatically handles Daylight Saving Time (DST) transitions
+- Works with any IANA timezone (Europe/London, America/New_York, etc.)
+
 ## Troubleshooting
 
 ### Bot doesn't respond to commands
@@ -264,3 +297,9 @@ All personal commands (`/schedule`, `/availability`, `/my-schedule`, etc.) are e
 - Check `REMINDER_HOURS_BEFORE` and `DAILY_POST_TIME` in `.env`
 - Verify users are registered with `/register`
 - Ensure bot can send DMs to users (users must share a server with the bot)
+
+### Times showing incorrectly
+- Verify `TIMEZONE` in `.env` matches the timezone you use in the Google Sheet
+- All times in the sheet must be in the same timezone as configured
+- Discord timestamps automatically convert to user's local timezone
+- Check if DST (Daylight Saving Time) is active in your timezone
