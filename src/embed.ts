@@ -20,17 +20,20 @@ function formatPlayer(player: PlayerAvailability): string {
   return `❌ ~~${player.name}~~`;
 }
 
-function convertUKTimeToUnixTimestamp(date: string, time: string): number {
-  // date format: "DD.MM.YYYY" or similar
+function convertTimeToUnixTimestamp(date: string, time: string, timezone: string): number {
+  // date format: "DD.MM.YYYY"
   // time format: "HH:MM"
   const [day, month, year] = date.split('.').map(Number);
   const [hours, minutes] = time.split(':').map(Number);
 
-  // Create date in UK timezone (UTC+0 or UTC+1 depending on DST)
-  // Using UTC as baseline for UK time
-  const ukDate = new Date(Date.UTC(year, month - 1, day, hours, minutes));
-
-  return Math.floor(ukDate.getTime() / 1000);
+  // Create date string in ISO format
+  const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
+  
+  // Parse as local time in the configured timezone
+  // Note: This assumes the times in the sheet are in the bot's configured timezone
+  const localDate = new Date(dateStr);
+  
+  return Math.floor(localDate.getTime() / 1000);
 }
 
 export function buildScheduleEmbed(result: ScheduleResult): EmbedBuilder {
@@ -102,7 +105,9 @@ export function buildScheduleEmbed(result: ScheduleResult): EmbedBuilder {
 
   if (commonTimeRange && canProceed) {
     const duration = getOverlapDuration(commonTimeRange);
-    statusText += `\n⏰ ${commonTimeRange.start}-${commonTimeRange.end} (${duration}h)`;
+    const startTimestamp = convertTimeToUnixTimestamp(schedule.date, commonTimeRange.start, config.scheduling.timezone);
+    const endTimestamp = convertTimeToUnixTimestamp(schedule.date, commonTimeRange.end, config.scheduling.timezone);
+    statusText += `\n⏰ <t:${startTimestamp}:t> - <t:${endTimestamp}:t> (${duration}h)`;
   }
 
   embed.addFields({ name: 'Status', value: statusText, inline: false });
