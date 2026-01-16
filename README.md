@@ -41,42 +41,42 @@ A Discord bot that reads Google Sheets data and manages team availability for Va
 
 ### 1. Google Cloud Setup
 
-1. Gehe zu [Google Cloud Console](https://console.cloud.google.com/)
-2. Erstelle ein neues Projekt (oder waehle ein bestehendes)
-3. Aktiviere die **Google Sheets API**:
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project (or select an existing one)
+3. Enable the **Google Sheets API**:
    - Navigation Menu > APIs & Services > Library
-   - Suche nach "Google Sheets API" und aktiviere sie
-4. Erstelle einen Service Account:
+   - Search for "Google Sheets API" and enable it
+4. Create a Service Account:
    - Navigation Menu > APIs & Services > Credentials
    - Create Credentials > Service Account
-   - Gib einen Namen ein und klicke auf "Create and Continue"
-   - Ueberspringe die optionalen Schritte
-5. Erstelle einen JSON Key:
-   - Klicke auf den erstellten Service Account
+   - Enter a name and click "Create and Continue"
+   - Skip the optional steps
+5. Create a JSON Key:
+   - Click on the created Service Account
    - Keys > Add Key > Create new key > JSON
-   - Die Datei wird heruntergeladen
-6. Speichere die JSON-Datei als `credentials.json` im Projektordner
-7. **Wichtig:** Teile dein Google Sheet mit der Service Account E-Mail (zu finden in der JSON-Datei unter `client_email`)
+   - The file will be downloaded
+6. Save the JSON file as `credentials.json` in the project folder
+7. **Important:** Share your Google Sheet with the Service Account email (found in the JSON file under `client_email`)
 
 ### 2. Discord Bot Setup
 
-1. Gehe zum [Discord Developer Portal](https://discord.com/developers/applications)
-2. Klicke auf "New Application" und gib einen Namen ein
-3. Gehe zu "Bot" in der Seitenleiste
-4. Klicke auf "Reset Token" und kopiere den Token
-5. Aktiviere unter "Privileged Gateway Intents" nichts (nicht benoetigt)
-6. Gehe zu "OAuth2" > "URL Generator"
-7. Waehle Scopes: `bot`, `applications.commands`
-8. Waehle Bot Permissions: `Send Messages`, `Embed Links`, `Mention Everyone` (fuer Rollen-Ping)
-9. Kopiere die generierte URL und oeffne sie im Browser, um den Bot zu deinem Server hinzuzufuegen
+1. Go to the [Discord Developer Portal](https://discord.com/developers/applications)
+2. Click "New Application" and enter a name
+3. Go to "Bot" in the sidebar
+4. Click "Reset Token" and copy the token
+5. Under "Privileged Gateway Intents" enable nothing (not required)
+6. Go to "OAuth2" > "URL Generator"
+7. Select Scopes: `bot`, `applications.commands`
+8. Select Bot Permissions: `Send Messages`, `Embed Links`, `Mention Everyone` (for role ping)
+9. Copy the generated URL and open it in your browser to add the bot to your server
 
-### 3. IDs finden
+### 3. Finding IDs
 
-- **Guild ID (Server ID):** Rechtsklick auf den Server > "Copy Server ID"
-- **Channel ID:** Rechtsklick auf den Channel > "Copy Channel ID"
-- **Sheet ID:** Aus der Google Sheets URL: `https://docs.google.com/spreadsheets/d/SHEET_ID_HIER/edit`
+- **Guild ID (Server ID):** Right-click on the server > "Copy Server ID"
+- **Channel ID:** Right-click on the channel > "Copy Channel ID"
+- **Sheet ID:** From the Google Sheets URL: `https://docs.google.com/spreadsheets/d/SHEET_ID_HERE/edit`
 
-(Aktiviere zuerst den Developer Mode in Discord: Einstellungen > App Settings > Advanced > Developer Mode)
+(First enable Developer Mode in Discord: Settings > App Settings > Advanced > Developer Mode)
 
 ### 4. Configuration
 
