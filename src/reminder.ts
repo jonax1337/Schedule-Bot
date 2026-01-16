@@ -1,4 +1,4 @@
-import { Client, User } from 'discord.js';
+import { Client, User, EmbedBuilder } from 'discord.js';
 import { getUserMappings } from './userMapping.js';
 import { getScheduleForDate } from './sheets.js';
 import { createAvailabilityButtons } from './interactive.js';
@@ -66,8 +66,14 @@ export async function sendRemindersToUsersWithoutEntry(client: Client, date?: st
         try {
           const user = await client.users.fetch(mapping.discordId);
           
+          const embed = new EmbedBuilder()
+            .setColor(0xf39c12)
+            .setTitle('⏰ Availability Reminder')
+            .setDescription(`You haven't set your availability for **${normalizedDate}** yet.\n\nPlease set your availability using the buttons below.`)
+            .setTimestamp();
+
           await user.send({
-            content: `⏰ **Reminder: Availability for ${normalizedDate}**\n\nYou haven't set your availability yet.`,
+            embeds: [embed],
             components: [createAvailabilityButtons(targetDate)],
           });
 
@@ -90,8 +96,15 @@ export async function sendReminderToUser(client: Client, userId: string, date: s
     const user = await client.users.fetch(userId);
     const normalizedDate = normalizeDateFormat(date);
     
+    const embed = new EmbedBuilder()
+      .setColor(0xf39c12)
+      .setTitle('⏰ Availability Reminder')
+      .setDescription(`You haven't set your availability for **${normalizedDate}** yet.\n\nPlease set your availability using the buttons below.`)
+      .setFooter({ text: 'Schedule Bot' })
+      .setTimestamp();
+
     await user.send({
-      content: `⏰ **Reminder: Availability for ${normalizedDate}**\n\nYou haven't set your availability yet.`,
+      embeds: [embed],
       components: [createAvailabilityButtons(date)],
     });
 

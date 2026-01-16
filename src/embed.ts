@@ -44,7 +44,6 @@ export function buildScheduleEmbed(result: ScheduleResult): EmbedBuilder {
       .setDescription('**Off-Day** — No practice today.')
       .setColor(COLORS.OFF_DAY)
       .setThumbnail(THUMBNAIL_URL)
-      .setFooter({ text: 'Schedule Bot' })
       .setTimestamp();
   }
 
@@ -53,7 +52,6 @@ export function buildScheduleEmbed(result: ScheduleResult): EmbedBuilder {
     .setTitle(schedule.dateFormatted)
     .setURL(SHEET_URL)
     .setThumbnail(THUMBNAIL_URL)
-    .setFooter({ text: 'Schedule Bot' })
     .setTimestamp();
 
   // Reason & Focus
@@ -119,7 +117,6 @@ export function buildNoDataEmbed(date: string): EmbedBuilder {
     .setDescription(`No entries found for **${date}**.`)
     .setColor(COLORS.ERROR)
     .setThumbnail(THUMBNAIL_URL)
-    .setFooter({ text: 'Schedule Bot' })
     .setTimestamp();
 }
 
@@ -128,6 +125,5 @@ export function buildErrorEmbed(error: string): EmbedBuilder {
     .setTitle('⚠️ Error')
     .setDescription(error)
     .setColor(COLORS.ERROR)
-    .setFooter({ text: 'Schedule Bot' })
     .setTimestamp();
 }

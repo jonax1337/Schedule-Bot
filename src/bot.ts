@@ -303,7 +303,7 @@ export async function postScheduleToChannel(date?: string): Promise<void> {
   }
 }
 
-client.once('ready', async () => {
+client.once('clientReady', async () => {
   console.log(`Bot is ready! Logged in as ${client.user?.tag}`);
   await initializeUserMappingSheet();
   await registerCommands();
