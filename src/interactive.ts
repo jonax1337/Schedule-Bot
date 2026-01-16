@@ -19,6 +19,7 @@ import { getScheduleForDate } from './sheets.js';
 import { parseSchedule, analyzeSchedule } from './analyzer.js';
 import { buildScheduleEmbed } from './embed.js';
 import { updateWeekAvailability, getNextSevenDates, getDayName, WeekAvailability } from './bulkOperations.js';
+import { client } from './bot.js';
 
 export async function createDateNavigationButtons(currentDate: string): Promise<ActionRowBuilder<ButtonBuilder>> {
   const prevDate = getAdjacentDate(currentDate, -1);
@@ -486,6 +487,135 @@ export async function handleWeekModal(
 function validateTimeRangeFormat(value: string): boolean {
   const regex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]-([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
   return regex.test(value);
+}
+
+export function createInfoModal(customId: string): ModalBuilder {
+  return new ModalBuilder()
+    .setCustomId(customId)
+    .setTitle('Send Team Notification')
+    .addComponents(
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder()
+          .setCustomId('info_title')
+          .setLabel('Title')
+          .setStyle(TextInputStyle.Short)
+          .setPlaceholder('Team Notification')
+          .setRequired(true)
+          .setMaxLength(100)
+      ),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder()
+          .setCustomId('info_message')
+          .setLabel('Message')
+          .setStyle(TextInputStyle.Paragraph)
+          .setPlaceholder('Your message here...')
+          .setRequired(true)
+          .setMaxLength(1000)
+      )
+    );
+}
+
+export async function handleInfoModal(
+  interaction: ModalSubmitInteraction
+): Promise<void> {
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+  try {
+    // Parse customId to get type, target and specificUser
+    const [, , type, target, specificUserId] = interaction.customId.split('_');
+    const specificUser = specificUserId !== 'none' ? await client.users.fetch(specificUserId) : null;
+
+    // Get modal values
+    const title = interaction.fields.getTextInputValue('info_title').trim();
+    const message = interaction.fields.getTextInputValue('info_message').trim();
+
+    // Get color and emoji based on type
+    const typeConfig = {
+      info: { color: 0x3498db, emoji: '📢' },
+      success: { color: 0x2ecc71, emoji: '✅' },
+      warning: { color: 0xf39c12, emoji: '⚠️' },
+      error: { color: 0xe74c3c, emoji: '❌' },
+    };
+
+    const config = typeConfig[type as keyof typeof typeConfig];
+
+    let recipients: string[] = [];
+    let recipientNames: string[] = [];
+
+    // If specific user is provided, only send to them
+    if (specificUser) {
+      const userMapping = await getUserMapping(specificUser.id);
+      if (!userMapping) {
+        await interaction.editReply({
+          content: `❌ ${specificUser.username} is not registered in the system.`,
+        });
+        return;
+      }
+      recipients.push(specificUser.id);
+      recipientNames.push(userMapping.discordUsername);
+    } else {
+      // Get all user mappings and filter by target
+      const { getUserMappings } = await import('./userMapping.js');
+      const allMappings = await getUserMappings();
+
+      const filteredMappings = allMappings.filter(mapping => {
+        if (target === 'all') return true;
+        return mapping.role === target;
+      });
+
+      if (filteredMappings.length === 0) {
+        await interaction.editReply({
+          content: `❌ No users found for target: ${target}`,
+        });
+        return;
+      }
+
+      recipients = filteredMappings.map(m => m.discordId);
+      recipientNames = filteredMappings.map(m => m.discordUsername);
+    }
+
+    // Create info embed
+    const infoEmbed = new EmbedBuilder()
+      .setColor(config.color)
+      .setTitle(`${config.emoji} ${title}`)
+      .setDescription(message)
+      .setFooter({ text: `Sent by ${interaction.user.username}` })
+      .setTimestamp();
+
+    // Send to all recipients
+    let successCount = 0;
+    let failedUsers: string[] = [];
+
+    for (let i = 0; i < recipients.length; i++) {
+      try {
+        const user = await client.users.fetch(recipients[i]);
+        await user.send({ embeds: [infoEmbed] });
+        successCount++;
+      } catch (error) {
+        console.error(`Failed to send info to ${recipientNames[i]}:`, error);
+        failedUsers.push(recipientNames[i]);
+      }
+    }
+
+    // Send confirmation
+    let confirmMessage = `✅ Info sent to ${successCount}/${recipients.length} user(s)`;
+    if (specificUser) {
+      confirmMessage += ` (${recipientNames[0]})`;
+    } else {
+      confirmMessage += ` (${target})`;
+    }
+
+    if (failedUsers.length > 0) {
+      confirmMessage += `\n\n⚠️ Failed to send to: ${failedUsers.join(', ')}`;
+    }
+
+    await interaction.editReply({ content: confirmMessage });
+  } catch (error) {
+    console.error('Error handling info modal:', error);
+    await interaction.editReply({
+      content: 'An error occurred. Please try again later.',
+    });
+  }
 }
 
 function getAdjacentDate(dateStr: string, offset: number): string {
