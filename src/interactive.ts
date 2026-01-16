@@ -11,6 +11,7 @@ import {
   StringSelectMenuInteraction,
   ModalSubmitInteraction,
   ChatInputCommandInteraction,
+  MessageFlags,
 } from 'discord.js';
 import { getUserMapping } from './userMapping.js';
 import { updatePlayerAvailability, getPlayerAvailabilityForRange, getAvailableDates } from './sheetUpdater.js';
@@ -165,7 +166,7 @@ export async function handleAvailabilityButton(
     if (!userMapping) {
       await interaction.reply({
         content: '❌ You are not registered yet. Please contact an admin to register you.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -176,7 +177,7 @@ export async function handleAvailabilityButton(
 
   // For "Not Available", defer first then process
   if (customId.startsWith('set_unavailable_')) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     
     const userMapping = await getUserMapping(interaction.user.id);
     
@@ -204,7 +205,7 @@ export async function handleAvailabilityButton(
 export async function handleTimeModal(
   interaction: ModalSubmitInteraction
 ): Promise<void> {
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   const userMapping = await getUserMapping(interaction.user.id);
   
@@ -249,14 +250,14 @@ export async function handleDateSelect(
   await interaction.reply({
     content: `What is your availability for **${selectedDate}**?`,
     components: [createAvailabilityButtons(selectedDate)],
-    ephemeral: true,
+    flags: MessageFlags.Ephemeral,
   });
 }
 
 export async function sendWeekOverview(
   interaction: ChatInputCommandInteraction
 ): Promise<void> {
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   const today = new Date();
   const dates: string[] = [];
@@ -309,7 +310,7 @@ export async function sendWeekOverview(
 export async function sendMySchedule(
   interaction: ChatInputCommandInteraction
 ): Promise<void> {
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   const userMapping = await getUserMapping(interaction.user.id);
   

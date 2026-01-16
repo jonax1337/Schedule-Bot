@@ -7,6 +7,10 @@ import {
   ChatInputCommandInteraction,
   TextChannel,
   PermissionFlagsBits,
+  ButtonInteraction,
+  StringSelectMenuInteraction,
+  ModalSubmitInteraction,
+  MessageFlags,
 } from 'discord.js';
 import { config } from './config.js';
 import { getScheduleForDate } from './sheets.js';
@@ -105,7 +109,7 @@ const commands = [
 ];
 
 async function handleScheduleCommand(interaction: ChatInputCommandInteraction): Promise<void> {
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   try {
     const dateOption = interaction.options.getString('date');
@@ -139,7 +143,7 @@ async function handleScheduleCommand(interaction: ChatInputCommandInteraction): 
 }
 
 async function handleAvailabilityCommand(interaction: ChatInputCommandInteraction): Promise<void> {
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   try {
     const userMapping = await getUserMapping(interaction.user.id);
@@ -166,7 +170,7 @@ async function handleAvailabilityCommand(interaction: ChatInputCommandInteractio
 }
 
 async function handleRegisterCommand(interaction: ChatInputCommandInteraction): Promise<void> {
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   try {
     const user = interaction.options.getUser('user', true);
@@ -200,7 +204,7 @@ async function handleRegisterCommand(interaction: ChatInputCommandInteraction): 
 }
 
 async function handleUnregisterCommand(interaction: ChatInputCommandInteraction): Promise<void> {
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   try {
     const user = interaction.options.getUser('user', true);
@@ -225,7 +229,7 @@ async function handleUnregisterCommand(interaction: ChatInputCommandInteraction)
 }
 
 async function handleSendRemindersCommand(interaction: ChatInputCommandInteraction): Promise<void> {
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   try {
     const dateOption = interaction.options.getString('date');
@@ -354,7 +358,7 @@ client.on('interactionCreate', async interaction => {
     if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
       await interaction.reply({
         content: 'An error occurred. Please try again later.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
   }

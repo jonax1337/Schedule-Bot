@@ -32,7 +32,7 @@ async function main(): Promise<void> {
   await startBot();
 
   // Wait for bot to be ready before starting scheduler
-  client.once('ready', () => {
+  client.once('clientReady', () => {
     console.log('\nStarting scheduler...');
     startScheduler();
 
