@@ -11,6 +11,7 @@ import {
   StringSelectMenuInteraction,
   ModalSubmitInteraction,
   MessageFlags,
+  EmbedBuilder,
 } from 'discord.js';
 import { config } from './config.js';
 import { getScheduleForDate } from './sheets.js';
@@ -108,6 +109,35 @@ const commands = [
       option
         .setName('date')
         .setDescription('Date in DD.MM.YYYY format (optional, default: today)')
+        .setRequired(false)
+    )
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .toJSON(),
+  new SlashCommandBuilder()
+    .setName('info')
+    .setDescription('Send an info notification to players (Admin)')
+    .addStringOption(option =>
+      option
+        .setName('message')
+        .setDescription('The message to send')
+        .setRequired(true)
+    )
+    .addStringOption(option =>
+      option
+        .setName('target')
+        .setDescription('Who to send to')
+        .setRequired(true)
+        .addChoices(
+          { name: 'All Players', value: 'all' },
+          { name: 'Main Roster Only', value: 'main' },
+          { name: 'Subs Only', value: 'sub' },
+          { name: 'Coaches Only', value: 'coach' }
+        )
+    )
+    .addUserOption(option =>
+      option
+        .setName('specific-user')
+        .setDescription('Send to a specific user (overrides target)')
         .setRequired(false)
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
@@ -258,6 +288,93 @@ async function handleSendRemindersCommand(interaction: ChatInputCommandInteracti
   }
 }
 
+async function handleInfoCommand(interaction: ChatInputCommandInteraction): Promise<void> {
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+  try {
+    const message = interaction.options.getString('message', true);
+    const target = interaction.options.getString('target', true);
+    const specificUser = interaction.options.getUser('specific-user');
+
+    let recipients: string[] = [];
+    let recipientNames: string[] = [];
+
+    // If specific user is provided, only send to them
+    if (specificUser) {
+      const userMapping = await getUserMapping(specificUser.id);
+      if (!userMapping) {
+        await interaction.editReply({
+          content: `❌ ${specificUser.username} is not registered in the system.`,
+        });
+        return;
+      }
+      recipients.push(specificUser.id);
+      recipientNames.push(userMapping.discordUsername);
+    } else {
+      // Get all user mappings and filter by target
+      const { getUserMappings } = await import('./userMapping.js');
+      const allMappings = await getUserMappings();
+
+      const filteredMappings = allMappings.filter(mapping => {
+        if (target === 'all') return true;
+        return mapping.role === target;
+      });
+
+      if (filteredMappings.length === 0) {
+        await interaction.editReply({
+          content: `❌ No users found for target: ${target}`,
+        });
+        return;
+      }
+
+      recipients = filteredMappings.map(m => m.discordId);
+      recipientNames = filteredMappings.map(m => m.discordUsername);
+    }
+
+    // Create info embed
+    const infoEmbed = new EmbedBuilder()
+      .setColor(0x3498db)
+      .setTitle('📢 Team Notification')
+      .setDescription(message)
+      .setFooter({ text: `Sent by ${interaction.user.username}` })
+      .setTimestamp();
+
+    // Send to all recipients
+    let successCount = 0;
+    let failedUsers: string[] = [];
+
+    for (let i = 0; i < recipients.length; i++) {
+      try {
+        const user = await client.users.fetch(recipients[i]);
+        await user.send({ embeds: [infoEmbed] });
+        successCount++;
+      } catch (error) {
+        console.error(`Failed to send info to ${recipientNames[i]}:`, error);
+        failedUsers.push(recipientNames[i]);
+      }
+    }
+
+    // Send confirmation
+    let confirmMessage = `✅ Info sent to ${successCount}/${recipients.length} user(s)`;
+    if (specificUser) {
+      confirmMessage += ` (${recipientNames[0]})`;
+    } else {
+      confirmMessage += ` (${target})`;
+    }
+
+    if (failedUsers.length > 0) {
+      confirmMessage += `\n\n⚠️ Failed to send to: ${failedUsers.join(', ')}`;
+    }
+
+    await interaction.editReply({ content: confirmMessage });
+  } catch (error) {
+    console.error('Error handling info command:', error);
+    await interaction.editReply({
+      content: 'An error occurred. Please try again later.',
+    });
+  }
+}
+
 export async function registerCommands(): Promise<void> {
   const rest = new REST({ version: '10' }).setToken(config.discord.token);
 
@@ -342,6 +459,9 @@ client.on('interactionCreate', async interaction => {
           break;
         case 'send-reminders':
           await handleSendRemindersCommand(interaction);
+          break;
+        case 'info':
+          await handleInfoCommand(interaction);
           break;
       }
     } else if (interaction.isButton()) {
