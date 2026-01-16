@@ -317,10 +317,64 @@ async function addMissingDays(): Promise<number> {
       '',    // Focus
     ]);
 
-    // Append the new rows
-    await sheets.spreadsheets.values.append({
+    // Get the sheet ID and last row index for formatting
+    const sheetId = await getFirstSheetId();
+    const lastRowIndex = rows.length; // 1-based index of the last row
+    const newRowCount = missingDates.length;
+
+    // First, insert empty rows at the end
+    await sheets.spreadsheets.batchUpdate({
       spreadsheetId: config.googleSheets.sheetId,
-      range: 'A:K',
+      requestBody: {
+        requests: [
+          {
+            insertDimension: {
+              range: {
+                sheetId: sheetId,
+                dimension: 'ROWS',
+                startIndex: lastRowIndex,
+                endIndex: lastRowIndex + newRowCount,
+              },
+            },
+          },
+        ],
+      },
+    });
+
+    // Copy formatting from the last existing row to the new rows
+    if (lastRowIndex > 1) {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: config.googleSheets.sheetId,
+        requestBody: {
+          requests: [
+            {
+              copyPaste: {
+                source: {
+                  sheetId: sheetId,
+                  startRowIndex: lastRowIndex - 1,
+                  endRowIndex: lastRowIndex,
+                  startColumnIndex: 0,
+                  endColumnIndex: 11,
+                },
+                destination: {
+                  sheetId: sheetId,
+                  startRowIndex: lastRowIndex,
+                  endRowIndex: lastRowIndex + newRowCount,
+                  startColumnIndex: 0,
+                  endColumnIndex: 11,
+                },
+                pasteType: 'PASTE_FORMAT',
+              },
+            },
+          ],
+        },
+      });
+    }
+
+    // Now add the values to the new rows
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: config.googleSheets.sheetId,
+      range: `A${lastRowIndex + 1}:K${lastRowIndex + newRowCount}`,
       valueInputOption: 'RAW',
       requestBody: {
         values: newRows,
@@ -330,7 +384,7 @@ async function addMissingDays(): Promise<number> {
     // Sort the sheet by date (column A)
     await sortSheetByDate();
 
-    console.log(`Successfully added ${missingDates.length} missing date(s).`);
+    console.log(`Successfully added ${missingDates.length} missing date(s) with formatting.`);
     return missingDates.length;
   } catch (error) {
     console.error('Error adding missing days:', error);
