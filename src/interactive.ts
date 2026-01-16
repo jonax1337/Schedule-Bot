@@ -18,6 +18,7 @@ import { updatePlayerAvailability, getPlayerAvailabilityForRange, getAvailableDa
 import { getScheduleForDate } from './sheets.js';
 import { parseSchedule, analyzeSchedule } from './analyzer.js';
 import { buildScheduleEmbed } from './embed.js';
+import { updateWeekAvailability, getNextSevenDates, getDayName, WeekAvailability } from './bulkOperations.js';
 
 export async function createDateNavigationButtons(currentDate: string): Promise<ActionRowBuilder<ButtonBuilder>> {
   const prevDate = getAdjacentDate(currentDate, -1);
@@ -350,6 +351,141 @@ export async function sendMySchedule(
   }
 
   await interaction.editReply({ embeds: [embed] });
+}
+
+export function createWeekModal(): ModalBuilder {
+  const dates = getNextSevenDates();
+  
+  return new ModalBuilder()
+    .setCustomId('week_modal')
+    .setTitle('Set Week Availability')
+    .addComponents(
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder()
+          .setCustomId('day_0')
+          .setLabel(`${getDayName(dates[0])} (${dates[0]})`)
+          .setStyle(TextInputStyle.Short)
+          .setPlaceholder('14:00-22:00 or x (not available) or leave empty')
+          .setRequired(false)
+          .setMaxLength(20)
+      ),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder()
+          .setCustomId('day_1')
+          .setLabel(`${getDayName(dates[1])} (${dates[1]})`)
+          .setStyle(TextInputStyle.Short)
+          .setPlaceholder('14:00-22:00 or x (not available) or leave empty')
+          .setRequired(false)
+          .setMaxLength(20)
+      ),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder()
+          .setCustomId('day_2')
+          .setLabel(`${getDayName(dates[2])} (${dates[2]})`)
+          .setStyle(TextInputStyle.Short)
+          .setPlaceholder('14:00-22:00 or x (not available) or leave empty')
+          .setRequired(false)
+          .setMaxLength(20)
+      ),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder()
+          .setCustomId('day_3')
+          .setLabel(`${getDayName(dates[3])} (${dates[3]})`)
+          .setStyle(TextInputStyle.Short)
+          .setPlaceholder('14:00-22:00 or x (not available) or leave empty')
+          .setRequired(false)
+          .setMaxLength(20)
+      ),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder()
+          .setCustomId('day_4')
+          .setLabel(`${getDayName(dates[4])} (${dates[4]})`)
+          .setStyle(TextInputStyle.Short)
+          .setPlaceholder('14:00-22:00 or x (not available) or leave empty')
+          .setRequired(false)
+          .setMaxLength(20)
+      )
+    );
+}
+
+export async function handleSetWeekCommand(
+  interaction: ChatInputCommandInteraction
+): Promise<void> {
+  const userMapping = await getUserMapping(interaction.user.id);
+  
+  if (!userMapping) {
+    await interaction.reply({
+      content: '❌ You are not registered yet. Please contact an admin to register you.',
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+
+  await interaction.showModal(createWeekModal());
+}
+
+export async function handleWeekModal(
+  interaction: ModalSubmitInteraction
+): Promise<void> {
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+  const userMapping = await getUserMapping(interaction.user.id);
+  
+  if (!userMapping) {
+    await interaction.editReply({
+      content: '❌ You are not registered yet.',
+    });
+    return;
+  }
+
+  const dates = getNextSevenDates();
+  const weekData: WeekAvailability = {};
+  const entries: string[] = [];
+
+  // Collect all 7 days (only first 5 are in modal due to Discord limit)
+  for (let i = 0; i < 5; i++) {
+    const value = interaction.fields.getTextInputValue(`day_${i}`).trim();
+    if (value) {
+      // Validate format
+      if (value.toLowerCase() === 'x') {
+        weekData[dates[i]] = 'x';
+        entries.push(`${dates[i]}: Not available`);
+      } else if (validateTimeRangeFormat(value)) {
+        weekData[dates[i]] = value;
+        entries.push(`${dates[i]}: ${value}`);
+      } else {
+        await interaction.editReply({
+          content: `❌ Invalid format for ${dates[i]}. Use HH:MM-HH:MM (e.g., 14:00-22:00) or 'x' for not available.`,
+        });
+        return;
+      }
+    }
+  }
+
+  if (Object.keys(weekData).length === 0) {
+    await interaction.editReply({
+      content: '❌ No availability entered. Please fill at least one day.',
+    });
+    return;
+  }
+
+  // Update all entries
+  const result = await updateWeekAvailability(userMapping.sheetColumnName, weekData);
+
+  if (result.success) {
+    await interaction.editReply({
+      content: `✅ Week availability updated successfully!\n\n${entries.join('\n')}`,
+    });
+  } else {
+    await interaction.editReply({
+      content: `⚠️ Partially updated. ${result.updated} days updated, ${result.failed.length} failed.\n\nFailed dates: ${result.failed.join(', ')}`,
+    });
+  }
+}
+
+function validateTimeRangeFormat(value: string): boolean {
+  const regex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]-([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+  return regex.test(value);
 }
 
 function getAdjacentDate(dateStr: string, offset: number): string {

@@ -25,6 +25,8 @@ import {
   handleDateSelect,
   sendWeekOverview,
   sendMySchedule,
+  handleSetWeekCommand,
+  handleWeekModal,
 } from './interactive.js';
 import { getUserMapping, addUserMapping, removeUserMapping, initializeUserMappingSheet } from './userMapping.js';
 import { sendRemindersToUsersWithoutEntry } from './reminder.js';
@@ -55,6 +57,10 @@ const commands = [
   new SlashCommandBuilder()
     .setName('my-schedule')
     .setDescription('Show your personal availability for the next 14 days')
+    .toJSON(),
+  new SlashCommandBuilder()
+    .setName('set-week')
+    .setDescription('Set your availability for the next 7 days at once')
     .toJSON(),
   new SlashCommandBuilder()
     .setName('register')
@@ -325,6 +331,9 @@ client.on('interactionCreate', async interaction => {
         case 'my-schedule':
           await sendMySchedule(interaction);
           break;
+        case 'set-week':
+          await handleSetWeekCommand(interaction);
+          break;
         case 'register':
           await handleRegisterCommand(interaction);
           break;
@@ -351,6 +360,8 @@ client.on('interactionCreate', async interaction => {
     } else if (interaction.isModalSubmit()) {
       if (interaction.customId.startsWith('time_modal_')) {
         await handleTimeModal(interaction);
+      } else if (interaction.customId === 'week_modal') {
+        await handleWeekModal(interaction);
       }
     }
   } catch (error) {
