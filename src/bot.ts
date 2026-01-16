@@ -23,6 +23,7 @@ import {
   sendMySchedule,
 } from './interactive.js';
 import { getUserMapping, addUserMapping, removeUserMapping, initializeUserMappingSheet } from './userMapping.js';
+import { sendRemindersToUsersWithoutEntry } from './reminder.js';
 
 export const client = new Client({
   intents: [GatewayIntentBits.Guilds],
@@ -90,10 +91,21 @@ const commands = [
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .toJSON(),
+  new SlashCommandBuilder()
+    .setName('send-reminders')
+    .setDescription('Manually send reminders to users without availability entry (Admin)')
+    .addStringOption(option =>
+      option
+        .setName('date')
+        .setDescription('Date in DD.MM.YYYY format (optional, default: today)')
+        .setRequired(false)
+    )
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .toJSON(),
 ];
 
 async function handleScheduleCommand(interaction: ChatInputCommandInteraction): Promise<void> {
-  await interaction.deferReply();
+  await interaction.deferReply({ ephemeral: true });
 
   try {
     const dateOption = interaction.options.getString('date');
@@ -214,6 +226,30 @@ async function handleUnregisterCommand(interaction: ChatInputCommandInteraction)
   }
 }
 
+async function handleSendRemindersCommand(interaction: ChatInputCommandInteraction): Promise<void> {
+  await interaction.deferReply({ ephemeral: true });
+
+  try {
+    const dateOption = interaction.options.getString('date');
+    const targetDate = dateOption || undefined;
+
+    await interaction.editReply({
+      content: '⏳ Sending reminders to users without availability entry...',
+    });
+
+    await sendRemindersToUsersWithoutEntry(client, targetDate);
+
+    await interaction.editReply({
+      content: `✅ Reminders sent successfully! Check console for details.`,
+    });
+  } catch (error) {
+    console.error('Error handling send-reminders command:', error);
+    await interaction.editReply({
+      content: 'An error occurred. Please try again later.',
+    });
+  }
+}
+
 export async function registerCommands(): Promise<void> {
   const rest = new REST({ version: '10' }).setToken(config.discord.token);
 
@@ -293,12 +329,14 @@ client.on('interactionCreate', async interaction => {
         case 'unregister':
           await handleUnregisterCommand(interaction);
           break;
+        case 'send-reminders':
+          await handleSendRemindersCommand(interaction);
+          break;
       }
     } else if (interaction.isButton()) {
       if (interaction.customId.startsWith('schedule_')) {
         await handleDateNavigation(interaction);
       } else if (
-        interaction.customId.startsWith('set_available_') ||
         interaction.customId.startsWith('set_unavailable_') ||
         interaction.customId.startsWith('set_custom_')
       ) {

@@ -41,17 +41,13 @@ export function createDateNavigationButtons(currentDate: string): ActionRowBuild
 export function createAvailabilityButtons(date: string): ActionRowBuilder<ButtonBuilder> {
   return new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder()
-      .setCustomId(`set_available_${date}`)
-      .setLabel('✅ Available')
+      .setCustomId(`set_custom_${date}`)
+      .setLabel('⏰ Set Time')
       .setStyle(ButtonStyle.Success),
     new ButtonBuilder()
       .setCustomId(`set_unavailable_${date}`)
       .setLabel('❌ Not Available')
-      .setStyle(ButtonStyle.Danger),
-    new ButtonBuilder()
-      .setCustomId(`set_custom_${date}`)
-      .setLabel('⏰ Set Time')
-      .setStyle(ButtonStyle.Primary)
+      .setStyle(ButtonStyle.Danger)
   );
 }
 
@@ -139,23 +135,37 @@ export async function handleDateNavigation(
 export async function handleAvailabilityButton(
   interaction: ButtonInteraction
 ): Promise<void> {
-  const userMapping = await getUserMapping(interaction.user.id);
-  
-  if (!userMapping) {
-    await interaction.reply({
-      content: '❌ You are not registered yet. Please contact an admin to register you.',
-      ephemeral: true,
-    });
-    return;
-  }
-
   const customId = interaction.customId;
   const date = customId.split('_').pop()!;
 
-  if (customId.startsWith('set_available_')) {
+  // For "Set Time" modal, show immediately without deferring
+  if (customId.startsWith('set_custom_')) {
+    const userMapping = await getUserMapping(interaction.user.id);
+    
+    if (!userMapping) {
+      await interaction.reply({
+        content: '❌ You are not registered yet. Please contact an admin to register you.',
+        ephemeral: true,
+      });
+      return;
+    }
+
     await interaction.showModal(createTimeInputModal(date));
-  } else if (customId.startsWith('set_unavailable_')) {
+    return;
+  }
+
+  // For "Not Available", defer first then process
+  if (customId.startsWith('set_unavailable_')) {
     await interaction.deferReply({ ephemeral: true });
+    
+    const userMapping = await getUserMapping(interaction.user.id);
+    
+    if (!userMapping) {
+      await interaction.editReply({
+        content: '❌ You are not registered yet. Please contact an admin to register you.',
+      });
+      return;
+    }
     
     const success = await updatePlayerAvailability(date, userMapping.sheetColumnName, 'x');
     
@@ -168,8 +178,6 @@ export async function handleAvailabilityButton(
         content: `❌ Error updating. Please try again later.`,
       });
     }
-  } else if (customId.startsWith('set_custom_')) {
-    await interaction.showModal(createTimeInputModal(date));
   }
 }
 

@@ -1,10 +1,12 @@
 import cron from 'node-cron';
 import { config } from './config.js';
-import { postScheduleToChannel } from './bot.js';
+import { postScheduleToChannel, client } from './bot.js';
 import { deleteOldRows } from './sheets.js';
+import { sendRemindersToUsersWithoutEntry } from './reminder.js';
 
 let scheduledTask: cron.ScheduledTask | null = null;
 let cleanupTask: cron.ScheduledTask | null = null;
+let reminderTask: cron.ScheduledTask | null = null;
 
 function parseTime(timeStr: string): { hour: number; minute: number } {
   const [hourStr, minuteStr] = timeStr.split(':');
@@ -61,6 +63,31 @@ export function startScheduler(): void {
   );
 
   console.log('Cleanup scheduler started successfully.');
+
+  // Reminder job 3 hours before daily post
+  const reminderTime = calculateReminderTime(hour, minute);
+  const reminderCronExpression = `${reminderTime.minute} ${reminderTime.hour} * * *`;
+
+  console.log(`Setting up daily reminder at ${reminderTime.hour}:${String(reminderTime.minute).padStart(2, '0')} (3h before post)`);
+  console.log(`Reminder cron expression: ${reminderCronExpression}`);
+
+  reminderTask = cron.schedule(
+    reminderCronExpression,
+    async () => {
+      console.log(`[${new Date().toISOString()}] Running scheduled reminders...`);
+      try {
+        await sendRemindersToUsersWithoutEntry(client);
+        console.log('Reminders sent successfully.');
+      } catch (error) {
+        console.error('Error during scheduled reminders:', error);
+      }
+    },
+    {
+      timezone: config.scheduling.timezone,
+    }
+  );
+
+  console.log('Reminder scheduler started successfully.');
 }
 
 export function stopScheduler(): void {
@@ -74,6 +101,23 @@ export function stopScheduler(): void {
     cleanupTask = null;
     console.log('Cleanup scheduler stopped.');
   }
+  if (reminderTask) {
+    reminderTask.stop();
+    reminderTask = null;
+    console.log('Reminder scheduler stopped.');
+  }
+}
+
+function calculateReminderTime(postHour: number, postMinute: number): { hour: number; minute: number } {
+  let reminderHour = postHour - 3;
+  let reminderMinute = postMinute;
+
+  // Handle negative hours (e.g., 02:00 - 3h = 23:00 previous day)
+  if (reminderHour < 0) {
+    reminderHour += 24;
+  }
+
+  return { hour: reminderHour, minute: reminderMinute };
 }
 
 export function getNextScheduledTime(): Date | null {
