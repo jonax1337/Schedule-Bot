@@ -29,10 +29,11 @@ A Discord bot that reads Google Sheets data and manages team availability for Va
 - Manual reminder command for admins
 
 ### 💬 Slash Commands
-- `/schedule [date]` - Show availability with navigation buttons (ephemeral)
-- `/availability` - Set your availability interactively (opens DM)
-- `/schedule-week` - Week overview (ephemeral)
-- `/my-schedule` - Your personal availability (ephemeral)
+- `/schedule [date]` - Show team availability for a specific date (default: today)
+- `/set` - Set your availability for upcoming days (interactive)
+- `/schedule-week` - Show team availability for the next 7 days
+- `/my-schedule` - Show your personal availability for the next 14 days
+- `/set-week` - Set your availability for the next 7 days at once
 - `/register @user column role` - Register user for interactive system (Admin only)
 - `/unregister @user` - Remove user from system (Admin only)
 - `/send-reminders [date]` - Manually send reminders (Admin only)
@@ -123,9 +124,9 @@ The `TIMEZONE` setting is **critical** for correct time display:
 **Example:**
 - You set `TIMEZONE=Europe/London`
 - You enter `15:30-22:00` in the sheet (London time)
-- User in Berlin sees: `16:30-23:00` ✅
-- User in New York sees: `10:30-17:00` ✅
-- User in Tokyo sees: `00:30-07:00` (next day) ✅
+- User in Berlin sees: `16:30-23:00` 
+- User in New York sees: `10:30-17:00` 
+- User in Tokyo sees: `00:30-07:00` (next day) 
 
 ### 5. User Mapping Setup
 
@@ -197,26 +198,40 @@ npm run dev
 
 **For all players:**
 ```
-/schedule [date]     - Show availability with navigation buttons
-/availability        - Set your availability (opens DM)
-/schedule-week       - Show next 7 days
-/my-schedule         - Your personal overview
+/schedule [date]     - Show team availability for a specific date
+/set                 - Set your availability for upcoming days (interactive)
+/schedule-week       - Show team availability for the next 7 days
+/my-schedule         - Show your personal availability for the next 14 days
+/set-week            - Set your availability for the next 7 days at once
 ```
 
 **For admins:**
 ```
 /register @user PlayerName main  - Register user
 /unregister @user                - Remove user
-/send-reminders [date]           - Manually send reminders
+/remind [date]                   - Manually send reminders
+/notify type target [user]       - Send notifications to players
 ```
 
-### Setting Availability
+### Setting Your Availability
 
-1. Use `/availability` command
-2. Select a date from the dropdown
-3. Click **"Available"** to enter your time range (e.g., `14:00` to `22:00`)
-4. Click **"Not Available"** to mark yourself as unavailable
-5. Your availability is immediately saved to the Google Sheet
+1. Use `/set` to open the interactive menu
+2. Select a date from the dropdown or use navigation buttons
+3. Choose your availability:
+   - Click "Available" to set a time range
+   - Click "Not Available" to mark yourself as unavailable
+4. If available, enter your time range in the modal (e.g., `14:00-22:00`)
+5. Your availability is saved to the Google Sheet
+
+### Bulk Setting (Week at Once)
+
+1. Use `/set-week` to set availability for 7 days at once
+2. Modal opens with your current availability pre-filled
+3. Update the fields as needed:
+   - Enter time ranges like `14:00-22:00`
+   - Enter `x` for not available
+   - Leave empty to skip
+4. All days are updated at once
 
 ### Automatic Features
 

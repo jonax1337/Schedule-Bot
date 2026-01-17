@@ -49,7 +49,7 @@ const commands = [
     )
     .toJSON(),
   new SlashCommandBuilder()
-    .setName('availability')
+    .setName('set')
     .setDescription('Set your availability for upcoming days')
     .toJSON(),
   new SlashCommandBuilder()
@@ -104,7 +104,7 @@ const commands = [
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .toJSON(),
   new SlashCommandBuilder()
-    .setName('send-reminders')
+    .setName('remind')
     .setDescription('Manually send reminders to users without availability entry (Admin)')
     .addStringOption(option =>
       option
@@ -115,8 +115,8 @@ const commands = [
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .toJSON(),
   new SlashCommandBuilder()
-    .setName('info')
-    .setDescription('Send an info notification to players (Admin)')
+    .setName('notify')
+    .setDescription('Send a notification to players (Admin)')
     .addStringOption(option =>
       option
         .setName('type')
@@ -381,7 +381,7 @@ client.on('interactionCreate', async interaction => {
         case 'schedule':
           await handleScheduleCommand(interaction);
           break;
-        case 'availability':
+        case 'set':
           await handleAvailabilityCommand(interaction);
           break;
         case 'schedule-week':
@@ -399,10 +399,10 @@ client.on('interactionCreate', async interaction => {
         case 'unregister':
           await handleUnregisterCommand(interaction);
           break;
-        case 'send-reminders':
+        case 'remind':
           await handleSendRemindersCommand(interaction);
           break;
-        case 'info':
+        case 'notify':
           await handleInfoCommand(interaction);
           break;
       }
