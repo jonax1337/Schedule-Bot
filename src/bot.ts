@@ -29,7 +29,10 @@ import { getUserMapping, addUserMapping, removeUserMapping, initializeUserMappin
 import { sendRemindersToUsersWithoutEntry } from './reminder.js';
 
 export const client = new Client({
-  intents: [GatewayIntentBits.Guilds],
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMembers,
+  ],
 });
 
 const commands = [

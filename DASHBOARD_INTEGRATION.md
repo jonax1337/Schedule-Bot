@@ -184,5 +184,3 @@ npm start
 ## Future Enhancements
 
 - [ ] Authentication system
-- [ ] User management interface
-- [ ] Schedule visualization

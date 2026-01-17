@@ -68,93 +68,95 @@ export default function ActionsPanel() {
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Calendar className="mr-2 h-5 w-5" />
-            Post Schedule
-          </CardTitle>
-          <CardDescription>
-            Manually post the schedule for a specific date
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="scheduleDate">Date (Optional)</Label>
-            <Input
-              id="scheduleDate"
-              type="date"
-              value={scheduleDate}
-              onChange={(e) => setScheduleDate(e.target.value)}
-              placeholder="Leave empty for today"
-            />
-            <p className="text-sm text-muted-foreground">
-              Leave empty to post today's schedule
-            </p>
-          </div>
-          <Button 
-            onClick={postSchedule} 
-            disabled={loading === 'schedule'}
-            className="w-full"
-          >
-            {loading === 'schedule' ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Posting...
-              </>
-            ) : (
-              <>
-                <Send className="mr-2 h-4 w-4" />
-                Post Schedule
-              </>
-            )}
-          </Button>
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Calendar className="mr-2 h-5 w-5" />
+              Post Schedule
+            </CardTitle>
+            <CardDescription>
+              Manually post the schedule for a specific date
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="scheduleDate">Date (Optional)</Label>
+              <Input
+                id="scheduleDate"
+                type="date"
+                value={scheduleDate}
+                onChange={(e) => setScheduleDate(e.target.value)}
+                placeholder="Leave empty for today"
+              />
+              <p className="text-sm text-muted-foreground">
+                Leave empty to post today's schedule
+              </p>
+            </div>
+            <Button 
+              onClick={postSchedule} 
+              disabled={loading === 'schedule'}
+              className="w-full"
+            >
+              {loading === 'schedule' ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Posting...
+                </>
+              ) : (
+                <>
+                  <Send className="mr-2 h-4 w-4" />
+                  Post Schedule
+                </>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Bell className="mr-2 h-5 w-5" />
-            Send Reminders
-          </CardTitle>
-          <CardDescription>
-            Send reminders to users who haven't set their availability
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="reminderDate">Date (Optional)</Label>
-            <Input
-              id="reminderDate"
-              type="date"
-              value={reminderDate}
-              onChange={(e) => setReminderDate(e.target.value)}
-              placeholder="Leave empty for today"
-            />
-            <p className="text-sm text-muted-foreground">
-              Leave empty to send reminders for today
-            </p>
-          </div>
-          <Button 
-            onClick={sendReminders} 
-            disabled={loading === 'remind'}
-            className="w-full"
-          >
-            {loading === 'remind' ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Sending...
-              </>
-            ) : (
-              <>
-                <Bell className="mr-2 h-4 w-4" />
-                Send Reminders
-              </>
-            )}
-          </Button>
-        </CardContent>
-      </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Bell className="mr-2 h-5 w-5" />
+              Send Reminders
+            </CardTitle>
+            <CardDescription>
+              Send reminders to users who haven't set their availability
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="reminderDate">Date (Optional)</Label>
+              <Input
+                id="reminderDate"
+                type="date"
+                value={reminderDate}
+                onChange={(e) => setReminderDate(e.target.value)}
+                placeholder="Leave empty for today"
+              />
+              <p className="text-sm text-muted-foreground">
+                Leave empty to send reminders for today
+              </p>
+            </div>
+            <Button 
+              onClick={sendReminders} 
+              disabled={loading === 'remind'}
+              className="w-full"
+            >
+              {loading === 'remind' ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Bell className="mr-2 h-4 w-4" />
+                  Send Reminders
+                </>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
 
       <Card>
         <CardHeader>

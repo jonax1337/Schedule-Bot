@@ -4,9 +4,10 @@ import { Badge } from "@/components/ui/badge";
 import SettingsPanel from "@/components/settings-panel";
 import ActionsPanel from "@/components/actions-panel";
 import LogsPanel from "@/components/logs-panel";
+import { UserMappingsPanel } from "@/components/user-mappings-panel";
 import StatusCard from "@/components/status-card";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Settings, Zap, Terminal } from "lucide-react";
+import { Settings, Zap, Terminal, Users } from "lucide-react";
 
 export default function Home() {
   return (
@@ -32,10 +33,14 @@ export default function Home() {
 
         {/* Main Content */}
         <Tabs defaultValue="settings" className="space-y-4 mt-6">
-          <TabsList className="grid w-full grid-cols-3 lg:w-[600px]">
+          <TabsList className="grid w-full grid-cols-4 lg:w-[800px]">
             <TabsTrigger value="settings" className="flex items-center gap-2">
               <Settings className="h-4 w-4" />
               Settings
+            </TabsTrigger>
+            <TabsTrigger value="users" className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Users
             </TabsTrigger>
             <TabsTrigger value="actions" className="flex items-center gap-2">
               <Zap className="h-4 w-4" />
@@ -49,6 +54,10 @@ export default function Home() {
 
           <TabsContent value="settings" className="space-y-4">
             <SettingsPanel />
+          </TabsContent>
+
+          <TabsContent value="users" className="space-y-4">
+            <UserMappingsPanel />
           </TabsContent>
 
           <TabsContent value="actions" className="space-y-4">

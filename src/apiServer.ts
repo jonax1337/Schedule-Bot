@@ -7,9 +7,21 @@ import { ChannelType } from 'discord.js';
 import { config, reloadConfig } from './config.js';
 import { logger } from './logger.js';
 import { restartScheduler } from './scheduler.js';
+import { getUserMappings, addUserMapping, removeUserMapping, initializeUserMappingSheet } from './userMapping.js';
+import { getSheetColumns } from './sheets.js';
 
 const app = express();
 const PORT = 3001;
+
+// Cache for Discord members to avoid rate limiting
+let membersCache: Array<{
+  id: string;
+  username: string;
+  displayName: string;
+  avatar: string | null;
+}> | null = null;
+let membersCacheTime = 0;
+const MEMBERS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 app.use(cors());
 app.use(express.json());
@@ -74,6 +86,62 @@ app.get('/api/discord/roles', async (req, res) => {
   }
 });
 
+// Get sheet columns
+app.get('/api/sheet-columns', async (req, res) => {
+  try {
+    const columns = await getSheetColumns();
+    res.json({ columns });
+  } catch (error) {
+    console.error('Error fetching sheet columns:', error);
+    logger.error('Failed to fetch sheet columns', error instanceof Error ? error.message : String(error));
+    res.status(500).json({ error: 'Failed to fetch sheet columns' });
+  }
+});
+
+// Get Discord server members
+app.get('/api/discord/members', async (req, res) => {
+  try {
+    if (!client.isReady()) {
+      return res.status(503).json({ error: 'Bot not ready' });
+    }
+
+    // Check if cache is still valid
+    const now = Date.now();
+    if (membersCache && (now - membersCacheTime) < MEMBERS_CACHE_TTL) {
+      return res.json({ members: membersCache, cached: true });
+    }
+
+    const guild = await client.guilds.fetch(config.discord.guildId);
+    const members = await guild.members.fetch();
+    
+    const memberList = members
+      .filter(member => !member.user.bot)
+      .map(member => ({
+        id: member.user.id,
+        username: member.user.username,
+        displayName: member.displayName,
+        avatar: member.user.avatar,
+      }))
+      .sort((a, b) => a.displayName.localeCompare(b.displayName));
+
+    // Update cache
+    membersCache = memberList;
+    membersCacheTime = now;
+
+    res.json({ members: memberList, cached: false });
+  } catch (error) {
+    console.error('Error fetching members:', error);
+    
+    // If we have cached data, return it even if expired
+    if (membersCache) {
+      logger.warn('Using expired members cache due to error');
+      return res.json({ members: membersCache, cached: true, expired: true });
+    }
+    
+    res.status(500).json({ error: 'Failed to fetch members' });
+  }
+});
+
 // Get bot logs
 app.get('/api/logs', (req, res) => {
   try {
@@ -110,6 +178,75 @@ app.post('/api/reload-config', (req, res) => {
       success: false, 
       error: 'Failed to reload configuration' 
     });
+  }
+});
+
+// Get all user mappings
+app.get('/api/user-mappings', async (req, res) => {
+  try {
+    const mappings = await getUserMappings();
+    res.json({ success: true, mappings });
+  } catch (error) {
+    console.error('Error fetching user mappings:', error);
+    logger.error('Failed to fetch user mappings', error instanceof Error ? error.message : String(error));
+    res.status(500).json({ success: false, error: 'Failed to fetch user mappings' });
+  }
+});
+
+// Add new user mapping
+app.post('/api/user-mappings', async (req, res) => {
+  try {
+    const { discordId, discordUsername, sheetColumnName, role } = req.body;
+    
+    if (!discordId || !discordUsername || !sheetColumnName || !role) {
+      return res.status(400).json({ success: false, error: 'Missing required fields' });
+    }
+    
+    await addUserMapping({
+      discordId,
+      discordUsername,
+      sheetColumnName,
+      role,
+    });
+    
+    logger.success('User mapping added', `${discordUsername} → ${sheetColumnName}`);
+    res.json({ success: true, message: 'User mapping added successfully' });
+  } catch (error) {
+    console.error('Error adding user mapping:', error);
+    logger.error('Failed to add user mapping', error instanceof Error ? error.message : String(error));
+    res.status(500).json({ success: false, error: 'Failed to add user mapping' });
+  }
+});
+
+// Remove user mapping
+app.delete('/api/user-mappings/:discordId', async (req, res) => {
+  try {
+    const { discordId } = req.params;
+    const success = await removeUserMapping(discordId);
+    
+    if (success) {
+      logger.success('User mapping removed', `Discord ID: ${discordId}`);
+      res.json({ success: true, message: 'User mapping removed successfully' });
+    } else {
+      res.status(404).json({ success: false, error: 'User mapping not found' });
+    }
+  } catch (error) {
+    console.error('Error removing user mapping:', error);
+    logger.error('Failed to remove user mapping', error instanceof Error ? error.message : String(error));
+    res.status(500).json({ success: false, error: 'Failed to remove user mapping' });
+  }
+});
+
+// Initialize user mapping sheet
+app.post('/api/user-mappings/init', async (req, res) => {
+  try {
+    await initializeUserMappingSheet();
+    logger.success('User mapping sheet initialized');
+    res.json({ success: true, message: 'User mapping sheet initialized' });
+  } catch (error) {
+    console.error('Error initializing user mapping sheet:', error);
+    logger.error('Failed to initialize user mapping sheet', error instanceof Error ? error.message : String(error));
+    res.status(500).json({ success: false, error: 'Failed to initialize sheet' });
   }
 });
 

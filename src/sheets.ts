@@ -149,6 +149,37 @@ export async function testConnection(): Promise<boolean> {
   }
 }
 
+export async function getSheetColumns(): Promise<Array<{ column: string; name: string; index: number }>> {
+  const sheets = await getAuthenticatedClient();
+  
+  const response = await sheets.spreadsheets.values.get({
+    spreadsheetId: config.googleSheets.sheetId,
+    range: 'A1:Z1',
+  });
+
+  const headerRow = response.data.values?.[0];
+  if (!headerRow) {
+    return [];
+  }
+
+  const columns: Array<{ column: string; name: string; index: number }> = [];
+  
+  // Start from column B (index 1) to I (index 8) - Player columns
+  for (let i = 1; i <= 8; i++) {
+    const name = headerRow[i];
+    if (name && name.trim()) {
+      const columnLetter = String.fromCharCode(65 + i); // A=65 in ASCII, so B=66
+      columns.push({
+        column: columnLetter,
+        name: name.trim(),
+        index: i,
+      });
+    }
+  }
+
+  return columns;
+}
+
 export async function deleteOldRows(): Promise<number> {
   try {
     const sheets = await getAuthenticatedClient();
