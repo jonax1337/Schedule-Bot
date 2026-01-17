@@ -34,7 +34,7 @@ export default function Home() {
 
         {/* Main Content */}
         <Tabs defaultValue="settings" className="space-y-4 mt-6">
-          <TabsList className="grid w-full grid-cols-5 lg:w-[1000px]">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="settings" className="flex items-center gap-2">
               <Settings className="h-4 w-4" />
               Settings
