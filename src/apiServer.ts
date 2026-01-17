@@ -3,11 +3,11 @@ import cors from 'cors';
 import { postScheduleToChannel, client } from './bot.js';
 import { sendRemindersToUsersWithoutEntry } from './reminder.js';
 import { createQuickPoll } from './polls.js';
-import { ChannelType } from 'discord.js';
+import { ChannelType, EmbedBuilder } from 'discord.js';
 import { config, reloadConfig } from './config.js';
 import { logger } from './logger.js';
 import { restartScheduler } from './scheduler.js';
-import { getUserMappings, addUserMapping, removeUserMapping, initializeUserMappingSheet } from './userMapping.js';
+import { getUserMappings, addUserMapping, removeUserMapping, initializeUserMappingSheet, getUserMapping } from './userMapping.js';
 import { getSheetColumns, getSheetDataRange, updateSheetCell } from './sheets.js';
 import { loadSettings } from './settingsManager.js';
 
@@ -361,6 +361,115 @@ app.post('/api/actions/poll', async (req, res) => {
     res.status(500).json({ 
       success: false, 
       error: 'Failed to create poll' 
+    });
+  }
+});
+
+// Send notification
+app.post('/api/actions/notify', async (req, res) => {
+  try {
+    const { type, target, specificUserId, title, message } = req.body;
+
+    if (!client.isReady()) {
+      return res.status(503).json({ 
+        success: false, 
+        error: 'Bot not ready' 
+      });
+    }
+
+    // Get color and emoji based on type
+    const typeConfig: Record<string, { color: number; emoji: string }> = {
+      info: { color: 0x3498db, emoji: '📢' },
+      success: { color: 0x2ecc71, emoji: '✅' },
+      warning: { color: 0xf39c12, emoji: '⚠️' },
+      error: { color: 0xe74c3c, emoji: '❌' },
+    };
+
+    const typeSettings = typeConfig[type] || typeConfig.info;
+
+    let recipients: string[] = [];
+    let recipientNames: string[] = [];
+
+    // If specific user is provided, only send to them
+    if (specificUserId && specificUserId !== 'none') {
+      const userMapping = await getUserMapping(specificUserId);
+      if (!userMapping) {
+        return res.status(400).json({
+          success: false,
+          error: 'User is not registered in the system.'
+        });
+      }
+      recipients.push(specificUserId);
+      recipientNames.push(userMapping.discordUsername);
+    } else {
+      // Get all user mappings and filter by target
+      const allMappings = await getUserMappings();
+
+      const filteredMappings = allMappings.filter(mapping => {
+        if (target === 'all') return true;
+        return mapping.role === target;
+      });
+
+      if (filteredMappings.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: `No users found for target: ${target}`
+        });
+      }
+
+      recipients = filteredMappings.map(m => m.discordId);
+      recipientNames = filteredMappings.map(m => m.discordUsername);
+    }
+
+    // Create notification embed
+    const notificationEmbed = new EmbedBuilder()
+      .setColor(typeSettings.color)
+      .setTitle(`${typeSettings.emoji} ${title}`)
+      .setDescription(message)
+      .setFooter({ text: 'Sent from Dashboard' })
+      .setTimestamp();
+
+    // Send to all recipients
+    let successCount = 0;
+    let failedUsers: string[] = [];
+
+    for (let i = 0; i < recipients.length; i++) {
+      try {
+        const user = await client.users.fetch(recipients[i]);
+        await user.send({ embeds: [notificationEmbed] });
+        successCount++;
+      } catch (error) {
+        console.error(`Failed to send notification to ${recipientNames[i]}:`, error);
+        failedUsers.push(recipientNames[i]);
+      }
+    }
+
+    // Log the action
+    const targetDesc = specificUserId && specificUserId !== 'none' 
+      ? recipientNames[0] 
+      : `${target} (${successCount} users)`;
+    logger.info('Notification sent', `Type: ${type}, Target: ${targetDesc}, Title: ${title}`);
+
+    // Send response
+    let responseMessage = `Notification sent to ${successCount}/${recipients.length} user(s)`;
+    if (failedUsers.length > 0) {
+      responseMessage += `. Failed: ${failedUsers.join(', ')}`;
+    }
+
+    res.json({ 
+      success: true, 
+      message: responseMessage,
+      stats: {
+        total: recipients.length,
+        success: successCount,
+        failed: failedUsers.length
+      }
+    });
+  } catch (error) {
+    console.error('Error sending notification:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to send notification' 
     });
   }
 });

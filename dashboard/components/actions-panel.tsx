@@ -1,17 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Bell, Send, Vote, Calendar, Loader2 } from "lucide-react";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Bell, Send, Vote, Calendar, Loader2, MessageSquare, ChevronsUpDown, Check } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+
+const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
+
+interface DiscordMember {
+  id: string;
+  username: string;
+  displayName: string;
+  avatar: string | null;
+}
 
 export default function ActionsPanel() {
   const [loading, setLoading] = useState<string | null>(null);
+  const [members, setMembers] = useState<DiscordMember[]>([]);
 
   // Poll state
   const [pollQuestion, setPollQuestion] = useState("");
@@ -24,10 +37,40 @@ export default function ActionsPanel() {
   // Schedule post state
   const [scheduleDate, setScheduleDate] = useState("");
 
+  // Notify state
+  const [notifyType, setNotifyType] = useState("info");
+  const [notifyTarget, setNotifyTarget] = useState("all");
+  const [notifySpecificUser, setNotifySpecificUser] = useState("");
+  const [notifyTitle, setNotifyTitle] = useState("");
+  const [notifyMessage, setNotifyMessage] = useState("");
+  const [userOpen, setUserOpen] = useState(false);
+  const [userSearch, setUserSearch] = useState("");
+
+  const filteredMembers = userSearch
+    ? members.filter(m => 
+        m.displayName.toLowerCase().includes(userSearch.toLowerCase()) ||
+        m.username.toLowerCase().includes(userSearch.toLowerCase())
+      )
+    : members;
+
+  useEffect(() => {
+    loadMembers();
+  }, []);
+
+  const loadMembers = async () => {
+    try {
+      const response = await fetch(`${BOT_API_URL}/api/discord/members`);
+      const data = await response.json();
+      setMembers(data.members);
+    } catch (error) {
+      console.error('Failed to load members:', error);
+    }
+  };
+
   const handleAction = async (action: string, endpoint: string, body: any) => {
     setLoading(action);
     try {
-      const response = await fetch(endpoint, {
+      const response = await fetch(`${BOT_API_URL}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -64,6 +107,20 @@ export default function ActionsPanel() {
 
   const postSchedule = () => {
     handleAction('schedule', '/api/actions/schedule', { date: scheduleDate || undefined });
+  };
+
+  const sendNotification = () => {
+    if (!notifyTitle || !notifyMessage) {
+      toast.error('Please provide both title and message');
+      return;
+    }
+    handleAction('notify', '/api/actions/notify', {
+      type: notifyType,
+      target: notifyTarget,
+      specificUserId: notifySpecificUser || 'none',
+      title: notifyTitle,
+      message: notifyMessage,
+    });
   };
 
   return (
@@ -223,6 +280,165 @@ export default function ActionsPanel() {
               <>
                 <Vote className="mr-2 h-4 w-4" />
                 Create Poll
+              </>
+            )}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <MessageSquare className="mr-2 h-5 w-5" />
+            Send Notification
+          </CardTitle>
+          <CardDescription>
+            Send a notification to team members
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="notifyType">Type</Label>
+            <Select value={notifyType} onValueChange={setNotifyType}>
+              <SelectTrigger id="notifyType" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent position="popper">
+                <SelectItem value="info">📢 Info</SelectItem>
+                <SelectItem value="success">✅ Success</SelectItem>
+                <SelectItem value="warning">⚠️ Warning</SelectItem>
+                <SelectItem value="error">❌ Error</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="notifyTarget">Target</Label>
+            <Select value={notifyTarget} onValueChange={setNotifyTarget}>
+              <SelectTrigger id="notifyTarget" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent position="popper">
+                <SelectItem value="all">All Players</SelectItem>
+                <SelectItem value="main">Main Roster Only</SelectItem>
+                <SelectItem value="sub">Subs Only</SelectItem>
+                <SelectItem value="coach">Coaches Only</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="notifyUser">Specific User (Optional)</Label>
+            <Popover open={userOpen} onOpenChange={setUserOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  id="notifyUser"
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={userOpen}
+                  className="w-full justify-between font-normal"
+                >
+                  {notifySpecificUser 
+                    ? members.find(m => m.id === notifySpecificUser)?.displayName 
+                    : "Select user (overrides target)"}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                <Command shouldFilter={false}>
+                  <CommandInput 
+                    placeholder="Search users..." 
+                    value={userSearch}
+                    onValueChange={setUserSearch}
+                  />
+                  <CommandList>
+                    <CommandEmpty>No user found.</CommandEmpty>
+                    <CommandGroup>
+                      <CommandItem
+                        value=""
+                        onSelect={() => {
+                          setNotifySpecificUser("");
+                          setUserOpen(false);
+                          setUserSearch("");
+                        }}
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            !notifySpecificUser ? "opacity-100" : "opacity-0"
+                          )}
+                        />
+                        None (use target instead)
+                      </CommandItem>
+                      {filteredMembers.map((member) => (
+                        <CommandItem
+                          key={member.id}
+                          value={member.id}
+                          onSelect={() => {
+                            setNotifySpecificUser(member.id);
+                            setUserOpen(false);
+                            setUserSearch("");
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              notifySpecificUser === member.id ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {member.displayName}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+            <p className="text-sm text-muted-foreground">
+              If set, only this user will receive the notification
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="notifyTitle">Title</Label>
+            <Input
+              id="notifyTitle"
+              value={notifyTitle}
+              onChange={(e) => setNotifyTitle(e.target.value)}
+              placeholder="Team Announcement"
+              maxLength={100}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="notifyMessage">Message</Label>
+            <Textarea
+              id="notifyMessage"
+              value={notifyMessage}
+              onChange={(e) => setNotifyMessage(e.target.value)}
+              placeholder="Your message here..."
+              rows={4}
+              maxLength={1000}
+            />
+            <p className="text-sm text-muted-foreground">
+              {notifyMessage.length}/1000 characters
+            </p>
+          </div>
+
+          <Button 
+            onClick={sendNotification} 
+            disabled={loading === 'notify'}
+            className="w-full"
+          >
+            {loading === 'notify' ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Sending...
+              </>
+            ) : (
+              <>
+                <MessageSquare className="mr-2 h-4 w-4" />
+                Send Notification
               </>
             )}
           </Button>
