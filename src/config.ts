@@ -22,7 +22,7 @@ function requireEnv(name: string): string {
 export const config = {
   discord: {
     token: requireEnv('DISCORD_TOKEN'),
-    channelId: settings.discord.channelId || requireEnv('DISCORD_CHANNEL_ID'), // Fallback to env if not in settings
+    channelId: settings.discord.channelId,
     guildId: requireEnv('DISCORD_GUILD_ID'),
     pingRoleId: settings.discord.pingRoleId,
   },
