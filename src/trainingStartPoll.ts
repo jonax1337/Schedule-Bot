@@ -63,7 +63,7 @@ export async function createTrainingStartPoll(
     const pollMessage = await channel.send({
       poll: {
         question: {
-          text: `🎮 When should we start training? (${durationHours}h available: ${timeRange.start}-${timeRange.end})`,
+          text: `🎮 When should we start training? `,
         },
         answers: options.map(opt => ({
           text: opt.text,

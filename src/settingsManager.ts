@@ -43,6 +43,13 @@ export function loadSettings(): Settings {
     return cachedSettings;
   }
 
+  return reloadSettings();
+}
+
+/**
+ * Force reload settings from disk (bypasses cache)
+ */
+export function reloadSettings(): Settings {
   try {
     if (!existsSync(SETTINGS_PATH)) {
       // Create default settings file if it doesn't exist

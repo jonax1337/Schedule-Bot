@@ -522,6 +522,9 @@ export async function postScheduleToChannel(date?: string): Promise<void> {
       ? `<@&${config.discord.pingRoleId}>`
       : undefined;
 
+    console.log('Posting schedule with pingRoleId:', config.discord.pingRoleId);
+    console.log('Ping content:', pingContent);
+
     await channel.send({ content: pingContent, embeds: [embed] });
     console.log(`Schedule posted to channel for date: ${displayDate}`);
 

@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
-import { loadSettings } from './settingsManager.js';
+import { loadSettings, reloadSettings } from './settingsManager.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -9,7 +9,7 @@ const __dirname = dirname(__filename);
 dotenv.config({ path: resolve(__dirname, '../.env') });
 
 // Load persistent settings
-const settings = loadSettings();
+let settings = loadSettings();
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -37,6 +37,24 @@ export const config = {
     trainingStartPollEnabled: settings.scheduling.trainingStartPollEnabled,
   },
 };
+
+// Function to reload settings at runtime
+export function reloadConfig(): void {
+  settings = reloadSettings(); // Force reload from disk, bypass cache
+  
+  // Update config with new settings
+  config.discord.channelId = settings.discord.channelId;
+  config.discord.pingRoleId = settings.discord.pingRoleId;
+  config.scheduling.dailyPostTime = settings.scheduling.dailyPostTime;
+  config.scheduling.timezone = settings.scheduling.timezone;
+  config.scheduling.reminderHoursBefore = settings.scheduling.reminderHoursBefore;
+  config.scheduling.trainingStartPollEnabled = settings.scheduling.trainingStartPollEnabled;
+  
+  console.log('Configuration reloaded from settings.json');
+  console.log('New pingRoleId:', config.discord.pingRoleId);
+  console.log('New channelId:', config.discord.channelId);
+  console.log('New dailyPostTime:', config.scheduling.dailyPostTime);
+}
 
 // Column indices in the Google Sheet (0-based)
 export const SHEET_COLUMNS = {

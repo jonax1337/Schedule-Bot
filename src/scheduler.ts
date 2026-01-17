@@ -90,6 +90,13 @@ export function startScheduler(): void {
   console.log('Reminder scheduler started successfully.');
 }
 
+export function restartScheduler(): void {
+  console.log('Restarting scheduler with new configuration...');
+  stopScheduler();
+  startScheduler();
+  console.log('Scheduler restarted successfully.');
+}
+
 export function stopScheduler(): void {
   if (scheduledTask) {
     scheduledTask.stop();
