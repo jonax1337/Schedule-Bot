@@ -193,7 +193,7 @@ export function UserMappingsPanel() {
                   variant="outline"
                   role="combobox"
                   aria-expanded={open}
-                  className="w-full justify-between h-10 font-normal"
+                  className="w-full justify-between h-9 font-normal text-left px-3"
                 >
                   {selectedMember ? (
                     <span className="truncate">{selectedMember.displayName} (@{selectedMember.username})</span>

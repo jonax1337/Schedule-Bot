@@ -180,6 +180,30 @@ export async function getSheetColumns(): Promise<Array<{ column: string; name: s
   return columns;
 }
 
+export async function getSheetDataRange(startRow: number = 1, endRow: number = 50): Promise<any[][]> {
+  const sheets = await getAuthenticatedClient();
+  
+  const response = await sheets.spreadsheets.values.get({
+    spreadsheetId: config.googleSheets.sheetId,
+    range: `A${startRow}:K${endRow}`,
+  });
+
+  return response.data.values || [];
+}
+
+export async function updateSheetCell(row: number, column: string, value: string): Promise<void> {
+  const sheets = await getAuthenticatedClient();
+  
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: config.googleSheets.sheetId,
+    range: `${column}${row}`,
+    valueInputOption: 'RAW',
+    requestBody: {
+      values: [[value]],
+    },
+  });
+}
+
 export async function deleteOldRows(): Promise<number> {
   try {
     const sheets = await getAuthenticatedClient();

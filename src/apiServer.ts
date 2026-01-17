@@ -8,7 +8,7 @@ import { config, reloadConfig } from './config.js';
 import { logger } from './logger.js';
 import { restartScheduler } from './scheduler.js';
 import { getUserMappings, addUserMapping, removeUserMapping, initializeUserMappingSheet } from './userMapping.js';
-import { getSheetColumns } from './sheets.js';
+import { getSheetColumns, getSheetDataRange, updateSheetCell } from './sheets.js';
 
 const app = express();
 const PORT = 3001;
@@ -95,6 +95,39 @@ app.get('/api/sheet-columns', async (req, res) => {
     console.error('Error fetching sheet columns:', error);
     logger.error('Failed to fetch sheet columns', error instanceof Error ? error.message : String(error));
     res.status(500).json({ error: 'Failed to fetch sheet columns' });
+  }
+});
+
+// Get sheet data range
+app.get('/api/sheet-data', async (req, res) => {
+  try {
+    const startRow = parseInt(req.query.startRow as string) || 1;
+    const endRow = parseInt(req.query.endRow as string) || 50;
+    const data = await getSheetDataRange(startRow, endRow);
+    res.json({ data });
+  } catch (error) {
+    console.error('Error fetching sheet data:', error);
+    logger.error('Failed to fetch sheet data', error instanceof Error ? error.message : String(error));
+    res.status(500).json({ error: 'Failed to fetch sheet data' });
+  }
+});
+
+// Update sheet cell
+app.post('/api/sheet-data/update', async (req, res) => {
+  try {
+    const { row, column, value } = req.body;
+    
+    if (!row || !column || value === undefined) {
+      return res.status(400).json({ error: 'Missing required fields: row, column, value' });
+    }
+    
+    await updateSheetCell(row, column, value);
+    logger.success('Sheet cell updated', `${column}${row} = ${value}`);
+    res.json({ success: true, message: 'Cell updated successfully' });
+  } catch (error) {
+    console.error('Error updating sheet cell:', error);
+    logger.error('Failed to update sheet cell', error instanceof Error ? error.message : String(error));
+    res.status(500).json({ error: 'Failed to update sheet cell' });
   }
 });
 
