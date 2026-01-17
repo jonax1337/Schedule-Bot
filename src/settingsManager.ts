@@ -8,18 +8,28 @@ const __dirname = dirname(__filename);
 const SETTINGS_PATH = resolve(__dirname, '../settings.json');
 
 export interface Settings {
+  discord: {
+    channelId: string;
+    pingRoleId: string | null;
+  };
   scheduling: {
     dailyPostTime: string;
     reminderHoursBefore: number;
     trainingStartPollEnabled: boolean;
+    timezone: string;
   };
 }
 
 const DEFAULT_SETTINGS: Settings = {
+  discord: {
+    channelId: '',
+    pingRoleId: null,
+  },
   scheduling: {
     dailyPostTime: '12:00',
     reminderHoursBefore: 3,
     trainingStartPollEnabled: false,
+    timezone: 'Europe/Berlin',
   },
 };
 
@@ -47,6 +57,10 @@ export function loadSettings(): Settings {
     
     // Merge with defaults to ensure all properties exist
     cachedSettings = {
+      discord: {
+        ...DEFAULT_SETTINGS.discord,
+        ...settings.discord,
+      },
       scheduling: {
         ...DEFAULT_SETTINGS.scheduling,
         ...settings.scheduling,

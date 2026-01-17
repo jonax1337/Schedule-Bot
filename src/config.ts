@@ -22,9 +22,9 @@ function requireEnv(name: string): string {
 export const config = {
   discord: {
     token: requireEnv('DISCORD_TOKEN'),
-    channelId: requireEnv('DISCORD_CHANNEL_ID'),
+    channelId: settings.discord.channelId || requireEnv('DISCORD_CHANNEL_ID'), // Fallback to env if not in settings
     guildId: requireEnv('DISCORD_GUILD_ID'),
-    pingRoleId: process.env.DISCORD_PING_ROLE_ID || null,
+    pingRoleId: settings.discord.pingRoleId,
   },
   googleSheets: {
     sheetId: requireEnv('GOOGLE_SHEET_ID'),
@@ -32,7 +32,7 @@ export const config = {
   },
   scheduling: {
     dailyPostTime: settings.scheduling.dailyPostTime,
-    timezone: process.env.TIMEZONE || 'Europe/Berlin',
+    timezone: settings.scheduling.timezone,
     reminderHoursBefore: settings.scheduling.reminderHoursBefore,
     trainingStartPollEnabled: settings.scheduling.trainingStartPollEnabled,
   },
