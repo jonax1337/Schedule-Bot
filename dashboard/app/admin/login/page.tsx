@@ -52,9 +52,9 @@ export default function AdminLogin() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+    <div className="min-h-screen bg-background">
       <div className="container mx-auto p-6 max-w-md">
-        <div className="flex items-center justify-between mb-8">
+        <div className="mb-8">
           <Button
             variant="ghost"
             onClick={() => router.push('/')}
@@ -62,7 +62,6 @@ export default function AdminLogin() {
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back
           </Button>
-          <ThemeToggle />
         </div>
 
         <Card>
