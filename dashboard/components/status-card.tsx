@@ -46,13 +46,7 @@ export default function StatusCard() {
   if (loading) {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Activity className="mr-2 h-5 w-5" />
-            Bot Status
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="px-6 py-0">
           <div className="flex items-center justify-center h-20">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
@@ -65,16 +59,7 @@ export default function StatusCard() {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center">
-          <Activity className="mr-2 h-5 w-5" />
-          Bot Status
-        </CardTitle>
-        <CardDescription>
-          Real-time bot statistics and information
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+      <CardContent className="px-6 py-0">
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <div className="flex flex-col space-y-1">
             <div className="flex items-center text-sm text-muted-foreground">
