@@ -354,8 +354,29 @@ export async function sendMySchedule(
   await interaction.editReply({ embeds: [embed] });
 }
 
-export function createWeekModal(): ModalBuilder {
+export async function createWeekModal(userId: string): Promise<ModalBuilder> {
   const dates = getNextSevenDates();
+  
+  // Get user mapping to fetch current values
+  const userMapping = await getUserMapping(userId);
+  let currentValues: string[] = ['', '', '', '', ''];
+  
+  if (userMapping) {
+    // Fetch current availability for the next 5 days
+    const availability = await getPlayerAvailabilityForRange(
+      userMapping.sheetColumnName,
+      dates[0],
+      dates[4]
+    );
+    
+    // Map availability to values array
+    for (let i = 0; i < dates.length && i < 5; i++) {
+      const entry = availability.find(a => a.date === dates[i]);
+      if (entry && entry.availability) {
+        currentValues[i] = entry.availability;
+      }
+    }
+  }
   
   return new ModalBuilder()
     .setCustomId('week_modal')
@@ -369,6 +390,7 @@ export function createWeekModal(): ModalBuilder {
           .setPlaceholder('14:00-22:00 or x (not available) or leave empty')
           .setRequired(false)
           .setMaxLength(20)
+          .setValue(currentValues[0])
       ),
       new ActionRowBuilder<TextInputBuilder>().addComponents(
         new TextInputBuilder()
@@ -378,6 +400,7 @@ export function createWeekModal(): ModalBuilder {
           .setPlaceholder('14:00-22:00 or x (not available) or leave empty')
           .setRequired(false)
           .setMaxLength(20)
+          .setValue(currentValues[1])
       ),
       new ActionRowBuilder<TextInputBuilder>().addComponents(
         new TextInputBuilder()
@@ -387,6 +410,7 @@ export function createWeekModal(): ModalBuilder {
           .setPlaceholder('14:00-22:00 or x (not available) or leave empty')
           .setRequired(false)
           .setMaxLength(20)
+          .setValue(currentValues[2])
       ),
       new ActionRowBuilder<TextInputBuilder>().addComponents(
         new TextInputBuilder()
@@ -396,6 +420,7 @@ export function createWeekModal(): ModalBuilder {
           .setPlaceholder('14:00-22:00 or x (not available) or leave empty')
           .setRequired(false)
           .setMaxLength(20)
+          .setValue(currentValues[3])
       ),
       new ActionRowBuilder<TextInputBuilder>().addComponents(
         new TextInputBuilder()
@@ -405,6 +430,7 @@ export function createWeekModal(): ModalBuilder {
           .setPlaceholder('14:00-22:00 or x (not available) or leave empty')
           .setRequired(false)
           .setMaxLength(20)
+          .setValue(currentValues[4])
       )
     );
 }
@@ -422,7 +448,8 @@ export async function handleSetWeekCommand(
     return;
   }
 
-  await interaction.showModal(createWeekModal());
+  const modal = await createWeekModal(interaction.user.id);
+  await interaction.showModal(modal);
 }
 
 export async function handleWeekModal(
