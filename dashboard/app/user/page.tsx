@@ -6,7 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, ArrowLeft, XCircle, Clock } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Loader2, ArrowLeft, XCircle, Clock, Copy, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ThemeToggle } from '@/components/theme-toggle';
 
@@ -17,6 +19,7 @@ interface DateEntry {
   value: string;
   timeFrom: string;
   timeTo: string;
+  selected?: boolean;
 }
 
 export default function UserSchedule() {
@@ -27,6 +30,11 @@ export default function UserSchedule() {
   const [userColumnIndex, setUserColumnIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [bulkTimeFrom, setBulkTimeFrom] = useState('');
+  const [bulkTimeTo, setBulkTimeTo] = useState('');
+
+  const selectedEntries = entries.filter(e => e.selected);
+  const hasSelection = selectedEntries.length > 0;
 
   useEffect(() => {
     const savedUser = localStorage.getItem('selectedUser');
@@ -90,7 +98,8 @@ export default function UserSchedule() {
             date: row[0],
             value,
             timeFrom,
-            timeTo
+            timeTo,
+            selected: false
           });
         }
       }
@@ -226,6 +235,95 @@ export default function UserSchedule() {
     ));
   };
 
+  const toggleSelection = (date: string) => {
+    setEntries(prev => prev.map(e => 
+      e.date === date ? { ...e, selected: !e.selected } : e
+    ));
+  };
+
+  const toggleSelectAll = () => {
+    const allSelected = entries.every(e => e.selected);
+    setEntries(prev => prev.map(e => ({ ...e, selected: !allSelected })));
+  };
+
+  const handleBulkApply = () => {
+    if (!bulkTimeFrom || !bulkTimeTo) {
+      toast.error('Please enter both start and end time');
+      return;
+    }
+
+    if (bulkTimeTo <= bulkTimeFrom) {
+      toast.error('End time must be after start time');
+      return;
+    }
+
+    setEntries(prev => prev.map(e => 
+      e.selected ? { ...e, timeFrom: bulkTimeFrom, timeTo: bulkTimeTo, value: `${bulkTimeFrom}-${bulkTimeTo}` } : e
+    ));
+    
+    toast.success(`Applied time to ${selectedEntries.length} ${selectedEntries.length === 1 ? 'entry' : 'entries'}`);
+  };
+
+  const handleBulkNotAvailable = () => {
+    setEntries(prev => prev.map(e => 
+      e.selected ? { ...e, value: 'x', timeFrom: '', timeTo: '' } : e
+    ));
+    
+    toast.success(`Marked ${selectedEntries.length} ${selectedEntries.length === 1 ? 'entry' : 'entries'} as not available`);
+  };
+
+  const handleBulkSave = async () => {
+    if (selectedEntries.length === 0) {
+      toast.error('No entries selected');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const sheetRes = await fetch(`${BOT_API_URL}/api/sheet-data?startRow=1&endRow=50`);
+      if (!sheetRes.ok) {
+        toast.error('Failed to load sheet data');
+        return;
+      }
+      
+      const result = await sheetRes.json();
+      const rows = result.data;
+
+      let successCount = 0;
+      for (const entry of selectedEntries) {
+        const rowIndex = rows.findIndex((r: string[]) => r[0] === entry.date);
+        if (rowIndex === -1) continue;
+
+        const response = await fetch(`${BOT_API_URL}/api/sheet-data/update`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            row: rowIndex + 1,
+            column: userColumn,
+            value: entry.value,
+          }),
+        });
+
+        if (response.ok) {
+          successCount++;
+        }
+      }
+
+      if (successCount === selectedEntries.length) {
+        toast.success(`Saved ${successCount} ${successCount === 1 ? 'entry' : 'entries'}!`);
+        // Deselect all after successful save
+        setEntries(prev => prev.map(e => ({ ...e, selected: false })));
+      } else {
+        toast.warning(`Saved ${successCount} of ${selectedEntries.length} entries`);
+      }
+    } catch (error) {
+      console.error('Failed to save:', error);
+      toast.error('Failed to save changes');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const getWeekday = (dateStr: string) => {
     // Parse date format: DD.MM.YYYY
     const parts = dateStr.split('.');
@@ -256,8 +354,8 @@ export default function UserSchedule() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto p-3 sm:p-4 max-w-5xl">
-        <div className="flex items-center justify-between mb-4 sm:mb-6">
+      <div className="container mx-auto p-4 sm:p-6 max-w-6xl">
+        <div className="flex items-center justify-between mb-6">
           <Button variant="ghost" size="sm" onClick={() => router.push('/')}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back
@@ -265,82 +363,162 @@ export default function UserSchedule() {
           <ThemeToggle />
         </div>
 
-        <div className="mb-4 sm:mb-6">
-          <h1 className="text-xl sm:text-2xl font-bold">Welcome, {userName}!</h1>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            Enter your available time or mark as unavailable
+        <div className="mb-6">
+          <h1 className="text-2xl sm:text-3xl font-bold">Welcome, {userName}!</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Manage your availability for the next 14 days
           </p>
         </div>
 
-        <div className="space-y-2">
-          {entries.map((entry) => {
-            const display = getDisplayValue(entry.value);
-            return (
-              <Card key={entry.date} className="p-2 sm:p-3">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-                  <div className="flex items-center justify-between sm:justify-start gap-3">
-                    <div className="flex-shrink-0 w-28 sm:w-32 font-medium text-xs sm:text-sm">
-                      <div>{entry.date}</div>
-                      <div className="text-xs text-muted-foreground">{getWeekday(entry.date)}</div>
-                    </div>
-                    
-                    <div className={`flex items-center gap-1 flex-shrink-0 w-28 sm:w-32 text-xs sm:text-sm ${display.color}`}>
-                      {display.icon}
-                      <span className="truncate">{display.text}</span>
-                    </div>
+        {/* Bulk Actions Bar */}
+        {hasSelection && (
+          <Card className="mb-4 border-blue-500/50 bg-blue-50 dark:bg-blue-950/20">
+            <CardContent className="p-4">
+              <div className="flex flex-col lg:flex-row items-start lg:items-center gap-4">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <CheckCircle2 className="h-5 w-5 text-blue-600" />
+                  <span>{selectedEntries.length} selected</span>
+                </div>
+                
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-1">
+                  <div className="flex items-center gap-2 flex-1">
+                    <Label htmlFor="bulk-from" className="text-xs whitespace-nowrap">From:</Label>
+                    <Input
+                      id="bulk-from"
+                      type="time"
+                      value={bulkTimeFrom}
+                      onChange={(e) => setBulkTimeFrom(e.target.value)}
+                      className="h-9"
+                      disabled={saving}
+                    />
                   </div>
-                  
-                  <div className="flex-1 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                    <div className="flex items-center gap-2 flex-1">
-                      <div className="flex items-center gap-1 flex-1">
-                        <Label htmlFor={`from-${entry.date}`} className="text-xs whitespace-nowrap">From:</Label>
-                        <Input
-                          id={`from-${entry.date}`}
-                          type="time"
-                          value={entry.timeFrom}
-                          onChange={(e) => handleTimeChange(entry.date, 'from', e.target.value)}
-                          className="h-8 text-sm"
-                          disabled={saving}
-                        />
-                      </div>
-                      <div className="flex items-center gap-1 flex-1">
-                        <Label htmlFor={`to-${entry.date}`} className="text-xs whitespace-nowrap">To:</Label>
-                        <Input
-                          id={`to-${entry.date}`}
-                          type="time"
-                          value={entry.timeTo}
-                          onChange={(e) => handleTimeChange(entry.date, 'to', e.target.value)}
-                          className="h-8 text-sm"
-                          disabled={saving}
-                        />
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleSave(entry.date, entry.timeFrom, entry.timeTo)}
-                        disabled={saving || !entry.timeFrom || !entry.timeTo}
-                        className="h-8 px-3 whitespace-nowrap flex-1 sm:flex-none"
-                      >
-                        Save
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => handleNotAvailable(entry.date)}
-                        disabled={saving}
-                        className="h-8 px-3 flex-1 sm:flex-none"
-                        title="Not available"
-                      >
-                        <XCircle className="h-4 w-4" />
-                      </Button>
-                    </div>
+                  <div className="flex items-center gap-2 flex-1">
+                    <Label htmlFor="bulk-to" className="text-xs whitespace-nowrap">To:</Label>
+                    <Input
+                      id="bulk-to"
+                      type="time"
+                      value={bulkTimeTo}
+                      onChange={(e) => setBulkTimeTo(e.target.value)}
+                      className="h-9"
+                      disabled={saving}
+                    />
                   </div>
                 </div>
-              </Card>
-            );
-          })}
+
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleBulkApply}
+                    disabled={saving || !bulkTimeFrom || !bulkTimeTo}
+                  >
+                    <Copy className="mr-2 h-4 w-4" />
+                    Apply Time
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleBulkNotAvailable}
+                    disabled={saving}
+                  >
+                    <XCircle className="mr-2 h-4 w-4" />
+                    Not Available
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleBulkSave}
+                    disabled={saving}
+                  >
+                    {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Save All
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-12">
+                  <Checkbox
+                    checked={entries.length > 0 && entries.every(e => e.selected)}
+                    onCheckedChange={toggleSelectAll}
+                  />
+                </TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Weekday</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>From</TableHead>
+                <TableHead>To</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {entries.map((entry) => {
+                const display = getDisplayValue(entry.value);
+                return (
+                  <TableRow key={entry.date} className={entry.selected ? 'bg-blue-50 dark:bg-blue-950/20' : ''}>
+                    <TableCell>
+                      <Checkbox
+                        checked={entry.selected}
+                        onCheckedChange={() => toggleSelection(entry.date)}
+                      />
+                    </TableCell>
+                    <TableCell className="font-medium">{entry.date}</TableCell>
+                    <TableCell className="text-muted-foreground">{getWeekday(entry.date)}</TableCell>
+                    <TableCell>
+                      <div className={`flex items-center gap-1.5 ${display.color}`}>
+                        {display.icon}
+                        <span className="text-sm">{display.text}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="time"
+                        value={entry.timeFrom}
+                        onChange={(e) => handleTimeChange(entry.date, 'from', e.target.value)}
+                        className="h-9 w-32"
+                        disabled={saving}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="time"
+                        value={entry.timeTo}
+                        onChange={(e) => handleTimeChange(entry.date, 'to', e.target.value)}
+                        className="h-9 w-32"
+                        disabled={saving}
+                      />
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleSave(entry.date, entry.timeFrom, entry.timeTo)}
+                          disabled={saving || !entry.timeFrom || !entry.timeTo}
+                        >
+                          Save
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleNotAvailable(entry.date)}
+                          disabled={saving}
+                          title="Mark as not available"
+                        >
+                          <XCircle className="h-4 w-4 text-red-500" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
         </div>
       </div>
     </div>
