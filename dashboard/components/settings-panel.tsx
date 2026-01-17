@@ -7,9 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Settings } from "@/lib/types";
-import { Loader2, Save, Hash, AtSign } from "lucide-react";
+import { Loader2, Save, Hash, AtSign, ChevronsUpDown, Check } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 interface DiscordChannel {
   id: string;
@@ -29,6 +32,14 @@ export default function SettingsPanel() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [loadingDiscord, setLoadingDiscord] = useState(true);
+  const [timezoneOpen, setTimezoneOpen] = useState(false);
+  const [timezoneSearch, setTimezoneSearch] = useState("");
+
+  // Get all available timezones
+  const allTimezones = Intl.supportedValuesOf('timeZone');
+  const filteredTimezones = timezoneSearch
+    ? allTimezones.filter(tz => tz.toLowerCase().includes(timezoneSearch.toLowerCase()))
+    : allTimezones;
 
   useEffect(() => {
     loadSettings();
@@ -131,10 +142,10 @@ export default function SettingsPanel() {
                   })
                 }
               >
-                <SelectTrigger id="channelId">
+                <SelectTrigger id="channelId" className="w-full">
                   <SelectValue placeholder="Select a channel" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent position="popper">
                   {channels.map((channel) => (
                     <SelectItem key={channel.id} value={channel.id}>
                       # {channel.name}
@@ -168,10 +179,10 @@ export default function SettingsPanel() {
                   })
                 }
               >
-                <SelectTrigger id="pingRoleId">
+                <SelectTrigger id="pingRoleId" className="w-full">
                   <SelectValue placeholder="Select a role" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent position="popper">
                   <SelectItem value="none">No role</SelectItem>
                   {roles.map((role) => (
                     <SelectItem key={role.id} value={role.id}>
@@ -234,10 +245,10 @@ export default function SettingsPanel() {
                 })
               }
             >
-              <SelectTrigger id="reminderHours">
+              <SelectTrigger id="reminderHours" className="w-full">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent position="popper">
                 <SelectItem value="1">1 hour before</SelectItem>
                 <SelectItem value="2">2 hours before</SelectItem>
                 <SelectItem value="3">3 hours before</SelectItem>
@@ -252,27 +263,56 @@ export default function SettingsPanel() {
 
           <div className="space-y-2">
             <Label htmlFor="timezone">Timezone</Label>
-            <Select
-              value={settings.scheduling.timezone}
-              onValueChange={(value) =>
-                setSettings({
-                  ...settings,
-                  scheduling: { ...settings.scheduling, timezone: value },
-                })
-              }
-            >
-              <SelectTrigger id="timezone">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Europe/London">Europe/London (GMT/BST)</SelectItem>
-                <SelectItem value="Europe/Berlin">Europe/Berlin (CET/CEST)</SelectItem>
-                <SelectItem value="Europe/Paris">Europe/Paris (CET/CEST)</SelectItem>
-                <SelectItem value="America/New_York">America/New_York (EST/EDT)</SelectItem>
-                <SelectItem value="America/Los_Angeles">America/Los_Angeles (PST/PDT)</SelectItem>
-                <SelectItem value="Asia/Tokyo">Asia/Tokyo (JST)</SelectItem>
-              </SelectContent>
-            </Select>
+            <Popover open={timezoneOpen} onOpenChange={setTimezoneOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  id="timezone"
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={timezoneOpen}
+                  className="w-full justify-between font-normal"
+                >
+                  {settings.scheduling.timezone}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                <Command shouldFilter={false}>
+                  <CommandInput 
+                    placeholder="Search timezone..." 
+                    value={timezoneSearch}
+                    onValueChange={setTimezoneSearch}
+                  />
+                  <CommandList>
+                    <CommandEmpty>No timezone found.</CommandEmpty>
+                    <CommandGroup>
+                      {filteredTimezones.map((timezone) => (
+                        <CommandItem
+                          key={timezone}
+                          value={timezone}
+                          onSelect={() => {
+                            setSettings({
+                              ...settings,
+                              scheduling: { ...settings.scheduling, timezone },
+                            });
+                            setTimezoneOpen(false);
+                            setTimezoneSearch("");
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              settings.scheduling.timezone === timezone ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {timezone}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
             <p className="text-sm text-muted-foreground">
               Timezone for all scheduled tasks
             </p>

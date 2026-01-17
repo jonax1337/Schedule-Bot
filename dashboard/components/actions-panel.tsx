@@ -196,10 +196,10 @@ export default function ActionsPanel() {
           <div className="space-y-2">
             <Label htmlFor="pollDuration">Duration</Label>
             <Select value={pollDuration} onValueChange={setPollDuration}>
-              <SelectTrigger id="pollDuration">
+              <SelectTrigger id="pollDuration" className="w-full">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent position="popper">
                 <SelectItem value="1">1 hour</SelectItem>
                 <SelectItem value="2">2 hours</SelectItem>
                 <SelectItem value="4">4 hours</SelectItem>

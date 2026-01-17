@@ -71,7 +71,7 @@ export default function HomePage() {
                   <SelectTrigger id="user-select" className="w-full">
                     <SelectValue placeholder="Select your name..." />
                   </SelectTrigger>
-                  <SelectContent className="w-full">
+                  <SelectContent position="popper" className="w-full">
                     {columns.map((col) => (
                       <SelectItem key={col.column} value={col.name}>
                         {col.name}

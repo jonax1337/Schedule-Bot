@@ -234,7 +234,7 @@ export function UserMappingsPanel() {
           <div className="space-y-2">
             <Label htmlFor="column">Sheet Column</Label>
             <Select value={columnName} onValueChange={setColumnName}>
-              <SelectTrigger id="column">
+              <SelectTrigger id="column" className="w-full">
                 <SelectValue placeholder="Select column...">
                   {selectedColumn && (
                     <span>
@@ -243,7 +243,7 @@ export function UserMappingsPanel() {
                   )}
                 </SelectValue>
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent position="popper">
                 {availableColumns.map((col) => (
                   <SelectItem key={col.column} value={col.column}>
                     <span className="font-mono font-semibold">{col.column}</span> - {col.name}
@@ -256,10 +256,10 @@ export function UserMappingsPanel() {
           <div className="space-y-2">
             <Label htmlFor="role">Role</Label>
             <Select value={role} onValueChange={(value: 'main' | 'sub' | 'coach') => setRole(value)}>
-              <SelectTrigger id="role">
+              <SelectTrigger id="role" className="w-full">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent position="popper">
                 <SelectItem value="main">Main Player</SelectItem>
                 <SelectItem value="sub">Substitute</SelectItem>
                 <SelectItem value="coach">Coach</SelectItem>

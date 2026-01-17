@@ -127,10 +127,10 @@ export default function LogsPanel() {
           <div className="flex-1">
             <Label htmlFor="filter" className="text-sm">Filter by Level</Label>
             <Select value={filter} onValueChange={setFilter}>
-              <SelectTrigger id="filter">
+              <SelectTrigger id="filter" className="w-full">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent position="popper">
                 <SelectItem value="all">All Levels</SelectItem>
                 <SelectItem value="info">Info</SelectItem>
                 <SelectItem value="success">Success</SelectItem>
@@ -142,10 +142,10 @@ export default function LogsPanel() {
           <div className="flex-1">
             <Label htmlFor="limit" className="text-sm">Show Last</Label>
             <Select value={limit} onValueChange={setLimit}>
-              <SelectTrigger id="limit">
+              <SelectTrigger id="limit" className="w-full">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent position="popper">
                 <SelectItem value="50">50 entries</SelectItem>
                 <SelectItem value="100">100 entries</SelectItem>
                 <SelectItem value="200">200 entries</SelectItem>
