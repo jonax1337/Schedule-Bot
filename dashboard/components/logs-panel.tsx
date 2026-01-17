@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2, RefreshCw, Terminal, AlertCircle, Info, CheckCircle, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
@@ -157,8 +158,16 @@ export default function LogsPanel() {
 
         <ScrollArea className="h-[600px] w-full rounded-md border p-4 bg-muted/30">
           {loading && logs.length === 0 ? (
-            <div className="flex items-center justify-center h-full">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <div className="space-y-2">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="flex items-start gap-3 p-3 border rounded-lg">
+                  <Skeleton className="h-4 w-4 mt-0.5" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-4 w-full" />
+                  </div>
+                </div>
+              ))}
             </div>
           ) : logs.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
