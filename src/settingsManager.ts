@@ -18,6 +18,10 @@ export interface Settings {
     trainingStartPollEnabled: boolean;
     timezone: string;
   };
+  admin: {
+    username: string;
+    password: string;
+  };
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -30,6 +34,10 @@ const DEFAULT_SETTINGS: Settings = {
     reminderHoursBefore: 3,
     trainingStartPollEnabled: false,
     timezone: 'Europe/Berlin',
+  },
+  admin: {
+    username: 'admin',
+    password: 'admin123',
   },
 };
 
@@ -67,6 +75,10 @@ export function reloadSettings(): Settings {
       discord: {
         ...DEFAULT_SETTINGS.discord,
         ...settings.discord,
+      },
+      admin: {
+        ...DEFAULT_SETTINGS.admin,
+        ...settings.admin,
       },
       scheduling: {
         ...DEFAULT_SETTINGS.scheduling,

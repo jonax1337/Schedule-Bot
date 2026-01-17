@@ -9,6 +9,7 @@ import { logger } from './logger.js';
 import { restartScheduler } from './scheduler.js';
 import { getUserMappings, addUserMapping, removeUserMapping, initializeUserMappingSheet } from './userMapping.js';
 import { getSheetColumns, getSheetDataRange, updateSheetCell } from './sheets.js';
+import { loadSettings } from './settingsManager.js';
 
 const app = express();
 const PORT = 3001;
@@ -25,6 +26,25 @@ const MEMBERS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 app.use(cors());
 app.use(express.json());
+
+// Admin authentication
+app.post('/api/admin/login', (req, res) => {
+  try {
+    const { username, password } = req.body;
+    const settings = loadSettings();
+    
+    if (username === settings.admin.username && password === settings.admin.password) {
+      logger.success('Admin login successful', `User: ${username}`);
+      res.json({ success: true, message: 'Login successful' });
+    } else {
+      logger.warn('Admin login failed', `Invalid credentials for: ${username}`);
+      res.status(401).json({ success: false, error: 'Invalid credentials' });
+    }
+  } catch (error) {
+    console.error('Error during admin login:', error);
+    res.status(500).json({ success: false, error: 'Login failed' });
+  }
+});
 
 // Health check
 app.get('/api/health', (req, res) => {
