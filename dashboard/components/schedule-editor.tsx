@@ -161,12 +161,13 @@ export function ScheduleEditor() {
                   {headers.map((_, colIndex) => {
                     const isEditing = editingCell?.row === rowIndex && editingCell?.col === colIndex;
                     const cellValue = row[colIndex] || '';
+                    const isDateColumn = colIndex === 0; // First column is Date
 
                     return (
                       <TableCell
                         key={colIndex}
-                        className="cursor-pointer hover:bg-accent/50 transition-colors"
-                        onClick={() => !isEditing && handleCellClick(rowIndex, colIndex, cellValue)}
+                        className={!isDateColumn ? 'cursor-pointer hover:bg-accent/50 transition-colors' : ''}
+                        onClick={() => !isEditing && !isDateColumn && handleCellClick(rowIndex, colIndex, cellValue)}
                       >
                         {isEditing ? (
                           <Input
