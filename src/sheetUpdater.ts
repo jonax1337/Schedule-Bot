@@ -10,7 +10,7 @@ const __dirname = dirname(__filename);
 
 let sheetsApi: ReturnType<typeof google.sheets> | null = null;
 
-async function getAuthenticatedClient() {
+export async function getAuthenticatedClient() {
   if (sheetsApi) return sheetsApi;
 
   const credentialsPath = resolve(__dirname, '..', config.googleSheets.credentialsPath);

@@ -7,11 +7,7 @@ import {
   ChatInputCommandInteraction,
   TextChannel,
   PermissionFlagsBits,
-  ButtonInteraction,
-  StringSelectMenuInteraction,
-  ModalSubmitInteraction,
   MessageFlags,
-  EmbedBuilder,
 } from 'discord.js';
 import { config } from './config.js';
 import { getScheduleForDate } from './sheets.js';
@@ -22,13 +18,12 @@ import {
   createDateSelectMenu,
   handleDateNavigation,
   handleAvailabilityButton,
-  handleTimeModal,
   handleDateSelect,
+  handleWeekModal,
+  handleInfoModal,
   sendWeekOverview,
   sendMySchedule,
   handleSetWeekCommand,
-  handleWeekModal,
-  handleInfoModal,
 } from './interactive.js';
 import { getUserMapping, addUserMapping, removeUserMapping, initializeUserMappingSheet } from './userMapping.js';
 import { sendRemindersToUsersWithoutEntry } from './reminder.js';
@@ -40,13 +35,24 @@ export const client = new Client({
 const commands = [
   new SlashCommandBuilder()
     .setName('schedule')
-    .setDescription('Show availability for a specific date')
+    .setDescription('Check team availability for a specific date')
     .addStringOption(option =>
       option
         .setName('date')
         .setDescription('Date in DD.MM.YYYY format (optional, default: today)')
         .setRequired(false)
     )
+    .toJSON(),
+  new SlashCommandBuilder()
+    .setName('post-schedule')
+    .setDescription('Post schedule to channel (Admin)')
+    .addStringOption(option =>
+      option
+        .setName('date')
+        .setDescription('Date in DD.MM.YYYY format (optional, default: today)')
+        .setRequired(false)
+    )
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .toJSON(),
   new SlashCommandBuilder()
     .setName('set')
@@ -149,6 +155,45 @@ const commands = [
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .toJSON(),
+  new SlashCommandBuilder()
+    .setName('poll')
+    .setDescription('Create a quick poll (Admin)')
+    .addStringOption(option =>
+      option
+        .setName('question')
+        .setDescription('The poll question')
+        .setRequired(true)
+    )
+    .addStringOption(option =>
+      option
+        .setName('options')
+        .setDescription('Comma-separated options (max 10)')
+        .setRequired(true)
+    )
+    .addIntegerOption(option =>
+      option
+        .setName('duration')
+        .setDescription('Poll duration in hours (default: 1)')
+        .setRequired(false)
+    )
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .toJSON(),
+  new SlashCommandBuilder()
+    .setName('training-start-poll')
+    .setDescription('Toggle automatic training start time poll on/off (Admin)')
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .toJSON(),
+  new SlashCommandBuilder()
+    .setName('send-training-poll')
+    .setDescription('Manually send a training start time poll (Admin)')
+    .addStringOption(option =>
+      option
+        .setName('date')
+        .setDescription('Date in DD.MM.YYYY format (optional, default: today)')
+        .setRequired(false)
+    )
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .toJSON(),
 ];
 
 async function handleScheduleCommand(interaction: ChatInputCommandInteraction): Promise<void> {
@@ -181,6 +226,28 @@ async function handleScheduleCommand(interaction: ChatInputCommandInteraction): 
     console.error('Error handling schedule command:', error);
     await interaction.editReply({
       embeds: [buildErrorEmbed('An error occurred. Please try again later.')],
+    });
+  }
+}
+
+async function handlePostScheduleCommand(interaction: ChatInputCommandInteraction): Promise<void> {
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+  try {
+    const dateOption = interaction.options.getString('date');
+    const targetDate = dateOption || undefined;
+    const displayDate = targetDate || new Date().toLocaleDateString('de-DE');
+
+    // Post schedule to channel (like cron job does)
+    await postScheduleToChannel(targetDate);
+
+    await interaction.editReply({
+      content: `✅ Schedule posted to channel for **${displayDate}**!`,
+    });
+  } catch (error) {
+    console.error('Error posting schedule:', error);
+    await interaction.editReply({
+      content: '❌ An error occurred while posting the schedule.',
     });
   }
 }
@@ -317,6 +384,103 @@ async function handleInfoCommand(interaction: ChatInputCommandInteraction): Prom
   }
 }
 
+async function handleQuickPollCommand(interaction: ChatInputCommandInteraction): Promise<void> {
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+  try {
+    const question = interaction.options.getString('question', true);
+    const optionsStr = interaction.options.getString('options', true);
+    const duration = interaction.options.getInteger('duration') || 1;
+
+    const options = optionsStr.split(',').map(opt => opt.trim()).slice(0, 10);
+
+    if (options.length < 2) {
+      await interaction.editReply({
+        content: '❌ You need at least 2 options for a poll.',
+      });
+      return;
+    }
+
+    const { createQuickPoll } = await import('./polls.js');
+    await createQuickPoll(question, options, interaction.user.id, duration);
+
+    await interaction.editReply({
+      content: `✅ Poll created! It will close in ${duration} hour(s).`,
+    });
+  } catch (error) {
+    console.error('Error creating quick poll:', error);
+    await interaction.editReply({
+      content: 'An error occurred while creating the poll.',
+    });
+  }
+}
+
+async function handleTrainingStartPollCommand(interaction: ChatInputCommandInteraction): Promise<void> {
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+  try {
+    const { toggleTrainingStartPoll, isTrainingStartPollEnabled } = await import('./trainingStartPoll.js');
+    const newState = await toggleTrainingStartPoll();
+
+    const statusEmoji = newState ? '✅' : '❌';
+    const statusText = newState ? 'enabled' : 'disabled';
+
+    await interaction.editReply({
+      content: `${statusEmoji} Training start time poll is now **${statusText}**.\n\n${newState ? 'A poll will be automatically created after each schedule post asking when to start training.' : 'No automatic polls will be created.'}`,
+    });
+  } catch (error) {
+    console.error('Error toggling training start poll:', error);
+    await interaction.editReply({
+      content: 'An error occurred while toggling the training start poll feature.',
+    });
+  }
+}
+
+async function handleSendTrainingPollCommand(interaction: ChatInputCommandInteraction): Promise<void> {
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+  try {
+    const dateOption = interaction.options.getString('date');
+    const targetDate = dateOption || undefined;
+    const displayDate = targetDate || new Date().toLocaleDateString('de-DE');
+
+    // Fetch schedule data for the date
+    const sheetData = await getScheduleForDate(targetDate);
+
+    if (!sheetData) {
+      await interaction.editReply({
+        content: `❌ No schedule data found for ${displayDate}.`,
+      });
+      return;
+    }
+
+    const schedule = parseSchedule(sheetData);
+    const result = analyzeSchedule(schedule);
+
+    // Check if training can proceed
+    if (!result.canProceed || !result.commonTimeRange) {
+      await interaction.editReply({
+        content: `❌ Cannot create training start poll for ${displayDate}.\n\nReason: ${result.statusMessage}`,
+      });
+      return;
+    }
+
+    // Create the poll
+    const { createTrainingStartPoll } = await import('./trainingStartPoll.js');
+    await createTrainingStartPoll(result, displayDate);
+
+    const timeRange = result.commonTimeRange;
+    await interaction.editReply({
+      content: `✅ Training start time poll sent for **${displayDate}**!\n\n⏰ Available time: ${timeRange.start}-${timeRange.end}`,
+    });
+  } catch (error) {
+    console.error('Error sending training start poll:', error);
+    await interaction.editReply({
+      content: 'An error occurred while sending the training start poll.',
+    });
+  }
+}
+
 export async function registerCommands(): Promise<void> {
   const rest = new REST({ version: '10' }).setToken(config.discord.token);
 
@@ -360,6 +524,10 @@ export async function postScheduleToChannel(date?: string): Promise<void> {
 
     await channel.send({ content: pingContent, embeds: [embed] });
     console.log(`Schedule posted to channel for date: ${displayDate}`);
+
+    // Create training start poll if enabled
+    const { createTrainingStartPoll } = await import('./trainingStartPoll.js');
+    await createTrainingStartPoll(result, displayDate);
   } catch (error) {
     console.error('Error posting schedule to channel:', error);
     await channel.send({
@@ -380,6 +548,9 @@ client.on('interactionCreate', async interaction => {
       switch (interaction.commandName) {
         case 'schedule':
           await handleScheduleCommand(interaction);
+          break;
+        case 'post-schedule':
+          await handlePostScheduleCommand(interaction);
           break;
         case 'set':
           await handleAvailabilityCommand(interaction);
@@ -405,6 +576,15 @@ client.on('interactionCreate', async interaction => {
         case 'notify':
           await handleInfoCommand(interaction);
           break;
+        case 'poll':
+          await handleQuickPollCommand(interaction);
+          break;
+        case 'training-start-poll':
+          await handleTrainingStartPollCommand(interaction);
+          break;
+        case 'send-training-poll':
+          await handleSendTrainingPollCommand(interaction);
+          break;
       }
     } else if (interaction.isButton()) {
       if (interaction.customId.startsWith('schedule_')) {
@@ -416,13 +596,11 @@ client.on('interactionCreate', async interaction => {
         await handleAvailabilityButton(interaction);
       }
     } else if (interaction.isStringSelectMenu()) {
-      if (interaction.customId === 'select_date') {
+      if (interaction.customId === 'date_select') {
         await handleDateSelect(interaction);
       }
     } else if (interaction.isModalSubmit()) {
-      if (interaction.customId.startsWith('time_modal_')) {
-        await handleTimeModal(interaction);
-      } else if (interaction.customId === 'week_modal') {
+      if (interaction.customId.startsWith('week_modal_')) {
         await handleWeekModal(interaction);
       } else if (interaction.customId.startsWith('info_modal_')) {
         await handleInfoModal(interaction);

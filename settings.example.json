@@ -1,0 +1,7 @@
+{
+  "scheduling": {
+    "dailyPostTime": "12:00",
+    "reminderHoursBefore": 3,
+    "trainingStartPollEnabled": false
+  }
+}

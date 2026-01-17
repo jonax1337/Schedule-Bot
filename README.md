@@ -29,14 +29,19 @@ A Discord bot that reads Google Sheets data and manages team availability for Va
 - Manual reminder command for admins
 
 ### 💬 Slash Commands
-- `/schedule [date]` - Show team availability for a specific date (default: today)
-- `/set` - Set your availability for upcoming days (interactive)
-- `/schedule-week` - Show team availability for the next 7 days
-- `/my-schedule` - Show your personal availability for the next 14 days
-- `/set-week` - Set your availability for the next 7 days at once
-- `/register @user column role` - Register user for interactive system (Admin only)
-- `/unregister @user` - Remove user from system (Admin only)
-- `/send-reminders [date]` - Manually send reminders (Admin only)
+
+**Player Commands:**
+- `/schedule [date]` - Show team availability for a specific date
+- `/set` - Set your availability (interactive)
+- `/schedule-week` - Show availability for the next 7 days
+- `/my-schedule` - Show your personal availability (14 days)
+- `/set-week` - Set availability for the next 7 days at once
+
+**Admin Commands:**
+- `/register`, `/unregister` - User management
+- `/remind`, `/notify` - Communication
+- `/poll-training`, `/poll` - Polls & voting
+- `/scrim` - Scrim scheduling
 
 ## Setup
 
@@ -81,9 +86,18 @@ A Discord bot that reads Google Sheets data and manages team availability for Va
 
 ### 4. Configuration
 
-1. Copy `.env.example` to `.env`:
+1. Clone the repository
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Copy `.env.example` to `.env` and fill in your values:
    ```bash
    cp .env.example .env
+   ```
+4. Copy `settings.example.json` to `settings.json` (will be auto-created with defaults if missing):
+   ```bash
+   cp settings.example.json settings.json
    ```
 
 2. Fill in your values in `.env`:
@@ -192,6 +206,22 @@ Or for development:
 npm run dev
 ```
 
+## Configuration
+
+### Environment Variables (`.env`)
+Sensitive and deployment-specific settings:
+- Discord credentials (token, IDs)
+- Google Sheets credentials
+- Timezone
+
+### Persistent Settings (`settings.json`)
+User-configurable runtime settings that persist across restarts:
+- `dailyPostTime` - When to post daily schedule (default: "12:00")
+- `reminderHoursBefore` - Hours before to send reminders (default: 3)
+- `trainingStartPollEnabled` - Auto-create training start polls (default: false)
+
+These settings can be changed via commands and will be saved automatically.
+
 ## Usage
 
 ### Interactive Commands
@@ -209,8 +239,12 @@ npm run dev
 ```
 /register @user PlayerName main  - Register user
 /unregister @user                - Remove user
+/post-schedule [date]            - Post schedule to channel (like cron job)
 /remind [date]                   - Manually send reminders
 /notify type target [user]       - Send notifications to players
+/poll question options [duration] - Create a poll
+/training-start-poll             - Toggle automatic training start time poll
+/send-training-poll [date]       - Manually send training start time poll
 ```
 
 ### Setting Your Availability
@@ -295,6 +329,20 @@ All personal commands (`/schedule`, `/availability`, `/my-schedule`, etc.) are e
 - Discord automatically converts times to each user's local timezone
 - Automatically handles Daylight Saving Time (DST) transitions
 - Works with any IANA timezone (Europe/London, America/New_York, etc.)
+
+### Polls & Voting System
+- **Quick Polls** - Create custom polls for any team decision
+- **Training Start Time Poll** - Automatically ask when to start training based on available time window
+- Automatic vote counting and result announcements
+- Configurable poll duration (default: 1-2 hours)
+
+### Training Start Time Poll
+- **Automatic Poll Creation** - After each schedule post, a poll is created asking when to start training
+- **Manual Poll Sending** - Use `/send-training-poll [date]` to manually send a poll for any date
+- **Smart Time Options** - Generates time slots based on the common availability window
+- **Toggle On/Off** - Use `/training-start-poll` to enable or disable automatic polls
+- **Configurable** - Set `TRAINING_START_POLL_ENABLED=true` in `.env` to enable by default
+- Only creates polls when training can proceed (enough players available)
 
 ## Troubleshooting
 

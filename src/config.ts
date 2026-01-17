@@ -1,11 +1,15 @@
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
+import { loadSettings } from './settingsManager.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 dotenv.config({ path: resolve(__dirname, '../.env') });
+
+// Load persistent settings
+const settings = loadSettings();
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -27,9 +31,10 @@ export const config = {
     credentialsPath: process.env.GOOGLE_CREDENTIALS_PATH || './credentials.json',
   },
   scheduling: {
-    dailyPostTime: process.env.DAILY_POST_TIME || '10:00',
+    dailyPostTime: settings.scheduling.dailyPostTime,
     timezone: process.env.TIMEZONE || 'Europe/Berlin',
-    reminderHoursBefore: parseInt(process.env.REMINDER_HOURS_BEFORE || '3', 10),
+    reminderHoursBefore: settings.scheduling.reminderHoursBefore,
+    trainingStartPollEnabled: settings.scheduling.trainingStartPollEnabled,
   },
 };
 
@@ -47,3 +52,4 @@ export const SHEET_COLUMNS = {
   REASON: 9,
   FOCUS: 10,
 };
+
