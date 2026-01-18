@@ -31,7 +31,7 @@ export default function Home() {
   };
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto p-6 max-w-6xl">
+      <div className="container mx-auto p-6 max-w-7xl">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
@@ -45,7 +45,7 @@ export default function Home() {
             </div>
             <div className="flex items-center gap-2">
               <Button variant="outline" onClick={handleLogout}>
-                <LogOut className="mr-2 h-4 w-4" />
+                <LogOut className="mr-1 h-4 w-4" />
                 Logout
               </Button>
               <ThemeToggle />

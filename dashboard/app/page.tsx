@@ -24,6 +24,8 @@ interface DateEntry {
     notSet: number;
   };
   players: PlayerStatus[];
+  reason?: string;
+  isOffDay: boolean;
 }
 
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
@@ -65,6 +67,14 @@ export default function HomePage() {
           let unavailable = 0;
           let notSet = 0;
           const players: PlayerStatus[] = [];
+          
+          // Get reason from column 9 (REASON column)
+          const reason = row[9] || '';
+          
+          // Check if it's an off-day
+          const isOffDay = reason.toLowerCase().includes('off-day') ||
+                          reason.toLowerCase().includes('off day') ||
+                          reason.toLowerCase() === 'off';
 
           // Process each player column
           for (let j = 0; j < columns.length; j++) {
@@ -102,7 +112,9 @@ export default function HomePage() {
               unavailable,
               notSet
             },
-            players
+            players,
+            reason,
+            isOffDay
           });
         }
       }
@@ -128,14 +140,23 @@ export default function HomePage() {
     return weekdays[date.getDay()];
   };
 
-  const getStatusDot = (available: number) => {
-    if (available >= 5) {
-      return <div className="w-3 h-3 rounded-full bg-green-500" />;
-    } else if (available >= 3) {
-      return <div className="w-3 h-3 rounded-full bg-yellow-500" />;
-    } else if (available > 0) {
+  const getStatusDot = (available: number, unavailable: number, isOffDay: boolean) => {
+    if (isOffDay) {
+      return <div className="w-3 h-3 rounded-full bg-purple-500" />;
+    }
+    // Rot wenn 2+ Leute unavailable sind
+    if (unavailable >= 2) {
       return <div className="w-3 h-3 rounded-full bg-red-500" />;
     }
+    // Grün wenn 5+ verfügbar
+    if (available >= 5) {
+      return <div className="w-3 h-3 rounded-full bg-green-500" />;
+    }
+    // Orange wenn 3-4 verfügbar
+    if (available >= 3) {
+      return <div className="w-3 h-3 rounded-full bg-yellow-500" />;
+    }
+    // Grau wenn weniger als 3
     return <div className="w-3 h-3 rounded-full bg-gray-400" />;
   };
 
@@ -171,14 +192,40 @@ export default function HomePage() {
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={() => router.push('/login')}>
-              <LogIn className="mr-2 h-4 w-4" />
+              <LogIn className="mr-1 h-4 w-4" />
               Player Login
             </Button>
             <Button variant="outline" onClick={() => router.push('/admin/login')}>
-              <Shield className="mr-2 h-4 w-4" />
+              <Shield className="mr-1 h-4 w-4" />
               Admin
             </Button>
             <ThemeToggle />
+          </div>
+        </div>
+
+        {/* Legend */}
+        <div className="mb-4 p-3 bg-muted/50 rounded-lg border">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded-full bg-purple-500" />
+              <span className="text-xs">Off-Day</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
+              <span className="text-xs">5+ players</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded-full bg-yellow-500" />
+              <span className="text-xs">3-4 players</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
+              <span className="text-xs">2+ unavailable</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded-full bg-gray-400" />
+              <span className="text-xs">Pending</span>
+            </div>
           </div>
         </div>
 
@@ -194,6 +241,8 @@ export default function HomePage() {
                 key={entry.date}
                 className={`cursor-pointer transition-all hover:shadow-lg hover:scale-[1.02] ${
                   isToday(entry.date) ? 'ring-2 ring-blue-500' : ''
+                } ${
+                  entry.isOffDay ? 'bg-purple-500/5 opacity-60' : ''
                 }`}
                 onClick={() => handleDateClick(entry)}
               >
@@ -203,7 +252,7 @@ export default function HomePage() {
                       <CardTitle className="text-base">{entry.date}</CardTitle>
                       <p className="text-xs text-muted-foreground mb-0">{entry.weekday}</p>
                     </div>
-                    {getStatusDot(entry.availability.available)}
+                    {getStatusDot(entry.availability.available, entry.availability.unavailable, entry.isOffDay)}
                   </div>
                 </CardHeader>
                 <CardContent className="pt-0.5 pb-3">
@@ -242,11 +291,29 @@ export default function HomePage() {
             
             {selectedDate && (
               <div className="space-y-3 mt-4">
+                {/* Off-Day Banner */}
+                {selectedDate.isOffDay && (
+                  <div className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-purple-500" />
+                      <span className="text-sm font-semibold text-purple-600 dark:text-purple-400">Off-Day</span>
+                      {selectedDate.reason && 
+                       !selectedDate.reason.toLowerCase().includes('off-day') &&
+                       !selectedDate.reason.toLowerCase().includes('off day') &&
+                       selectedDate.reason.toLowerCase() !== 'off' && (
+                        <span className="text-sm text-muted-foreground">— {selectedDate.reason}</span>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
                 {/* Summary */}
-                <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                  <span className="text-sm font-medium">Status</span>
-                  {getStatusDot(selectedDate.availability.available)}
-                </div>
+                {!selectedDate.isOffDay && (
+                  <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                    <span className="text-sm font-medium">Status</span>
+                    {getStatusDot(selectedDate.availability.available, selectedDate.availability.unavailable, selectedDate.isOffDay)}
+                  </div>
+                )}
 
                 {/* Available Players */}
                 {selectedDate.players.filter(p => p.status === 'available').length > 0 && (

@@ -310,12 +310,12 @@ export function UserMappingsPanel() {
           <Button onClick={addMapping} disabled={saving} className="w-full">
             {saving ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="mr-1 h-4 w-4 animate-spin" />
                 Adding...
               </>
             ) : (
               <>
-                <UserPlus className="mr-2 h-4 w-4" />
+                <UserPlus className="mr-1 h-4 w-4" />
                 Add Mapping
               </>
             )}

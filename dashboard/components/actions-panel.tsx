@@ -157,12 +157,12 @@ export default function ActionsPanel() {
             >
               {loading === 'schedule' ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="mr-1 h-4 w-4 animate-spin" />
                   Posting...
                 </>
               ) : (
                 <>
-                  <Send className="mr-2 h-4 w-4" />
+                  <Send className="mr-1 h-4 w-4" />
                   Post Schedule
                 </>
               )}
@@ -201,12 +201,12 @@ export default function ActionsPanel() {
             >
               {loading === 'remind' ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="mr-1 h-4 w-4 animate-spin" />
                   Sending...
                 </>
               ) : (
                 <>
-                  <Bell className="mr-2 h-4 w-4" />
+                  <Bell className="mr-1 h-4 w-4" />
                   Send Reminders
                 </>
               )}
@@ -273,12 +273,12 @@ export default function ActionsPanel() {
           >
             {loading === 'poll' ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="mr-1 h-4 w-4 animate-spin" />
                 Creating...
               </>
             ) : (
               <>
-                <Vote className="mr-2 h-4 w-4" />
+                <Vote className="mr-1 h-4 w-4" />
                 Create Poll
               </>
             )}
@@ -364,7 +364,7 @@ export default function ActionsPanel() {
                       >
                         <Check
                           className={cn(
-                            "mr-2 h-4 w-4",
+                            "mr-1 h-4 w-4",
                             !notifySpecificUser ? "opacity-100" : "opacity-0"
                           )}
                         />
@@ -382,7 +382,7 @@ export default function ActionsPanel() {
                         >
                           <Check
                             className={cn(
-                              "mr-2 h-4 w-4",
+                              "mr-1 h-4 w-4",
                               notifySpecificUser === member.id ? "opacity-100" : "opacity-0"
                             )}
                           />
@@ -432,12 +432,12 @@ export default function ActionsPanel() {
           >
             {loading === 'notify' ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="mr-1 h-4 w-4 animate-spin" />
                 Sending...
               </>
             ) : (
               <>
-                <MessageSquare className="mr-2 h-4 w-4" />
+                <MessageSquare className="mr-1 h-4 w-4" />
                 Send Notification
               </>
             )}

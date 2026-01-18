@@ -63,7 +63,7 @@ export default function StatusCard() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <div className="flex flex-col space-y-1">
             <div className="flex items-center text-sm text-muted-foreground">
-              <Activity className="mr-2 h-4 w-4" />
+              <Activity className="mr-1 h-4 w-4" />
               Status
             </div>
             <div className="flex items-center">
@@ -81,7 +81,7 @@ export default function StatusCard() {
 
           <div className="flex flex-col space-y-1">
             <div className="flex items-center text-sm text-muted-foreground">
-              <Clock className="mr-2 h-4 w-4" />
+              <Clock className="mr-1 h-4 w-4" />
               Uptime
             </div>
             <div className="text-sm font-medium">
@@ -91,7 +91,7 @@ export default function StatusCard() {
 
           <div className="flex flex-col space-y-1">
             <div className="flex items-center text-sm text-muted-foreground">
-              <Calendar className="mr-2 h-4 w-4" />
+              <Calendar className="mr-1 h-4 w-4" />
               API Server
             </div>
             <div className="text-sm font-medium">
@@ -105,7 +105,7 @@ export default function StatusCard() {
 
           <div className="flex flex-col space-y-1">
             <div className="flex items-center text-sm text-muted-foreground">
-              <Users className="mr-2 h-4 w-4" />
+              <Users className="mr-1 h-4 w-4" />
               Connection
             </div>
             <div className="text-sm font-medium">

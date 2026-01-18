@@ -55,7 +55,7 @@ export default function LoginPage() {
       <div className="container mx-auto p-6 max-w-md">
         <div className="flex items-center justify-between mb-6">
           <Button variant="ghost" size="sm" onClick={() => router.push('/')}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
+            <ArrowLeft className="mr-1 h-4 w-4" />
             Back
           </Button>
           <ThemeToggle />

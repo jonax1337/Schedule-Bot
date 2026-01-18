@@ -337,7 +337,7 @@ export default function SettingsPanel() {
                         >
                           <Check
                             className={cn(
-                              "mr-2 h-4 w-4",
+                              "mr-1 h-4 w-4",
                               settings.scheduling.timezone === timezone ? "opacity-100" : "opacity-0"
                             )}
                           />
@@ -382,12 +382,12 @@ export default function SettingsPanel() {
         <Button onClick={saveSettings} disabled={saving}>
           {saving ? (
             <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <Loader2 className="mr-1 h-4 w-4 animate-spin" />
               Saving...
             </>
           ) : (
             <>
-              <Save className="mr-2 h-4 w-4" />
+              <Save className="mr-1 h-4 w-4" />
               Save Settings
             </>
           )}

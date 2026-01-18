@@ -54,14 +54,12 @@ export default function AdminLogin() {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto p-6 max-w-md">
-        <div className="mb-8">
-          <Button
-            variant="ghost"
-            onClick={() => router.push('/')}
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
+        <div className="flex items-center justify-between mb-6">
+          <Button variant="ghost" size="sm" onClick={() => router.push('/')}>
+            <ArrowLeft className="mr-1 h-4 w-4" />
             Back
           </Button>
+          <ThemeToggle />
         </div>
 
         <Card>
@@ -101,12 +99,11 @@ export default function AdminLogin() {
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <Loader2 className="mr-1 h-4 w-4 animate-spin" />
                     Logging in...
                   </>
                 ) : (
                   <>
-                    <Shield className="mr-2 h-4 w-4" />
                     Login
                   </>
                 )}

@@ -354,10 +354,10 @@ export default function UserSchedule() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto p-4 sm:p-6 max-w-6xl">
+      <div className="container mx-auto p-4 sm:p-6 max-w-7xl">
         <div className="flex items-center justify-between mb-6">
           <Button variant="ghost" size="sm" onClick={() => router.push('/login')}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
+            <ArrowLeft className="mr-1 h-4 w-4" />
             Back
           </Button>
           <ThemeToggle />
@@ -412,7 +412,7 @@ export default function UserSchedule() {
                     onClick={handleBulkApply}
                     disabled={saving || !bulkTimeFrom || !bulkTimeTo}
                   >
-                    <Copy className="mr-2 h-4 w-4" />
+                    <Copy className="mr-1 h-4 w-4" />
                     Apply Time
                   </Button>
                   <Button
@@ -421,7 +421,7 @@ export default function UserSchedule() {
                     onClick={handleBulkNotAvailable}
                     disabled={saving}
                   >
-                    <XCircle className="mr-2 h-4 w-4" />
+                    <XCircle className="mr-1 h-4 w-4" />
                     Not Available
                   </Button>
                   <Button
@@ -429,7 +429,7 @@ export default function UserSchedule() {
                     onClick={handleBulkSave}
                     disabled={saving}
                   >
-                    {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    {saving ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : null}
                     Save All
                   </Button>
                 </div>
