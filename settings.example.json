@@ -8,5 +8,9 @@
     "reminderHoursBefore": 3,
     "trainingStartPollEnabled": false,
     "timezone": "Europe/Berlin"
+  },
+  "admin": {
+    "username": "admin",
+    "password": "admin"
   }
 }

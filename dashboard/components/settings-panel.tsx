@@ -51,6 +51,16 @@ export default function SettingsPanel() {
     try {
       const response = await fetch('/api/settings');
       const data = await response.json();
+      
+      console.log('Settings loaded from API:', JSON.stringify(data, null, 2));
+      
+      // Validate settings structure
+      if (!data || !data.discord || !data.scheduling || !data.admin) {
+        console.error('Invalid settings structure:', data);
+        toast.error('Settings missing required fields');
+        return;
+      }
+      
       setSettings(data);
     } catch (error) {
       console.error('Failed to load settings:', error);
