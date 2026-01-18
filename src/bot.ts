@@ -508,6 +508,52 @@ export async function postScheduleToChannel(date?: string): Promise<void> {
   }
 
   try {
+    // Clean channel if enabled in settings
+    const { loadSettings } = await import('./settingsManager.js');
+    const settings = loadSettings();
+    
+    if (settings.scheduling.cleanChannelBeforePost) {
+      console.log('Cleaning channel before posting schedule...');
+      try {
+        // Fetch messages (limit 100, Discord API limit per request)
+        const messages = await channel.messages.fetch({ limit: 100 });
+        
+        // Filter out pinned messages
+        const messagestoDelete = messages.filter(msg => !msg.pinned);
+        
+        if (messagestoDelete.size > 0) {
+          // Bulk delete messages (only works for messages < 14 days old)
+          const recentMessages = messagestoDelete.filter(msg => 
+            Date.now() - msg.createdTimestamp < 14 * 24 * 60 * 60 * 1000
+          );
+          
+          if (recentMessages.size > 1) {
+            await channel.bulkDelete(recentMessages);
+            console.log(`Deleted ${recentMessages.size} messages from channel`);
+          } else if (recentMessages.size === 1) {
+            await recentMessages.first()?.delete();
+            console.log('Deleted 1 message from channel');
+          }
+          
+          // Delete older messages individually
+          const oldMessages = messagestoDelete.filter(msg => 
+            Date.now() - msg.createdTimestamp >= 14 * 24 * 60 * 60 * 1000
+          );
+          
+          for (const msg of oldMessages.values()) {
+            try {
+              await msg.delete();
+            } catch (err) {
+              console.warn('Could not delete old message:', err);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error cleaning channel:', error);
+        // Continue with posting even if cleanup fails
+      }
+    }
+
     const displayDate = date || new Date().toLocaleDateString('de-DE');
     const sheetData = await getScheduleForDate(date);
 

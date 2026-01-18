@@ -5,9 +5,10 @@
   },
   "scheduling": {
     "dailyPostTime": "13:00",
-    "reminderHoursBefore": 2,
+    "reminderHoursBefore": 3,
     "trainingStartPollEnabled": true,
-    "timezone": "Europe/London"
+    "timezone": "Europe/London",
+    "cleanChannelBeforePost": true
   },
   "admin": {
     "username": "admin",

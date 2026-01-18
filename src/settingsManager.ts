@@ -17,6 +17,7 @@ export interface Settings {
     reminderHoursBefore: number;
     trainingStartPollEnabled: boolean;
     timezone: string;
+    cleanChannelBeforePost: boolean;
   };
   admin: {
     username: string;
@@ -33,8 +34,7 @@ const DEFAULT_SETTINGS: Settings = {
     dailyPostTime: '12:00',
     reminderHoursBefore: 3,
     trainingStartPollEnabled: false,
-    timezone: 'Europe/Berlin',
-  },
+    timezone: 'Europe/Berlin',    cleanChannelBeforePost: false,  },
   admin: {
     username: 'admin',
     password: 'admin123',
