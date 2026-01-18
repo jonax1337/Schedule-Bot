@@ -39,7 +39,7 @@ export default function UserSchedule() {
   useEffect(() => {
     const savedUser = localStorage.getItem('selectedUser');
     if (!savedUser) {
-      router.push('/');
+      router.push('/login');
       return;
     }
     setUserName(savedUser);
@@ -356,7 +356,7 @@ export default function UserSchedule() {
     <div className="min-h-screen bg-background">
       <div className="container mx-auto p-4 sm:p-6 max-w-6xl">
         <div className="flex items-center justify-between mb-6">
-          <Button variant="ghost" size="sm" onClick={() => router.push('/')}>
+          <Button variant="ghost" size="sm" onClick={() => router.push('/login')}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back
           </Button>
