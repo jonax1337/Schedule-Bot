@@ -50,7 +50,15 @@ export default function SettingsPanel() {
   const loadSettings = async () => {
     try {
       const response = await fetch('/api/settings');
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Failed to load settings:', errorData);
+        throw new Error(errorData.error || 'Failed to load settings');
+      }
+      
       const data = await response.json();
+      console.log('Settings loaded:', data);
       setSettings(data);
     } catch (error) {
       console.error('Failed to load settings:', error);
