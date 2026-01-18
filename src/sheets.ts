@@ -204,9 +204,82 @@ export async function updateSheetCell(row: number, column: string, value: string
   });
 }
 
+export async function cleanupTimeFormats(): Promise<number> {
+  try {
+    const sheets = await getAuthenticatedClient();
+    
+    // Fetch all rows from the sheet
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: config.googleSheets.sheetId,
+      range: 'A:K',
+    });
+
+    const rows = response.data.values;
+    if (!rows || rows.length < 2) {
+      console.log('No data rows to cleanup.');
+      return 0;
+    }
+
+    // Get column information
+    const columns = await getSheetColumns();
+    const updates: Array<{ range: string; value: string }> = [];
+
+    // Check each data row (skip header)
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row || row.length === 0) continue;
+
+      // Check each player column (B to I)
+      for (const col of columns) {
+        const value = row[col.index];
+        if (value && typeof value === 'string' && value.trim() !== '' && value !== 'x') {
+          // Remove spaces around dashes in time ranges (e.g., "14:00 - 15:00" -> "14:00-15:00")
+          const cleanedValue = value.replace(/\s*-\s*/g, '-');
+          
+          if (cleanedValue !== value) {
+            updates.push({
+              range: `${col.column}${i + 1}`,
+              value: cleanedValue
+            });
+          }
+        }
+      }
+    }
+
+    // Apply all updates
+    if (updates.length > 0) {
+      console.log(`Cleaning up ${updates.length} time format(s)...`);
+      
+      for (const update of updates) {
+        await sheets.spreadsheets.values.update({
+          spreadsheetId: config.googleSheets.sheetId,
+          range: update.range,
+          valueInputOption: 'RAW',
+          requestBody: {
+            values: [[update.value]],
+          },
+        });
+      }
+      
+      console.log(`Successfully cleaned up ${updates.length} time format(s).`);
+      return updates.length;
+    } else {
+      console.log('No time formats to cleanup.');
+      return 0;
+    }
+  } catch (error) {
+    console.error('Error cleaning up time formats:', error);
+    throw error;
+  }
+}
+
 export async function deleteOldRows(): Promise<number> {
   try {
     const sheets = await getAuthenticatedClient();
+    
+    // First, cleanup time formats
+    console.log('Running time format cleanup...');
+    await cleanupTimeFormats();
     
     // Fetch all rows from the sheet
     const response = await sheets.spreadsheets.values.get({
