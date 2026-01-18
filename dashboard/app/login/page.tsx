@@ -22,10 +22,31 @@ export default function LoginPage() {
   const [columns, setColumns] = useState<SheetColumn[]>([]);
   const [selectedUser, setSelectedUser] = useState('');
   const [loading, setLoading] = useState(true);
+  const [userMappings, setUserMappings] = useState<string[] | null>(null);
 
   useEffect(() => {
-    loadColumns();
+    loadUserMappings();
   }, []);
+
+  useEffect(() => {
+    // Load columns once userMappings are loaded (even if empty)
+    if (userMappings !== null) {
+      loadColumns();
+    }
+  }, [userMappings]);
+
+  const loadUserMappings = async () => {
+    try {
+      const response = await fetch(`${BOT_API_URL}/api/user-mappings`);
+      if (response.ok) {
+        const data = await response.json();
+        const mappedColumnNames = data.mappings.map((m: any) => m.sheetColumnName);
+        setUserMappings(mappedColumnNames);
+      }
+    } catch (error) {
+      console.error('Failed to load user mappings:', error);
+    }
+  };
 
   const loadColumns = async () => {
     setLoading(true);
@@ -33,7 +54,11 @@ export default function LoginPage() {
       const response = await fetch(`${BOT_API_URL}/api/sheet-columns`);
       if (response.ok) {
         const data = await response.json();
-        setColumns(data.columns || []);
+        // Filter to only show columns with Discord user mappings
+        const filteredColumns = data.columns.filter((col: SheetColumn) => 
+          !userMappings || userMappings.length === 0 || userMappings.includes(col.name)
+        );
+        setColumns(filteredColumns);
       }
     } catch (error) {
       console.error('Failed to load columns:', error);

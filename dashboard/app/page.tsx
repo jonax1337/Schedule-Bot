@@ -52,15 +52,39 @@ export default function HomePage() {
   const [editTimeTo, setEditTimeTo] = useState('');
   const [editStatus, setEditStatus] = useState<'available' | 'unavailable'>('available');
   const [saving, setSaving] = useState(false);
+  const [userMappings, setUserMappings] = useState<string[] | null>(null);
 
   useEffect(() => {
-    loadCalendar();
+    const init = async () => {
+      await loadUserMappings();
+    };
+    init();
     // Check if user is logged in
     const savedUser = localStorage.getItem('selectedUser');
     if (savedUser) {
       setLoggedInUser(savedUser);
     }
   }, []);
+
+  useEffect(() => {
+    // Load calendar once userMappings are loaded (even if empty)
+    if (userMappings !== null) {
+      loadCalendar();
+    }
+  }, [userMappings]);
+
+  const loadUserMappings = async () => {
+    try {
+      const response = await fetch(`${BOT_API_URL}/api/user-mappings`);
+      if (response.ok) {
+        const data = await response.json();
+        const mappedColumnNames = data.mappings.map((m: any) => m.sheetColumnName);
+        setUserMappings(mappedColumnNames);
+      }
+    } catch (error) {
+      console.error('Failed to load user mappings:', error);
+    }
+  };
 
   const loadCalendar = async () => {
     setLoading(true);
@@ -70,7 +94,10 @@ export default function HomePage() {
       if (!columnsRes.ok) return;
       
       const columnsData = await columnsRes.json();
-      const columns = columnsData.columns;
+      // Filter to only show columns with Discord user mappings
+      const columns = columnsData.columns.filter((col: any) => 
+        !userMappings || userMappings.length === 0 || userMappings.includes(col.name)
+      );
 
       // Load sheet data for next 14 days
       const sheetRes = await fetch(`${BOT_API_URL}/api/sheet-data?startRow=1&endRow=15`);
