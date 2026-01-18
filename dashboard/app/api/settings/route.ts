@@ -28,14 +28,16 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     
-    // Note: Settings updates are handled via the bot's settings manager
-    // This endpoint triggers a config reload
-    const response = await fetch(`${BOT_API_URL}/api/reload-config`, {
+    // Send settings to backend
+    const response = await fetch(`${BOT_API_URL}/api/settings`, {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
     });
     
     if (!response.ok) {
-      throw new Error('Failed to reload config');
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to save settings');
     }
     
     return NextResponse.json({ success: true });
