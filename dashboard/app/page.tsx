@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { Calendar, LogIn, Shield, CheckCircle2, XCircle, Clock, Loader2, Users, User, LogOut, Home, Edit2, Save } from 'lucide-react';
+import { Calendar, LogIn, Shield, CheckCircle2, XCircle, Clock, Loader2, Users, User, LogOut, Home, Edit2, Save, CalendarCheck } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -48,7 +48,14 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<DateEntry | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [loggedInUser, setLoggedInUser] = useState<string | null>(null);
+  const [loggedInUser, setLoggedInUser] = useState<string | null>(() => {
+    try {
+      if (typeof window !== 'undefined') return localStorage.getItem('selectedUser');
+      return null;
+    } catch (e) {
+      return null;
+    }
+  });
   const [editingUser, setEditingUser] = useState(false);
   const [editTimeFrom, setEditTimeFrom] = useState('');
   const [editTimeTo, setEditTimeTo] = useState('');
@@ -57,16 +64,15 @@ export default function HomePage() {
   const [userMappings, setUserMappings] = useState<string[] | null>(null);
 
   useEffect(() => {
-    const init = async () => {
-      await loadUserMappings();
-    };
-    init();
-    // Check if user is logged in
-    const savedUser = localStorage.getItem('selectedUser');
-    if (savedUser) {
-      setLoggedInUser(savedUser);
+    // If there's no logged in user, redirect immediately and avoid rendering dashboard
+    if (!loggedInUser) {
+      router.replace('/login');
+      return;
     }
-  }, []);
+
+    // Load user mappings after we know the user is present
+    loadUserMappings();
+  }, [loggedInUser, router]);
 
   useEffect(() => {
     // Load calendar once userMappings are loaded (even if empty)
@@ -267,6 +273,8 @@ export default function HomePage() {
   const handleLogout = () => {
     localStorage.removeItem('selectedUser');
     setLoggedInUser(null);
+    // Redirect immediately to login
+    router.replace('/login');
   };
 
   const handleSaveUserTime = async () => {
@@ -339,13 +347,24 @@ export default function HomePage() {
     }
   };
 
+  // Show minimal loading screen while checking auth
+  if (!loggedInUser) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto p-4 sm:p-6 max-w-7xl">
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 animate-slideDown">
           <div>
-            <h1 className="text-4xl font-bold tracking-tight">Team Schedule</h1>
+            <h1 className="text-4xl font-bold tracking-tight">
+              {`Welcome${loggedInUser ? `, ${loggedInUser}!` : "!"}`}
+            </h1>
             <p className="text-muted-foreground mt-2">
               View team availability for the next 14 days
             </p>
@@ -368,8 +387,8 @@ export default function HomePage() {
                   </DropdownMenuContent>
                 </DropdownMenu>
                 <Button variant="outline" onClick={() => router.push('/user')}>
-                  <Calendar className="mr-1 h-4 w-4" />
-                  Schedule
+                  <CalendarCheck className="mr-1 h-4 w-4" />
+                  Availability
                 </Button>
               </>
             ) : (
@@ -419,18 +438,7 @@ export default function HomePage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7 gap-3">
-            {entries.map((entry) => (
-              <Card
-                key={entry.date}
-                className={`cursor-pointer transition-all duration-300 hover:shadow-lg hover:scale-[1.03] hover:-translate-y-1 animate-slideUp ${
-                  isToday(entry.date) ? 'ring-2 ring-blue-500' : ''
-                } ${
-                  entry.isOffDay ? 'bg-purple-500/5 opacity-60' : ''
-                }`}
-                onClick={() => handleDateClick(entry)}
-                style={{ animationDelay: `${(entries.indexOf(entry) % 14) * 0.03}s` }}
-              >
-            {entries.map((entry) => {
+            {entries.map((entry, index) => {
               const isTodayDate = isToday(entry.date);
               let ringClass = '';
               
@@ -451,10 +459,11 @@ export default function HomePage() {
               return (
                 <Card
                   key={entry.date}
-                  className={`cursor-pointer transition-all hover:shadow-lg hover:scale-[1.02] ${ringClass} ${
+                  className={`cursor-pointer transition-all duration-300 hover:shadow-lg hover:scale-[1.02] hover:-translate-y-1 animate-slideUp ${ringClass} ${
                     entry.isOffDay ? 'bg-purple-500/5 opacity-60' : ''
                   }`}
                   onClick={() => handleDateClick(entry)}
+                  style={{ animationDelay: `${(index % 14) * 0.08}s` }}
                 >
                 <CardHeader className="pb-0">
                   <div className="flex items-center justify-between">
@@ -544,7 +553,7 @@ export default function HomePage() {
                                 ? 'bg-blue-50 dark:bg-blue-950/20 border-blue-300 dark:border-blue-700 ring-1 ring-blue-400' 
                                 : 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800'
                             }`}
-                            style={{ animationDelay: `${idx * 0.05}s` }}
+                            style={{ animationDelay: `${idx * 0.12}s` }}
                             >
                               <span className="text-sm font-medium">{player.name}</span>
                               <div className="flex items-center gap-2">
@@ -589,7 +598,7 @@ export default function HomePage() {
                                 ? 'bg-blue-50 dark:bg-blue-950/20 border-blue-300 dark:border-blue-700 ring-1 ring-blue-400' 
                                 : 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800'
                             }`}
-                            style={{ animationDelay: `${idx * 0.05}s` }}
+                            style={{ animationDelay: `${idx * 0.12}s` }}
                             >
                               <span className="text-sm font-medium">{player.name}</span>
                               <div className="flex items-center gap-2">
@@ -632,7 +641,7 @@ export default function HomePage() {
                                 ? 'bg-blue-50 dark:bg-blue-950/20 border-blue-300 dark:border-blue-700 ring-1 ring-blue-400' 
                                 : 'bg-muted'
                             }`}
-                            style={{ animationDelay: `${idx * 0.05}s` }}
+                            style={{ animationDelay: `${idx * 0.12}s` }}
                             >
                               <span className={`text-sm font-medium ${!isCurrentUser ? 'text-muted-foreground' : ''}`}>
                                 {player.name}

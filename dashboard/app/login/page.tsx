@@ -25,8 +25,14 @@ export default function LoginPage() {
   const [userMappings, setUserMappings] = useState<string[] | null>(null);
 
   useEffect(() => {
+    // Check if user is already logged in, redirect to dashboard
+    const savedUser = localStorage.getItem('selectedUser');
+    if (savedUser) {
+      router.push('/');
+      return;
+    }
     loadUserMappings();
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     // Load columns once userMappings are loaded (even if empty)
@@ -71,18 +77,14 @@ export default function LoginPage() {
     e.preventDefault();
     if (selectedUser) {
       localStorage.setItem('selectedUser', selectedUser);
-      router.push('/user');
+      router.push('/');
     }
   };
 
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto p-6 max-w-md">
-        <div className="flex items-center justify-between mb-6 animate-slideDown">
-          <Button variant="ghost" size="sm" onClick={() => router.push('/')}>
-            <ArrowLeft className="mr-1 h-4 w-4" />
-            Back
-          </Button>
+        <div className="flex items-center justify-end mb-6 animate-slideDown">
           <ThemeToggle />
         </div>
 

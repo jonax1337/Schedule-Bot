@@ -364,7 +364,7 @@ export default function UserSchedule() {
         </div>
 
         <div className="mb-6 animate-fadeIn">
-          <h1 className="text-2xl sm:text-3xl font-bold">Welcome, {userName}!</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold">Availability</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Manage your availability for the next 14 days
           </p>
