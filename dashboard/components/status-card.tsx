@@ -45,7 +45,7 @@ export default function StatusCard() {
 
   if (loading) {
     return (
-      <Card>
+      <Card className="animate-fadeIn">
         <CardContent className="px-6 py-0">
           <div className="flex items-center justify-center h-20">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -58,10 +58,10 @@ export default function StatusCard() {
   const isOnline = status && status.status === 'running' && status.botReady;
 
   return (
-    <Card>
+    <Card className="animate-fadeIn">
       <CardContent className="px-6 py-0">
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <div className="flex flex-col space-y-1">
+          <div className="flex flex-col space-y-1 animate-slideUp stagger-1">
             <div className="flex items-center text-sm text-muted-foreground">
               <Activity className="mr-1 h-4 w-4" />
               Status
@@ -79,7 +79,7 @@ export default function StatusCard() {
             </div>
           </div>
 
-          <div className="flex flex-col space-y-1">
+          <div className="flex flex-col space-y-1 animate-slideUp stagger-2">
             <div className="flex items-center text-sm text-muted-foreground">
               <Clock className="mr-1 h-4 w-4" />
               Uptime
@@ -89,7 +89,7 @@ export default function StatusCard() {
             </div>
           </div>
 
-          <div className="flex flex-col space-y-1">
+          <div className="flex flex-col space-y-1 animate-slideUp stagger-3">
             <div className="flex items-center text-sm text-muted-foreground">
               <Calendar className="mr-1 h-4 w-4" />
               API Server
@@ -103,7 +103,7 @@ export default function StatusCard() {
             </div>
           </div>
 
-          <div className="flex flex-col space-y-1">
+          <div className="flex flex-col space-y-1 animate-slideUp stagger-4">
             <div className="flex items-center text-sm text-muted-foreground">
               <Users className="mr-1 h-4 w-4" />
               Connection

@@ -78,7 +78,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto p-6 max-w-md">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-6 animate-slideDown">
           <Button variant="ghost" size="sm" onClick={() => router.push('/')}>
             <ArrowLeft className="mr-1 h-4 w-4" />
             Back
@@ -86,7 +86,7 @@ export default function LoginPage() {
           <ThemeToggle />
         </div>
 
-        <Card>
+        <Card className="animate-scaleIn">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <User className="w-5 h-5" />
