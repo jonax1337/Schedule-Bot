@@ -7,6 +7,11 @@
     "dailyPostTime": "12:00",
     "reminderHoursBefore": 3,
     "trainingStartPollEnabled": false,
-    "timezone": "Europe/Berlin"
+    "timezone": "Europe/Berlin",
+    "cleanChannelBeforePost": false
+  },
+  "admin": {
+    "username": "admin",
+    "password": "admin"
   }
 }

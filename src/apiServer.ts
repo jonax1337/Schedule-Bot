@@ -209,6 +209,46 @@ app.get('/api/logs', (req, res) => {
   }
 });
 
+// Get settings
+app.get('/api/settings', (req, res) => {
+  try {
+    const settings = loadSettings();
+    res.json(settings);
+  } catch (error) {
+    console.error('Error loading settings:', error);
+    logger.error('Failed to load settings', error instanceof Error ? error.message : String(error));
+    res.status(500).json({ error: 'Failed to load settings' });
+  }
+});
+
+// Update settings
+app.post('/api/settings', async (req, res) => {
+  try {
+    const newSettings = req.body;
+    
+    // Validate settings structure
+    if (!newSettings || !newSettings.discord || !newSettings.scheduling || !newSettings.admin) {
+      return res.status(400).json({ error: 'Invalid settings structure' });
+    }
+    
+    // Save settings to file
+    const { saveSettings } = await import('./settingsManager.js');
+    saveSettings(newSettings);
+    
+    logger.success('Settings saved', 'Configuration updated successfully');
+    
+    // Reload config and restart scheduler
+    reloadConfig();
+    restartScheduler();
+    
+    res.json({ success: true, message: 'Settings saved and applied' });
+  } catch (error) {
+    console.error('Error saving settings:', error);
+    logger.error('Failed to save settings', error instanceof Error ? error.message : String(error));
+    res.status(500).json({ error: 'Failed to save settings' });
+  }
+});
+
 // Reload configuration
 app.post('/api/reload-config', (req, res) => {
   try {

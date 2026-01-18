@@ -51,6 +51,16 @@ export default function SettingsPanel() {
     try {
       const response = await fetch('/api/settings');
       const data = await response.json();
+      
+      console.log('Settings loaded from API:', JSON.stringify(data, null, 2));
+      
+      // Validate settings structure
+      if (!data || !data.discord || !data.scheduling || !data.admin) {
+        console.error('Invalid settings structure:', data);
+        toast.error('Settings missing required fields');
+        return;
+      }
+      
       setSettings(data);
     } catch (error) {
       console.error('Failed to load settings:', error);
@@ -375,6 +385,28 @@ export default function SettingsPanel() {
               }
             />
           </div>
+
+          <div className="flex items-center justify-between space-x-2">
+            <div className="space-y-0.5">
+              <Label htmlFor="cleanChannel">Clean Channel Before Post</Label>
+              <p className="text-sm text-muted-foreground">
+                Delete all messages in the channel before posting the daily schedule (keeps pinned messages)
+              </p>
+            </div>
+            <Switch
+              id="cleanChannel"
+              checked={settings.scheduling.cleanChannelBeforePost}
+              onCheckedChange={(checked) =>
+                setSettings({
+                  ...settings,
+                  scheduling: {
+                    ...settings.scheduling,
+                    cleanChannelBeforePost: checked,
+                  },
+                })
+              }
+            />
+          </div>
         </CardContent>
       </Card>
 
@@ -382,12 +414,12 @@ export default function SettingsPanel() {
         <Button onClick={saveSettings} disabled={saving}>
           {saving ? (
             <>
-              <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Saving...
             </>
           ) : (
             <>
-              <Save className="mr-1 h-4 w-4" />
+              <Save className="mr-2 h-4 w-4" />
               Save Settings
             </>
           )}
