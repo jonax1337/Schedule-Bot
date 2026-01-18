@@ -1,0 +1,16 @@
+{
+  "discord": {
+    "channelId": "1461320522204712991",
+    "pingRoleId": "1461324999888736368"
+  },
+  "scheduling": {
+    "dailyPostTime": "13:00",
+    "reminderHoursBefore": 2,
+    "trainingStartPollEnabled": true,
+    "timezone": "Europe/London"
+  },
+  "admin": {
+    "username": "admin",
+    "password": "Jon@s@321!?*"
+  }
+}

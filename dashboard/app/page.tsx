@@ -36,6 +36,8 @@ interface DateEntry {
   players: PlayerStatus[];
   reason?: string;
   isOffDay: boolean;
+  userHasSet: boolean;
+  userStatus?: 'available' | 'unavailable' | 'not-set';
 }
 
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
@@ -152,6 +154,17 @@ export default function HomePage() {
             }
           }
 
+          // Check if logged-in user has set their availability
+          let userHasSet = false;
+          let userStatus: 'available' | 'unavailable' | 'not-set' = 'not-set';
+          if (loggedInUser) {
+            const userPlayer = players.find(p => p.name === loggedInUser);
+            if (userPlayer) {
+              userHasSet = userPlayer.status !== 'not-set';
+              userStatus = userPlayer.status;
+            }
+          }
+
           calendarEntries.push({
             date: row[0],
             weekday: getWeekday(row[0]),
@@ -162,7 +175,9 @@ export default function HomePage() {
             },
             players,
             reason,
-            isOffDay
+            isOffDay,
+            userHasSet,
+            userStatus
           });
         }
       }
@@ -404,16 +419,32 @@ export default function HomePage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7 gap-3">
-            {entries.map((entry) => (
-              <Card
-                key={entry.date}
-                className={`cursor-pointer transition-all hover:shadow-lg hover:scale-[1.02] ${
-                  isToday(entry.date) ? 'ring-2 ring-blue-500' : ''
-                } ${
-                  entry.isOffDay ? 'bg-purple-500/5 opacity-60' : ''
-                }`}
-                onClick={() => handleDateClick(entry)}
-              >
+            {entries.map((entry) => {
+              const isTodayDate = isToday(entry.date);
+              let ringClass = '';
+              
+              if (isTodayDate) {
+                // Today has priority - blue ring
+                ringClass = 'ring-2 ring-blue-500';
+              } else if (loggedInUser && !entry.isOffDay) {
+                // Show status based on user's actual status
+                if (entry.userStatus === 'available') {
+                  ringClass = 'ring-1 ring-green-500/40';
+                } else if (entry.userStatus === 'unavailable') {
+                  ringClass = 'ring-1 ring-red-500/40';
+                } else {
+                  ringClass = 'ring-1 ring-gray-400/40';
+                }
+              }
+              
+              return (
+                <Card
+                  key={entry.date}
+                  className={`cursor-pointer transition-all hover:shadow-lg hover:scale-[1.02] ${ringClass} ${
+                    entry.isOffDay ? 'bg-purple-500/5 opacity-60' : ''
+                  }`}
+                  onClick={() => handleDateClick(entry)}
+                >
                 <CardHeader className="pb-0">
                   <div className="flex items-center justify-between">
                     <div>
@@ -443,7 +474,8 @@ export default function HomePage() {
                   </div>
                 </CardContent>
               </Card>
-            ))}
+              );
+            })}
           </div>
         )}
 
