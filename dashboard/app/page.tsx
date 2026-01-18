@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { Calendar, LogIn, Shield, CheckCircle2, XCircle, Clock, Loader2, Users, User, LogOut, Home } from 'lucide-react';
+import { Calendar, LogIn, Shield, CheckCircle2, XCircle, Clock, Loader2, Users, User, LogOut, Home, Edit2, Save } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,6 +16,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
+import { toast } from 'sonner';
 
 interface PlayerStatus {
   name: string;
@@ -45,6 +47,11 @@ export default function HomePage() {
   const [selectedDate, setSelectedDate] = useState<DateEntry | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [loggedInUser, setLoggedInUser] = useState<string | null>(null);
+  const [editingUser, setEditingUser] = useState(false);
+  const [editTimeFrom, setEditTimeFrom] = useState('');
+  const [editTimeTo, setEditTimeTo] = useState('');
+  const [editStatus, setEditStatus] = useState<'available' | 'unavailable'>('available');
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     loadCalendar();
@@ -191,11 +198,103 @@ export default function HomePage() {
   const handleDateClick = (entry: DateEntry) => {
     setSelectedDate(entry);
     setDialogOpen(true);
+    setEditingUser(false);
+    
+    // Wenn User angemeldet ist, seine aktuellen Daten laden
+    if (loggedInUser) {
+      const userPlayer = entry.players.find(p => p.name === loggedInUser);
+      if (userPlayer) {
+        if (userPlayer.status === 'unavailable') {
+          setEditStatus('unavailable');
+          setEditTimeFrom('');
+          setEditTimeTo('');
+        } else if (userPlayer.time) {
+          setEditStatus('available');
+          const times = userPlayer.time.split('-');
+          setEditTimeFrom(times[0]?.trim() || '');
+          setEditTimeTo(times[1]?.trim() || '');
+        } else {
+          setEditStatus('available');
+          setEditTimeFrom('');
+          setEditTimeTo('');
+        }
+      }
+    }
   };
 
   const handleLogout = () => {
     localStorage.removeItem('selectedUser');
     setLoggedInUser(null);
+  };
+
+  const handleSaveUserTime = async () => {
+    if (!selectedDate || !loggedInUser) return;
+    
+    setSaving(true);
+    try {
+      // Finde die Spalte des Users
+      const columnsRes = await fetch(`${BOT_API_URL}/api/sheet-columns`);
+      const columnsData = await columnsRes.json();
+      const userColumn = columnsData.columns.find((col: any) => col.name === loggedInUser);
+      
+      if (!userColumn) {
+        toast.error('User column not found');
+        setSaving(false);
+        return;
+      }
+
+      // Lade alle Daten um die Row zu finden
+      const sheetRes = await fetch(`${BOT_API_URL}/api/sheet-data?startRow=1&endRow=15`);
+      const sheetData = await sheetRes.json();
+      
+      // Finde die Row für das ausgewählte Datum
+      let rowNumber = -1;
+      for (let i = 1; i < sheetData.data.length; i++) {
+        if (sheetData.data[i][0] === selectedDate.date) {
+          rowNumber = i + 1; // +1 weil Sheet 1-basiert ist
+          break;
+        }
+      }
+
+      if (rowNumber === -1) {
+        toast.error('Date not found in sheet');
+        setSaving(false);
+        return;
+      }
+
+      const value = editStatus === 'unavailable' ? 'x' : `${editTimeFrom}-${editTimeTo}`;
+      
+      const response = await fetch(`${BOT_API_URL}/api/sheet-data/update`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          row: rowNumber,
+          column: userColumn.column,
+          value
+        })
+      });
+
+      if (response.ok) {
+        toast.success('Availability updated');
+        setEditingUser(false);
+        // Reload calendar
+        await loadCalendar();
+        // Update selected date
+        const updatedEntry = entries.find(e => e.date === selectedDate.date);
+        if (updatedEntry) {
+          setSelectedDate(updatedEntry);
+        }
+      } else {
+        const errorData = await response.json();
+        console.error('Update failed:', errorData);
+        toast.error('Failed to update');
+      }
+    } catch (error) {
+      console.error('Save error:', error);
+      toast.error('Failed to update');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -367,16 +466,35 @@ export default function HomePage() {
                     <div className="space-y-2">
                       {selectedDate.players
                         .filter(p => p.status === 'available')
-                        .map((player, idx) => (
-                          <div key={idx} className="flex items-center justify-between p-2 bg-green-50 dark:bg-green-950/20 rounded border border-green-200 dark:border-green-800">
-                            <span className="text-sm font-medium">{player.name}</span>
-                            {player.time && (
-                              <Badge variant="outline" className="text-xs">
-                                {player.time}
-                              </Badge>
-                            )}
-                          </div>
-                        ))}
+                        .map((player, idx) => {
+                          const isCurrentUser = loggedInUser === player.name;
+                          return (
+                            <div key={idx} className={`flex items-center justify-between p-2 rounded border ${
+                              isCurrentUser 
+                                ? 'bg-blue-50 dark:bg-blue-950/20 border-blue-300 dark:border-blue-700 ring-1 ring-blue-400' 
+                                : 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800'
+                            }`}>
+                              <span className="text-sm font-medium">{player.name}</span>
+                              <div className="flex items-center gap-2">
+                                {player.time && (
+                                  <Badge variant="outline" className="text-xs">
+                                    {player.time}
+                                  </Badge>
+                                )}
+                                {isCurrentUser && !editingUser && (
+                                  <Button 
+                                    size="sm" 
+                                    variant="ghost" 
+                                    className="h-6 px-2"
+                                    onClick={() => setEditingUser(true)}
+                                  >
+                                    <Edit2 className="w-3 h-3" />
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
                     </div>
                   </div>
                 )}
@@ -391,14 +509,33 @@ export default function HomePage() {
                     <div className="space-y-2">
                       {selectedDate.players
                         .filter(p => p.status === 'unavailable')
-                        .map((player, idx) => (
-                          <div key={idx} className="flex items-center justify-between p-2 bg-red-50 dark:bg-red-950/20 rounded border border-red-200 dark:border-red-800">
-                            <span className="text-sm font-medium">{player.name}</span>
-                            <Badge variant="outline" className="text-xs">
-                              Not available
-                            </Badge>
-                          </div>
-                        ))}
+                        .map((player, idx) => {
+                          const isCurrentUser = loggedInUser === player.name;
+                          return (
+                            <div key={idx} className={`flex items-center justify-between p-2 rounded border ${
+                              isCurrentUser 
+                                ? 'bg-blue-50 dark:bg-blue-950/20 border-blue-300 dark:border-blue-700 ring-1 ring-blue-400' 
+                                : 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800'
+                            }`}>
+                              <span className="text-sm font-medium">{player.name}</span>
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline" className="text-xs">
+                                  Not available
+                                </Badge>
+                                {isCurrentUser && !editingUser && (
+                                  <Button 
+                                    size="sm" 
+                                    variant="ghost" 
+                                    className="h-6 px-2"
+                                    onClick={() => setEditingUser(true)}
+                                  >
+                                    <Edit2 className="w-3 h-3" />
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
                     </div>
                   </div>
                 )}
@@ -413,14 +550,114 @@ export default function HomePage() {
                     <div className="space-y-2">
                       {selectedDate.players
                         .filter(p => p.status === 'not-set')
-                        .map((player, idx) => (
-                          <div key={idx} className="flex items-center justify-between p-2 bg-muted rounded border">
-                            <span className="text-sm font-medium text-muted-foreground">{player.name}</span>
-                            <Badge variant="outline" className="text-xs text-muted-foreground">
-                              Pending
-                            </Badge>
-                          </div>
-                        ))}
+                        .map((player, idx) => {
+                          const isCurrentUser = loggedInUser === player.name;
+                          return (
+                            <div key={idx} className={`flex items-center justify-between p-2 rounded border ${
+                              isCurrentUser 
+                                ? 'bg-blue-50 dark:bg-blue-950/20 border-blue-300 dark:border-blue-700 ring-1 ring-blue-400' 
+                                : 'bg-muted'
+                            }`}>
+                              <span className={`text-sm font-medium ${!isCurrentUser ? 'text-muted-foreground' : ''}`}>
+                                {player.name}
+                              </span>
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline" className="text-xs text-muted-foreground">
+                                  Pending
+                                </Badge>
+                                {isCurrentUser && !editingUser && (
+                                  <Button 
+                                    size="sm" 
+                                    variant="ghost" 
+                                    className="h-6 px-2"
+                                    onClick={() => setEditingUser(true)}
+                                  >
+                                    <Edit2 className="w-3 h-3" />
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Edit Form */}
+                {loggedInUser && editingUser && (
+                  <div className="p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-300 dark:border-blue-700 rounded-lg space-y-3">
+                    <h4 className="text-sm font-semibold flex items-center gap-2">
+                      <Edit2 className="w-4 h-4" />
+                      Edit Your Availability
+                    </h4>
+                    
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant={editStatus === 'available' ? 'default' : 'outline'}
+                          onClick={() => setEditStatus('available')}
+                          className="flex-1"
+                        >
+                          Available
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={editStatus === 'unavailable' ? 'default' : 'outline'}
+                          onClick={() => setEditStatus('unavailable')}
+                          className="flex-1"
+                        >
+                          Not Available
+                        </Button>
+                      </div>
+
+                      {editStatus === 'available' && (
+                        <div className="flex gap-2">
+                          <Input
+                            type="time"
+                            value={editTimeFrom}
+                            onChange={(e) => setEditTimeFrom(e.target.value)}
+                            className="flex-1"
+                            placeholder="From"
+                          />
+                          <Input
+                            type="time"
+                            value={editTimeTo}
+                            onChange={(e) => setEditTimeTo(e.target.value)}
+                            className="flex-1"
+                            placeholder="To"
+                          />
+                        </div>
+                      )}
+
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          onClick={handleSaveUserTime}
+                          disabled={saving || (editStatus === 'available' && (!editTimeFrom || !editTimeTo))}
+                          className="flex-1"
+                        >
+                          {saving ? (
+                            <>
+                              <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                              Saving...
+                            </>
+                          ) : (
+                            <>
+                              <Save className="mr-1 h-4 w-4" />
+                              Save
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setEditingUser(false)}
+                          disabled={saving}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 )}
