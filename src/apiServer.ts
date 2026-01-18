@@ -209,19 +209,6 @@ app.get('/api/logs', (req, res) => {
   }
 });
 
-// Get settings
-app.get('/api/settings', (req, res) => {
-  try {
-    const settings = loadSettings();
-    console.log('Settings loaded successfully:', settings);
-    res.json(settings);
-  } catch (error) {
-    console.error('Error loading settings:', error);
-    logger.error('Failed to load settings', error instanceof Error ? error.message : String(error));
-    res.status(500).json({ error: 'Failed to load settings', details: error instanceof Error ? error.message : String(error) });
-  }
-});
-
 // Reload configuration
 app.post('/api/reload-config', (req, res) => {
   try {

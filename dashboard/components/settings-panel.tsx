@@ -50,15 +50,7 @@ export default function SettingsPanel() {
   const loadSettings = async () => {
     try {
       const response = await fetch('/api/settings');
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Failed to load settings:', errorData);
-        throw new Error(errorData.error || 'Failed to load settings');
-      }
-      
       const data = await response.json();
-      console.log('Settings loaded:', data);
       setSettings(data);
     } catch (error) {
       console.error('Failed to load settings:', error);
@@ -390,12 +382,12 @@ export default function SettingsPanel() {
         <Button onClick={saveSettings} disabled={saving}>
           {saving ? (
             <>
-              <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Saving...
             </>
           ) : (
             <>
-              <Save className="mr-1 h-4 w-4" />
+              <Save className="mr-2 h-4 w-4" />
               Save Settings
             </>
           )}
