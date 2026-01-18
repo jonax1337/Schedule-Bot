@@ -356,9 +356,9 @@ export default function UserSchedule() {
     <div className="min-h-screen bg-background">
       <div className="container mx-auto p-4 sm:p-6 max-w-7xl">
         <div className="flex items-center justify-between mb-6">
-          <Button variant="ghost" size="sm" onClick={() => router.push('/login')}>
+          <Button variant="ghost" size="sm" onClick={() => router.push('/')}>
             <ArrowLeft className="mr-1 h-4 w-4" />
-            Back
+            Home
           </Button>
           <ThemeToggle />
         </div>

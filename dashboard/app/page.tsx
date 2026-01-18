@@ -7,7 +7,15 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { Calendar, LogIn, Shield, CheckCircle2, XCircle, Clock, Loader2, Users } from 'lucide-react';
+import { Calendar, LogIn, Shield, CheckCircle2, XCircle, Clock, Loader2, Users, User, LogOut, Home } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface PlayerStatus {
   name: string;
@@ -36,9 +44,15 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<DateEntry | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [loggedInUser, setLoggedInUser] = useState<string | null>(null);
 
   useEffect(() => {
     loadCalendar();
+    // Check if user is logged in
+    const savedUser = localStorage.getItem('selectedUser');
+    if (savedUser) {
+      setLoggedInUser(savedUser);
+    }
   }, []);
 
   const loadCalendar = async () => {
@@ -179,6 +193,11 @@ export default function HomePage() {
     setDialogOpen(true);
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('selectedUser');
+    setLoggedInUser(null);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto p-4 sm:p-6 max-w-7xl">
@@ -191,10 +210,33 @@ export default function HomePage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => router.push('/login')}>
-              <LogIn className="mr-1 h-4 w-4" />
-              Player Login
-            </Button>
+            {loggedInUser ? (
+              <>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline">
+                      <User className="mr-1 h-4 w-4" />
+                      {loggedInUser}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={handleLogout}>
+                      <LogOut className="mr-1 h-4 w-4" />
+                      Logout
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Button variant="outline" onClick={() => router.push('/user')}>
+                  <Calendar className="mr-1 h-4 w-4" />
+                  Schedule
+                </Button>
+              </>
+            ) : (
+              <Button variant="outline" onClick={() => router.push('/login')}>
+                <LogIn className="mr-1 h-4 w-4" />
+                Player Login
+              </Button>
+            )}
             <Button variant="outline" onClick={() => router.push('/admin/login')}>
               <Shield className="mr-1 h-4 w-4" />
               Admin
