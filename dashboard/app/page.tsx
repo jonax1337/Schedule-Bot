@@ -437,7 +437,7 @@ export default function HomePage() {
             <Loader2 className="w-8 h-8 animate-spin" />
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7 gap-3">
             {entries.map((entry, index) => {
               const isTodayDate = isToday(entry.date);
               let ringClass = '';
