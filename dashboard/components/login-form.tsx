@@ -18,7 +18,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Loader2, UserCircle } from "lucide-react";
 import { toast } from "sonner";
 
 interface SheetColumn {
@@ -135,7 +135,10 @@ export function LoginForm({
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card className="animate-scaleIn">
         <CardHeader className="text-center">
-          <CardTitle>Welcome back</CardTitle>
+          <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+            <UserCircle className="h-6 w-6 text-primary" />
+          </div>
+          <CardTitle>Login</CardTitle>
           <CardDescription>
             {settingsLoading 
               ? 'Loading...'
