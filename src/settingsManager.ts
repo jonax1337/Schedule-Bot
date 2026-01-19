@@ -12,6 +12,7 @@ export interface Settings {
   discord: {
     channelId: string;
     pingRoleId: string | null;
+    allowDiscordAuth: boolean;
   };
   scheduling: {
     dailyPostTime: string;
@@ -30,6 +31,7 @@ const DEFAULT_SETTINGS: Omit<Settings, 'admin'> = {
   discord: {
     channelId: '',
     pingRoleId: null,
+    allowDiscordAuth: false,
   },
   scheduling: {
     dailyPostTime: '12:00',

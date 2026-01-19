@@ -248,6 +248,25 @@ export default function SettingsPanel() {
               Role to mention in schedule posts (leave empty for no ping)
             </p>
           </div>
+
+          <div className="flex items-center justify-between space-x-2 pt-2">
+            <div className="space-y-0.5 flex-1">
+              <Label htmlFor="allowDiscordAuth">Allow Discord Authentication</Label>
+              <p className="text-sm text-muted-foreground">
+                Let users with Discord mappings sign in via Discord OAuth
+              </p>
+            </div>
+            <Switch
+              id="allowDiscordAuth"
+              checked={settings.discord.allowDiscordAuth}
+              onCheckedChange={(checked) =>
+                setSettings({
+                  ...settings,
+                  discord: { ...settings.discord, allowDiscordAuth: checked },
+                })
+              }
+            />
+          </div>
         </CardContent>
       </Card>
 
