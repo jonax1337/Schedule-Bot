@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, CheckCircle2, XCircle } from 'lucide-react';
@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
 
-export default function CallbackPage() {
+function CallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
@@ -108,5 +108,24 @@ export default function CallbackPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function CallbackPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Loader2 className="w-5 h-5 animate-spin" />
+              Loading...
+            </CardTitle>
+          </CardHeader>
+        </Card>
+      </div>
+    }>
+      <CallbackContent />
+    </Suspense>
   );
 }
