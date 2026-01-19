@@ -77,17 +77,19 @@ function CallbackContent() {
   }, [searchParams, router]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="mx-auto w-full max-w-sm space-y-6">
+    <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
+      <div className="w-full max-w-sm">
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+          <CardHeader className="text-center">
+            <CardTitle className="flex items-center justify-center gap-2">
               {status === 'loading' && <Loader2 className="h-5 w-5 animate-spin" />}
               {status === 'success' && <CheckCircle2 className="h-5 w-5 text-green-500" />}
               {status === 'error' && <XCircle className="h-5 w-5 text-red-500" />}
-              {status === 'loading' && 'Authenticating'}
-              {status === 'success' && 'Success'}
-              {status === 'error' && 'Authentication Failed'}
+              <span>
+                {status === 'loading' && 'Authenticating'}
+                {status === 'success' && 'Success'}
+                {status === 'error' && 'Authentication Failed'}
+              </span>
             </CardTitle>
             <CardDescription>{message}</CardDescription>
           </CardHeader>
@@ -106,6 +108,11 @@ function CallbackContent() {
                 Back to Login
               </Button>
             )}
+            {status === 'success' && (
+              <p className="text-center text-sm text-muted-foreground">
+                Redirecting to dashboard...
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -116,16 +123,18 @@ function CallbackContent() {
 export default function CallbackPage() {
   return (
     <Suspense fallback={
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <Card className="w-full max-w-sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Loader2 className="h-5 w-5 animate-spin" />
-              Loading
-            </CardTitle>
-            <CardDescription>Please wait...</CardDescription>
-          </CardHeader>
-        </Card>
+      <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
+        <div className="w-full max-w-sm">
+          <Card>
+            <CardHeader className="text-center">
+              <CardTitle className="flex items-center justify-center gap-2">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <span>Loading</span>
+              </CardTitle>
+              <CardDescription>Please wait...</CardDescription>
+            </CardHeader>
+          </Card>
+        </div>
       </div>
     }>
       <CallbackContent />
