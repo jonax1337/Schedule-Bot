@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { getSettingsFromSheet, saveSettingsToSheet, type SheetSettings } from './sheets.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -25,7 +26,7 @@ export interface Settings {
   };
 }
 
-const DEFAULT_SETTINGS: Settings = {
+const DEFAULT_SETTINGS: Omit<Settings, 'admin'> = {
   discord: {
     channelId: '',
     pingRoleId: null,
@@ -34,17 +35,25 @@ const DEFAULT_SETTINGS: Settings = {
     dailyPostTime: '12:00',
     reminderHoursBefore: 3,
     trainingStartPollEnabled: false,
-    timezone: 'Europe/Berlin',    cleanChannelBeforePost: false,  },
-  admin: {
-    username: 'admin',
-    password: 'admin123',
+    timezone: 'Europe/Berlin',
+    cleanChannelBeforePost: false,
   },
 };
 
 let cachedSettings: Settings | null = null;
 
 /**
- * Load settings from settings.json
+ * Get admin credentials from environment variables
+ */
+function getAdminCredentials(): { username: string; password: string } {
+  return {
+    username: process.env.ADMIN_USERNAME || 'admin',
+    password: process.env.ADMIN_PASSWORD || 'admin123',
+  };
+}
+
+/**
+ * Load settings from Google Sheets (with fallback to settings.json for migration)
  */
 export function loadSettings(): Settings {
   if (cachedSettings) {
@@ -55,55 +64,100 @@ export function loadSettings(): Settings {
 }
 
 /**
- * Force reload settings from disk (bypasses cache)
+ * Force reload settings from Google Sheets (bypasses cache)
  */
 export function reloadSettings(): Settings {
   try {
-    if (!existsSync(SETTINGS_PATH)) {
-      // Create default settings file if it doesn't exist
-      writeFileSync(SETTINGS_PATH, JSON.stringify(DEFAULT_SETTINGS, null, 2), 'utf-8');
-      console.log('Created default settings.json');
-      cachedSettings = DEFAULT_SETTINGS;
-      return DEFAULT_SETTINGS;
-    }
+    // Admin credentials always come from .env
+    const admin = getAdminCredentials();
 
-    const fileContent = readFileSync(SETTINGS_PATH, 'utf-8');
-    const settings = JSON.parse(fileContent) as Settings;
-    
-    // Merge with defaults to ensure all properties exist
+    // Use defaults (settings should be loaded via async version)
+    console.log('Using default settings. Call loadSettingsAsync() to load from Google Sheets.');
     cachedSettings = {
-      discord: {
-        ...DEFAULT_SETTINGS.discord,
-        ...settings.discord,
-      },
-      admin: {
-        ...DEFAULT_SETTINGS.admin,
-        ...settings.admin,
-      },
-      scheduling: {
-        ...DEFAULT_SETTINGS.scheduling,
-        ...settings.scheduling,
-      },
+      ...DEFAULT_SETTINGS,
+      admin,
     };
 
     return cachedSettings;
   } catch (error) {
-    console.error('Error loading settings.json, using defaults:', error);
-    cachedSettings = DEFAULT_SETTINGS;
-    return DEFAULT_SETTINGS;
+    console.error('Error loading settings, using defaults:', error);
+    const admin = getAdminCredentials();
+    cachedSettings = {
+      ...DEFAULT_SETTINGS,
+      admin,
+    };
+    return cachedSettings;
   }
 }
 
 /**
- * Save settings to settings.json
+ * Async version of loadSettings that reads from Google Sheets
  */
-export function saveSettings(settings: Settings): void {
+export async function loadSettingsAsync(): Promise<Settings> {
   try {
-    writeFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2), 'utf-8');
-    cachedSettings = settings;
-    console.log('Settings saved successfully');
+    const admin = getAdminCredentials();
+    
+    // Try to get settings from Google Sheet
+    const sheetSettings = await getSettingsFromSheet();
+    
+    if (sheetSettings) {
+      cachedSettings = {
+        ...sheetSettings,
+        admin, // Always from .env
+      };
+      console.log('✅ Settings loaded from Google Sheets');
+      return cachedSettings;
+    }
+
+    // No settings in Google Sheet - create defaults
+    console.log('No settings found in Google Sheets. Creating default settings...');
+    const defaultSettings = {
+      discord: DEFAULT_SETTINGS.discord,
+      scheduling: DEFAULT_SETTINGS.scheduling,
+    };
+    
+    // Save defaults to Google Sheet
+    await saveSettingsToSheet(defaultSettings);
+    console.log('✅ Default settings created in Google Sheets');
+    
+    cachedSettings = {
+      ...defaultSettings,
+      admin,
+    };
+    
+    return cachedSettings;
   } catch (error) {
-    console.error('Error saving settings.json:', error);
+    console.error('Error loading settings async:', error);
+    const admin = getAdminCredentials();
+    cachedSettings = {
+      ...DEFAULT_SETTINGS,
+      admin,
+    };
+    return cachedSettings;
+  }
+}
+
+/**
+ * Save settings to Google Sheets (does not save admin credentials)
+ */
+export async function saveSettings(settings: Settings): Promise<void> {
+  try {
+    // Only save discord and scheduling to Google Sheets
+    // Admin credentials are not saved (they come from .env)
+    await saveSettingsToSheet({
+      discord: settings.discord,
+      scheduling: settings.scheduling,
+    });
+    
+    // Update cache with new settings + current admin from .env
+    cachedSettings = {
+      ...settings,
+      admin: getAdminCredentials(),
+    };
+    
+    console.log('Settings saved to Google Sheets successfully');
+  } catch (error) {
+    console.error('Error saving settings:', error);
     throw error;
   }
 }
@@ -111,14 +165,14 @@ export function saveSettings(settings: Settings): void {
 /**
  * Update a specific setting
  */
-export function updateSetting<K extends keyof Settings>(
+export async function updateSetting<K extends keyof Omit<Settings, 'admin'>>(
   category: K,
   key: keyof Settings[K],
   value: any
-): void {
-  const settings = loadSettings();
+): Promise<void> {
+  const settings = await loadSettingsAsync();
   (settings[category] as any)[key] = value;
-  saveSettings(settings);
+  await saveSettings(settings);
 }
 
 /**

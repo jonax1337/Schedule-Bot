@@ -54,8 +54,8 @@ export default function SettingsPanel() {
       
       console.log('Settings loaded from API:', JSON.stringify(data, null, 2));
       
-      // Validate settings structure
-      if (!data || !data.discord || !data.scheduling || !data.admin) {
+      // Validate settings structure (admin is now optional, comes from .env)
+      if (!data || !data.discord || !data.scheduling) {
         console.error('Invalid settings structure:', data);
         toast.error('Settings missing required fields');
         return;

@@ -555,3 +555,195 @@ async function sortSheetByDate(): Promise<void> {
     throw error;
   }
 }
+
+// ============ Settings Management in Google Sheets ============
+
+export interface SheetSettings {
+  discord: {
+    channelId: string;
+    pingRoleId: string | null;
+  };
+  scheduling: {
+    dailyPostTime: string;
+    reminderHoursBefore: number;
+    trainingStartPollEnabled: boolean;
+    timezone: string;
+    cleanChannelBeforePost: boolean;
+  };
+}
+
+/**
+ * Get settings from Google Sheets (Settings tab)
+ * Expected structure:
+ * Row 1: discord.channelId | <value>
+ * Row 2: discord.pingRoleId | <value>
+ * Row 3: scheduling.dailyPostTime | <value>
+ * Row 4: scheduling.reminderHoursBefore | <value>
+ * Row 5: scheduling.trainingStartPollEnabled | <value>
+ * Row 6: scheduling.timezone | <value>
+ * Row 7: scheduling.cleanChannelBeforePost | <value>
+ */
+export async function getSettingsFromSheet(): Promise<SheetSettings | null> {
+  try {
+    const sheets = await getAuthenticatedClient();
+    
+    // Try to get settings from "Settings" tab
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: config.googleSheets.sheetId,
+      range: 'Settings!A1:B10',
+    });
+
+    const rows = response.data.values;
+    if (!rows || rows.length === 0) {
+      console.log('No settings found in Google Sheet Settings tab');
+      return null;
+    }
+
+    // Parse settings from rows
+    const settings: SheetSettings = {
+      discord: {
+        channelId: '',
+        pingRoleId: null,
+      },
+      scheduling: {
+        dailyPostTime: '12:00',
+        reminderHoursBefore: 3,
+        trainingStartPollEnabled: false,
+        timezone: 'Europe/Berlin',
+        cleanChannelBeforePost: false,
+      },
+    };
+
+    for (const row of rows) {
+      if (!row || row.length < 2) continue;
+      
+      const key = row[0]?.trim();
+      const value = row[1];
+
+      switch (key) {
+        case 'discord.channelId':
+          settings.discord.channelId = value || '';
+          break;
+        case 'discord.pingRoleId':
+          settings.discord.pingRoleId = value && value.trim() !== '' ? value : null;
+          break;
+        case 'scheduling.dailyPostTime':
+          settings.scheduling.dailyPostTime = value || '12:00';
+          break;
+        case 'scheduling.reminderHoursBefore':
+          settings.scheduling.reminderHoursBefore = parseInt(value) || 3;
+          break;
+        case 'scheduling.trainingStartPollEnabled':
+          settings.scheduling.trainingStartPollEnabled = value === 'true' || value === true;
+          break;
+        case 'scheduling.timezone':
+          settings.scheduling.timezone = value || 'Europe/Berlin';
+          break;
+        case 'scheduling.cleanChannelBeforePost':
+          settings.scheduling.cleanChannelBeforePost = value === 'true' || value === true;
+          break;
+      }
+    }
+
+    return settings;
+  } catch (error) {
+    console.error('Error reading settings from Google Sheet:', error);
+    // If Settings tab doesn't exist, return null
+    return null;
+  }
+}
+
+/**
+ * Save settings to Google Sheets (Settings tab)
+ * Creates the tab if it doesn't exist
+ */
+export async function saveSettingsToSheet(settings: SheetSettings): Promise<void> {
+  try {
+    const sheets = await getAuthenticatedClient();
+    
+    // Check if Settings tab exists, create it if not
+    await ensureSettingsTabExists();
+
+    // Prepare data in key-value format
+    const values = [
+      ['discord.channelId', settings.discord.channelId],
+      ['discord.pingRoleId', settings.discord.pingRoleId || ''],
+      ['scheduling.dailyPostTime', settings.scheduling.dailyPostTime],
+      ['scheduling.reminderHoursBefore', settings.scheduling.reminderHoursBefore.toString()],
+      ['scheduling.trainingStartPollEnabled', settings.scheduling.trainingStartPollEnabled.toString()],
+      ['scheduling.timezone', settings.scheduling.timezone],
+      ['scheduling.cleanChannelBeforePost', settings.scheduling.cleanChannelBeforePost.toString()],
+    ];
+
+    // Update the Settings tab
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: config.googleSheets.sheetId,
+      range: 'Settings!A1:B7',
+      valueInputOption: 'RAW',
+      requestBody: {
+        values,
+      },
+    });
+
+    console.log('Settings saved to Google Sheet successfully');
+  } catch (error) {
+    console.error('Error saving settings to Google Sheet:', error);
+    throw error;
+  }
+}
+
+/**
+ * Ensure Settings tab exists in the spreadsheet
+ */
+async function ensureSettingsTabExists(): Promise<void> {
+  try {
+    const sheets = await getAuthenticatedClient();
+    
+    // Get all sheets
+    const response = await sheets.spreadsheets.get({
+      spreadsheetId: config.googleSheets.sheetId,
+    });
+
+    const existingSheets = response.data.sheets || [];
+    const settingsTabExists = existingSheets.some(
+      sheet => sheet.properties?.title === 'Settings'
+    );
+
+    if (!settingsTabExists) {
+      // Create Settings tab
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: config.googleSheets.sheetId,
+        requestBody: {
+          requests: [
+            {
+              addSheet: {
+                properties: {
+                  title: 'Settings',
+                  gridProperties: {
+                    rowCount: 20,
+                    columnCount: 2,
+                  },
+                },
+              },
+            },
+          ],
+        },
+      });
+
+      // Add header formatting
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: config.googleSheets.sheetId,
+        range: 'Settings!A1:B1',
+        valueInputOption: 'RAW',
+        requestBody: {
+          values: [['Setting', 'Value']],
+        },
+      });
+
+      console.log('Created Settings tab in Google Sheet');
+    }
+  } catch (error) {
+    console.error('Error ensuring Settings tab exists:', error);
+    throw error;
+  }
+}

@@ -9,7 +9,7 @@ import { logger } from './logger.js';
 import { restartScheduler } from './scheduler.js';
 import { getUserMappings, addUserMapping, removeUserMapping, initializeUserMappingSheet, getUserMapping } from './userMapping.js';
 import { getSheetColumns, getSheetDataRange, updateSheetCell } from './sheets.js';
-import { loadSettings } from './settingsManager.js';
+import { loadSettingsAsync, saveSettings } from './settingsManager.js';
 
 const app = express();
 const PORT = 3001;
@@ -31,9 +31,9 @@ app.use(express.json());
 app.post('/api/admin/login', (req, res) => {
   try {
     const { username, password } = req.body;
-    const settings = loadSettings();
     
-    if (username === settings.admin.username && password === settings.admin.password) {
+    // Admin credentials come from .env via config
+    if (username === config.admin.username && password === config.admin.password) {
       logger.success('Admin login successful', `User: ${username}`);
       res.json({ success: true, message: 'Login successful' });
     } else {
@@ -210,9 +210,9 @@ app.get('/api/logs', (req, res) => {
 });
 
 // Get settings
-app.get('/api/settings', (req, res) => {
+app.get('/api/settings', async (req, res) => {
   try {
-    const settings = loadSettings();
+    const settings = await loadSettingsAsync();
     res.json(settings);
   } catch (error) {
     console.error('Error loading settings:', error);
@@ -226,19 +226,18 @@ app.post('/api/settings', async (req, res) => {
   try {
     const newSettings = req.body;
     
-    // Validate settings structure
-    if (!newSettings || !newSettings.discord || !newSettings.scheduling || !newSettings.admin) {
+    // Validate settings structure (only discord and scheduling, admin is in .env)
+    if (!newSettings || !newSettings.discord || !newSettings.scheduling) {
       return res.status(400).json({ error: 'Invalid settings structure' });
     }
     
-    // Save settings to file
-    const { saveSettings } = await import('./settingsManager.js');
-    saveSettings(newSettings);
+    // Save settings to Google Sheets (only discord and scheduling)
+    await saveSettings(newSettings);
     
-    logger.success('Settings saved', 'Configuration updated successfully');
+    logger.success('Settings saved', 'Configuration updated successfully in Google Sheets');
     
     // Reload config and restart scheduler
-    reloadConfig();
+    await reloadConfig();
     restartScheduler();
     
     res.json({ success: true, message: 'Settings saved and applied' });
@@ -250,10 +249,10 @@ app.post('/api/settings', async (req, res) => {
 });
 
 // Reload configuration
-app.post('/api/reload-config', (req, res) => {
+app.post('/api/reload-config', async (req, res) => {
   try {
     logger.info('Reloading configuration...');
-    reloadConfig();
+    await reloadConfig();
     
     // Restart scheduler with new times
     logger.info('Restarting scheduler with new settings...');

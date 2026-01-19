@@ -4,6 +4,7 @@ import { testConnection, deleteOldRows } from './sheets.js';
 import { config } from './config.js';
 import { startApiServer } from './apiServer.js';
 import { logger } from './logger.js';
+import { loadSettingsAsync } from './settingsManager.js';
 
 async function main(): Promise<void> {
   console.log('='.repeat(50));
@@ -21,6 +22,17 @@ async function main(): Promise<void> {
   }
   console.log('Google Sheets connection successful!');
   logger.success('Google Sheets connected');
+
+  // Load/migrate settings
+  console.log('\nLoading settings...');
+  try {
+    await loadSettingsAsync();
+    console.log('Settings loaded successfully!');
+    logger.success('Settings loaded');
+  } catch (error) {
+    console.error('Error loading settings:', error);
+    logger.error('Settings load failed', error instanceof Error ? error.message : String(error));
+  }
 
   // Run cleanup job on startup
   console.log('\nRunning table cleanup and maintenance...');
