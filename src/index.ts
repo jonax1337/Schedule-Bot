@@ -1,10 +1,9 @@
 import { startBot, client } from './bot.js';
 import { startScheduler, stopScheduler, getNextScheduledTime } from './scheduler.js';
 import { testConnection, deleteOldRows } from './sheets.js';
-import { config } from './config.js';
+import { config, reloadConfig } from './config.js';
 import { startApiServer } from './apiServer.js';
 import { logger } from './logger.js';
-import { loadSettingsAsync } from './settingsManager.js';
 
 async function main(): Promise<void> {
   console.log('='.repeat(50));
@@ -26,8 +25,10 @@ async function main(): Promise<void> {
   // Load/migrate settings
   console.log('\nLoading settings...');
   try {
-    await loadSettingsAsync();
+    await reloadConfig();
     console.log('Settings loaded successfully!');
+    console.log(`Daily post time: ${config.scheduling.dailyPostTime}`);
+    console.log(`Timezone: ${config.scheduling.timezone}`);
     logger.success('Settings loaded');
   } catch (error) {
     console.error('Error loading settings:', error);
@@ -66,8 +67,6 @@ logger.info('Starting Discord bot');
 
     console.log('\n' + '='.repeat(50));
     console.log('Bot is running!');
-    console.log(`Daily post time: ${config.scheduling.dailyPostTime}`);
-    console.log(`Timezone: ${config.scheduling.timezone}`);
     console.log('Use /schedule in Discord to manually check availability');
     console.log('Dashboard API: http://localhost:3001');
     console.log('='.repeat(50));
