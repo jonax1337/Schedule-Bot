@@ -83,7 +83,7 @@ function CallbackContent() {
           <CardHeader className="text-center">
             <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
               {status === 'loading' && <Loader2 className="h-6 w-6 animate-spin text-primary" />}
-              {status === 'success' && <CheckCircle2 className="h-6 w-6 text-green-500" />}
+              {status === 'success' && <CheckCircle2 className="h-6 w-6 text-primary" />}
               {status === 'error' && <XCircle className="h-6 w-6 text-red-500" />}
             </div>
             <CardTitle>
