@@ -45,6 +45,7 @@ export function LoginForm({
   const [loading, setLoading] = useState(true);
   const [userMappings, setUserMappings] = useState<string[] | null>(null);
   const [settings, setSettings] = useState<Settings | null>(null);
+  const [settingsLoading, setSettingsLoading] = useState(true);
   const [discordLoading, setDiscordLoading] = useState(false);
 
   useEffect(() => {
@@ -67,6 +68,8 @@ export function LoginForm({
       }
     } catch (error) {
       console.error('Failed to load settings:', error);
+    } finally {
+      setSettingsLoading(false);
     }
   };
 
@@ -134,13 +137,19 @@ export function LoginForm({
         <CardHeader className="text-center">
           <CardTitle>Welcome back</CardTitle>
           <CardDescription>
-            {settings?.discord?.allowDiscordAuth 
-              ? 'Sign in with Discord to continue' 
-              : 'Choose your player profile to continue'}
+            {settingsLoading 
+              ? 'Loading...'
+              : settings?.discord?.allowDiscordAuth 
+                ? 'Sign in with Discord to continue' 
+                : 'Choose your player profile to continue'}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {!settings?.discord?.allowDiscordAuth && (
+          {settingsLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : !settings?.discord?.allowDiscordAuth ? (
             <form onSubmit={handleUserSelect}>
               <FieldGroup>
                 <Field>
@@ -169,9 +178,7 @@ export function LoginForm({
                 </Field>
               </FieldGroup>
             </form>
-          )}
-
-          {settings?.discord?.allowDiscordAuth && (
+          ) : (
             <FieldGroup>
               <Field>
                 <Button
