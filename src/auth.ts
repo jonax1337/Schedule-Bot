@@ -80,6 +80,7 @@ export async function initiateDiscordAuth(req: Request, res: Response) {
       response_type: 'code',
       scope: 'identify',
       state,
+      prompt: 'none', // Skip consent screen if already authorized
     });
 
     const authUrl = `${DISCORD_OAUTH_URL}?${params.toString()}`;
