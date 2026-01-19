@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
 
@@ -77,36 +78,42 @@ function CallbackContent() {
   }, [searchParams, router]);
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-6">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            {status === 'loading' && <Loader2 className="w-5 h-5 animate-spin" />}
-            {status === 'success' && <CheckCircle2 className="w-5 h-5 text-green-500" />}
-            {status === 'error' && <XCircle className="w-5 h-5 text-red-500" />}
-            {status === 'loading' && 'Authenticating...'}
-            {status === 'success' && 'Success!'}
-            {status === 'error' && 'Authentication Failed'}
-          </CardTitle>
-          <CardDescription>{message}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {status === 'loading' && (
-            <div className="text-center text-sm text-muted-foreground">
-              Please wait while we verify your Discord account...
-            </div>
-          )}
-          {status === 'error' && (
-            <Button 
-              onClick={() => router.push('/login')} 
-              variant="outline" 
-              className="w-full"
-            >
-              Back to Login
-            </Button>
-          )}
-        </CardContent>
-      </Card>
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto p-6 max-w-md">
+        <div className="flex items-center justify-end mb-6 animate-slideDown">
+          <ThemeToggle />
+        </div>
+
+        <Card className="animate-scaleIn">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              {status === 'loading' && <Loader2 className="w-5 h-5 animate-spin" />}
+              {status === 'success' && <CheckCircle2 className="w-5 h-5 text-green-500" />}
+              {status === 'error' && <XCircle className="w-5 h-5 text-red-500" />}
+              {status === 'loading' && 'Authenticating...'}
+              {status === 'success' && 'Success!'}
+              {status === 'error' && 'Authentication Failed'}
+            </CardTitle>
+            <CardDescription>{message}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {status === 'loading' && (
+              <div className="text-center text-sm text-muted-foreground">
+                Please wait while we verify your Discord account...
+              </div>
+            )}
+            {status === 'error' && (
+              <Button 
+                onClick={() => router.push('/login')} 
+                variant="outline" 
+                className="w-full"
+              >
+                Back to Login
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
@@ -114,15 +121,20 @@ function CallbackContent() {
 export default function CallbackPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-background flex items-center justify-center p-6">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Loader2 className="w-5 h-5 animate-spin" />
-              Loading...
-            </CardTitle>
-          </CardHeader>
-        </Card>
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto p-6 max-w-md">
+          <div className="flex items-center justify-end mb-6">
+            <ThemeToggle />
+          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Loading...
+              </CardTitle>
+            </CardHeader>
+          </Card>
+        </div>
       </div>
     }>
       <CallbackContent />

@@ -150,42 +150,38 @@ function LoginContent() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleUserSelect} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="user-select">Your Name</Label>
-                <Select value={selectedUser} onValueChange={setSelectedUser} disabled={loading}>
-                  <SelectTrigger id="user-select" className="w-full">
-                    <SelectValue placeholder="Select your name..." />
-                  </SelectTrigger>
-                  <SelectContent position="popper" className="w-full">
-                    {columns.map((col) => (
-                      <SelectItem key={col.column} value={col.name}>
-                        {col.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button 
-                type="submit"
-                className="w-full" 
-                disabled={!selectedUser || loading}
-              >
-                Continue
-              </Button>
-            </form>
+            {!settings?.discord?.allowDiscordAuth && (
+              <form onSubmit={handleUserSelect} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="user-select">Your Name</Label>
+                  <Select value={selectedUser} onValueChange={setSelectedUser} disabled={loading}>
+                    <SelectTrigger id="user-select" className="w-full">
+                      <SelectValue placeholder="Select your name..." />
+                    </SelectTrigger>
+                    <SelectContent position="popper" className="w-full">
+                      {columns.map((col) => (
+                        <SelectItem key={col.column} value={col.name}>
+                          {col.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button 
+                  type="submit"
+                  className="w-full" 
+                  disabled={!selectedUser || loading}
+                >
+                  Continue
+                </Button>
+              </form>
+            )}
 
             {settings?.discord?.allowDiscordAuth && (
-              <>
-                <div className="relative my-6">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-background px-2 text-muted-foreground">
-                      Or continue with
-                    </span>
-                  </div>
+              <div className="space-y-4">
+              <div className="space-y-4">
+                <div className="text-center text-sm text-muted-foreground mb-4">
+                  Sign in with your Discord account to access the schedule
                 </div>
 
                 <Button
@@ -207,7 +203,7 @@ function LoginContent() {
                   </svg>
                   {discordLoading ? 'Connecting...' : 'Login with Discord'}
                 </Button>
-              </>
+              </div>
             )}
           </CardContent>
         </Card>
