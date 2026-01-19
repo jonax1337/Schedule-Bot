@@ -49,7 +49,6 @@
 - [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
 - [License](#license)
-- [Contact](#contact)
 
 ---
 
@@ -1011,18 +1010,6 @@ Contributions are welcome! Please follow these steps:
 ## 📄 License
 
 This project is licensed under the ISC License.
-
----
-
-## 📞 Contact
-
-**Project Maintainer**: Your Name
-
-- Discord: YourDiscord#0000
-- Email: your.email@example.com
-- GitHub: [@yourusername](https://github.com/yourusername)
-
-**Project Link**: [https://github.com/yourusername/schedule-bot](https://github.com/yourusername/schedule-bot)
 
 ---
 
