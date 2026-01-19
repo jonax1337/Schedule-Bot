@@ -27,7 +27,7 @@ export default function Home() {
 
   const handleLogout = () => {
     localStorage.removeItem('adminAuth');
-    router.push('/admin/login');
+    router.push('/login');
   };
   return (
     <div className="min-h-screen bg-background">
