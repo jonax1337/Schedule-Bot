@@ -355,7 +355,7 @@ export default function UserSchedule() {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto p-4 sm:p-6 max-w-7xl">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-6 animate-slideDown">
           <Button variant="ghost" size="sm" onClick={() => router.push('/')}>
             <ArrowLeft className="mr-1 h-4 w-4" />
             Home
@@ -363,8 +363,8 @@ export default function UserSchedule() {
           <ThemeToggle />
         </div>
 
-        <div className="mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold">Welcome, {userName}!</h1>
+        <div className="mb-6 animate-fadeIn">
+          <h1 className="text-2xl sm:text-3xl font-bold">Availability</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Manage your availability for the next 14 days
           </p>
@@ -372,7 +372,7 @@ export default function UserSchedule() {
 
         {/* Bulk Actions Bar */}
         {hasSelection && (
-          <Card className="mb-4 border-blue-500/50 bg-blue-50 dark:bg-blue-950/20">
+          <Card className="mb-4 border-blue-500/50 bg-blue-50 dark:bg-blue-950/20 animate-slideUp">
             <CardContent className="p-4">
               <div className="flex flex-col lg:flex-row items-start lg:items-center gap-4">
                 <div className="flex items-center gap-2 text-sm font-medium">

@@ -27,13 +27,13 @@ export default function Home() {
 
   const handleLogout = () => {
     localStorage.removeItem('adminAuth');
-    router.push('/');
+    router.push('/admin/login');
   };
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto p-6 max-w-7xl">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-8 animate-slideDown">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-4xl font-bold tracking-tight">
@@ -57,7 +57,7 @@ export default function Home() {
         <StatusCard />
 
         {/* Main Content */}
-        <Tabs defaultValue="settings" className="space-y-4 mt-6">
+        <Tabs defaultValue="settings" className="space-y-4 mt-6 animate-fadeIn stagger-1">
           <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="settings" className="flex items-center gap-2">
               <Settings className="h-4 w-4" />
