@@ -130,7 +130,7 @@ export function LoginForm({
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
-      <Card>
+      <Card className="animate-scaleIn">
         <CardHeader className="text-center">
           <CardTitle>Welcome back</CardTitle>
           <CardDescription>

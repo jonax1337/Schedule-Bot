@@ -79,7 +79,7 @@ function CallbackContent() {
   return (
     <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
       <div className="w-full max-w-sm">
-        <Card>
+        <Card className="animate-scaleIn">
           <CardHeader className="text-center">
             <CardTitle className="flex items-center justify-center gap-2">
               {status === 'loading' && <Loader2 className="h-5 w-5 animate-spin" />}
@@ -125,7 +125,7 @@ export default function CallbackPage() {
     <Suspense fallback={
       <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
         <div className="w-full max-w-sm">
-          <Card>
+          <Card className="animate-scaleIn">
             <CardHeader className="text-center">
               <CardTitle className="flex items-center justify-center gap-2">
                 <Loader2 className="h-5 w-5 animate-spin" />

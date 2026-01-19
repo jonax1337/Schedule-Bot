@@ -57,13 +57,13 @@ export default function AdminLogin() {
           variant="ghost" 
           size="sm" 
           onClick={() => router.push('/')}
-          className="mb-4"
+          className="mb-4 animate-slideDown"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Schedule
         </Button>
 
-        <Card>
+        <Card className="animate-scaleIn">
           <CardHeader className="text-center">
             <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
               <Shield className="h-6 w-6 text-primary" />
