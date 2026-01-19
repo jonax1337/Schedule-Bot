@@ -149,7 +149,7 @@ export function LoginForm({
                     <SelectTrigger id="user-select">
                       <SelectValue placeholder="Select your name" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent position="popper">
                       {columns.map((col) => (
                         <SelectItem key={col.column} value={col.name}>
                           {col.name}
