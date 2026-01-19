@@ -562,6 +562,7 @@ export interface SheetSettings {
   discord: {
     channelId: string;
     pingRoleId: string | null;
+    allowDiscordAuth: boolean;
   };
   scheduling: {
     dailyPostTime: string;
@@ -577,11 +578,12 @@ export interface SheetSettings {
  * Expected structure:
  * Row 1: discord.channelId | <value>
  * Row 2: discord.pingRoleId | <value>
- * Row 3: scheduling.dailyPostTime | <value>
- * Row 4: scheduling.reminderHoursBefore | <value>
- * Row 5: scheduling.trainingStartPollEnabled | <value>
- * Row 6: scheduling.timezone | <value>
- * Row 7: scheduling.cleanChannelBeforePost | <value>
+ * Row 3: discord.allowDiscordAuth | <value>
+ * Row 4: scheduling.dailyPostTime | <value>
+ * Row 5: scheduling.reminderHoursBefore | <value>
+ * Row 6: scheduling.trainingStartPollEnabled | <value>
+ * Row 7: scheduling.timezone | <value>
+ * Row 8: scheduling.cleanChannelBeforePost | <value>
  */
 export async function getSettingsFromSheet(): Promise<SheetSettings | null> {
   try {
@@ -604,6 +606,7 @@ export async function getSettingsFromSheet(): Promise<SheetSettings | null> {
       discord: {
         channelId: '',
         pingRoleId: null,
+        allowDiscordAuth: false,
       },
       scheduling: {
         dailyPostTime: '12:00',
@@ -626,6 +629,9 @@ export async function getSettingsFromSheet(): Promise<SheetSettings | null> {
           break;
         case 'discord.pingRoleId':
           settings.discord.pingRoleId = value && value.trim() !== '' ? value : null;
+          break;
+        case 'discord.allowDiscordAuth':
+          settings.discord.allowDiscordAuth = value === 'true' || value === true;
           break;
         case 'scheduling.dailyPostTime':
           settings.scheduling.dailyPostTime = value || '12:00';
@@ -668,6 +674,7 @@ export async function saveSettingsToSheet(settings: SheetSettings): Promise<void
     const values = [
       ['discord.channelId', settings.discord.channelId],
       ['discord.pingRoleId', settings.discord.pingRoleId || ''],
+      ['discord.allowDiscordAuth', settings.discord.allowDiscordAuth.toString()],
       ['scheduling.dailyPostTime', settings.scheduling.dailyPostTime],
       ['scheduling.reminderHoursBefore', settings.scheduling.reminderHoursBefore.toString()],
       ['scheduling.trainingStartPollEnabled', settings.scheduling.trainingStartPollEnabled.toString()],
@@ -678,7 +685,7 @@ export async function saveSettingsToSheet(settings: SheetSettings): Promise<void
     // Update the Settings tab
     await sheets.spreadsheets.values.update({
       spreadsheetId: config.googleSheets.sheetId,
-      range: 'Settings!A1:B7',
+      range: 'Settings!A1:B8',
       valueInputOption: 'RAW',
       requestBody: {
         values,

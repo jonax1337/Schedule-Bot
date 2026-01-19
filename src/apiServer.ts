@@ -10,6 +10,7 @@ import { restartScheduler } from './scheduler.js';
 import { getUserMappings, addUserMapping, removeUserMapping, initializeUserMappingSheet, getUserMapping } from './userMapping.js';
 import { getSheetColumns, getSheetDataRange, updateSheetCell } from './sheets.js';
 import { loadSettingsAsync, saveSettings } from './settingsManager.js';
+import { initiateDiscordAuth, handleDiscordCallback, getUserFromSession, logout } from './auth.js';
 
 const app = express();
 const PORT = 3001;
@@ -512,6 +513,12 @@ app.post('/api/actions/notify', async (req, res) => {
     });
   }
 });
+
+// Discord OAuth routes
+app.get('/api/auth/discord', initiateDiscordAuth);
+app.get('/api/auth/discord/callback', handleDiscordCallback);
+app.get('/api/auth/user', getUserFromSession);
+app.post('/api/auth/logout', logout);
 
 export function startApiServer(): void {
   app.listen(PORT, () => {

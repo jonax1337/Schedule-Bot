@@ -2,6 +2,7 @@ export interface Settings {
   discord: {
     channelId: string;
     pingRoleId: string | null;
+    allowDiscordAuth: boolean;
   };
   scheduling: {
     dailyPostTime: string;
