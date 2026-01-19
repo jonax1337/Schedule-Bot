@@ -179,7 +179,6 @@ function LoginContent() {
 
             {settings?.discord?.allowDiscordAuth && (
               <div className="space-y-4">
-              <div className="space-y-4">
                 <div className="text-center text-sm text-muted-foreground mb-4">
                   Sign in with your Discord account to access the schedule
                 </div>
