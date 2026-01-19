@@ -270,8 +270,25 @@ export default function HomePage() {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    // Call backend logout if sessionToken exists
+    const sessionToken = localStorage.getItem('sessionToken');
+    if (sessionToken) {
+      try {
+        await fetch(`${BOT_API_URL}/api/auth/logout`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${sessionToken}`,
+          },
+        });
+      } catch (error) {
+        console.error('Logout error:', error);
+      }
+    }
+
+    // Clear all auth data
     localStorage.removeItem('selectedUser');
+    localStorage.removeItem('sessionToken');
     setLoggedInUser(null);
     // Redirect immediately to login
     router.replace('/login');
