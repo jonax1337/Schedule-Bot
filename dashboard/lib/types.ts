@@ -10,6 +10,10 @@ export interface Settings {
     timezone: string;
     cleanChannelBeforePost: boolean;
   };
+  admin?: {
+    username: string;
+    password: string;
+  };
 }
 
 export interface ActionResponse {

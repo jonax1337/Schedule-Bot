@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
-import { loadSettings, reloadSettings } from './settingsManager.js';
+import { loadSettings, reloadSettings, loadSettingsAsync } from './settingsManager.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -36,11 +36,15 @@ export const config = {
     reminderHoursBefore: settings.scheduling.reminderHoursBefore,
     trainingStartPollEnabled: settings.scheduling.trainingStartPollEnabled,
   },
+  admin: {
+    username: requireEnv('ADMIN_USERNAME'),
+    password: requireEnv('ADMIN_PASSWORD'),
+  },
 };
 
 // Function to reload settings at runtime
-export function reloadConfig(): void {
-  settings = reloadSettings(); // Force reload from disk, bypass cache
+export async function reloadConfig(): Promise<void> {
+  settings = await loadSettingsAsync(); // Force reload from Google Sheets
   
   // Update config with new settings
   config.discord.channelId = settings.discord.channelId;
@@ -50,7 +54,11 @@ export function reloadConfig(): void {
   config.scheduling.reminderHoursBefore = settings.scheduling.reminderHoursBefore;
   config.scheduling.trainingStartPollEnabled = settings.scheduling.trainingStartPollEnabled;
   
-  console.log('Configuration reloaded from settings.json');
+  // Admin credentials always come from .env (reload from process.env)
+  config.admin.username = process.env.ADMIN_USERNAME || 'admin';
+  config.admin.password = process.env.ADMIN_PASSWORD || 'admin123';
+  
+  console.log('Configuration reloaded from Google Sheets and .env');
   console.log('New pingRoleId:', config.discord.pingRoleId);
   console.log('New channelId:', config.discord.channelId);
   console.log('New dailyPostTime:', config.scheduling.dailyPostTime);
