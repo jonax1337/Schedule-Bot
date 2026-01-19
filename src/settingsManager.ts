@@ -71,37 +71,8 @@ export function reloadSettings(): Settings {
     // Admin credentials always come from .env
     const admin = getAdminCredentials();
 
-    // Try to load from Google Sheets first
-    // Note: This is synchronous wrapping of async - not ideal but maintains compatibility
-    // In practice, the async version will be called from async contexts
-    
-    // For now, try settings.json as fallback (for migration period)
-    if (existsSync(SETTINGS_PATH)) {
-      try {
-        const fileContent = readFileSync(SETTINGS_PATH, 'utf-8');
-        const settings = JSON.parse(fileContent) as Settings;
-        
-        cachedSettings = {
-          discord: {
-            ...DEFAULT_SETTINGS.discord,
-            ...settings.discord,
-          },
-          scheduling: {
-            ...DEFAULT_SETTINGS.scheduling,
-            ...settings.scheduling,
-          },
-          admin, // Always from .env
-        };
-        
-        console.log('⚠️  Loaded settings from settings.json (legacy mode). Consider migrating to Google Sheets.');
-        return cachedSettings;
-      } catch (error) {
-        console.error('Error loading settings.json:', error);
-      }
-    }
-
-    // If no settings.json, use defaults
-    console.log('No settings found, using defaults. Settings will be created in Google Sheets on first save.');
+    // Use defaults (settings should be loaded via async version)
+    console.log('Using default settings. Call loadSettingsAsync() to load from Google Sheets.');
     cachedSettings = {
       ...DEFAULT_SETTINGS,
       admin,
@@ -134,46 +105,23 @@ export async function loadSettingsAsync(): Promise<Settings> {
         ...sheetSettings,
         admin, // Always from .env
       };
+      console.log('✅ Settings loaded from Google Sheets');
       return cachedSettings;
     }
 
-    // Fallback to settings.json for migration
-    if (existsSync(SETTINGS_PATH)) {
-      try {
-        const fileContent = readFileSync(SETTINGS_PATH, 'utf-8');
-        const settings = JSON.parse(fileContent) as Settings;
-        
-        cachedSettings = {
-          discord: {
-            ...DEFAULT_SETTINGS.discord,
-            ...settings.discord,
-          },
-          scheduling: {
-            ...DEFAULT_SETTINGS.scheduling,
-            ...settings.scheduling,
-          },
-          admin,
-        };
-        
-        console.log('⚠️  Loaded settings from settings.json (legacy). Migrating to Google Sheets...');
-        
-        // Automatically migrate to Google Sheets
-        await saveSettingsToSheet({
-          discord: cachedSettings.discord,
-          scheduling: cachedSettings.scheduling,
-        });
-        
-        console.log('✅ Settings migrated to Google Sheets successfully');
-        return cachedSettings;
-      } catch (error) {
-        console.error('Error during migration:', error);
-      }
-    }
-
-    // Use defaults if nothing found
-    console.log('No settings found, using defaults');
+    // No settings in Google Sheet - create defaults
+    console.log('No settings found in Google Sheets. Creating default settings...');
+    const defaultSettings = {
+      discord: DEFAULT_SETTINGS.discord,
+      scheduling: DEFAULT_SETTINGS.scheduling,
+    };
+    
+    // Save defaults to Google Sheet
+    await saveSettingsToSheet(defaultSettings);
+    console.log('✅ Default settings created in Google Sheets');
+    
     cachedSettings = {
-      ...DEFAULT_SETTINGS,
+      ...defaultSettings,
       admin,
     };
     
