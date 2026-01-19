@@ -81,15 +81,15 @@ function CallbackContent() {
       <div className="w-full max-w-sm">
         <Card className="animate-scaleIn">
           <CardHeader className="text-center">
-            <CardTitle className="flex items-center justify-center gap-2">
-              {status === 'loading' && <Loader2 className="h-5 w-5 animate-spin" />}
-              {status === 'success' && <CheckCircle2 className="h-5 w-5 text-green-500" />}
-              {status === 'error' && <XCircle className="h-5 w-5 text-red-500" />}
-              <span>
-                {status === 'loading' && 'Authenticating'}
-                {status === 'success' && 'Success'}
-                {status === 'error' && 'Authentication Failed'}
-              </span>
+            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+              {status === 'loading' && <Loader2 className="h-6 w-6 animate-spin text-primary" />}
+              {status === 'success' && <CheckCircle2 className="h-6 w-6 text-green-500" />}
+              {status === 'error' && <XCircle className="h-6 w-6 text-red-500" />}
+            </div>
+            <CardTitle>
+              {status === 'loading' && 'Authenticating'}
+              {status === 'success' && 'Success'}
+              {status === 'error' && 'Authentication Failed'}
             </CardTitle>
             <CardDescription>{message}</CardDescription>
           </CardHeader>
@@ -127,10 +127,10 @@ export default function CallbackPage() {
         <div className="w-full max-w-sm">
           <Card className="animate-scaleIn">
             <CardHeader className="text-center">
-              <CardTitle className="flex items-center justify-center gap-2">
-                <Loader2 className="h-5 w-5 animate-spin" />
-                <span>Loading</span>
-              </CardTitle>
+              <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              </div>
+              <CardTitle>Loading</CardTitle>
               <CardDescription>Please wait...</CardDescription>
             </CardHeader>
           </Card>
