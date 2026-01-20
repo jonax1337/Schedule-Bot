@@ -466,9 +466,9 @@ export default function HomePage() {
                 Player Login
               </Button>
             )}
-            <Button variant="outline" onClick={() => router.push('/scrims')}>
+            <Button variant="outline" onClick={() => router.push('/matches')}>
               <Trophy className="mr-1 h-4 w-4" />
-              Scrims
+              Matches
             </Button>
             <Button variant="outline" onClick={() => router.push('/admin/login')}>
               <Shield className="mr-1 h-4 w-4" />

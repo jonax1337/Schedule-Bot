@@ -3,10 +3,10 @@
 import { ScrimsPanel } from "@/components/scrims-panel";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { ArrowLeft, Trophy } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-export default function ScrimsPage() {
+export default function MatchesPage() {
   const router = useRouter();
 
   return (
@@ -25,10 +25,10 @@ export default function ScrimsPage() {
               </Button>
               <div>
                 <h1 className="text-4xl font-bold tracking-tight">
-                  Scrim History
+                  Match History
                 </h1>
                 <p className="text-muted-foreground mt-2">
-                  Track and analyze team scrim performance
+                  Track and analyze team match performance
                 </p>
               </div>
             </div>
@@ -36,7 +36,7 @@ export default function ScrimsPage() {
           </div>
         </div>
 
-        {/* Scrims Panel */}
+        {/* Matches Panel */}
         <div className="animate-fadeIn">
           <ScrimsPanel />
         </div>
