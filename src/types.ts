@@ -73,3 +73,32 @@ export interface SheetData {
   reason: string;
   focus: string;
 }
+
+// Scrim Tracking Types
+export interface ScrimEntry {
+  id: string;
+  date: string; // Format: DD.MM.YYYY
+  opponent: string;
+  result: 'win' | 'loss' | 'draw';
+  scoreUs: number;
+  scoreThem: number;
+  maps: string[]; // Array of map names
+  notes: string;
+  createdAt: string; // ISO timestamp
+  updatedAt: string; // ISO timestamp
+}
+
+export interface ScrimStats {
+  totalScrims: number;
+  wins: number;
+  losses: number;
+  draws: number;
+  winRate: number;
+  mapStats: {
+    [mapName: string]: {
+      played: number;
+      wins: number;
+      losses: number;
+    };
+  };
+}
