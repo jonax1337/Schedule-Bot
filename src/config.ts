@@ -79,3 +79,23 @@ export const SHEET_COLUMNS = {
   FOCUS: 10,
 };
 
+// Match Sheet Column indices (0-based)
+export const SCRIM_SHEET_COLUMNS = {
+  ID: 0,
+  DATE: 1,
+  OPPONENT: 2,
+  RESULT: 3,
+  SCORE_US: 4,
+  SCORE_THEM: 5,
+  MAPS: 6,
+  MATCH_TYPE: 7,
+  OUR_AGENTS: 8,
+  THEIR_AGENTS: 9,
+  VOD_URL: 10,
+  NOTES: 11,
+  CREATED_AT: 12,
+  UPDATED_AT: 13,
+};
+
+export const SCRIM_SHEET_NAME = 'Matches';
+
