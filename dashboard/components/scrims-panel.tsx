@@ -8,8 +8,6 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Plus, Edit, Trash2, TrendingUp, Trophy, Target, X } from "lucide-react";
 import { toast } from "sonner";
 import { AgentSelector } from "./agent-picker";
@@ -34,6 +32,15 @@ const VALORANT_MAPS = [
   'Abyss', 'Ascent', 'Bind', 'Breeze', 'Corrode', 'Fracture',
   'Haven', 'Icebox', 'Lotus', 'Pearl', 'Split', 'Sunset'
 ];
+
+// Helper to get today's date in DD.MM.YYYY format
+function getTodayDate(): string {
+  const today = new Date();
+  const day = String(today.getDate()).padStart(2, '0');
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const year = today.getFullYear();
+  return `${day}.${month}.${year}`;
+}
 
 interface ScrimEntry {
   id: string;
@@ -75,12 +82,12 @@ export function ScrimsPanel() {
   
   // Form state
   const [formData, setFormData] = useState({
-    date: '',
+    date: getTodayDate(),
     opponent: '',
     result: 'loss' as 'win' | 'loss' | 'draw',
     scoreUs: 0,
     scoreThem: 0,
-    maps: [] as string[],
+    map: '',
     ourAgents: [] as string[],
     theirAgents: [] as string[],
     vodUrl: '',
@@ -137,7 +144,7 @@ export function ScrimsPanel() {
         result: formData.result,
         scoreUs: formData.scoreUs,
         scoreThem: formData.scoreThem,
-        maps: formData.maps,
+        maps: formData.map ? [formData.map] : [],
         ourAgents: formData.ourAgents,
         theirAgents: formData.theirAgents,
         vodUrl: formData.vodUrl,
@@ -162,23 +169,23 @@ export function ScrimsPanel() {
       const data = await response.json();
       
       if (data.success) {
-        toast.success(editingScrim ? 'Scrim updated!' : 'Scrim added!');
+        toast.success(editingScrim ? 'Match updated!' : 'Match added!');
         setIsAddDialogOpen(false);
         setEditingScrim(null);
         resetForm();
         fetchScrims();
         fetchStats();
       } else {
-        toast.error(data.error || 'Failed to save scrim');
+        toast.error(data.error || 'Failed to save match');
       }
     } catch (error) {
       console.error('Error saving scrim:', error);
-      toast.error('Failed to save scrim');
+      toast.error('Failed to save match');
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this scrim?')) return;
+    if (!confirm('Are you sure you want to delete this match?')) return;
     
     try {
       const response = await fetch(`${BOT_API_URL}/api/scrims/${id}`, {
@@ -188,15 +195,15 @@ export function ScrimsPanel() {
       const data = await response.json();
       
       if (data.success) {
-        toast.success('Scrim deleted!');
+        toast.success('Match deleted!');
         fetchScrims();
         fetchStats();
       } else {
-        toast.error(data.error || 'Failed to delete scrim');
+        toast.error(data.error || 'Failed to delete match');
       }
     } catch (error) {
       console.error('Error deleting scrim:', error);
-      toast.error('Failed to delete scrim');
+      toast.error('Failed to delete match');
     }
   };
 
@@ -208,7 +215,7 @@ export function ScrimsPanel() {
       result: scrim.result,
       scoreUs: scrim.scoreUs,
       scoreThem: scrim.scoreThem,
-      maps: scrim.maps || [],
+      map: scrim.maps && scrim.maps.length > 0 ? scrim.maps[0] : '',
       ourAgents: scrim.ourAgents || [],
       theirAgents: scrim.theirAgents || [],
       vodUrl: scrim.vodUrl || '',
@@ -219,12 +226,12 @@ export function ScrimsPanel() {
 
   const resetForm = () => {
     setFormData({
-      date: '',
+      date: getTodayDate(),
       opponent: '',
       result: 'loss',
       scoreUs: 0,
       scoreThem: 0,
-      maps: [],
+      map: '',
       ourAgents: [],
       theirAgents: [],
       vodUrl: '',
@@ -316,22 +323,22 @@ export function ScrimsPanel() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Scrim Results</CardTitle>
-              <CardDescription>Manage and track your team&apos;s scrim history</CardDescription>
+              <CardTitle>Match Results</CardTitle>
+              <CardDescription>Manage and track your team&apos;s match history</CardDescription>
             </div>
             <Dialog open={isAddDialogOpen} onOpenChange={handleDialogOpenChange}>
               <DialogTrigger asChild>
                 <Button>
                   <Plus className="mr-2 h-4 w-4" />
-                  Add Scrim
+                  Add Match
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
                 <form onSubmit={handleSubmit}>
                   <DialogHeader>
-                    <DialogTitle>{editingScrim ? 'Edit Scrim' : 'Add New Scrim'}</DialogTitle>
+                    <DialogTitle>{editingScrim ? 'Edit Match' : 'Add New Match'}</DialogTitle>
                     <DialogDescription>
-                      {editingScrim ? 'Update scrim details' : 'Record a new scrim result'}
+                      {editingScrim ? 'Update match details' : 'Record a new match result'}
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-6 py-4">
@@ -415,55 +422,22 @@ export function ScrimsPanel() {
                       </div>
                       
                       <div className="space-y-2">
-                        <Label>Maps Played</Label>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className="w-full justify-start text-left font-normal"
-                            >
-                              {formData.maps.length > 0 ? (
-                                <div className="flex flex-wrap gap-1">
-                                  {formData.maps.map((map) => (
-                                    <Badge key={map} variant="secondary" className="text-xs">
-                                      {map}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              ) : (
-                                <span className="text-muted-foreground">Select maps...</span>
-                              )}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-[300px] p-3" align="start">
-                            <div className="space-y-2">
-                              <div className="text-sm font-medium mb-3">Select Maps</div>
-                              <div className="grid grid-cols-2 gap-2 max-h-[300px] overflow-y-auto">
-                                {VALORANT_MAPS.map((map) => (
-                                  <div key={map} className="flex items-center space-x-2">
-                                    <Checkbox
-                                      id={`map-${map}`}
-                                      checked={formData.maps.includes(map)}
-                                      onCheckedChange={(checked) => {
-                                        if (checked) {
-                                          setFormData({ ...formData, maps: [...formData.maps, map] });
-                                        } else {
-                                          setFormData({ ...formData, maps: formData.maps.filter(m => m !== map) });
-                                        }
-                                      }}
-                                    />
-                                    <Label
-                                      htmlFor={`map-${map}`}
-                                      className="text-sm font-normal cursor-pointer"
-                                    >
-                                      {map}
-                                    </Label>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          </PopoverContent>
-                        </Popover>
+                        <Label htmlFor="map">Map</Label>
+                        <Select
+                          value={formData.map}
+                          onValueChange={(value) => setFormData({ ...formData, map: value })}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select a map..." />
+                          </SelectTrigger>
+                          <SelectContent position="popper">
+                            {VALORANT_MAPS.map((map) => (
+                              <SelectItem key={map} value={map}>
+                                {map}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
                     
@@ -514,7 +488,7 @@ export function ScrimsPanel() {
                       Cancel
                     </Button>
                     <Button type="submit">
-                      {editingScrim ? 'Update Scrim' : 'Add Scrim'}
+                      {editingScrim ? 'Update Match' : 'Add Match'}
                     </Button>
                   </DialogFooter>
                 </form>
@@ -525,7 +499,7 @@ export function ScrimsPanel() {
         <CardContent>
           {scrims.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              No scrims recorded yet. Add your first scrim to get started!
+              No matches recorded yet. Add your first match to get started!
             </div>
           ) : (
             <div className="space-y-4">
