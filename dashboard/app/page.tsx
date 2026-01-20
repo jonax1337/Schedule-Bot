@@ -514,27 +514,6 @@ export default function HomePage() {
                   </div>
                 </CardHeader>
                 <CardContent className="pt-0.5 pb-3">
-                  {/* Schedule Status Badge */}
-                  {entry.scheduleDetails && (
-                    <div className="mb-2">
-                      <Badge 
-                        variant={
-                          entry.scheduleDetails.status === 'Training possible' ? 'default' :
-                          entry.scheduleDetails.status === 'Almost there' ? 'secondary' :
-                          'outline'
-                        }
-                        className="text-xs"
-                      >
-                        {entry.scheduleDetails.status}
-                      </Badge>
-                      {entry.scheduleDetails.startTime && entry.scheduleDetails.endTime && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          ⏰ {entry.scheduleDetails.startTime} - {entry.scheduleDetails.endTime}
-                        </p>
-                      )}
-                    </div>
-                  )}
-                  
                   <div className="space-y-0.5">
                     <div className="flex items-center gap-1.5">
                       <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
@@ -589,9 +568,35 @@ export default function HomePage() {
                 
                 {/* Summary */}
                 {!selectedDate.isOffDay && (
-                  <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                    <span className="text-sm font-medium">Status</span>
-                    {getStatusDot(selectedDate.availability.available, selectedDate.availability.unavailable, selectedDate.isOffDay)}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                      <span className="text-sm font-medium">Status</span>
+                      {getStatusDot(selectedDate.availability.available, selectedDate.availability.unavailable, selectedDate.isOffDay)}
+                    </div>
+                    {/* Schedule Details */}
+                    {selectedDate.scheduleDetails && (
+                      <div className="p-3 bg-muted/50 rounded-lg border">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium">Schedule Status</span>
+                          <Badge 
+                            variant={
+                              selectedDate.scheduleDetails.status === 'Training possible' ? 'default' :
+                              selectedDate.scheduleDetails.status === 'Almost there' ? 'secondary' :
+                              'outline'
+                            }
+                            className="text-xs"
+                          >
+                            {selectedDate.scheduleDetails.status}
+                          </Badge>
+                        </div>
+                        {selectedDate.scheduleDetails.startTime && selectedDate.scheduleDetails.endTime && (
+                          <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
+                            <Clock className="w-4 h-4" />
+                            <span>{selectedDate.scheduleDetails.startTime} - {selectedDate.scheduleDetails.endTime}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
 
