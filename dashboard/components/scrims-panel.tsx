@@ -57,7 +57,7 @@ interface ScrimEntry {
   result: 'win' | 'loss' | 'draw';
   scoreUs: number;
   scoreThem: number;
-  maps: string[];
+  map: string;
   matchType?: string;
   ourAgents: string[];
   theirAgents: string[];
