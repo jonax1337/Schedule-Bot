@@ -226,7 +226,7 @@ export function ScrimsPanel() {
       result: scrim.result,
       scoreUs: scrim.scoreUs,
       scoreThem: scrim.scoreThem,
-      map: scrim.maps && scrim.maps.length > 0 ? scrim.maps[0] : '',
+      map: scrim.map || '',
       matchType: scrim.matchType || 'Scrim',
       ourAgents: scrim.ourAgents || [],
       theirAgents: scrim.theirAgents || [],
