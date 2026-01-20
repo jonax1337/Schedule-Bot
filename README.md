@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/logo.png" alt="Schedule Bot Logo" width="200" />
+  <img src="assets/logo.png" alt="Schedule Bot Logo" width="128" />
   
   <h1>Valorant Schedule Bot</h1>
   
