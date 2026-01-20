@@ -8,6 +8,7 @@ import {
   TextChannel,
   PermissionFlagsBits,
   MessageFlags,
+  EmbedBuilder,
 } from 'discord.js';
 import { config } from './config.js';
 import { getScheduleForDate } from './sheets.js';
@@ -197,6 +198,72 @@ const commands = [
         .setRequired(false)
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .toJSON(),
+  new SlashCommandBuilder()
+    .setName('add-scrim')
+    .setDescription('Add a scrim result (Admin)')
+    .addStringOption(option =>
+      option
+        .setName('date')
+        .setDescription('Date in DD.MM.YYYY format')
+        .setRequired(true)
+    )
+    .addStringOption(option =>
+      option
+        .setName('opponent')
+        .setDescription('Opponent team name')
+        .setRequired(true)
+    )
+    .addStringOption(option =>
+      option
+        .setName('result')
+        .setDescription('Match result')
+        .setRequired(true)
+        .addChoices(
+          { name: '✅ Win', value: 'win' },
+          { name: '❌ Loss', value: 'loss' },
+          { name: '➖ Draw', value: 'draw' }
+        )
+    )
+    .addIntegerOption(option =>
+      option
+        .setName('score-us')
+        .setDescription('Our score')
+        .setRequired(true)
+    )
+    .addIntegerOption(option =>
+      option
+        .setName('score-them')
+        .setDescription('Their score')
+        .setRequired(true)
+    )
+    .addStringOption(option =>
+      option
+        .setName('maps')
+        .setDescription('Maps played (comma-separated)')
+        .setRequired(false)
+    )
+    .addStringOption(option =>
+      option
+        .setName('notes')
+        .setDescription('Additional notes')
+        .setRequired(false)
+    )
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .toJSON(),
+  new SlashCommandBuilder()
+    .setName('view-scrims')
+    .setDescription('View recent scrim results')
+    .addIntegerOption(option =>
+      option
+        .setName('limit')
+        .setDescription('Number of scrims to show (default: 10)')
+        .setRequired(false)
+    )
+    .toJSON(),
+  new SlashCommandBuilder()
+    .setName('scrim-stats')
+    .setDescription('View scrim statistics')
     .toJSON(),
 ];
 
@@ -500,6 +567,164 @@ export async function registerCommands(): Promise<void> {
   }
 }
 
+async function handleAddScrimCommand(interaction: ChatInputCommandInteraction): Promise<void> {
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+  try {
+    const { addScrim, ensureScrimSheetExists } = await import('./scrims.js');
+    
+    const date = interaction.options.getString('date', true);
+    const opponent = interaction.options.getString('opponent', true);
+    const result = interaction.options.getString('result', true) as 'win' | 'loss' | 'draw';
+    const scoreUs = interaction.options.getInteger('score-us', true);
+    const scoreThem = interaction.options.getInteger('score-them', true);
+    const mapsInput = interaction.options.getString('maps') || '';
+    const notes = interaction.options.getString('notes') || '';
+    
+    const maps = mapsInput ? mapsInput.split(',').map(m => m.trim()).filter(Boolean) : [];
+    
+    // Ensure scrim sheet exists
+    await ensureScrimSheetExists();
+    
+    const scrim = await addScrim({
+      date,
+      opponent,
+      result,
+      scoreUs,
+      scoreThem,
+      maps,
+      ourAgents: [], // Discord bot doesn't support agent selection yet
+      theirAgents: [], // Discord bot doesn't support agent selection yet
+      vodUrl: '', // Discord bot doesn't support VOD URL yet
+      notes,
+    });
+    
+    const resultEmoji = result === 'win' ? '✅' : result === 'loss' ? '❌' : '➖';
+    
+    await interaction.editReply({
+      content: `${resultEmoji} Scrim added successfully!\n\n` +
+               `**${opponent}** - ${date}\n` +
+               `Result: ${result.toUpperCase()} (${scoreUs}-${scoreThem})\n` +
+               `${maps.length > 0 ? `Maps: ${maps.join(', ')}\n` : ''}` +
+               `${notes ? `Notes: ${notes}` : ''}`,
+    });
+  } catch (error) {
+    console.error('Error adding scrim:', error);
+    await interaction.editReply({
+      content: '❌ An error occurred while adding the scrim.',
+    });
+  }
+}
+
+async function handleViewScrimsCommand(interaction: ChatInputCommandInteraction): Promise<void> {
+  await interaction.deferReply();
+
+  try {
+    const { getAllScrims } = await import('./scrims.js');
+    const limit = interaction.options.getInteger('limit') || 10;
+    
+    const scrims = await getAllScrims();
+    
+    if (scrims.length === 0) {
+      await interaction.editReply({
+        content: '📋 No scrims found. Use `/add-scrim` to add one!',
+      });
+      return;
+    }
+    
+    // Sort by date (newest first) and limit
+    const sortedScrims = scrims
+      .sort((a, b) => {
+        // Parse DD.MM.YYYY dates for comparison
+        const parseDate = (dateStr: string) => {
+          const [day, month, year] = dateStr.split('.').map(Number);
+          return new Date(year, month - 1, day).getTime();
+        };
+        return parseDate(b.date) - parseDate(a.date);
+      })
+      .slice(0, limit);
+    
+    const embed = new EmbedBuilder()
+      .setTitle('📋 Recent Scrims')
+      .setColor(0x3498db)
+      .setDescription(
+        sortedScrims.map((scrim, index) => {
+          const resultEmoji = scrim.result === 'win' ? '✅' : scrim.result === 'loss' ? '❌' : '➖';
+          return `**${index + 1}. ${scrim.opponent}** - ${scrim.date}\n` +
+                 `${resultEmoji} ${scrim.result.toUpperCase()} (${scrim.scoreUs}-${scrim.scoreThem})` +
+                 `${scrim.maps.length > 0 ? ` | ${scrim.maps.join(', ')}` : ''}`;
+        }).join('\n\n')
+      )
+      .setFooter({ text: `Showing ${sortedScrims.length} of ${scrims.length} scrims` });
+    
+    await interaction.editReply({ embeds: [embed] });
+  } catch (error) {
+    console.error('Error viewing scrims:', error);
+    await interaction.editReply({
+      content: '❌ An error occurred while fetching scrims.',
+    });
+  }
+}
+
+async function handleScrimStatsCommand(interaction: ChatInputCommandInteraction): Promise<void> {
+  await interaction.deferReply();
+
+  try {
+    const { getScrimStats } = await import('./scrims.js');
+    
+    const stats = await getScrimStats();
+    
+    if (stats.totalScrims === 0) {
+      await interaction.editReply({
+        content: '📊 No scrim data available yet. Use `/add-scrim` to add scrims!',
+      });
+      return;
+    }
+    
+    const embed = new EmbedBuilder()
+      .setTitle('📊 Scrim Statistics')
+      .setColor(0x2ecc71)
+      .addFields(
+        {
+          name: '📈 Overall Record',
+          value: `Total Scrims: **${stats.totalScrims}**\n` +
+                 `Wins: **${stats.wins}** ✅\n` +
+                 `Losses: **${stats.losses}** ❌\n` +
+                 `Draws: **${stats.draws}** ➖\n` +
+                 `Win Rate: **${stats.winRate.toFixed(1)}%**`,
+          inline: false,
+        }
+      );
+    
+    // Add map statistics if available
+    if (Object.keys(stats.mapStats).length > 0) {
+      const mapStatsText = Object.entries(stats.mapStats)
+        .sort((a, b) => b[1].played - a[1].played)
+        .slice(0, 5)
+        .map(([map, mapStat]) => {
+          const winRate = mapStat.played > 0 
+            ? ((mapStat.wins / mapStat.played) * 100).toFixed(0)
+            : '0';
+          return `**${map}**: ${mapStat.wins}-${mapStat.losses} (${winRate}% WR, ${mapStat.played} games)`;
+        })
+        .join('\n');
+      
+      embed.addFields({
+        name: '🗺️ Map Statistics (Top 5)',
+        value: mapStatsText || 'No map data',
+        inline: false,
+      });
+    }
+    
+    await interaction.editReply({ embeds: [embed] });
+  } catch (error) {
+    console.error('Error fetching scrim stats:', error);
+    await interaction.editReply({
+      content: '❌ An error occurred while fetching statistics.',
+    });
+  }
+}
+
 export async function postScheduleToChannel(date?: string): Promise<void> {
   const channel = await client.channels.fetch(config.discord.channelId);
 
@@ -637,6 +862,15 @@ client.on('interactionCreate', async interaction => {
           break;
         case 'send-training-poll':
           await handleSendTrainingPollCommand(interaction);
+          break;
+        case 'add-scrim':
+          await handleAddScrimCommand(interaction);
+          break;
+        case 'view-scrims':
+          await handleViewScrimsCommand(interaction);
+          break;
+        case 'scrim-stats':
+          await handleScrimStatsCommand(interaction);
           break;
       }
     } else if (interaction.isButton()) {

@@ -565,6 +565,149 @@ app.post('/api/actions/notify', async (req, res) => {
   }
 });
 
+// Scrim Management Endpoints
+
+// Get all scrims
+app.get('/api/scrims', async (req, res) => {
+  try {
+    const { getAllScrims } = await import('./scrims.js');
+    const scrims = await getAllScrims();
+    res.json({ success: true, scrims });
+  } catch (error) {
+    console.error('Error fetching scrims:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch scrims' });
+  }
+});
+
+// Get scrim by ID
+app.get('/api/scrims/:id', async (req, res) => {
+  try {
+    const { getScrimById } = await import('./scrims.js');
+    const scrim = await getScrimById(req.params.id);
+    
+    if (!scrim) {
+      return res.status(404).json({ success: false, error: 'Scrim not found' });
+    }
+    
+    res.json({ success: true, scrim });
+  } catch (error) {
+    console.error('Error fetching scrim:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch scrim' });
+  }
+});
+
+// Add new scrim
+app.post('/api/scrims', async (req, res) => {
+  try {
+    const { addScrim, ensureScrimSheetExists } = await import('./scrims.js');
+    const { date, opponent, result, scoreUs, scoreThem, maps, ourAgents, theirAgents, vodUrl, notes } = req.body;
+    
+    if (!date || !opponent || !result) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Missing required fields: date, opponent, result' 
+      });
+    }
+    
+    // Ensure sheet exists before adding
+    await ensureScrimSheetExists();
+    
+    const newScrim = await addScrim({
+      date,
+      opponent,
+      result,
+      scoreUs: scoreUs || 0,
+      scoreThem: scoreThem || 0,
+      maps: maps || [],
+      ourAgents: ourAgents || [],
+      theirAgents: theirAgents || [],
+      vodUrl: vodUrl || '',
+      notes: notes || '',
+    });
+    
+    logger.success('Scrim added', `${opponent} on ${date}`);
+    res.json({ success: true, scrim: newScrim });
+  } catch (error) {
+    console.error('Error adding scrim:', error);
+    res.status(500).json({ success: false, error: 'Failed to add scrim' });
+  }
+});
+
+// Update scrim
+app.put('/api/scrims/:id', async (req, res) => {
+  try {
+    const { updateScrim } = await import('./scrims.js');
+    const { date, opponent, result, scoreUs, scoreThem, maps, ourAgents, theirAgents, vodUrl, notes } = req.body;
+    
+    const updates: any = {};
+    if (date !== undefined) updates.date = date;
+    if (opponent !== undefined) updates.opponent = opponent;
+    if (result !== undefined) updates.result = result;
+    if (scoreUs !== undefined) updates.scoreUs = scoreUs;
+    if (scoreThem !== undefined) updates.scoreThem = scoreThem;
+    if (maps !== undefined) updates.maps = maps;
+    if (ourAgents !== undefined) updates.ourAgents = ourAgents;
+    if (theirAgents !== undefined) updates.theirAgents = theirAgents;
+    if (vodUrl !== undefined) updates.vodUrl = vodUrl;
+    if (notes !== undefined) updates.notes = notes;
+    
+    const updatedScrim = await updateScrim(req.params.id, updates);
+    
+    if (!updatedScrim) {
+      return res.status(404).json({ success: false, error: 'Scrim not found' });
+    }
+    
+    logger.success('Scrim updated', `ID: ${req.params.id}`);
+    res.json({ success: true, scrim: updatedScrim });
+  } catch (error) {
+    console.error('Error updating scrim:', error);
+    res.status(500).json({ success: false, error: 'Failed to update scrim' });
+  }
+});
+
+// Delete scrim
+app.delete('/api/scrims/:id', async (req, res) => {
+  try {
+    const { deleteScrim } = await import('./scrims.js');
+    const success = await deleteScrim(req.params.id);
+    
+    if (!success) {
+      return res.status(404).json({ success: false, error: 'Scrim not found' });
+    }
+    
+    logger.success('Scrim deleted', `ID: ${req.params.id}`);
+    res.json({ success: true, message: 'Scrim deleted' });
+  } catch (error) {
+    console.error('Error deleting scrim:', error);
+    res.status(500).json({ success: false, error: 'Failed to delete scrim' });
+  }
+});
+
+// Get scrim statistics
+app.get('/api/scrims/stats/summary', async (req, res) => {
+  try {
+    const { getScrimStats } = await import('./scrims.js');
+    const stats = await getScrimStats();
+    res.json({ success: true, stats });
+  } catch (error) {
+    console.error('Error fetching scrim stats:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch scrim stats' });
+  }
+});
+
+// Get scrims by date range
+app.get('/api/scrims/range/:startDate/:endDate', async (req, res) => {
+  try {
+    const { getScrimsByDateRange } = await import('./scrims.js');
+    const { startDate, endDate } = req.params;
+    const scrims = await getScrimsByDateRange(startDate, endDate);
+    res.json({ success: true, scrims });
+  } catch (error) {
+    console.error('Error fetching scrims by range:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch scrims' });
+  }
+});
+
 // Discord OAuth routes
 app.get('/api/auth/discord', initiateDiscordAuth);
 app.get('/api/auth/discord/callback', handleDiscordCallback);

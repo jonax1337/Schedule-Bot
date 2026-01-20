@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { LogIn, Shield, CheckCircle2, XCircle, Clock, Loader2, User, LogOut, Edit2, Save, CalendarCheck } from 'lucide-react';
+import { LogIn, Shield, CheckCircle2, XCircle, Clock, Loader2, User, LogOut, Edit2, Save, CalendarCheck, Trophy } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -238,24 +238,47 @@ export default function HomePage() {
     return weekdays[date.getDay()];
   };
 
-  const getStatusDot = (available: number, unavailable: number, isOffDay: boolean) => {
-    if (isOffDay) {
+  const getStatusDot = (entry: DateEntry) => {
+    if (entry.isOffDay) {
       return <div className="w-3 h-3 rounded-full bg-purple-500" />;
     }
-    // Rot wenn 2+ Leute unavailable sind
-    if (unavailable >= 2) {
-      return <div className="w-3 h-3 rounded-full bg-red-500" />;
+    
+    // Use schedule status if available
+    if (entry.scheduleDetails?.status) {
+      const status = entry.scheduleDetails.status;
+      if (status === 'Training possible') {
+        return <div className="w-3 h-3 rounded-full bg-green-500" />;
+      } else if (status === 'Almost there') {
+        return <div className="w-3 h-3 rounded-full bg-cyan-400" />;
+      } else if (status === 'More players needed') {
+        return <div className="w-3 h-3 rounded-full bg-yellow-500" />;
+      } else if (status === 'Insufficient players') {
+        return <div className="w-3 h-3 rounded-full bg-red-500" />;
+      } else if (status === 'Unknown') {
+        // Only show gray if ALL players have not set their availability
+        const allNotSet = entry.players.every(p => p.status === 'not-set');
+        if (allNotSet) {
+          return <div className="w-3 h-3 rounded-full bg-gray-400" />;
+        }
+      }
     }
-    // Grün wenn 5+ verfügbar
+    
+    // Check if no one has set availability yet
+    const allNotSet = entry.players.every(p => p.status === 'not-set');
+    if (allNotSet) {
+      return <div className="w-3 h-3 rounded-full bg-gray-400" />;
+    }
+    
+    // Default fallback based on availability
+    const { available } = entry.availability;
     if (available >= 5) {
       return <div className="w-3 h-3 rounded-full bg-green-500" />;
-    }
-    // Orange wenn 3-4 verfügbar
-    if (available >= 3) {
+    } else if (available >= 4) {
+      return <div className="w-3 h-3 rounded-full bg-cyan-400" />;
+    } else if (available >= 2) {
       return <div className="w-3 h-3 rounded-full bg-yellow-500" />;
     }
-    // Grau wenn weniger als 3
-    return <div className="w-3 h-3 rounded-full bg-gray-400" />;
+    return <div className="w-3 h-3 rounded-full bg-red-500" />;
   };
 
   const isToday = (dateStr: string): boolean => {
@@ -443,6 +466,10 @@ export default function HomePage() {
                 Player Login
               </Button>
             )}
+            <Button variant="outline" onClick={() => router.push('/matches')}>
+              <Trophy className="mr-1 h-4 w-4" />
+              Matches
+            </Button>
             <Button variant="outline" onClick={() => router.push('/admin/login')}>
               <Shield className="mr-1 h-4 w-4" />
               Admin
@@ -460,19 +487,23 @@ export default function HomePage() {
             </div>
             <div className="flex items-center gap-1.5">
               <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
-              <span className="text-xs">5+ players</span>
+              <span className="text-xs">Training possible</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded-full bg-cyan-400" />
+              <span className="text-xs">Almost there</span>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="w-2.5 h-2.5 rounded-full bg-yellow-500" />
-              <span className="text-xs">3-4 players</span>
+              <span className="text-xs">More players needed</span>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
-              <span className="text-xs">2+ unavailable</span>
+              <span className="text-xs">Insufficient players</span>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="w-2.5 h-2.5 rounded-full bg-gray-400" />
-              <span className="text-xs">Pending</span>
+              <span className="text-xs">Unknown</span>
             </div>
           </div>
         </div>
@@ -517,7 +548,7 @@ export default function HomePage() {
                       <CardTitle className="text-base">{entry.date}</CardTitle>
                       <p className="text-xs text-muted-foreground mb-0">{entry.weekday}</p>
                     </div>
-                    {getStatusDot(entry.availability.available, entry.availability.unavailable, entry.isOffDay)}
+                    {getStatusDot(entry)}
                   </div>
                 </CardHeader>
                 <CardContent className="pt-0.5 pb-3">
@@ -573,35 +604,42 @@ export default function HomePage() {
                   </div>
                 )}
                 
-                {/* Summary */}
-                {!selectedDate.isOffDay && (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                      <span className="text-sm font-medium">Status</span>
-                      {getStatusDot(selectedDate.availability.available, selectedDate.availability.unavailable, selectedDate.isOffDay)}
+                {/* Schedule Details */}
+                {!selectedDate.isOffDay && selectedDate.scheduleDetails && (
+                  <div className="p-3 bg-muted/50 rounded-lg border">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Schedule Status</span>
+                      <Badge 
+                        variant="outline"
+                        className="text-xs"
+                        style={{
+                          backgroundColor: 
+                            selectedDate.scheduleDetails.status === 'Training possible' ? 'rgb(34 197 94 / 0.2)' :
+                            selectedDate.scheduleDetails.status === 'Almost there' ? 'rgb(34 211 238 / 0.25)' :
+                            selectedDate.scheduleDetails.status === 'More players needed' ? 'rgb(234 179 8 / 0.2)' :
+                            selectedDate.scheduleDetails.status === 'Insufficient players' ? 'rgb(239 68 68 / 0.2)' :
+                            'rgb(156 163 175 / 0.2)',
+                          borderColor:
+                            selectedDate.scheduleDetails.status === 'Training possible' ? 'rgb(34 197 94)' :
+                            selectedDate.scheduleDetails.status === 'Almost there' ? 'rgb(34 211 238)' :
+                            selectedDate.scheduleDetails.status === 'More players needed' ? 'rgb(234 179 8)' :
+                            selectedDate.scheduleDetails.status === 'Insufficient players' ? 'rgb(239 68 68)' :
+                            'rgb(156 163 175)',
+                          color:
+                            selectedDate.scheduleDetails.status === 'Training possible' ? 'rgb(22 163 74)' :
+                            selectedDate.scheduleDetails.status === 'Almost there' ? 'rgb(21 94 117)' :
+                            selectedDate.scheduleDetails.status === 'More players needed' ? 'rgb(202 138 4)' :
+                            selectedDate.scheduleDetails.status === 'Insufficient players' ? 'rgb(220 38 38)' :
+                            'rgb(107 114 128)'
+                        }}
+                      >
+                        {selectedDate.scheduleDetails.status}
+                      </Badge>
                     </div>
-                    {/* Schedule Details */}
-                    {selectedDate.scheduleDetails && (
-                      <div className="p-3 bg-muted/50 rounded-lg border">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium">Schedule Status</span>
-                          <Badge 
-                            variant={
-                              selectedDate.scheduleDetails.status === 'Training possible' ? 'default' :
-                              selectedDate.scheduleDetails.status === 'Almost there' ? 'secondary' :
-                              'outline'
-                            }
-                            className="text-xs"
-                          >
-                            {selectedDate.scheduleDetails.status}
-                          </Badge>
-                        </div>
-                        {selectedDate.scheduleDetails.startTime && selectedDate.scheduleDetails.endTime && (
-                          <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
-                            <Clock className="w-4 h-4" />
-                            <span>{selectedDate.scheduleDetails.startTime} - {selectedDate.scheduleDetails.endTime}</span>
-                          </div>
-                        )}
+                    {selectedDate.scheduleDetails.startTime && selectedDate.scheduleDetails.endTime && (
+                      <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
+                        <Clock className="w-4 h-4" />
+                        <span>{selectedDate.scheduleDetails.startTime} - {selectedDate.scheduleDetails.endTime}</span>
                       </div>
                     )}
                   </div>

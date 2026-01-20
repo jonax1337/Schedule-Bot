@@ -288,6 +288,24 @@ export async function getScheduleStatus(date: string, sheetsApi: any): Promise<{
     const schedule = parseSchedule(sheetData);
     const result = analyzeSchedule(schedule);
 
+    // Check if all players have not responded (no time set, not unavailable)
+    const allPlayersNoResponse = schedule.mainPlayers.every(p => !p.available && p.rawValue !== 'x' && p.rawValue.toLowerCase() !== 'x') &&
+                                  schedule.subs.every(p => !p.available && p.rawValue !== 'x' && p.rawValue.toLowerCase() !== 'x');
+
+    // If nobody has set anything yet, return Unknown
+    if (allPlayersNoResponse) {
+      const noResponsePlayers: string[] = [];
+      schedule.mainPlayers.forEach(p => noResponsePlayers.push(p.name));
+      schedule.subs.forEach(p => noResponsePlayers.push(p.name));
+      
+      return {
+        status: 'Unknown',
+        availablePlayers: [],
+        unavailablePlayers: [],
+        noResponsePlayers,
+      };
+    }
+
     // Map status to human-readable format
     let statusText = 'Unknown';
     if (result.status === 'OFF_DAY') {
