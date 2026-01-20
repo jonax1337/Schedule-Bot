@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Valorant Schedule Bot - Dashboard",
-  description: "Manage your Discord bot settings and actions",
+  title: "Team Calendar - Valorant Schedule Bot",
+  description: "View and manage team availability",
 };
 
 export default function RootLayout({
