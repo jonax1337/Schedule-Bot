@@ -82,7 +82,7 @@ export interface ScrimEntry {
   result: 'win' | 'loss' | 'draw';
   scoreUs: number;
   scoreThem: number;
-  maps: string[]; // Array of map names
+  map: string; // Map name
   matchType?: string; // 'Scrim', 'Tournament', 'Premier', etc.
   ourAgents: string[]; // Our team composition (5 agents)
   theirAgents: string[]; // Enemy team composition (5 agents, optional)
