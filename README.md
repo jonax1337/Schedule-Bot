@@ -1,5 +1,7 @@
 <div align="center">
-  <h1>🎮 Valorant Schedule Bot</h1>
+  <img src="assets/logo.png" alt="Schedule Bot Logo" width="200" />
+  
+  <h1>Valorant Schedule Bot</h1>
   
   <p>
     <strong>A comprehensive Discord bot system for managing E-Sports team availability and scheduling</strong>
