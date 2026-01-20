@@ -578,10 +578,9 @@ async function handleAddScrimCommand(interaction: ChatInputCommandInteraction): 
     const result = interaction.options.getString('result', true) as 'win' | 'loss' | 'draw';
     const scoreUs = interaction.options.getInteger('score-us', true);
     const scoreThem = interaction.options.getInteger('score-them', true);
-    const mapsInput = interaction.options.getString('maps') || '';
+    const map = interaction.options.getString('map') || '';
+    const matchType = interaction.options.getString('match-type') || 'Scrim';
     const notes = interaction.options.getString('notes') || '';
-    
-    const maps = mapsInput ? mapsInput.split(',').map(m => m.trim()).filter(Boolean) : [];
     
     // Ensure scrim sheet exists
     await ensureScrimSheetExists();
@@ -592,7 +591,8 @@ async function handleAddScrimCommand(interaction: ChatInputCommandInteraction): 
       result,
       scoreUs,
       scoreThem,
-      maps,
+      map: map || '',
+      matchType: matchType || 'Scrim',
       ourAgents: [], // Discord bot doesn't support agent selection yet
       theirAgents: [], // Discord bot doesn't support agent selection yet
       vodUrl: '', // Discord bot doesn't support VOD URL yet
@@ -652,7 +652,7 @@ async function handleViewScrimsCommand(interaction: ChatInputCommandInteraction)
           const resultEmoji = scrim.result === 'win' ? '✅' : scrim.result === 'loss' ? '❌' : '➖';
           return `**${index + 1}. ${scrim.opponent}** - ${scrim.date}\n` +
                  `${resultEmoji} ${scrim.result.toUpperCase()} (${scrim.scoreUs}-${scrim.scoreThem})` +
-                 `${scrim.maps.length > 0 ? ` | ${scrim.maps.join(', ')}` : ''}`;
+                 `${scrim.map ? ` | ${scrim.map}` : ''}`;
         }).join('\n\n')
       )
       .setFooter({ text: `Showing ${sortedScrims.length} of ${scrims.length} scrims` });

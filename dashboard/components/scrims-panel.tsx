@@ -37,7 +37,6 @@ const MATCH_TYPES = [
   'Scrim',
   'Tournament',
   'Premier',
-  'Ranked',
   'Custom',
 ];
 
