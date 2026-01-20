@@ -398,7 +398,7 @@ export function ScrimsPanel() {
                     </div>
                   </div>
                   <DialogFooter>
-                    <Button type="button" variant="outline" onClick={handleDialogClose}>
+                    <Button type="button" variant="outline" onClick={() => handleDialogOpenChange(false)}>
                       Cancel
                     </Button>
                     <Button type="submit">
