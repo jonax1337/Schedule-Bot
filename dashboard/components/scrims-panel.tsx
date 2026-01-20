@@ -33,6 +33,14 @@ const VALORANT_MAPS = [
   'Haven', 'Icebox', 'Lotus', 'Pearl', 'Split', 'Sunset'
 ];
 
+const MATCH_TYPES = [
+  'Scrim',
+  'Tournament',
+  'Premier',
+  'Ranked',
+  'Custom',
+];
+
 // Helper to get today's date in DD.MM.YYYY format
 function getTodayDate(): string {
   const today = new Date();
@@ -50,6 +58,7 @@ interface ScrimEntry {
   scoreUs: number;
   scoreThem: number;
   maps: string[];
+  matchType?: string;
   ourAgents: string[];
   theirAgents: string[];
   vodUrl: string;
@@ -88,6 +97,7 @@ export function ScrimsPanel() {
     scoreUs: 0,
     scoreThem: 0,
     map: '',
+    matchType: 'Scrim',
     ourAgents: [] as string[],
     theirAgents: [] as string[],
     vodUrl: '',
@@ -145,6 +155,7 @@ export function ScrimsPanel() {
         scoreUs: formData.scoreUs,
         scoreThem: formData.scoreThem,
         maps: formData.map ? [formData.map] : [],
+        matchType: formData.matchType,
         ourAgents: formData.ourAgents,
         theirAgents: formData.theirAgents,
         vodUrl: formData.vodUrl,
@@ -216,6 +227,7 @@ export function ScrimsPanel() {
       scoreUs: scrim.scoreUs,
       scoreThem: scrim.scoreThem,
       map: scrim.maps && scrim.maps.length > 0 ? scrim.maps[0] : '',
+      matchType: scrim.matchType || 'Scrim',
       ourAgents: scrim.ourAgents || [],
       theirAgents: scrim.theirAgents || [],
       vodUrl: scrim.vodUrl || '',
@@ -232,6 +244,7 @@ export function ScrimsPanel() {
       scoreUs: 0,
       scoreThem: 0,
       map: '',
+      matchType: 'Scrim',
       ourAgents: [],
       theirAgents: [],
       vodUrl: '',
@@ -439,6 +452,25 @@ export function ScrimsPanel() {
                           </SelectContent>
                         </Select>
                       </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="matchType">Match Type</Label>
+                        <Select
+                          value={formData.matchType}
+                          onValueChange={(value) => setFormData({ ...formData, matchType: value })}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent position="popper">
+                            {MATCH_TYPES.map((type) => (
+                              <SelectItem key={type} value={type}>
+                                {type}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
                     
                     {/* Team Compositions Section */}
@@ -516,6 +548,11 @@ export function ScrimsPanel() {
                         <div className="flex items-center gap-3 flex-wrap">
                           <span className="font-semibold text-lg">{scrim.opponent}</span>
                           {getResultBadge(scrim.result)}
+                          {scrim.matchType && (
+                            <Badge variant="outline" className="text-xs">
+                              {scrim.matchType}
+                            </Badge>
+                          )}
                           <span className="text-sm text-muted-foreground">{scrim.date}</span>
                         </div>
                         

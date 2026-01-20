@@ -74,7 +74,7 @@ export interface SheetData {
   focus: string;
 }
 
-// Scrim Tracking Types
+// Match Tracking Types
 export interface ScrimEntry {
   id: string;
   date: string; // Format: DD.MM.YYYY
@@ -83,6 +83,7 @@ export interface ScrimEntry {
   scoreUs: number;
   scoreThem: number;
   maps: string[]; // Array of map names
+  matchType?: string; // 'Scrim', 'Tournament', 'Premier', etc.
   ourAgents: string[]; // Our team composition (5 agents)
   theirAgents: string[]; // Enemy team composition (5 agents, optional)
   vodUrl: string; // YouTube URL for VOD review
