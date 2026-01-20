@@ -249,16 +249,36 @@ export default function HomePage() {
       if (status === 'Training possible') {
         return <div className="w-3 h-3 rounded-full bg-green-500" />;
       } else if (status === 'Almost there') {
-        return <div className="w-3 h-3 rounded-full bg-orange-500" />;
+        return <div className="w-3 h-3 rounded-full bg-lime-500" />;
       } else if (status === 'More players needed') {
         return <div className="w-3 h-3 rounded-full bg-yellow-500" />;
       } else if (status === 'Insufficient players') {
         return <div className="w-3 h-3 rounded-full bg-red-500" />;
+      } else if (status === 'Unknown') {
+        // Only show gray if ALL players have not set their availability
+        const allNotSet = entry.players.every(p => p.status === 'not-set');
+        if (allNotSet) {
+          return <div className="w-3 h-3 rounded-full bg-gray-400" />;
+        }
       }
     }
     
-    // Fallback to gray if no status
-    return <div className="w-3 h-3 rounded-full bg-gray-400" />;
+    // Check if no one has set availability yet
+    const allNotSet = entry.players.every(p => p.status === 'not-set');
+    if (allNotSet) {
+      return <div className="w-3 h-3 rounded-full bg-gray-400" />;
+    }
+    
+    // Default fallback based on availability
+    const { available } = entry.availability;
+    if (available >= 5) {
+      return <div className="w-3 h-3 rounded-full bg-green-500" />;
+    } else if (available >= 4) {
+      return <div className="w-3 h-3 rounded-full bg-lime-500" />;
+    } else if (available >= 2) {
+      return <div className="w-3 h-3 rounded-full bg-yellow-500" />;
+    }
+    return <div className="w-3 h-3 rounded-full bg-red-500" />;
   };
 
   const isToday = (dateStr: string): boolean => {
@@ -466,7 +486,7 @@ export default function HomePage() {
               <span className="text-xs">Training possible</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-full bg-orange-500" />
+              <div className="w-2.5 h-2.5 rounded-full bg-lime-500" />
               <span className="text-xs">Almost there</span>
             </div>
             <div className="flex items-center gap-1.5">
@@ -591,19 +611,19 @@ export default function HomePage() {
                         style={{
                           backgroundColor: 
                             selectedDate.scheduleDetails.status === 'Training possible' ? 'rgb(34 197 94 / 0.2)' :
-                            selectedDate.scheduleDetails.status === 'Almost there' ? 'rgb(249 115 22 / 0.2)' :
+                            selectedDate.scheduleDetails.status === 'Almost there' ? 'rgb(132 204 22 / 0.2)' :
                             selectedDate.scheduleDetails.status === 'More players needed' ? 'rgb(234 179 8 / 0.2)' :
                             selectedDate.scheduleDetails.status === 'Insufficient players' ? 'rgb(239 68 68 / 0.2)' :
                             'rgb(156 163 175 / 0.2)',
                           borderColor:
                             selectedDate.scheduleDetails.status === 'Training possible' ? 'rgb(34 197 94)' :
-                            selectedDate.scheduleDetails.status === 'Almost there' ? 'rgb(249 115 22)' :
+                            selectedDate.scheduleDetails.status === 'Almost there' ? 'rgb(132 204 22)' :
                             selectedDate.scheduleDetails.status === 'More players needed' ? 'rgb(234 179 8)' :
                             selectedDate.scheduleDetails.status === 'Insufficient players' ? 'rgb(239 68 68)' :
                             'rgb(156 163 175)',
                           color:
                             selectedDate.scheduleDetails.status === 'Training possible' ? 'rgb(22 163 74)' :
-                            selectedDate.scheduleDetails.status === 'Almost there' ? 'rgb(249 115 22)' :
+                            selectedDate.scheduleDetails.status === 'Almost there' ? 'rgb(101 163 13)' :
                             selectedDate.scheduleDetails.status === 'More players needed' ? 'rgb(202 138 4)' :
                             selectedDate.scheduleDetails.status === 'Insufficient players' ? 'rgb(220 38 38)' :
                             'rgb(107 114 128)'
