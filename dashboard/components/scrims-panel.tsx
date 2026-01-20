@@ -8,9 +8,11 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Loader2, Plus, Edit, Trash2, TrendingUp, Trophy, Target, X } from "lucide-react";
+import { Loader2, Plus, Edit, Trash2, TrendingUp, Trophy, Target, X, LayoutGrid, Table as TableIcon } from "lucide-react";
 import { toast } from "sonner";
 import { AgentSelector } from "./agent-picker";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
 
@@ -87,6 +89,7 @@ export function ScrimsPanel() {
   const [loading, setLoading] = useState(true);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingScrim, setEditingScrim] = useState<ScrimEntry | null>(null);
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
   
   // Form state
   const [formData, setFormData] = useState({
@@ -338,14 +341,29 @@ export function ScrimsPanel() {
               <CardTitle>Match Results</CardTitle>
               <CardDescription>Manage and track your team&apos;s match history</CardDescription>
             </div>
-            <Dialog open={isAddDialogOpen} onOpenChange={handleDialogOpenChange}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Match
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center gap-3">
+              {/* View Switcher */}
+              <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as 'cards' | 'table')}>
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="cards" className="flex items-center gap-2">
+                    <LayoutGrid className="h-4 w-4" />
+                    Cards
+                  </TabsTrigger>
+                  <TabsTrigger value="table" className="flex items-center gap-2">
+                    <TableIcon className="h-4 w-4" />
+                    Table
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+              
+              <Dialog open={isAddDialogOpen} onOpenChange={handleDialogOpenChange}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Match
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
                 <form onSubmit={handleSubmit}>
                   <DialogHeader>
                     <DialogTitle>{editingScrim ? 'Edit Match' : 'Add New Match'}</DialogTitle>
@@ -525,6 +543,7 @@ export function ScrimsPanel() {
                 </form>
               </DialogContent>
             </Dialog>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -532,7 +551,114 @@ export function ScrimsPanel() {
             <div className="text-center py-8 text-muted-foreground">
               No matches recorded yet. Add your first match to get started!
             </div>
+          ) : viewMode === 'table' ? (
+            // Table View
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Opponent</TableHead>
+                    <TableHead>Map</TableHead>
+                    <TableHead className="text-center">Score</TableHead>
+                    <TableHead className="text-center">Result</TableHead>
+                    <TableHead>Our Comp</TableHead>
+                    <TableHead>Their Comp</TableHead>
+                    <TableHead className="text-center">VOD</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {scrims.map((scrim) => (
+                    <TableRow key={scrim.id}>
+                      <TableCell className="font-medium">{scrim.date}</TableCell>
+                      <TableCell>
+                        {scrim.matchType && (
+                          <Badge variant="outline" className="text-xs">
+                            {scrim.matchType}
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>{scrim.opponent}</TableCell>
+                      <TableCell>{scrim.map || '-'}</TableCell>
+                      <TableCell className="text-center font-semibold">
+                        {scrim.scoreUs}:{scrim.scoreThem}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {getResultBadge(scrim.result)}
+                      </TableCell>
+                      <TableCell>
+                        {scrim.ourAgents?.length > 0 && (
+                          <div className="flex gap-1">
+                            {scrim.ourAgents.map((agent, idx) => (
+                              <img
+                                key={`our-${idx}`}
+                                src={`/assets/agents/${agent}_icon.webp`}
+                                alt={agent}
+                                className="w-6 h-6 rounded border border-primary/50"
+                                title={agent}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {scrim.theirAgents?.length > 0 && (
+                          <div className="flex gap-1">
+                            {scrim.theirAgents.map((agent, idx) => (
+                              <img
+                                key={`their-${idx}`}
+                                src={`/assets/agents/${agent}_icon.webp`}
+                                alt={agent}
+                                className="w-6 h-6 rounded border border-destructive/50"
+                                title={agent}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {scrim.vodUrl && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7"
+                            asChild
+                          >
+                            <a href={scrim.vodUrl} target="_blank" rel="noopener noreferrer">
+                              📹
+                            </a>
+                          </Button>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex gap-1 justify-end">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => handleEdit(scrim)}
+                          >
+                            <Edit className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => handleDelete(scrim.id)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           ) : (
+            // Cards View
             <div className="space-y-4">
               {scrims.map((scrim) => {
                 const vodId = getYouTubeVideoId(scrim.vodUrl);
