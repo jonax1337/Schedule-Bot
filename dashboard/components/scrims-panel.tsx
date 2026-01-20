@@ -8,11 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Loader2, Plus, Edit, Trash2, TrendingUp, Trophy, Target, Calendar, Users, Video, FileText } from "lucide-react";
+import { Loader2, Plus, Edit, Trash2, TrendingUp, Trophy, Target } from "lucide-react";
 import { toast } from "sonner";
 import { AgentSelector } from "./agent-picker";
-import { Separator } from "./ui/separator";
-import { Textarea } from "./ui/textarea";
 
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
 
@@ -323,67 +321,62 @@ export function ScrimsPanel() {
                   Add Scrim
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[700px] max-h-[90vh]">
-                <form onSubmit={handleSubmit} className="flex flex-col h-full">
+              <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+                <form onSubmit={handleSubmit}>
                   <DialogHeader>
-                    <DialogTitle className="text-2xl">
-                      {editingScrim ? 'Edit Scrim' : 'Add New Scrim'}
-                    </DialogTitle>
+                    <DialogTitle>{editingScrim ? 'Edit Scrim' : 'Add New Scrim'}</DialogTitle>
                     <DialogDescription>
                       {editingScrim ? 'Update scrim details' : 'Record a new scrim result'}
                     </DialogDescription>
                   </DialogHeader>
-                  
-                  <div className="flex-1 overflow-y-auto pr-2 space-y-6 py-4">
+                  <div className="space-y-6 py-4">
                     {/* Basic Info Section */}
                     <div className="space-y-4">
-                      <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-                        <Calendar className="h-4 w-4" />
-                        Basic Information
+                      <div className="space-y-2">
+                        <Label htmlFor="date">Date</Label>
+                        <Input
+                          id="date"
+                          placeholder="DD.MM.YYYY"
+                          value={formData.date}
+                          onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                          required
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="opponent">Opponent Team</Label>
+                        <Input
+                          id="opponent"
+                          placeholder="Enter opponent team name"
+                          value={formData.opponent}
+                          onChange={(e) => setFormData({ ...formData, opponent: e.target.value })}
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    {/* Result & Score Section */}
+                    <div className="space-y-4 pt-2 border-t">
+                      <div className="space-y-2">
+                        <Label htmlFor="result">Result</Label>
+                        <Select
+                          value={formData.result}
+                          onValueChange={(value: 'win' | 'loss' | 'draw') => 
+                            setFormData({ ...formData, result: value })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="win">✅ Win</SelectItem>
+                            <SelectItem value="loss">❌ Loss</SelectItem>
+                            <SelectItem value="draw">➖ Draw</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                       
                       <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="date">Date</Label>
-                          <Input
-                            id="date"
-                            placeholder="DD.MM.YYYY"
-                            value={formData.date}
-                            onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                            required
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="opponent">Opponent</Label>
-                          <Input
-                            id="opponent"
-                            placeholder="Team name"
-                            value={formData.opponent}
-                            onChange={(e) => setFormData({ ...formData, opponent: e.target.value })}
-                            required
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-3 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="result">Result</Label>
-                          <Select
-                            value={formData.result}
-                            onValueChange={(value: 'win' | 'loss' | 'draw') => 
-                              setFormData({ ...formData, result: value })
-                            }
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="win">✅ Win</SelectItem>
-                              <SelectItem value="loss">❌ Loss</SelectItem>
-                              <SelectItem value="draw">➖ Draw</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
                         <div className="space-y-2">
                           <Label htmlFor="scoreUs">Our Score</Label>
                           <Input
@@ -407,81 +400,67 @@ export function ScrimsPanel() {
                           />
                         </div>
                       </div>
-
+                      
                       <div className="space-y-2">
-                        <Label htmlFor="maps">Maps</Label>
+                        <Label htmlFor="maps">Maps Played</Label>
                         <Input
                           id="maps"
-                          placeholder="e.g. Bind, Haven, Ascent"
+                          placeholder="e.g., Bind, Haven, Ascent"
                           value={formData.maps}
                           onChange={(e) => setFormData({ ...formData, maps: e.target.value })}
                         />
+                        <p className="text-xs text-muted-foreground">Separate multiple maps with commas</p>
                       </div>
                     </div>
                     
-                    <Separator />
-                    
-                    {/* Team Composition Section */}
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-                        <Users className="h-4 w-4" />
-                        Team Compositions
-                      </div>
-                      
+                    {/* Team Compositions Section */}
+                    <div className="space-y-4 pt-2 border-t">
                       <AgentSelector
-                        label="Our Team"
+                        label="Our Team Composition"
                         agents={formData.ourAgents}
                         onChange={(agents) => setFormData({ ...formData, ourAgents: agents })}
                         maxAgents={5}
                       />
                       
                       <AgentSelector
-                        label="Enemy Team (Optional)"
+                        label="Enemy Team Composition (Optional)"
                         agents={formData.theirAgents}
                         onChange={(agents) => setFormData({ ...formData, theirAgents: agents })}
                         maxAgents={5}
                       />
                     </div>
                     
-                    <Separator />
-                    
-                    {/* VOD & Notes Section */}
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-                        <Video className="h-4 w-4" />
-                        Additional Information
-                      </div>
-                      
+                    {/* Additional Info Section */}
+                    <div className="space-y-4 pt-2 border-t">
                       <div className="space-y-2">
-                        <Label htmlFor="vodUrl">VOD URL</Label>
+                        <Label htmlFor="vodUrl">VOD Link</Label>
                         <Input
                           id="vodUrl"
+                          type="url"
                           placeholder="https://youtube.com/watch?v=..."
                           value={formData.vodUrl}
                           onChange={(e) => setFormData({ ...formData, vodUrl: e.target.value })}
                         />
+                        <p className="text-xs text-muted-foreground">YouTube video URL for review</p>
                       </div>
                       
                       <div className="space-y-2">
                         <Label htmlFor="notes">Notes</Label>
-                        <Textarea
+                        <Input
                           id="notes"
-                          placeholder="Optional notes about the scrim..."
+                          placeholder="Add any additional notes or observations..."
                           value={formData.notes}
                           onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                          rows={3}
-                          className="resize-none"
                         />
                       </div>
                     </div>
                   </div>
-                  
-                  <DialogFooter className="mt-4 pt-4 border-t">
+                  <DialogFooter>
                     <Button type="button" variant="outline" onClick={() => handleDialogOpenChange(false)}>
                       Cancel
                     </Button>
                     <Button type="submit">
-                      {editingScrim ? 'Update' : 'Add'} Scrim
+                      {editingScrim ? 'Update Scrim' : 'Add Scrim'}
                     </Button>
                   </DialogFooter>
                 </form>
@@ -495,117 +474,97 @@ export function ScrimsPanel() {
               No scrims recorded yet. Add your first scrim to get started!
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {scrims.map((scrim) => {
                 const vodId = getYouTubeVideoId(scrim.vodUrl);
                 
                 return (
-                  <Card
+                  <div
                     key={scrim.id}
-                    className="overflow-hidden hover:shadow-md transition-shadow"
+                    className="border rounded-lg hover:bg-accent transition-colors overflow-hidden"
                   >
-                    <CardHeader className="pb-3">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-3 flex-wrap mb-2">
-                            <CardTitle className="text-xl">{scrim.opponent}</CardTitle>
-                            {getResultBadge(scrim.result)}
-                          </div>
-                          <CardDescription className="flex items-center gap-4 flex-wrap">
-                            <span className="flex items-center gap-1">
-                              <Calendar className="h-3 w-3" />
-                              {scrim.date}
-                            </span>
-                            <span className="font-semibold text-foreground">
-                              {scrim.scoreUs} : {scrim.scoreThem}
-                            </span>
-                            {scrim.maps.length > 0 && (
-                              <span className="text-xs">
-                                📍 {scrim.maps.join(', ')}
-                              </span>
-                            )}
-                          </CardDescription>
+                    <div className="flex items-start justify-between p-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <span className="font-semibold text-lg">{scrim.opponent}</span>
+                          {getResultBadge(scrim.result)}
+                          <span className="text-sm text-muted-foreground">{scrim.date}</span>
                         </div>
                         
-                        <div className="flex gap-1 shrink-0">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEdit(scrim)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDelete(scrim.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    
-                    <CardContent className="space-y-3">
-                      {/* Agent Compositions */}
-                      {(scrim.ourAgents?.length > 0 || scrim.theirAgents?.length > 0) && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          {scrim.ourAgents?.length > 0 && (
-                            <div className="space-y-2">
-                              <div className="text-xs font-medium text-muted-foreground">Our Team</div>
-                              <div className="flex gap-1.5">
-                                {scrim.ourAgents.map((agent, idx) => (
-                                  <div
-                                    key={`our-${idx}`}
-                                    className="relative w-10 h-10 rounded-md overflow-hidden border-2 border-primary/50"
-                                  >
-                                    <img
-                                      src={`/assets/agents/${agent}_icon.webp`}
-                                      alt={agent}
-                                      className="w-full h-full object-cover"
-                                      title={agent}
-                                    />
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                          {scrim.theirAgents?.length > 0 && (
-                            <div className="space-y-2">
-                              <div className="text-xs font-medium text-muted-foreground">Enemy Team</div>
-                              <div className="flex gap-1.5">
-                                {scrim.theirAgents.map((agent, idx) => (
-                                  <div
-                                    key={`their-${idx}`}
-                                    className="relative w-10 h-10 rounded-md overflow-hidden border-2 border-destructive/50"
-                                  >
-                                    <img
-                                      src={`/assets/agents/${agent}_icon.webp`}
-                                      alt={agent}
-                                      className="w-full h-full object-cover"
-                                      title={agent}
-                                    />
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
+                        <div className="mt-2 text-sm text-muted-foreground">
+                          <span className="font-medium">Score: {scrim.scoreUs}-{scrim.scoreThem}</span>
+                          {scrim.maps.length > 0 && (
+                            <span className="ml-4">Maps: {scrim.maps.join(', ')}</span>
                           )}
                         </div>
-                      )}
-                      
-                      {/* Notes */}
-                      {scrim.notes && (
-                        <div className="p-3 bg-muted/50 rounded-md">
-                          <div className="flex items-start gap-2">
-                            <FileText className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-                            <p className="text-sm text-muted-foreground italic">{scrim.notes}</p>
+                        
+                        {/* Agent Compositions */}
+                        {(scrim.ourAgents?.length > 0 || scrim.theirAgents?.length > 0) && (
+                          <div className="mt-3 space-y-2">
+                            {scrim.ourAgents?.length > 0 && (
+                              <div>
+                                <span className="text-xs text-muted-foreground">Our Team: </span>
+                                <div className="inline-flex gap-1 ml-2">
+                                  {scrim.ourAgents.map((agent, idx) => (
+                                    <img
+                                      key={`our-${idx}`}
+                                      src={`/assets/agents/${agent}_icon.webp`}
+                                      alt={agent}
+                                      className="w-6 h-6 rounded border border-primary/50"
+                                      title={agent}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {scrim.theirAgents?.length > 0 && (
+                              <div>
+                                <span className="text-xs text-muted-foreground">Enemy Team: </span>
+                                <div className="inline-flex gap-1 ml-2">
+                                  {scrim.theirAgents.map((agent, idx) => (
+                                    <img
+                                      key={`their-${idx}`}
+                                      src={`/assets/agents/${agent}_icon.webp`}
+                                      alt={agent}
+                                      className="w-6 h-6 rounded border border-destructive/50"
+                                      title={agent}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                           </div>
-                        </div>
-                      )}
+                        )}
+                        
+                        {scrim.notes && (
+                          <div className="mt-2 text-sm text-muted-foreground italic">
+                            {scrim.notes}
+                          </div>
+                        )}
+                      </div>
                       
-                      {/* VOD Embed */}
-                      {vodId && (
-                        <div className="aspect-video rounded-lg overflow-hidden border">
+                      <div className="flex gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEdit(scrim)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDelete(scrim.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    {/* VOD Embed */}
+                    {vodId && (
+                      <div className="px-4 pb-4">
+                        <div className="aspect-video rounded-lg overflow-hidden">
                           <iframe
                             width="100%"
                             height="100%"
@@ -617,9 +576,9 @@ export function ScrimsPanel() {
                             className="w-full h-full"
                           />
                         </div>
-                      )}
-                    </CardContent>
-                  </Card>
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>
