@@ -593,6 +593,9 @@ async function handleAddScrimCommand(interaction: ChatInputCommandInteraction): 
       scoreUs,
       scoreThem,
       maps,
+      ourAgents: [], // Discord bot doesn't support agent selection yet
+      theirAgents: [], // Discord bot doesn't support agent selection yet
+      vodUrl: '', // Discord bot doesn't support VOD URL yet
       notes,
     });
     
