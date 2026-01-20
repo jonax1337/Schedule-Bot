@@ -11,9 +11,15 @@ import { getUserMappings, addUserMapping, removeUserMapping, initializeUserMappi
 import { getSheetColumns, getSheetDataRange, updateSheetCell } from './sheets.js';
 import { loadSettingsAsync, saveSettings } from './settingsManager.js';
 import { initiateDiscordAuth, handleDiscordCallback, getUserFromSession, logout } from './auth.js';
+import { preloadCache, getScheduleDetails, getScheduleDetailsBatch, getCacheStats } from './scheduleCache.js';
 
 const app = express();
 const PORT = 3001;
+
+// Preload schedule cache on startup
+setTimeout(() => {
+  preloadCache().catch(err => console.error('[Server] Cache preload failed:', err));
+}, 2000); // Wait 2 seconds after server start
 
 // Cache for Discord members to avoid rate limiting
 let membersCache: Array<{
@@ -196,7 +202,7 @@ app.get('/api/discord/members', async (req, res) => {
   }
 });
 
-// Get schedule details with status and player lists
+// Get schedule details with status and player lists (single date, cached)
 app.get('/api/schedule-details', async (req, res) => {
   try {
     const date = req.query.date as string;
@@ -204,24 +210,41 @@ app.get('/api/schedule-details', async (req, res) => {
       return res.status(400).json({ error: 'Date parameter required' });
     }
 
-    const { getScheduleStatus } = await import('./analyzer.js');
-    const { getAuthenticatedClient } = await import('./sheetUpdater.js');
+    const details = await getScheduleDetails(date);
     
-    const auth = await getAuthenticatedClient();
-    const status = await getScheduleStatus(date, auth);
+    if (!details) {
+      return res.status(404).json({ error: 'Schedule details not found' });
+    }
     
-    res.json({
-      status: status.status,
-      startTime: status.startTime,
-      endTime: status.endTime,
-      availablePlayers: status.availablePlayers || [],
-      unavailablePlayers: status.unavailablePlayers || [],
-      noResponsePlayers: status.noResponsePlayers || []
-    });
+    res.json(details);
   } catch (error) {
     console.error('Error fetching schedule details:', error);
     res.status(500).json({ error: 'Failed to fetch schedule details' });
   }
+});
+
+// Get schedule details for multiple dates at once (batch, cached)
+app.get('/api/schedule-details-batch', async (req, res) => {
+  try {
+    const datesParam = req.query.dates as string;
+    if (!datesParam) {
+      return res.status(400).json({ error: 'Dates parameter required' });
+    }
+
+    const dates = datesParam.split(',').map(d => d.trim());
+    const details = await getScheduleDetailsBatch(dates);
+    
+    res.json(details);
+  } catch (error) {
+    console.error('Error fetching schedule details batch:', error);
+    res.status(500).json({ error: 'Failed to fetch schedule details' });
+  }
+});
+
+// Get cache statistics (for debugging)
+app.get('/api/cache-stats', (req, res) => {
+  const stats = getCacheStats();
+  res.json(stats);
 });
 
 // Get bot logs

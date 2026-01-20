@@ -181,17 +181,6 @@ export default function HomePage() {
             }
           }
 
-          // Fetch schedule details
-          let scheduleDetails: ScheduleDetails | undefined;
-          try {
-            const detailsRes = await fetch(`${BOT_API_URL}/api/schedule-details?date=${encodeURIComponent(row[0])}`);
-            if (detailsRes.ok) {
-              scheduleDetails = await detailsRes.json();
-            }
-          } catch (error) {
-            console.error('Failed to fetch schedule details:', error);
-          }
-
           calendarEntries.push({
             date: row[0],
             weekday: getWeekday(row[0]),
@@ -204,9 +193,27 @@ export default function HomePage() {
             reason,
             isOffDay,
             userHasSet,
-            userStatus,
-            scheduleDetails
+            userStatus
           });
+        }
+      }
+
+      // Fetch schedule details in batch (all dates at once)
+      if (calendarEntries.length > 0) {
+        try {
+          const dates = calendarEntries.map(e => e.date).join(',');
+          const detailsRes = await fetch(`${BOT_API_URL}/api/schedule-details-batch?dates=${encodeURIComponent(dates)}`);
+          if (detailsRes.ok) {
+            const detailsBatch = await detailsRes.json();
+            // Merge schedule details into entries
+            calendarEntries.forEach(entry => {
+              if (detailsBatch[entry.date]) {
+                entry.scheduleDetails = detailsBatch[entry.date];
+              }
+            });
+          }
+        } catch (error) {
+          console.error('Failed to fetch schedule details batch:', error);
         }
       }
       

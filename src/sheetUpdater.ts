@@ -97,6 +97,16 @@ export async function updatePlayerAvailability(
 
       console.log(`Updated ${columnName} for ${dateToFind} to: ${timeRange}`);
       
+      // Invalidate cache for this date
+      try {
+        const { invalidateCache, preloadCache } = await import('./scheduleCache.js');
+        invalidateCache(dateToFind);
+        // Preload fresh data in background
+        preloadCache().catch(err => console.error('[SheetUpdater] Cache preload failed:', err));
+      } catch (error) {
+        console.error('[SheetUpdater] Error invalidating cache:', error);
+      }
+      
       // Check for status change and notify if improved
       try {
         const { checkAndNotifyStatusChange } = await import('./changeNotifier.js');
