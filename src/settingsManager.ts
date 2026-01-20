@@ -20,6 +20,7 @@ export interface Settings {
     trainingStartPollEnabled: boolean;
     timezone: string;
     cleanChannelBeforePost: boolean;
+    changeNotificationsEnabled: boolean;
   };
   admin: {
     username: string;
@@ -39,6 +40,7 @@ const DEFAULT_SETTINGS: Omit<Settings, 'admin'> = {
     trainingStartPollEnabled: false,
     timezone: 'Europe/Berlin',
     cleanChannelBeforePost: false,
+    changeNotificationsEnabled: true,
   },
 };
 
@@ -106,6 +108,10 @@ export async function loadSettingsAsync(): Promise<Settings> {
       cachedSettings = {
         ...sheetSettings,
         admin, // Always from .env
+        scheduling: {
+          ...sheetSettings.scheduling,
+          changeNotificationsEnabled: sheetSettings.scheduling.changeNotificationsEnabled ?? true,
+        },
       };
       console.log('✅ Settings loaded from Google Sheets');
       return cachedSettings;

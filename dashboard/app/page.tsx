@@ -25,6 +25,15 @@ interface PlayerStatus {
   time?: string;
 }
 
+interface ScheduleDetails {
+  status: string;
+  startTime?: string;
+  endTime?: string;
+  availablePlayers: string[];
+  unavailablePlayers: string[];
+  noResponsePlayers: string[];
+}
+
 interface DateEntry {
   date: string;
   weekday: string;
@@ -38,6 +47,7 @@ interface DateEntry {
   isOffDay: boolean;
   userHasSet: boolean;
   userStatus?: 'available' | 'unavailable' | 'not-set';
+  scheduleDetails?: ScheduleDetails;
 }
 
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
@@ -171,6 +181,17 @@ export default function HomePage() {
             }
           }
 
+          // Fetch schedule details
+          let scheduleDetails: ScheduleDetails | undefined;
+          try {
+            const detailsRes = await fetch(`${BOT_API_URL}/api/schedule-details?date=${encodeURIComponent(row[0])}`);
+            if (detailsRes.ok) {
+              scheduleDetails = await detailsRes.json();
+            }
+          } catch (error) {
+            console.error('Failed to fetch schedule details:', error);
+          }
+
           calendarEntries.push({
             date: row[0],
             weekday: getWeekday(row[0]),
@@ -183,7 +204,8 @@ export default function HomePage() {
             reason,
             isOffDay,
             userHasSet,
-            userStatus
+            userStatus,
+            scheduleDetails
           });
         }
       }
@@ -492,6 +514,27 @@ export default function HomePage() {
                   </div>
                 </CardHeader>
                 <CardContent className="pt-0.5 pb-3">
+                  {/* Schedule Status Badge */}
+                  {entry.scheduleDetails && (
+                    <div className="mb-2">
+                      <Badge 
+                        variant={
+                          entry.scheduleDetails.status === 'Training possible' ? 'default' :
+                          entry.scheduleDetails.status === 'Almost there' ? 'secondary' :
+                          'outline'
+                        }
+                        className="text-xs"
+                      >
+                        {entry.scheduleDetails.status}
+                      </Badge>
+                      {entry.scheduleDetails.startTime && entry.scheduleDetails.endTime && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          ⏰ {entry.scheduleDetails.startTime} - {entry.scheduleDetails.endTime}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  
                   <div className="space-y-0.5">
                     <div className="flex items-center gap-1.5">
                       <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />

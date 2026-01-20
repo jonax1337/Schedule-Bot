@@ -96,6 +96,18 @@ export async function updatePlayerAvailability(
       });
 
       console.log(`Updated ${columnName} for ${dateToFind} to: ${timeRange}`);
+      
+      // Check for status change and notify if improved
+      try {
+        const { checkAndNotifyStatusChange } = await import('./changeNotifier.js');
+        const { client } = await import('./bot.js');
+        if (client && client.isReady()) {
+          await checkAndNotifyStatusChange(dateToFind, client);
+        }
+      } catch (error) {
+        console.error('[SheetUpdater] Error checking status change:', error);
+      }
+      
       return true;
     }
   }

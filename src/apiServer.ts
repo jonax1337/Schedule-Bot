@@ -196,6 +196,34 @@ app.get('/api/discord/members', async (req, res) => {
   }
 });
 
+// Get schedule details with status and player lists
+app.get('/api/schedule-details', async (req, res) => {
+  try {
+    const date = req.query.date as string;
+    if (!date) {
+      return res.status(400).json({ error: 'Date parameter required' });
+    }
+
+    const { getScheduleStatus } = await import('./analyzer.js');
+    const { getAuthenticatedClient } = await import('./sheetUpdater.js');
+    
+    const auth = await getAuthenticatedClient();
+    const status = await getScheduleStatus(date, auth);
+    
+    res.json({
+      status: status.status,
+      startTime: status.startTime,
+      endTime: status.endTime,
+      availablePlayers: status.availablePlayers || [],
+      unavailablePlayers: status.unavailablePlayers || [],
+      noResponsePlayers: status.noResponsePlayers || []
+    });
+  } catch (error) {
+    console.error('Error fetching schedule details:', error);
+    res.status(500).json({ error: 'Failed to fetch schedule details' });
+  }
+});
+
 // Get bot logs
 app.get('/api/logs', (req, res) => {
   try {

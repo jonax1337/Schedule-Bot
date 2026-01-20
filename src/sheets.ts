@@ -570,6 +570,7 @@ export interface SheetSettings {
     trainingStartPollEnabled: boolean;
     timezone: string;
     cleanChannelBeforePost: boolean;
+    changeNotificationsEnabled?: boolean;
   };
 }
 
