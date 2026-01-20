@@ -540,95 +540,111 @@ export function ScrimsPanel() {
                 return (
                   <div
                     key={scrim.id}
-                    className="border rounded-lg hover:bg-accent transition-colors overflow-hidden"
+                    className="border rounded-lg hover:bg-accent/50 transition-colors overflow-hidden"
                   >
-                    <div className="flex items-start justify-between p-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 flex-wrap">
-                          <span className="font-semibold text-lg">{scrim.opponent}</span>
-                          {getResultBadge(scrim.result)}
-                          {scrim.matchType && (
-                            <Badge variant="outline" className="text-xs">
-                              {scrim.matchType}
-                            </Badge>
-                          )}
-                          <span className="text-sm text-muted-foreground">{scrim.date}</span>
-                        </div>
-                        
-                        <div className="mt-2 text-sm text-muted-foreground">
-                          <span className="font-medium">Score: {scrim.scoreUs}-{scrim.scoreThem}</span>
-                          {scrim.map && (
-                            <span className="ml-4">Map: {scrim.map}</span>
-                          )}
-                        </div>
-                        
-                        {/* Agent Compositions */}
-                        {(scrim.ourAgents?.length > 0 || scrim.theirAgents?.length > 0) && (
-                          <div className="mt-3 space-y-2">
-                            {scrim.ourAgents?.length > 0 && (
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs text-muted-foreground min-w-[80px]">Our Team:</span>
-                                <div className="flex gap-1">
-                                  {scrim.ourAgents.map((agent, idx) => (
-                                    <img
-                                      key={`our-${idx}`}
-                                      src={`/assets/agents/${agent}_icon.webp`}
-                                      alt={agent}
-                                      className="w-6 h-6 rounded border border-primary/50"
-                                      title={agent}
-                                    />
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                            {scrim.theirAgents?.length > 0 && (
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs text-muted-foreground min-w-[80px]">Enemy Team:</span>
-                                <div className="flex gap-1">
-                                  {scrim.theirAgents.map((agent, idx) => (
-                                    <img
-                                      key={`their-${idx}`}
-                                      src={`/assets/agents/${agent}_icon.webp`}
-                                      alt={agent}
-                                      className="w-6 h-6 rounded border border-destructive/50"
-                                      title={agent}
-                                    />
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </div>
+                    {/* Header with Match Type and Actions */}
+                    <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b bg-muted/30">
+                      <div className="flex items-center gap-2">
+                        {scrim.matchType && (
+                          <Badge variant="outline" className="text-xs font-normal">
+                            {scrim.matchType}
+                          </Badge>
                         )}
-                        
-                        {scrim.notes && (
-                          <div className="mt-2 text-sm text-muted-foreground italic">
-                            {scrim.notes}
-                          </div>
-                        )}
+                        {getResultBadge(scrim.result)}
                       </div>
-                      
-                      <div className="flex gap-2">
+                      <div className="flex gap-1">
                         <Button
                           variant="ghost"
                           size="icon"
+                          className="h-8 w-8"
                           onClick={() => handleEdit(scrim)}
                         >
-                          <Edit className="h-4 w-4" />
+                          <Edit className="h-3.5 w-3.5" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
+                          className="h-8 w-8"
                           onClick={() => handleDelete(scrim.id)}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>
+                    </div>
+
+                    {/* Main Content */}
+                    <div className="p-6">
+                      {/* Teams and Score Layout */}
+                      <div className="flex items-center justify-between gap-4 mb-4">
+                        {/* Our Team - Left Side */}
+                        <div className="flex-1 flex flex-col items-end">
+                          <span className="text-lg font-semibold mb-2">Our Team</span>
+                          {scrim.ourAgents?.length > 0 && (
+                            <div className="flex gap-1.5 justify-end">
+                              {scrim.ourAgents.map((agent, idx) => (
+                                <img
+                                  key={`our-${idx}`}
+                                  src={`/assets/agents/${agent}_icon.webp`}
+                                  alt={agent}
+                                  className="w-8 h-8 rounded border-2 border-primary/60"
+                                  title={agent}
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Score - Center */}
+                        <div className="flex flex-col items-center justify-center px-6">
+                          <div className="flex items-center gap-4 mb-2">
+                            <div className={`text-4xl font-bold ${scrim.result === 'win' ? 'text-green-500' : scrim.result === 'loss' ? 'text-red-500' : 'text-muted-foreground'}`}>
+                              {scrim.scoreUs}
+                            </div>
+                            <div className="text-2xl font-semibold text-muted-foreground">:</div>
+                            <div className={`text-4xl font-bold ${scrim.result === 'loss' ? 'text-green-500' : scrim.result === 'win' ? 'text-red-500' : 'text-muted-foreground'}`}>
+                              {scrim.scoreThem}
+                            </div>
+                          </div>
+                          {scrim.map && (
+                            <div className="text-sm font-medium text-muted-foreground mt-1">
+                              {scrim.map}
+                            </div>
+                          )}
+                          <div className="text-xs text-muted-foreground mt-2">
+                            {scrim.date}
+                          </div>
+                        </div>
+
+                        {/* Opponent Team - Right Side */}
+                        <div className="flex-1 flex flex-col items-start">
+                          <span className="text-lg font-semibold mb-2">{scrim.opponent}</span>
+                          {scrim.theirAgents?.length > 0 && (
+                            <div className="flex gap-1.5">
+                              {scrim.theirAgents.map((agent, idx) => (
+                                <img
+                                  key={`their-${idx}`}
+                                  src={`/assets/agents/${agent}_icon.webp`}
+                                  alt={agent}
+                                  className="w-8 h-8 rounded border-2 border-destructive/60"
+                                  title={agent}
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                        
+                      {scrim.notes && (
+                        <div className="mt-4 pt-4 border-t text-sm text-muted-foreground italic text-center">
+                          {scrim.notes}
+                        </div>
+                      )}
                     </div>
                     
                     {/* VOD Embed */}
                     {vodId && (
                       <div className="px-4 pb-4">
-                        <div className="aspect-video rounded-lg overflow-hidden">
+                        <div className="aspect-video rounded-lg overflow-hidden border">
                           <iframe
                             width="100%"
                             height="100%"
