@@ -551,6 +551,18 @@ export function ScrimsPanel() {
                           </Badge>
                         )}
                         {getResultBadge(scrim.result)}
+                        {scrim.vodUrl && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs"
+                            asChild
+                          >
+                            <a href={scrim.vodUrl} target="_blank" rel="noopener noreferrer">
+                              VOD
+                            </a>
+                          </Button>
+                        )}
                       </div>
                       <div className="flex gap-1">
                         <Button
