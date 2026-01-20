@@ -197,10 +197,12 @@ export function ScrimsPanel() {
     });
   };
 
-  const handleDialogClose = () => {
-    setIsAddDialogOpen(false);
-    setEditingScrim(null);
-    resetForm();
+  const handleDialogOpenChange = (open: boolean) => {
+    setIsAddDialogOpen(open);
+    if (!open) {
+      setEditingScrim(null);
+      resetForm();
+    }
   };
 
   const getResultBadge = (result: string) => {
@@ -282,7 +284,7 @@ export function ScrimsPanel() {
               <CardTitle>Scrim Results</CardTitle>
               <CardDescription>Manage and track your team&apos;s scrim history</CardDescription>
             </div>
-            <Dialog open={isAddDialogOpen} onOpenChange={handleDialogClose}>
+            <Dialog open={isAddDialogOpen} onOpenChange={handleDialogOpenChange}>
               <DialogTrigger asChild>
                 <Button>
                   <Plus className="mr-2 h-4 w-4" />

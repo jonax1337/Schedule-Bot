@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { LogIn, Shield, CheckCircle2, XCircle, Clock, Loader2, User, LogOut, Edit2, Save, CalendarCheck } from 'lucide-react';
+import { LogIn, Shield, CheckCircle2, XCircle, Clock, Loader2, User, LogOut, Edit2, Save, CalendarCheck, Trophy } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -466,6 +466,10 @@ export default function HomePage() {
                 Player Login
               </Button>
             )}
+            <Button variant="outline" onClick={() => router.push('/scrims')}>
+              <Trophy className="mr-1 h-4 w-4" />
+              Scrims
+            </Button>
             <Button variant="outline" onClick={() => router.push('/admin/login')}>
               <Shield className="mr-1 h-4 w-4" />
               Admin
