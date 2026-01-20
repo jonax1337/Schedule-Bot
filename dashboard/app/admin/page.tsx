@@ -3,17 +3,16 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import SettingsPanel from "@/components/settings-panel";
 import ActionsPanel from "@/components/actions-panel";
 import LogsPanel from "@/components/logs-panel";
 import { UserMappingsPanel } from "@/components/user-mappings-panel";
 import { ScheduleEditor } from "@/components/schedule-editor";
+import { ScrimsPanel } from "@/components/scrims-panel";
 import StatusCard from "@/components/status-card";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Settings, Zap, Terminal, Users, CalendarDays, LogOut } from "lucide-react";
+import { Settings, Zap, Terminal, Users, CalendarDays, LogOut, Trophy } from "lucide-react";
 
 export default function Home() {
   const router = useRouter();
@@ -58,7 +57,7 @@ export default function Home() {
 
         {/* Main Content */}
         <Tabs defaultValue="settings" className="space-y-4 mt-6 animate-fadeIn stagger-1">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="settings" className="flex items-center gap-2">
               <Settings className="h-4 w-4" />
               Settings
@@ -70,6 +69,10 @@ export default function Home() {
             <TabsTrigger value="schedule" className="flex items-center gap-2">
               <CalendarDays className="h-4 w-4" />
               Schedule
+            </TabsTrigger>
+            <TabsTrigger value="scrims" className="flex items-center gap-2">
+              <Trophy className="h-4 w-4" />
+              Scrims
             </TabsTrigger>
             <TabsTrigger value="actions" className="flex items-center gap-2">
               <Zap className="h-4 w-4" />
@@ -91,6 +94,10 @@ export default function Home() {
 
           <TabsContent value="schedule" className="space-y-4">
             <ScheduleEditor />
+          </TabsContent>
+
+          <TabsContent value="scrims" className="space-y-4">
+            <ScrimsPanel />
           </TabsContent>
 
           <TabsContent value="actions" className="space-y-4">
