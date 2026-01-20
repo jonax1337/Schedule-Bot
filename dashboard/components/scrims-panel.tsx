@@ -558,8 +558,8 @@ export function ScrimsPanel() {
                         
                         <div className="mt-2 text-sm text-muted-foreground">
                           <span className="font-medium">Score: {scrim.scoreUs}-{scrim.scoreThem}</span>
-                          {scrim.maps.length > 0 && (
-                            <span className="ml-4">Maps: {scrim.maps.join(', ')}</span>
+                          {scrim.map && (
+                            <span className="ml-4">Map: {scrim.map}</span>
                           )}
                         </div>
                         
