@@ -10,8 +10,23 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Loader2, Plus, Edit, Trash2, TrendingUp, Trophy, Target } from "lucide-react";
 import { toast } from "sonner";
+import { AgentSelector } from "./agent-picker";
 
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
+
+// Helper to extract YouTube video ID from URL
+function getYouTubeVideoId(url: string): string | null {
+  if (!url) return null;
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
+    /^([a-zA-Z0-9_-]{11})$/
+  ];
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match) return match[1];
+  }
+  return null;
+}
 
 interface ScrimEntry {
   id: string;
@@ -21,6 +36,9 @@ interface ScrimEntry {
   scoreUs: number;
   scoreThem: number;
   maps: string[];
+  ourAgents: string[];
+  theirAgents: string[];
+  vodUrl: string;
   notes: string;
   createdAt: string;
   updatedAt: string;
@@ -56,6 +74,9 @@ export function ScrimsPanel() {
     scoreUs: 0,
     scoreThem: 0,
     maps: '',
+    ourAgents: [] as string[],
+    theirAgents: [] as string[],
+    vodUrl: '',
     notes: '',
   });
 
@@ -112,6 +133,9 @@ export function ScrimsPanel() {
         scoreUs: formData.scoreUs,
         scoreThem: formData.scoreThem,
         maps: mapsArray,
+        ourAgents: formData.ourAgents,
+        theirAgents: formData.theirAgents,
+        vodUrl: formData.vodUrl,
         notes: formData.notes,
       };
 
@@ -180,6 +204,9 @@ export function ScrimsPanel() {
       scoreUs: scrim.scoreUs,
       scoreThem: scrim.scoreThem,
       maps: scrim.maps.join(', '),
+      ourAgents: scrim.ourAgents || [],
+      theirAgents: scrim.theirAgents || [],
+      vodUrl: scrim.vodUrl || '',
       notes: scrim.notes,
     });
     setIsAddDialogOpen(true);
@@ -193,6 +220,9 @@ export function ScrimsPanel() {
       scoreUs: 0,
       scoreThem: 0,
       maps: '',
+      ourAgents: [],
+      theirAgents: [],
+      vodUrl: '',
       notes: '',
     });
   };
@@ -384,6 +414,41 @@ export function ScrimsPanel() {
                         className="col-span-3"
                       />
                     </div>
+                    
+                    {/* Our Team Agents */}
+                    <div className="col-span-4">
+                      <AgentSelector
+                        label="Our Team Composition"
+                        agents={formData.ourAgents}
+                        onChange={(agents) => setFormData({ ...formData, ourAgents: agents })}
+                        maxAgents={5}
+                      />
+                    </div>
+                    
+                    {/* Their Team Agents (Optional) */}
+                    <div className="col-span-4">
+                      <AgentSelector
+                        label="Enemy Team Composition (Optional)"
+                        agents={formData.theirAgents}
+                        onChange={(agents) => setFormData({ ...formData, theirAgents: agents })}
+                        maxAgents={5}
+                      />
+                    </div>
+                    
+                    {/* VOD URL */}
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="vodUrl" className="text-right">
+                        VOD URL
+                      </Label>
+                      <Input
+                        id="vodUrl"
+                        placeholder="https://youtube.com/watch?v=..."
+                        value={formData.vodUrl}
+                        onChange={(e) => setFormData({ ...formData, vodUrl: e.target.value })}
+                        className="col-span-3"
+                      />
+                    </div>
+                    
                     <div className="grid grid-cols-4 items-center gap-4">
                       <Label htmlFor="notes" className="text-right">
                         Notes
@@ -417,47 +482,112 @@ export function ScrimsPanel() {
             </div>
           ) : (
             <div className="space-y-4">
-              {scrims.map((scrim) => (
-                <div
-                  key={scrim.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent transition-colors"
-                >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3">
-                      <span className="font-semibold text-lg">{scrim.opponent}</span>
-                      {getResultBadge(scrim.result)}
-                      <span className="text-sm text-muted-foreground">{scrim.date}</span>
+              {scrims.map((scrim) => {
+                const vodId = getYouTubeVideoId(scrim.vodUrl);
+                
+                return (
+                  <div
+                    key={scrim.id}
+                    className="border rounded-lg hover:bg-accent transition-colors overflow-hidden"
+                  >
+                    <div className="flex items-start justify-between p-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <span className="font-semibold text-lg">{scrim.opponent}</span>
+                          {getResultBadge(scrim.result)}
+                          <span className="text-sm text-muted-foreground">{scrim.date}</span>
+                        </div>
+                        
+                        <div className="mt-2 text-sm text-muted-foreground">
+                          <span className="font-medium">Score: {scrim.scoreUs}-{scrim.scoreThem}</span>
+                          {scrim.maps.length > 0 && (
+                            <span className="ml-4">Maps: {scrim.maps.join(', ')}</span>
+                          )}
+                        </div>
+                        
+                        {/* Agent Compositions */}
+                        {(scrim.ourAgents?.length > 0 || scrim.theirAgents?.length > 0) && (
+                          <div className="mt-3 space-y-2">
+                            {scrim.ourAgents?.length > 0 && (
+                              <div>
+                                <span className="text-xs text-muted-foreground">Our Team: </span>
+                                <div className="inline-flex gap-1 ml-2">
+                                  {scrim.ourAgents.map((agent, idx) => (
+                                    <img
+                                      key={`our-${idx}`}
+                                      src={`/assets/agents/${agent}_icon.webp`}
+                                      alt={agent}
+                                      className="w-6 h-6 rounded border border-primary/50"
+                                      title={agent}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {scrim.theirAgents?.length > 0 && (
+                              <div>
+                                <span className="text-xs text-muted-foreground">Enemy Team: </span>
+                                <div className="inline-flex gap-1 ml-2">
+                                  {scrim.theirAgents.map((agent, idx) => (
+                                    <img
+                                      key={`their-${idx}`}
+                                      src={`/assets/agents/${agent}_icon.webp`}
+                                      alt={agent}
+                                      className="w-6 h-6 rounded border border-destructive/50"
+                                      title={agent}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        
+                        {scrim.notes && (
+                          <div className="mt-2 text-sm text-muted-foreground italic">
+                            {scrim.notes}
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEdit(scrim)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDelete(scrim.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
-                    <div className="mt-2 text-sm text-muted-foreground">
-                      <span className="font-medium">Score: {scrim.scoreUs}-{scrim.scoreThem}</span>
-                      {scrim.maps.length > 0 && (
-                        <span className="ml-4">Maps: {scrim.maps.join(', ')}</span>
-                      )}
-                    </div>
-                    {scrim.notes && (
-                      <div className="mt-1 text-sm text-muted-foreground italic">
-                        {scrim.notes}
+                    
+                    {/* VOD Embed */}
+                    {vodId && (
+                      <div className="px-4 pb-4">
+                        <div className="aspect-video rounded-lg overflow-hidden">
+                          <iframe
+                            width="100%"
+                            height="100%"
+                            src={`https://www.youtube.com/embed/${vodId}`}
+                            title="VOD Review"
+                            frameBorder="0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                            className="w-full h-full"
+                          />
+                        </div>
                       </div>
                     )}
                   </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleEdit(scrim)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDelete(scrim.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>

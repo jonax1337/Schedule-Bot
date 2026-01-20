@@ -88,9 +88,12 @@ export const SCRIM_SHEET_COLUMNS = {
   SCORE_US: 4,
   SCORE_THEM: 5,
   MAPS: 6,
-  NOTES: 7,
-  CREATED_AT: 8,
-  UPDATED_AT: 9,
+  OUR_AGENTS: 7,
+  THEIR_AGENTS: 8,
+  VOD_URL: 9,
+  NOTES: 10,
+  CREATED_AT: 11,
+  UPDATED_AT: 12,
 };
 
 export const SCRIM_SHEET_NAME = 'Scrims';

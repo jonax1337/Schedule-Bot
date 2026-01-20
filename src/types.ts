@@ -83,6 +83,9 @@ export interface ScrimEntry {
   scoreUs: number;
   scoreThem: number;
   maps: string[]; // Array of map names
+  ourAgents: string[]; // Our team composition (5 agents)
+  theirAgents: string[]; // Enemy team composition (5 agents, optional)
+  vodUrl: string; // YouTube URL for VOD review
   notes: string;
   createdAt: string; // ISO timestamp
   updatedAt: string; // ISO timestamp

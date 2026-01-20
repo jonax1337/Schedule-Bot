@@ -63,7 +63,7 @@ export async function ensureScrimSheetExists(): Promise<void> {
       // Add header row
       await sheets.spreadsheets.values.update({
         spreadsheetId: config.googleSheets.sheetId,
-        range: `${SCRIM_SHEET_NAME}!A1:J1`,
+        range: `${SCRIM_SHEET_NAME}!A1:M1`,
         valueInputOption: 'RAW',
         requestBody: {
           values: [
@@ -75,6 +75,9 @@ export async function ensureScrimSheetExists(): Promise<void> {
               'Score Us',
               'Score Them',
               'Maps',
+              'Our Agents',
+              'Their Agents',
+              'VOD URL',
               'Notes',
               'Created At',
               'Updated At',
@@ -97,7 +100,7 @@ export async function getAllScrims(): Promise<ScrimEntry[]> {
   try {
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: config.googleSheets.sheetId,
-      range: `${SCRIM_SHEET_NAME}!A2:J`, // Skip header row
+      range: `${SCRIM_SHEET_NAME}!A2:M`, // Skip header row, include new columns
     });
 
     const rows = response.data.values;
@@ -113,6 +116,9 @@ export async function getAllScrims(): Promise<ScrimEntry[]> {
       scoreUs: parseInt(row[SCRIM_SHEET_COLUMNS.SCORE_US] || '0', 10),
       scoreThem: parseInt(row[SCRIM_SHEET_COLUMNS.SCORE_THEM] || '0', 10),
       maps: (row[SCRIM_SHEET_COLUMNS.MAPS] || '').split(',').filter(Boolean),
+      ourAgents: (row[SCRIM_SHEET_COLUMNS.OUR_AGENTS] || '').split(',').filter(Boolean),
+      theirAgents: (row[SCRIM_SHEET_COLUMNS.THEIR_AGENTS] || '').split(',').filter(Boolean),
+      vodUrl: row[SCRIM_SHEET_COLUMNS.VOD_URL] || '',
       notes: row[SCRIM_SHEET_COLUMNS.NOTES] || '',
       createdAt: row[SCRIM_SHEET_COLUMNS.CREATED_AT] || new Date().toISOString(),
       updatedAt: row[SCRIM_SHEET_COLUMNS.UPDATED_AT] || new Date().toISOString(),
@@ -148,6 +154,9 @@ export async function addScrim(
     newScrim.scoreUs.toString(),
     newScrim.scoreThem.toString(),
     newScrim.maps.join(','),
+    newScrim.ourAgents.join(','),
+    newScrim.theirAgents.join(','),
+    newScrim.vodUrl,
     newScrim.notes,
     newScrim.createdAt,
     newScrim.updatedAt,
@@ -155,7 +164,7 @@ export async function addScrim(
 
   await sheets.spreadsheets.values.append({
     spreadsheetId: config.googleSheets.sheetId,
-    range: `${SCRIM_SHEET_NAME}!A:J`,
+    range: `${SCRIM_SHEET_NAME}!A:M`,
     valueInputOption: 'RAW',
     requestBody: {
       values: [row],
@@ -197,6 +206,9 @@ export async function updateScrim(
     updatedScrim.scoreUs.toString(),
     updatedScrim.scoreThem.toString(),
     updatedScrim.maps.join(','),
+    updatedScrim.ourAgents.join(','),
+    updatedScrim.theirAgents.join(','),
+    updatedScrim.vodUrl,
     updatedScrim.notes,
     updatedScrim.createdAt,
     updatedScrim.updatedAt,
@@ -204,7 +216,7 @@ export async function updateScrim(
 
   await sheets.spreadsheets.values.update({
     spreadsheetId: config.googleSheets.sheetId,
-    range: `${SCRIM_SHEET_NAME}!A${rowNumber}:J${rowNumber}`,
+    range: `${SCRIM_SHEET_NAME}!A${rowNumber}:M${rowNumber}`,
     valueInputOption: 'RAW',
     requestBody: {
       values: [row],
