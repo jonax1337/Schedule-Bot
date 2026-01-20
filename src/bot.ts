@@ -605,7 +605,8 @@ async function handleAddScrimCommand(interaction: ChatInputCommandInteraction): 
       content: `${resultEmoji} Scrim added successfully!\n\n` +
                `**${opponent}** - ${date}\n` +
                `Result: ${result.toUpperCase()} (${scoreUs}-${scoreThem})\n` +
-               `${maps.length > 0 ? `Maps: ${maps.join(', ')}\n` : ''}` +
+               `${map ? `Map: ${map}\n` : ''}` +
+               `${matchType ? `Type: ${matchType}\n` : ''}` +
                `${notes ? `Notes: ${notes}` : ''}`,
     });
   } catch (error) {
