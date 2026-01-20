@@ -21,6 +21,7 @@ import {
   handleDateSelect,
   handleWeekModal,
   handleInfoModal,
+  handleTimeModal,
   sendWeekOverview,
   sendMySchedule,
   handleSetWeekCommand,
@@ -648,7 +649,7 @@ client.on('interactionCreate', async interaction => {
         await handleAvailabilityButton(interaction);
       }
     } else if (interaction.isStringSelectMenu()) {
-      if (interaction.customId === 'date_select') {
+      if (interaction.customId === 'select_date') {
         await handleDateSelect(interaction);
       }
     } else if (interaction.isModalSubmit()) {
@@ -656,15 +657,34 @@ client.on('interactionCreate', async interaction => {
         await handleWeekModal(interaction);
       } else if (interaction.customId.startsWith('info_modal_')) {
         await handleInfoModal(interaction);
+      } else if (interaction.customId.startsWith('time_modal_')) {
+        await handleTimeModal(interaction);
       }
     }
   } catch (error) {
     console.error('Error handling interaction:', error);
-    if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
-      await interaction.reply({
-        content: 'An error occurred. Please try again later.',
-        flags: MessageFlags.Ephemeral,
-      });
+    // Log more details for debugging
+    if (interaction.isModalSubmit()) {
+      console.error('Modal customId:', interaction.customId);
+    } else if (interaction.isButton()) {
+      console.error('Button customId:', interaction.customId);
+    } else if (interaction.isStringSelectMenu()) {
+      console.error('Select menu customId:', interaction.customId);
+    }
+    
+    try {
+      if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
+        await interaction.reply({
+          content: 'An error occurred. Please try again later.',
+          flags: MessageFlags.Ephemeral,
+        });
+      } else if (interaction.isRepliable() && interaction.deferred && !interaction.replied) {
+        await interaction.editReply({
+          content: 'An error occurred. Please try again later.',
+        });
+      }
+    } catch (replyError) {
+      console.error('Failed to send error message to user:', replyError);
     }
   }
 });
