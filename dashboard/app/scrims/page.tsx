@@ -24,8 +24,7 @@ export default function ScrimsPage() {
                 <ArrowLeft className="h-5 w-5" />
               </Button>
               <div>
-                <h1 className="text-4xl font-bold tracking-tight flex items-center gap-3">
-                  <Trophy className="h-10 w-10 text-primary" />
+                <h1 className="text-4xl font-bold tracking-tight">
                   Scrim History
                 </h1>
                 <p className="text-muted-foreground mt-2">

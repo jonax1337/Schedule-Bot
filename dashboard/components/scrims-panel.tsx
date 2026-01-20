@@ -8,7 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Loader2, Plus, Edit, Trash2, TrendingUp, Trophy, Target } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Loader2, Plus, Edit, Trash2, TrendingUp, Trophy, Target, X } from "lucide-react";
 import { toast } from "sonner";
 import { AgentSelector } from "./agent-picker";
 
@@ -27,6 +29,11 @@ function getYouTubeVideoId(url: string): string | null {
   }
   return null;
 }
+
+const VALORANT_MAPS = [
+  'Abyss', 'Ascent', 'Bind', 'Breeze', 'Corrode', 'Fracture',
+  'Haven', 'Icebox', 'Lotus', 'Pearl', 'Split', 'Sunset'
+];
 
 interface ScrimEntry {
   id: string;
@@ -73,7 +80,7 @@ export function ScrimsPanel() {
     result: 'loss' as 'win' | 'loss' | 'draw',
     scoreUs: 0,
     scoreThem: 0,
-    maps: '',
+    maps: [] as string[],
     ourAgents: [] as string[],
     theirAgents: [] as string[],
     vodUrl: '',
@@ -124,15 +131,13 @@ export function ScrimsPanel() {
     e.preventDefault();
     
     try {
-      const mapsArray = formData.maps.split(',').map(m => m.trim()).filter(Boolean);
-      
       const body = {
         date: formData.date,
         opponent: formData.opponent,
         result: formData.result,
         scoreUs: formData.scoreUs,
         scoreThem: formData.scoreThem,
-        maps: mapsArray,
+        maps: formData.maps,
         ourAgents: formData.ourAgents,
         theirAgents: formData.theirAgents,
         vodUrl: formData.vodUrl,
@@ -203,7 +208,7 @@ export function ScrimsPanel() {
       result: scrim.result,
       scoreUs: scrim.scoreUs,
       scoreThem: scrim.scoreThem,
-      maps: scrim.maps.join(', '),
+      maps: scrim.maps || [],
       ourAgents: scrim.ourAgents || [],
       theirAgents: scrim.theirAgents || [],
       vodUrl: scrim.vodUrl || '',
@@ -219,7 +224,7 @@ export function ScrimsPanel() {
       result: 'loss',
       scoreUs: 0,
       scoreThem: 0,
-      maps: '',
+      maps: [],
       ourAgents: [],
       theirAgents: [],
       vodUrl: '',
@@ -238,11 +243,11 @@ export function ScrimsPanel() {
   const getResultBadge = (result: string) => {
     switch (result) {
       case 'win':
-        return <Badge variant="default" className="bg-green-500">✅ Win</Badge>;
+        return <Badge variant="default" className="bg-green-500">Win</Badge>;
       case 'loss':
-        return <Badge variant="destructive">❌ Loss</Badge>;
+        return <Badge variant="destructive">Loss</Badge>;
       case 'draw':
-        return <Badge variant="secondary">➖ Draw</Badge>;
+        return <Badge variant="secondary">Draw</Badge>;
       default:
         return null;
     }
@@ -336,9 +341,17 @@ export function ScrimsPanel() {
                         <Label htmlFor="date">Date</Label>
                         <Input
                           id="date"
-                          placeholder="DD.MM.YYYY"
-                          value={formData.date}
-                          onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                          type="date"
+                          value={formData.date ? formData.date.split('.').reverse().join('-') : ''}
+                          onChange={(e) => {
+                            const dateValue = e.target.value;
+                            if (dateValue) {
+                              const [year, month, day] = dateValue.split('-');
+                              setFormData({ ...formData, date: `${day}.${month}.${year}` });
+                            } else {
+                              setFormData({ ...formData, date: '' });
+                            }
+                          }}
                           required
                         />
                       </div>
@@ -365,13 +378,13 @@ export function ScrimsPanel() {
                             setFormData({ ...formData, result: value })
                           }
                         >
-                          <SelectTrigger>
+                          <SelectTrigger className="w-full">
                             <SelectValue />
                           </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="win">✅ Win</SelectItem>
-                            <SelectItem value="loss">❌ Loss</SelectItem>
-                            <SelectItem value="draw">➖ Draw</SelectItem>
+                          <SelectContent position="popper">
+                            <SelectItem value="win">Win</SelectItem>
+                            <SelectItem value="loss">Loss</SelectItem>
+                            <SelectItem value="draw">Draw</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -402,14 +415,55 @@ export function ScrimsPanel() {
                       </div>
                       
                       <div className="space-y-2">
-                        <Label htmlFor="maps">Maps Played</Label>
-                        <Input
-                          id="maps"
-                          placeholder="e.g., Bind, Haven, Ascent"
-                          value={formData.maps}
-                          onChange={(e) => setFormData({ ...formData, maps: e.target.value })}
-                        />
-                        <p className="text-xs text-muted-foreground">Separate multiple maps with commas</p>
+                        <Label>Maps Played</Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className="w-full justify-start text-left font-normal"
+                            >
+                              {formData.maps.length > 0 ? (
+                                <div className="flex flex-wrap gap-1">
+                                  {formData.maps.map((map) => (
+                                    <Badge key={map} variant="secondary" className="text-xs">
+                                      {map}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground">Select maps...</span>
+                              )}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[300px] p-3" align="start">
+                            <div className="space-y-2">
+                              <div className="text-sm font-medium mb-3">Select Maps</div>
+                              <div className="grid grid-cols-2 gap-2 max-h-[300px] overflow-y-auto">
+                                {VALORANT_MAPS.map((map) => (
+                                  <div key={map} className="flex items-center space-x-2">
+                                    <Checkbox
+                                      id={`map-${map}`}
+                                      checked={formData.maps.includes(map)}
+                                      onCheckedChange={(checked) => {
+                                        if (checked) {
+                                          setFormData({ ...formData, maps: [...formData.maps, map] });
+                                        } else {
+                                          setFormData({ ...formData, maps: formData.maps.filter(m => m !== map) });
+                                        }
+                                      }}
+                                    />
+                                    <Label
+                                      htmlFor={`map-${map}`}
+                                      className="text-sm font-normal cursor-pointer"
+                                    >
+                                      {map}
+                                    </Label>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
                       </div>
                     </div>
                     
@@ -502,9 +556,9 @@ export function ScrimsPanel() {
                         {(scrim.ourAgents?.length > 0 || scrim.theirAgents?.length > 0) && (
                           <div className="mt-3 space-y-2">
                             {scrim.ourAgents?.length > 0 && (
-                              <div>
-                                <span className="text-xs text-muted-foreground">Our Team: </span>
-                                <div className="inline-flex gap-1 ml-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground min-w-[80px]">Our Team:</span>
+                                <div className="flex gap-1">
                                   {scrim.ourAgents.map((agent, idx) => (
                                     <img
                                       key={`our-${idx}`}
@@ -518,9 +572,9 @@ export function ScrimsPanel() {
                               </div>
                             )}
                             {scrim.theirAgents?.length > 0 && (
-                              <div>
-                                <span className="text-xs text-muted-foreground">Enemy Team: </span>
-                                <div className="inline-flex gap-1 ml-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground min-w-[80px]">Enemy Team:</span>
+                                <div className="flex gap-1">
                                   {scrim.theirAgents.map((agent, idx) => (
                                     <img
                                       key={`their-${idx}`}

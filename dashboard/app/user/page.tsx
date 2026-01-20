@@ -354,20 +354,29 @@ export default function UserSchedule() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto p-4 sm:p-6 max-w-7xl">
-        <div className="flex items-center justify-between mb-6 animate-slideDown">
-          <Button variant="ghost" size="sm" onClick={() => router.push('/')}>
-            <ArrowLeft className="mr-1 h-4 w-4" />
-            Home
-          </Button>
-          <ThemeToggle />
-        </div>
-
-        <div className="mb-6 animate-fadeIn">
-          <h1 className="text-2xl sm:text-3xl font-bold">Availability</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Manage your availability for the next 14 days
-          </p>
+      <div className="container mx-auto p-6 max-w-7xl">
+        {/* Header */}
+        <div className="mb-8 animate-slideDown">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={() => router.push('/')}
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <div>
+                <h1 className="text-4xl font-bold tracking-tight">
+                  Availability
+                </h1>
+                <p className="text-muted-foreground mt-2">
+                  Manage your availability for the next 14 days
+                </p>
+              </div>
+            </div>
+            <ThemeToggle />
+          </div>
         </div>
 
         {/* Bulk Actions Bar */}
