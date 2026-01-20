@@ -600,7 +600,7 @@ app.get('/api/scrims/:id', async (req, res) => {
 app.post('/api/scrims', async (req, res) => {
   try {
     const { addScrim, ensureScrimSheetExists } = await import('./scrims.js');
-    const { date, opponent, result, scoreUs, scoreThem, maps, ourAgents, theirAgents, vodUrl, notes } = req.body;
+    const { date, opponent, result, scoreUs, scoreThem, map, matchType, ourAgents, theirAgents, vodUrl, notes } = req.body;
     
     if (!date || !opponent || !result) {
       return res.status(400).json({ 
@@ -618,7 +618,8 @@ app.post('/api/scrims', async (req, res) => {
       result,
       scoreUs: scoreUs || 0,
       scoreThem: scoreThem || 0,
-      maps: maps || [],
+      map: map || '',
+      matchType: matchType || 'Scrim',
       ourAgents: ourAgents || [],
       theirAgents: theirAgents || [],
       vodUrl: vodUrl || '',
@@ -637,7 +638,7 @@ app.post('/api/scrims', async (req, res) => {
 app.put('/api/scrims/:id', async (req, res) => {
   try {
     const { updateScrim } = await import('./scrims.js');
-    const { date, opponent, result, scoreUs, scoreThem, maps, ourAgents, theirAgents, vodUrl, notes } = req.body;
+    const { date, opponent, result, scoreUs, scoreThem, map, matchType, ourAgents, theirAgents, vodUrl, notes } = req.body;
     
     const updates: any = {};
     if (date !== undefined) updates.date = date;
@@ -645,7 +646,8 @@ app.put('/api/scrims/:id', async (req, res) => {
     if (result !== undefined) updates.result = result;
     if (scoreUs !== undefined) updates.scoreUs = scoreUs;
     if (scoreThem !== undefined) updates.scoreThem = scoreThem;
-    if (maps !== undefined) updates.maps = maps;
+    if (map !== undefined) updates.map = map;
+    if (matchType !== undefined) updates.matchType = matchType;
     if (ourAgents !== undefined) updates.ourAgents = ourAgents;
     if (theirAgents !== undefined) updates.theirAgents = theirAgents;
     if (vodUrl !== undefined) updates.vodUrl = vodUrl;

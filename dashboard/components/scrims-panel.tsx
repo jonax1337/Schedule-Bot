@@ -37,7 +37,6 @@ const MATCH_TYPES = [
   'Scrim',
   'Tournament',
   'Premier',
-  'Ranked',
   'Custom',
 ];
 
@@ -154,7 +153,7 @@ export function ScrimsPanel() {
         result: formData.result,
         scoreUs: formData.scoreUs,
         scoreThem: formData.scoreThem,
-        maps: formData.map ? [formData.map] : [],
+        map: formData.map,
         matchType: formData.matchType,
         ourAgents: formData.ourAgents,
         theirAgents: formData.theirAgents,

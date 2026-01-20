@@ -116,7 +116,7 @@ export async function getAllScrims(): Promise<ScrimEntry[]> {
       result: (row[SCRIM_SHEET_COLUMNS.RESULT] || 'loss') as 'win' | 'loss' | 'draw',
       scoreUs: parseInt(row[SCRIM_SHEET_COLUMNS.SCORE_US] || '0', 10),
       scoreThem: parseInt(row[SCRIM_SHEET_COLUMNS.SCORE_THEM] || '0', 10),
-      maps: (row[SCRIM_SHEET_COLUMNS.MAPS] || '').split(',').filter(Boolean),
+      map: row[SCRIM_SHEET_COLUMNS.MAPS] || '',
       matchType: row[SCRIM_SHEET_COLUMNS.MATCH_TYPE] || '',
       ourAgents: (row[SCRIM_SHEET_COLUMNS.OUR_AGENTS] || '').split(',').filter(Boolean),
       theirAgents: (row[SCRIM_SHEET_COLUMNS.THEIR_AGENTS] || '').split(',').filter(Boolean),
@@ -155,7 +155,7 @@ export async function addScrim(
     newScrim.result,
     newScrim.scoreUs.toString(),
     newScrim.scoreThem.toString(),
-    newScrim.maps.join(','),
+    newScrim.map || '',
     newScrim.matchType || '',
     newScrim.ourAgents.join(','),
     newScrim.theirAgents.join(','),
@@ -208,7 +208,7 @@ export async function updateScrim(
     updatedScrim.result,
     updatedScrim.scoreUs.toString(),
     updatedScrim.scoreThem.toString(),
-    updatedScrim.maps.join(','),
+    updatedScrim.map || '',
     updatedScrim.matchType || '',
     updatedScrim.ourAgents.join(','),
     updatedScrim.theirAgents.join(','),
@@ -300,13 +300,14 @@ export async function getScrimStats(): Promise<ScrimStats> {
     else if (scrim.result === 'draw') stats.draws++;
 
     // Count map stats
-    for (const map of scrim.maps) {
-      if (!stats.mapStats[map]) {
-        stats.mapStats[map] = { played: 0, wins: 0, losses: 0 };
+    if (scrim.map) {
+      const mapName = scrim.map;
+      if (!stats.mapStats[mapName]) {
+        stats.mapStats[mapName] = { played: 0, wins: 0, losses: 0 };
       }
-      stats.mapStats[map].played++;
-      if (scrim.result === 'win') stats.mapStats[map].wins++;
-      else if (scrim.result === 'loss') stats.mapStats[map].losses++;
+      stats.mapStats[mapName].played++;
+      if (scrim.result === 'win') stats.mapStats[mapName].wins++;
+      else if (scrim.result === 'loss') stats.mapStats[mapName].losses++;
     }
   }
 

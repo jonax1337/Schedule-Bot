@@ -58,14 +58,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<DateEntry | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [loggedInUser, setLoggedInUser] = useState<string | null>(() => {
-    try {
-      if (typeof window !== 'undefined') return localStorage.getItem('selectedUser');
-      return null;
-    } catch (e) {
-      return null;
-    }
-  });
+  const [loggedInUser, setLoggedInUser] = useState<string | null>(null);
   const [editingUser, setEditingUser] = useState(false);
   const [editTimeFrom, setEditTimeFrom] = useState('');
   const [editTimeTo, setEditTimeTo] = useState('');
@@ -73,8 +66,20 @@ export default function HomePage() {
   const [saving, setSaving] = useState(false);
   const [userMappings, setUserMappings] = useState<string[] | null>(null);
 
+  // Load user from localStorage after mount to avoid hydration mismatch
+  useEffect(() => {
+    try {
+      const user = localStorage.getItem('selectedUser');
+      setLoggedInUser(user);
+    } catch (e) {
+      console.error('Failed to load user from localStorage:', e);
+    }
+  }, []);
+
   useEffect(() => {
     // If there's no logged in user, redirect immediately and avoid rendering dashboard
+    if (loggedInUser === null) return; // Wait for initial load
+    
     if (!loggedInUser) {
       router.replace('/login');
       return;
