@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Loader2, ArrowLeft, XCircle, Clock, Copy, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { AbsenceManager } from '@/components/absence-manager';
 
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
 
@@ -25,6 +26,7 @@ interface DateEntry {
 export default function UserSchedule() {
   const router = useRouter();
   const [userName, setUserName] = useState('');
+  const [userDiscordId, setUserDiscordId] = useState('');
   const [entries, setEntries] = useState<DateEntry[]>([]);
   const [userColumn, setUserColumn] = useState('');
   const [userColumnIndex, setUserColumnIndex] = useState(0);
@@ -49,6 +51,16 @@ export default function UserSchedule() {
   const loadData = async (user: string) => {
     setLoading(true);
     try {
+      // Get user's Discord ID from user mappings
+      const mappingsRes = await fetch(`${BOT_API_URL}/api/user-mappings`);
+      if (mappingsRes.ok) {
+        const mappingsData = await mappingsRes.json();
+        const userMapping = mappingsData.mappings.find((m: any) => m.sheetColumnName === user);
+        if (userMapping) {
+          setUserDiscordId(userMapping.discordId);
+        }
+      }
+
       // Get user's column
       const columnsRes = await fetch(`${BOT_API_URL}/api/sheet-columns`);
       if (!columnsRes.ok) {
@@ -396,6 +408,13 @@ export default function UserSchedule() {
             <ThemeToggle />
           </div>
         </div>
+
+        {/* Absence Manager */}
+        {userDiscordId && (
+          <div className="mb-6 animate-slideUp">
+            <AbsenceManager discordId={userDiscordId} username={userName} />
+          </div>
+        )}
 
         {/* Bulk Actions Bar */}
         {hasSelection && (

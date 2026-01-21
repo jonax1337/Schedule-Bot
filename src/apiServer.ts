@@ -838,6 +838,202 @@ app.get('/api/scrims/range/:startDate/:endDate', optionalAuth, async (req: AuthR
   }
 });
 
+// Absence Management Endpoints
+
+// Get all absences (optional auth)
+app.get('/api/absences', optionalAuth, async (req: AuthRequest, res) => {
+  try {
+    const { getAllAbsences } = await import('./absences.js');
+    const absences = await getAllAbsences();
+    res.json({ success: true, absences });
+  } catch (error) {
+    console.error('Error fetching absences:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch absences' });
+  }
+});
+
+// Get absences by user (optional auth)
+app.get('/api/absences/user/:discordId', optionalAuth, async (req: AuthRequest, res) => {
+  try {
+    const { getAbsencesByUser } = await import('./absences.js');
+    const absences = await getAbsencesByUser(req.params.discordId as string);
+    res.json({ success: true, absences });
+  } catch (error) {
+    console.error('Error fetching user absences:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch absences' });
+  }
+});
+
+// Get absence by ID (optional auth)
+app.get('/api/absences/:id', optionalAuth, async (req: AuthRequest, res) => {
+  try {
+    const { getAbsenceById } = await import('./absences.js');
+    const absence = await getAbsenceById(req.params.id as string);
+    
+    if (!absence) {
+      return res.status(404).json({ success: false, error: 'Absence not found' });
+    }
+    
+    res.json({ success: true, absence });
+  } catch (error) {
+    console.error('Error fetching absence:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch absence' });
+  }
+});
+
+// Add new absence (protected with validation, users can add their own absences)
+app.post('/api/absences', verifyToken, async (req: AuthRequest, res) => {
+  try {
+    const { addAbsence, ensureAbsencesSheetExists } = await import('./absences.js');
+    const { addAbsenceSchema } = await import('./middleware/validation.js');
+    
+    // Validate request body
+    const { error, value } = addAbsenceSchema.validate(req.body);
+    if (error) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Validation failed',
+        details: error.details.map(d => d.message)
+      });
+    }
+    
+    const { discordId, username, startDate, endDate, reason } = value;
+    
+    // Users can only add absences for themselves (admins can add for anyone)
+    if (req.user?.role === 'user') {
+      const mappings = await getUserMappings();
+      const userMapping = mappings.find(m => m.sheetColumnName === req.user?.username);
+      
+      if (!userMapping || userMapping.discordId !== discordId) {
+        logger.warn('Absence creation denied', `User ${req.user?.username} tried to add absence for ${username}`);
+        return res.status(403).json({ success: false, error: 'You can only add absences for yourself' });
+      }
+    }
+    
+    // Ensure sheet exists before adding
+    await ensureAbsencesSheetExists();
+    
+    const newAbsence = await addAbsence({
+      discordId,
+      username,
+      startDate,
+      endDate,
+      reason: reason || '',
+    });
+    
+    logger.success('Absence added', `${username} from ${startDate} to ${endDate}`);
+    res.json({ success: true, absence: newAbsence });
+  } catch (error) {
+    console.error('Error adding absence:', error);
+    res.status(500).json({ success: false, error: 'Failed to add absence' });
+  }
+});
+
+// Update absence (protected with validation, users can update their own absences)
+app.put('/api/absences/:id', verifyToken, async (req: AuthRequest, res) => {
+  try {
+    const { updateAbsence, getAbsenceById } = await import('./absences.js');
+    const { updateAbsenceSchema } = await import('./middleware/validation.js');
+    
+    // Validate request body
+    const { error, value } = updateAbsenceSchema.validate(req.body);
+    if (error) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Validation failed',
+        details: error.details.map(d => d.message)
+      });
+    }
+    
+    const absenceId = req.params.id as string;
+    const existingAbsence = await getAbsenceById(absenceId);
+    
+    if (!existingAbsence) {
+      return res.status(404).json({ success: false, error: 'Absence not found' });
+    }
+    
+    // Users can only update their own absences (admins can update any)
+    if (req.user?.role === 'user') {
+      const mappings = await getUserMappings();
+      const userMapping = mappings.find(m => m.sheetColumnName === req.user?.username);
+      
+      if (!userMapping || userMapping.discordId !== existingAbsence.discordId) {
+        logger.warn('Absence update denied', `User ${req.user?.username} tried to update absence ${absenceId}`);
+        return res.status(403).json({ success: false, error: 'You can only update your own absences' });
+      }
+    }
+    
+    const { username, startDate, endDate, reason } = value;
+    const updates: any = {};
+    if (username !== undefined) updates.username = username;
+    if (startDate !== undefined) updates.startDate = startDate;
+    if (endDate !== undefined) updates.endDate = endDate;
+    if (reason !== undefined) updates.reason = reason;
+    
+    const updatedAbsence = await updateAbsence(absenceId, updates);
+    
+    if (!updatedAbsence) {
+      return res.status(404).json({ success: false, error: 'Absence not found' });
+    }
+    
+    logger.success('Absence updated', `ID: ${absenceId}`);
+    res.json({ success: true, absence: updatedAbsence });
+  } catch (error) {
+    console.error('Error updating absence:', error);
+    res.status(500).json({ success: false, error: 'Failed to update absence' });
+  }
+});
+
+// Delete absence (protected, users can delete their own absences)
+app.delete('/api/absences/:id', verifyToken, async (req: AuthRequest, res) => {
+  try {
+    const { deleteAbsence, getAbsenceById } = await import('./absences.js');
+    const absenceId = req.params.id as string;
+    
+    const existingAbsence = await getAbsenceById(absenceId);
+    
+    if (!existingAbsence) {
+      return res.status(404).json({ success: false, error: 'Absence not found' });
+    }
+    
+    // Users can only delete their own absences (admins can delete any)
+    if (req.user?.role === 'user') {
+      const mappings = await getUserMappings();
+      const userMapping = mappings.find(m => m.sheetColumnName === req.user?.username);
+      
+      if (!userMapping || userMapping.discordId !== existingAbsence.discordId) {
+        logger.warn('Absence deletion denied', `User ${req.user?.username} tried to delete absence ${absenceId}`);
+        return res.status(403).json({ success: false, error: 'You can only delete your own absences' });
+      }
+    }
+    
+    const success = await deleteAbsence(absenceId);
+    
+    if (!success) {
+      return res.status(404).json({ success: false, error: 'Absence not found' });
+    }
+    
+    logger.success('Absence deleted', `ID: ${absenceId}`);
+    res.json({ success: true, message: 'Absence deleted' });
+  } catch (error) {
+    console.error('Error deleting absence:', error);
+    res.status(500).json({ success: false, error: 'Failed to delete absence' });
+  }
+});
+
+// Get active absences for a specific date (optional auth)
+app.get('/api/absences/date/:date', optionalAuth, async (req: AuthRequest, res) => {
+  try {
+    const { getActiveAbsencesForDate } = await import('./absences.js');
+    const date = req.params.date as string;
+    const absences = await getActiveAbsencesForDate(date);
+    res.json({ success: true, absences });
+  } catch (error) {
+    console.error('Error fetching absences for date:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch absences' });
+  }
+});
+
 // Discord OAuth routes
 app.get('/api/auth/discord', initiateDiscordAuth);
 app.get('/api/auth/discord/callback', handleDiscordCallback);
