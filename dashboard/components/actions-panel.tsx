@@ -73,9 +73,13 @@ export default function ActionsPanel() {
   const handleAction = async (action: string, endpoint: string, body: any) => {
     setLoading(action);
     try {
+      const { getAuthHeaders } = await import('@/lib/auth');
       const response = await fetch(`${BOT_API_URL}${endpoint}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...getAuthHeaders()
+        },
         body: JSON.stringify(body),
       });
       const data = await response.json();

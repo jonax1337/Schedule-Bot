@@ -183,6 +183,15 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Bot status (alias for health check, used by frontend)
+app.get('/api/bot-status', (req, res) => {
+  res.json({ 
+    status: client.isReady() ? 'running' : 'offline',
+    botReady: client.isReady(),
+    uptime: process.uptime()
+  });
+});
+
 // Get Discord channels (protected)
 app.get('/api/discord/channels', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
   try {
