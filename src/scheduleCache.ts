@@ -1,6 +1,8 @@
 import { getScheduleStatus } from './analyzer.js';
 import { getAuthenticatedClient } from './sheetUpdater.js';
 import { config, SHEET_COLUMNS } from './config.js';
+import { getUsersAbsentOnDate } from './absences.js';
+import { getUserMappings } from './userMapping.js';
 
 interface CachedScheduleDetail {
   status: string;
@@ -9,6 +11,7 @@ interface CachedScheduleDetail {
   availablePlayers: string[];
   unavailablePlayers: string[];
   noResponsePlayers: string[];
+  absentPlayers: string[];
   timestamp: number;
 }
 
@@ -37,6 +40,13 @@ export async function getScheduleDetails(date: string): Promise<CachedScheduleDe
     const sheets = await getAuthenticatedClient();
     const status = await getScheduleStatus(date, sheets);
     
+    // Get absent users for this date
+    const absentUserIds = await getUsersAbsentOnDate(date);
+    const userMappings = await getUserMappings();
+    const absentPlayerNames = absentUserIds
+      .map(discordId => userMappings.find(m => m.discordId === discordId)?.sheetColumnName)
+      .filter((name): name is string => name !== undefined);
+    
     const details: CachedScheduleDetail = {
       status: status.status,
       startTime: status.startTime,
@@ -44,6 +54,7 @@ export async function getScheduleDetails(date: string): Promise<CachedScheduleDe
       availablePlayers: status.availablePlayers || [],
       unavailablePlayers: status.unavailablePlayers || [],
       noResponsePlayers: status.noResponsePlayers || [],
+      absentPlayers: absentPlayerNames,
       timestamp: now,
     };
 
@@ -80,9 +91,18 @@ export async function getScheduleDetailsBatch(dates: string[]): Promise<{ [date:
       const sheets = await getAuthenticatedClient();
       
       // Fetch all dates in parallel
+      const userMappings = await getUserMappings();
+      
       const fetchPromises = datesToFetch.map(async (date) => {
         try {
           const status = await getScheduleStatus(date, sheets);
+          
+          // Get absent users for this date
+          const absentUserIds = await getUsersAbsentOnDate(date);
+          const absentPlayerNames = absentUserIds
+            .map(discordId => userMappings.find(m => m.discordId === discordId)?.sheetColumnName)
+            .filter((name): name is string => name !== undefined);
+          
           const details: CachedScheduleDetail = {
             status: status.status,
             startTime: status.startTime,
@@ -90,6 +110,7 @@ export async function getScheduleDetailsBatch(dates: string[]): Promise<{ [date:
             availablePlayers: status.availablePlayers || [],
             unavailablePlayers: status.unavailablePlayers || [],
             noResponsePlayers: status.noResponsePlayers || [],
+            absentPlayers: absentPlayerNames,
             timestamp: Date.now(),
           };
           cache[date] = details;
