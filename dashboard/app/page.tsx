@@ -68,26 +68,38 @@ export default function HomePage() {
 
   // Load user from localStorage after mount to avoid hydration mismatch
   useEffect(() => {
-    try {
-      const user = localStorage.getItem('selectedUser');
-      setLoggedInUser(user);
-    } catch (e) {
-      console.error('Failed to load user from localStorage:', e);
-    }
-  }, []);
+    const checkAuth = async () => {
+      try {
+        // Check for JWT token first
+        const { isAuthenticated } = await import('@/lib/auth');
+        
+        if (!isAuthenticated()) {
+          router.replace('/login');
+          return;
+        }
+        
+        const user = localStorage.getItem('selectedUser');
+        if (!user) {
+          router.replace('/login');
+          return;
+        }
+        
+        setLoggedInUser(user);
+      } catch (e) {
+        console.error('Failed to check auth:', e);
+        router.replace('/login');
+      }
+    };
+    
+    checkAuth();
+  }, [router]);
 
   useEffect(() => {
-    // If there's no logged in user, redirect immediately and avoid rendering dashboard
-    if (loggedInUser === null) return; // Wait for initial load
-    
-    if (!loggedInUser) {
-      router.replace('/login');
-      return;
-    }
-
     // Load user mappings after we know the user is present
-    loadUserMappings();
-  }, [loggedInUser, router]);
+    if (loggedInUser) {
+      loadUserMappings();
+    }
+  }, [loggedInUser]);
 
   useEffect(() => {
     // Load calendar once userMappings are loaded (even if empty)
