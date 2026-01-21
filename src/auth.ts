@@ -97,6 +97,19 @@ export async function initiateDiscordAuth(req: Request, res: Response) {
  */
 export async function handleDiscordCallback(req: Request, res: Response) {
   try {
+    // Set CORS headers explicitly for this endpoint
+    const origin = req.headers.origin;
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
+      process.env.DASHBOARD_URL,
+    ].filter(Boolean);
+    
+    if (origin && allowedOrigins.includes(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+    }
+    
     const { code, state } = req.query;
 
     if (!code || typeof code !== 'string') {
