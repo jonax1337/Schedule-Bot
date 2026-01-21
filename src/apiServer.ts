@@ -136,6 +136,44 @@ app.post('/api/admin/login', loginLimiter, async (req, res) => {
   }
 });
 
+// User login endpoint (for dropdown login)
+app.post('/api/user/login', async (req, res) => {
+  try {
+    const { username } = req.body;
+
+    if (!username) {
+      return res.status(400).json({ success: false, error: 'Username required' });
+    }
+
+    // Verify user exists in user mappings
+    const mappings = await getUserMappings();
+    const userMapping = mappings.find(m => m.sheetColumnName === username);
+
+    if (!userMapping) {
+      logger.warn('User login failed', `User not found: ${username}`);
+      return res.status(401).json({ success: false, error: 'User not found' });
+    }
+
+    // Generate JWT token for user
+    const token = generateToken(username, 'user');
+    
+    logger.success('User login successful', `User: ${username}`);
+    res.json({ 
+      success: true, 
+      token,
+      expiresIn: '24h',
+      user: {
+        username,
+        role: 'user'
+      }
+    });
+  } catch (error) {
+    console.error('Error during user login:', error);
+    logger.error('User login error', error instanceof Error ? error.message : String(error));
+    res.status(500).json({ success: false, error: 'Login failed' });
+  }
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ 
@@ -222,16 +260,37 @@ app.get('/api/sheet-data', async (req, res) => {
   }
 });
 
-// Update sheet cell (protected with validation)
+// Update sheet cell (protected with validation, users can edit their own columns)
 app.post('/api/sheet-data/update', verifyToken, validate(updateCellSchema), async (req: AuthRequest, res) => {
   try {
     const { row, column, value } = req.body;
+    
+    // Users can only edit their own column (admins can edit all)
+    if (req.user?.role === 'user') {
+      // Get user's column from user mappings
+      const mappings = await getUserMappings();
+      const userMapping = mappings.find(m => m.sheetColumnName === req.user?.username);
+      
+      if (!userMapping) {
+        logger.warn('User column update denied', `User ${req.user?.username} has no mapping`);
+        return res.status(403).json({ error: 'User has no column mapping' });
+      }
+      
+      // Check if user is trying to edit their own column
+      const columns = await getSheetColumns();
+      const userColumn = columns.find(c => c.name === userMapping.sheetColumnName);
+      
+      if (!userColumn || userColumn.column !== column) {
+        logger.warn('User column update denied', `User ${req.user?.username} tried to edit column ${column}`);
+        return res.status(403).json({ error: 'You can only edit your own column' });
+      }
+    }
     
     // Sanitize value
     const sanitizedValue = sanitizeString(value);
     
     await updateSheetCell(row, column, sanitizedValue);
-    logger.success('Sheet cell updated', `${column}${row} = ${value}`);
+    logger.success('Sheet cell updated', `${column}${row} = ${value} by ${req.user?.username}`);
     res.json({ success: true, message: 'Cell updated successfully' });
   } catch (error) {
     console.error('Error updating sheet cell:', error);

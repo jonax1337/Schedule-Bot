@@ -104,11 +104,42 @@ export function LoginForm({
     }
   };
 
-  const handleUserSelect = (e: React.FormEvent) => {
+  const handleUserSelect = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (selectedUser) {
-      localStorage.setItem('selectedUser', selectedUser);
-      router.push('/');
+    if (!selectedUser) return;
+
+    try {
+      // Get JWT token for user
+      const response = await fetch(`${BOT_API_URL}/api/user/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username: selectedUser }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Import auth helpers
+        const { setAuthToken, setUser } = await import('@/lib/auth');
+        
+        // Store token and user info
+        setAuthToken(data.token);
+        setUser(data.user);
+        
+        // Also keep selectedUser for backwards compatibility
+        localStorage.setItem('selectedUser', selectedUser);
+        
+        toast.success('Login successful!');
+        router.push('/');
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.error || 'Login failed');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      toast.error('Failed to connect to server');
     }
   };
 
