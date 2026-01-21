@@ -388,9 +388,15 @@ export default function HomePage() {
 
       const value = editStatus === 'unavailable' ? 'x' : `${editTimeFrom}-${editTimeTo}`;
       
+      // Import auth helpers
+      const { getAuthHeaders } = await import('@/lib/auth');
+      
       const response = await fetch(`${BOT_API_URL}/api/sheet-data/update`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...getAuthHeaders()
+        },
         body: JSON.stringify({
           row: rowNumber,
           column: userColumn.column,
