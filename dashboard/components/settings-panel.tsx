@@ -73,7 +73,13 @@ export default function SettingsPanel() {
   const loadDiscordData = async () => {
     try {
       // Import auth helpers
-      const { getAuthHeaders } = await import('@/lib/auth');
+      const { isAuthenticated, getAuthHeaders } = await import('@/lib/auth');
+      
+      // Only load Discord data if authenticated
+      if (!isAuthenticated()) {
+        console.log('Not authenticated, skipping Discord data load');
+        return;
+      }
       
       const [channelsRes, rolesRes] = await Promise.all([
         fetch('/api/discord/channels', { headers: getAuthHeaders() }),
