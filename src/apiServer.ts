@@ -196,8 +196,8 @@ app.get('/api/discord/roles', verifyToken, requireAdmin, async (req: AuthRequest
   }
 });
 
-// Get sheet columns (protected)
-app.get('/api/sheet-columns', verifyToken, async (req: AuthRequest, res) => {
+// Get sheet columns (public for login dropdown)
+app.get('/api/sheet-columns', async (req, res) => {
   try {
     const columns = await getSheetColumns();
     res.json({ columns });
@@ -343,8 +343,8 @@ app.get('/api/logs', verifyToken, requireAdmin, (req: AuthRequest, res) => {
   }
 });
 
-// Get settings (protected)
-app.get('/api/settings', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
+// Get settings (public read, protected write)
+app.get('/api/settings', async (req, res) => {
   try {
     const settings = await loadSettingsAsync();
     res.json(settings);
@@ -402,8 +402,8 @@ app.post('/api/reload-config', verifyToken, requireAdmin, strictApiLimiter, asyn
   }
 });
 
-// Get all user mappings (protected)
-app.get('/api/user-mappings', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
+// Get all user mappings (public for login dropdown, but admin required for modifications)
+app.get('/api/user-mappings', async (req, res) => {
   try {
     const mappings = await getUserMappings();
     res.json({ success: true, mappings });
