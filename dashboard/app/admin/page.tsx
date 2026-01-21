@@ -20,15 +20,21 @@ export default function Home() {
   useEffect(() => {
     // Check for JWT token and admin role
     const checkAuth = async () => {
-      const { isAuthenticated, getUser } = await import('@/lib/auth');
+      const { validateToken, removeAuthToken, getUser } = await import('@/lib/auth');
       
-      if (!isAuthenticated()) {
+      const user = getUser();
+      if (!user || user.role !== 'admin') {
+        removeAuthToken();
         router.push('/admin/login');
         return;
       }
 
-      const user = getUser();
-      if (!user || user.role !== 'admin') {
+      // Validate the token with the server
+      const isValid = await validateToken();
+      
+      if (!isValid) {
+        // Token is invalid, clean up and redirect to login
+        removeAuthToken();
         router.push('/admin/login');
         return;
       }

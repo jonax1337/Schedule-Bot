@@ -71,16 +71,24 @@ export default function HomePage() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        // Check for JWT token first
-        const { isAuthenticated } = await import('@/lib/auth');
+        // Check for JWT token and validate it
+        const { validateToken, removeAuthToken } = await import('@/lib/auth');
         
-        if (!isAuthenticated()) {
+        const user = localStorage.getItem('selectedUser');
+        
+        if (!user) {
           router.replace('/login');
           return;
         }
         
-        const user = localStorage.getItem('selectedUser');
-        if (!user) {
+        // Validate the token with the server
+        const isValid = await validateToken();
+        
+        if (!isValid) {
+          // Token is invalid, clean up and redirect to login
+          removeAuthToken();
+          localStorage.removeItem('selectedUser');
+          localStorage.removeItem('sessionToken');
           router.replace('/login');
           return;
         }

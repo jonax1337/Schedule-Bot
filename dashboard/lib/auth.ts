@@ -70,3 +70,36 @@ export async function logout(): Promise<void> {
     window.location.href = '/admin/login';
   }
 }
+
+/**
+ * Validates the current JWT token by making a test request to the server.
+ * If the token is invalid (401/403), it will be automatically removed.
+ * @returns true if token is valid, false otherwise
+ */
+export async function validateToken(): Promise<boolean> {
+  const token = getAuthToken();
+  if (!token) {
+    return false;
+  }
+
+  try {
+    const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
+    const response = await fetch(`${BOT_API_URL}/api/auth/user`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    // If token is invalid (401/403), remove it
+    if (response.status === 401 || response.status === 403) {
+      removeAuthToken();
+      return false;
+    }
+
+    return response.ok;
+  } catch (error) {
+    console.error('Token validation error:', error);
+    // On network error, assume token might be valid (don't remove it)
+    return true;
+  }
+}
