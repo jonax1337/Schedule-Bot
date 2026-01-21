@@ -1,16 +1,13 @@
 import { getUsersAbsentOnDate } from './absences.js';
 import { getUserMappings } from './userMapping.js';
-import { updateSheetCell, getSheetDataRange } from './sheets.js';
+import { bulkUpdateSheetCells, getSheetDataRange } from './sheets.js';
 import { getSheetColumns } from './sheets.js';
 
-export async function processAbsencesForDate(date: string): Promise<number> {
+export async function processAbsencesForDate(date: string, bulkUpdates: Array<{ row: number; column: string; value: string }>): Promise<number> {
   try {
-    console.log(`[Absence Processor] Processing absences for ${date}...`);
-    
     const absentUserIds = await getUsersAbsentOnDate(date);
     
     if (absentUserIds.length === 0) {
-      console.log(`[Absence Processor] No absences found for ${date}`);
       return 0;
     }
     
@@ -48,15 +45,18 @@ export async function processAbsencesForDate(date: string): Promise<number> {
       const currentValue = sheetData[dateRowIndex][userColumn.index] || '';
       
       if (currentValue.toLowerCase() !== 'x') {
-        await updateSheetCell(actualRowNumber, userColumn.column, 'x');
-        console.log(`[Absence Processor] Marked ${userMapping.sheetColumnName} as absent (x) for ${date}`);
+        bulkUpdates.push({
+          row: actualRowNumber,
+          column: userColumn.column,
+          value: 'x',
+        });
+        console.log(`[Absence Processor] Will mark ${userMapping.sheetColumnName} as absent (x) for ${date}`);
         updatedCount++;
       } else {
         console.log(`[Absence Processor] ${userMapping.sheetColumnName} already marked as absent for ${date}`);
       }
     }
     
-    console.log(`[Absence Processor] Updated ${updatedCount} cell(s) for ${date}`);
     return updatedCount;
   } catch (error) {
     console.error(`[Absence Processor] Error processing absences for ${date}:`, error);
@@ -69,8 +69,9 @@ export async function processAbsencesForNext14Days(): Promise<number> {
     console.log('[Absence Processor] Processing absences for next 14 days...');
     
     const today = new Date();
-    let totalUpdated = 0;
+    const bulkUpdates: Array<{ row: number; column: string; value: string }> = [];
     
+    // Collect all updates for all 14 days
     for (let i = 0; i < 14; i++) {
       const checkDate = new Date(today);
       checkDate.setDate(checkDate.getDate() + i);
@@ -80,12 +81,19 @@ export async function processAbsencesForNext14Days(): Promise<number> {
       const year = checkDate.getFullYear();
       const dateStr = `${day}.${month}.${year}`;
       
-      const updated = await processAbsencesForDate(dateStr);
-      totalUpdated += updated;
+      await processAbsencesForDate(dateStr, bulkUpdates);
     }
     
-    console.log(`[Absence Processor] Total cells updated: ${totalUpdated}`);
-    return totalUpdated;
+    // Send all updates in a single bulk operation
+    if (bulkUpdates.length > 0) {
+      console.log(`[Absence Processor] Sending ${bulkUpdates.length} updates as bulk operation...`);
+      await bulkUpdateSheetCells(bulkUpdates);
+      console.log(`[Absence Processor] Successfully updated ${bulkUpdates.length} cells in bulk`);
+    } else {
+      console.log('[Absence Processor] No updates needed');
+    }
+    
+    return bulkUpdates.length;
   } catch (error) {
     console.error('[Absence Processor] Error processing absences:', error);
     throw error;

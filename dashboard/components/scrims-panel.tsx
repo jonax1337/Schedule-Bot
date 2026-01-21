@@ -395,7 +395,7 @@ export function ScrimsPanel() {
               
               <Dialog open={isAddDialogOpen} onOpenChange={handleDialogOpenChange}>
                 <DialogTrigger asChild>
-                  <Button>
+                  <Button size="sm">
                     <Plus className="mr-2 h-4 w-4" />
                     Add Match
                   </Button>
