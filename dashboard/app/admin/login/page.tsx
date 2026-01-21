@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -17,6 +17,35 @@ export default function AdminLogin() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const checkExistingAuth = async () => {
+      try {
+        const { validateToken, removeAuthToken, getUser } = await import('@/lib/auth');
+        const user = getUser();
+        
+        // If user exists and is admin, validate token
+        if (user?.role === 'admin') {
+          const isValid = await validateToken();
+          
+          if (isValid) {
+            // Valid admin token, redirect to admin panel
+            router.push('/admin');
+          } else {
+            // Invalid token, clean up
+            removeAuthToken();
+          }
+        } else {
+          // Not admin or no user, clean up any stale tokens
+          removeAuthToken();
+        }
+      } catch (e) {
+        console.error('Auth check error:', e);
+      }
+    };
+    
+    checkExistingAuth();
+  }, [router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

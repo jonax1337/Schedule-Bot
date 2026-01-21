@@ -41,13 +41,37 @@ export default function UserSchedule() {
   const hasSelection = selectedEntries.length > 0;
 
   useEffect(() => {
-    const savedUser = localStorage.getItem('selectedUser');
-    if (!savedUser) {
-      router.push('/login');
-      return;
-    }
-    setUserName(savedUser);
-    loadData(savedUser);
+    const checkAuthAndLoad = async () => {
+      try {
+        const { validateToken, removeAuthToken } = await import('@/lib/auth');
+        
+        const savedUser = localStorage.getItem('selectedUser');
+        if (!savedUser) {
+          router.push('/login');
+          return;
+        }
+        
+        // Validate the token with the server
+        const isValid = await validateToken();
+        
+        if (!isValid) {
+          // Token is invalid, clean up and redirect to login
+          removeAuthToken();
+          localStorage.removeItem('selectedUser');
+          localStorage.removeItem('sessionToken');
+          router.push('/login');
+          return;
+        }
+        
+        setUserName(savedUser);
+        loadData(savedUser);
+      } catch (e) {
+        console.error('Auth check error:', e);
+        router.push('/login');
+      }
+    };
+    
+    checkAuthAndLoad();
   }, [router]);
 
   const loadData = async (user: string) => {

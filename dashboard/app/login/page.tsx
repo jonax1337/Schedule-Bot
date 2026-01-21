@@ -10,19 +10,43 @@ function LoginContent() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    // Check if user is already logged in
-    const savedUser = localStorage.getItem('selectedUser');
-    const sessionToken = localStorage.getItem('sessionToken');
-    if (savedUser || sessionToken) {
-      router.push('/');
-      return;
-    }
+    const checkAuthAndRedirect = async () => {
+      try {
+        // Import auth helpers
+        const { validateToken, removeAuthToken } = await import('@/lib/auth');
+        
+        // Check if user has a token
+        const savedUser = localStorage.getItem('selectedUser');
+        const sessionToken = localStorage.getItem('sessionToken');
+        
+        if (savedUser || sessionToken) {
+          // Validate the token with the server
+          const isValid = await validateToken();
+          
+          if (isValid) {
+            // Token is valid, redirect to home
+            router.push('/');
+            return;
+          } else {
+            // Token is invalid, clean up and stay on login page
+            removeAuthToken();
+            localStorage.removeItem('selectedUser');
+            localStorage.removeItem('sessionToken');
+            toast.error('Session expired. Please login again.');
+          }
+        }
 
-    // Check for OAuth callback error
-    const error = searchParams.get('error');
-    if (error) {
-      toast.error(decodeURIComponent(error));
-    }
+        // Check for OAuth callback error
+        const error = searchParams.get('error');
+        if (error) {
+          toast.error(decodeURIComponent(error));
+        }
+      } catch (e) {
+        console.error('Auth check error:', e);
+      }
+    };
+    
+    checkAuthAndRedirect();
   }, [router, searchParams]);
 
   return (
