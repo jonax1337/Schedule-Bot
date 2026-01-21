@@ -16,6 +16,15 @@ export function generateToken(username: string, role: 'admin' | 'user' = 'admin'
   return jwt.sign({ username, role }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 }
 
+export function verifyTokenSync(token: string): { username: string; role: 'admin' | 'user' } | null {
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as { username: string; role: string };
+    return decoded as { username: string; role: 'admin' | 'user' };
+  } catch (error) {
+    return null;
+  }
+}
+
 export function verifyToken(req: AuthRequest, res: Response, next: NextFunction): void {
   const authHeader = req.headers.authorization;
   

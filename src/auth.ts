@@ -214,28 +214,48 @@ export function verifySession(sessionToken: string): OAuthSession | null {
 }
 
 /**
- * Get user info from session
+ * Get user info from session or JWT token
  */
 export async function getUserFromSession(req: Request, res: Response) {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ error: 'No session token provided' });
+      return res.status(401).json({ error: 'No token provided' });
     }
 
-    const sessionToken = authHeader.substring(7);
-    const session = verifySession(sessionToken);
-
-    if (!session) {
-      return res.status(401).json({ error: 'Invalid or expired session' });
+    const token = authHeader.substring(7);
+    
+    // Try to verify as JWT token first
+    try {
+      const { verifyTokenSync } = await import('./middleware/auth.js');
+      const decoded = verifyTokenSync(token);
+      
+      if (decoded) {
+        return res.json({
+          username: decoded.username,
+          role: decoded.role,
+          valid: true,
+        });
+      }
+    } catch (jwtError) {
+      // If JWT verification fails, try session token (for backward compatibility)
+      const session = verifySession(token);
+      
+      if (session) {
+        return res.json({
+          username: session.username,
+          discordId: session.discordId,
+          valid: true,
+        });
+      }
+      
+      // Both JWT and session validation failed
+      return res.status(401).json({ error: 'Invalid or expired token' });
     }
 
-    res.json({
-      username: session.username,
-      discordId: session.discordId,
-    });
+    res.status(401).json({ error: 'Invalid token' });
   } catch (error) {
-    console.error('Error getting user from session:', error);
+    console.error('Error getting user from token:', error);
     res.status(500).json({ error: 'Failed to get user info' });
   }
 }
