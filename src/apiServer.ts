@@ -31,6 +31,9 @@ import { preloadCache, getScheduleDetails, getScheduleDetailsBatch, getCacheStat
 const app = express();
 const PORT = 3001;
 
+// Trust proxy - required for rate limiting behind reverse proxy
+app.set('trust proxy', 1);
+
 // Security: Helmet for security headers
 app.use(helmet({
   contentSecurityPolicy: {
