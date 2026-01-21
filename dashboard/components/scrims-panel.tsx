@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -280,22 +280,24 @@ export function ScrimsPanel() {
     }
   };
 
-  // Filter scrims based on selected filters
-  const filteredScrims = scrims.filter((scrim) => {
-    // Filter by map
-    if (filterMap !== 'all' && scrim.map !== filterMap) {
-      return false;
-    }
-    // Filter by result
-    if (filterResult !== 'all' && scrim.result !== filterResult) {
-      return false;
-    }
-    // Filter by match type
-    if (filterMatchType !== 'all' && scrim.matchType !== filterMatchType) {
-      return false;
-    }
-    return true;
-  });
+  // Filter scrims based on selected filters - memoized for performance
+  const filteredScrims = useMemo(() => {
+    return scrims.filter((scrim) => {
+      // Filter by map
+      if (filterMap !== 'all' && scrim.map !== filterMap) {
+        return false;
+      }
+      // Filter by result
+      if (filterResult !== 'all' && scrim.result !== filterResult) {
+        return false;
+      }
+      // Filter by match type
+      if (filterMatchType !== 'all' && scrim.matchType !== filterMatchType) {
+        return false;
+      }
+      return true;
+    });
+  }, [scrims, filterMap, filterResult, filterMatchType]);
 
   if (loading) {
     return (
