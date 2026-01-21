@@ -208,8 +208,8 @@ app.get('/api/sheet-columns', async (req, res) => {
   }
 });
 
-// Get sheet data range (protected)
-app.get('/api/sheet-data', verifyToken, async (req: AuthRequest, res) => {
+// Get sheet data range (public read for schedule viewing)
+app.get('/api/sheet-data', async (req, res) => {
   try {
     const startRow = parseInt(req.query.startRow as string) || 1;
     const endRow = parseInt(req.query.endRow as string) || 50;
