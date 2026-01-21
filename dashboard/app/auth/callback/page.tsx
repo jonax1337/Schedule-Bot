@@ -51,8 +51,14 @@ function CallbackContent() {
 
         const data = await response.json();
         
-        // Store session token and username
-        localStorage.setItem('sessionToken', data.sessionToken);
+        // Import auth helpers
+        const { setAuthToken, setUser } = await import('@/lib/auth');
+        
+        // Store JWT token and user info
+        setAuthToken(data.token);
+        setUser(data.user);
+        
+        // Also keep selectedUser for backwards compatibility
         localStorage.setItem('selectedUser', data.user.username);
 
         setStatus('success');

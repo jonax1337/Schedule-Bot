@@ -177,27 +177,17 @@ export async function handleDiscordCallback(req: Request, res: Response) {
       });
     }
 
-    // Create session
-    const sessionToken = generateSessionToken();
-    sessionStore.set(sessionToken, {
-      discordId,
-      username: mapping.sheetColumnName,
-      expiresAt: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
-    });
-
-    // Clean up old sessions
-    const now = Date.now();
-    for (const [key, value] of sessionStore.entries()) {
-      if (value.expiresAt < now) {
-        sessionStore.delete(key);
-      }
-    }
+    // Generate JWT token instead of session token
+    const { generateToken } = await import('./middleware/auth.js');
+    const token = generateToken(mapping.sheetColumnName, 'user');
 
     res.json({
       success: true,
-      sessionToken,
+      token,
+      expiresIn: '24h',
       user: {
         username: mapping.sheetColumnName,
+        role: 'user',
         discordId,
         discordUsername,
       },
