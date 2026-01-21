@@ -18,14 +18,28 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    const isAuthenticated = localStorage.getItem('adminAuth');
-    if (!isAuthenticated) {
-      router.push('/admin/login');
-    }
+    // Check for JWT token and admin role
+    const checkAuth = async () => {
+      const { isAuthenticated, getUser } = await import('@/lib/auth');
+      
+      if (!isAuthenticated()) {
+        router.push('/admin/login');
+        return;
+      }
+
+      const user = getUser();
+      if (!user || user.role !== 'admin') {
+        router.push('/admin/login');
+        return;
+      }
+    };
+
+    checkAuth();
   }, [router]);
 
-  const handleLogout = () => {
-    localStorage.removeItem('adminAuth');
+  const handleLogout = async () => {
+    const { logout } = await import('@/lib/auth');
+    await logout();
     router.push('/');
   };
   return (

@@ -1,5 +1,20 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import { verifyToken, requireAdmin, generateToken, optionalAuth, AuthRequest } from './middleware/auth.js';
+import { loginLimiter, apiLimiter, strictApiLimiter } from './middleware/rateLimiter.js';
+import { 
+  validate, 
+  updateCellSchema, 
+  addUserMappingSchema, 
+  addScrimSchema, 
+  updateScrimSchema,
+  createPollSchema,
+  notificationSchema,
+  settingsSchema,
+  sanitizeString 
+} from './middleware/validation.js';
+import { verifyPassword } from './middleware/passwordManager.js';
 import { postScheduleToChannel, client } from './bot.js';
 import { sendRemindersToUsersWithoutEntry } from './reminder.js';
 import { createQuickPoll } from './polls.js';
@@ -16,6 +31,25 @@ import { preloadCache, getScheduleDetails, getScheduleDetailsBatch, getCacheStat
 const app = express();
 const PORT = 3001;
 
+// Trust proxy - required for rate limiting behind reverse proxy
+app.set('trust proxy', 1);
+
+// Security: Helmet for security headers
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:"],
+    },
+  },
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+  },
+}));
+
 // Preload schedule cache on startup
 setTimeout(() => {
   preloadCache().catch(err => console.error('[Server] Cache preload failed:', err));
@@ -31,24 +65,111 @@ let membersCache: Array<{
 let membersCacheTime = 0;
 const MEMBERS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
-app.use(cors());
-app.use(express.json());
+// Security: CORS with whitelist
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  process.env.DASHBOARD_URL,
+].filter(Boolean) as string[];
 
-// Admin authentication
-app.post('/api/admin/login', (req, res) => {
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
+
+app.use(express.json({ limit: '1mb' }));
+
+// Security: Rate limiting for all API routes
+app.use('/api', apiLimiter);
+
+// Admin authentication with JWT
+app.post('/api/admin/login', loginLimiter, async (req, res) => {
   try {
     const { username, password } = req.body;
     
-    // Admin credentials come from .env via config
-    if (username === config.admin.username && password === config.admin.password) {
+    if (!username || !password) {
+      return res.status(400).json({ success: false, error: 'Username and password required' });
+    }
+    
+    // Get hashed password from env
+    const storedPasswordHash = process.env.ADMIN_PASSWORD_HASH;
+    
+    if (!storedPasswordHash) {
+      logger.error('ADMIN_PASSWORD_HASH not configured');
+      return res.status(500).json({ success: false, error: 'Server configuration error' });
+    }
+    
+    // Verify credentials
+    if (username === config.admin.username && await verifyPassword(password, storedPasswordHash)) {
+      const token = generateToken(username, 'admin');
+      
       logger.success('Admin login successful', `User: ${username}`);
-      res.json({ success: true, message: 'Login successful' });
+      
+      res.json({ 
+        success: true, 
+        token,
+        expiresIn: '24h',
+        user: {
+          username,
+          role: 'admin',
+        },
+      });
     } else {
       logger.warn('Admin login failed', `Invalid credentials for: ${username}`);
       res.status(401).json({ success: false, error: 'Invalid credentials' });
     }
   } catch (error) {
     console.error('Error during admin login:', error);
+    logger.error('Login error', error instanceof Error ? error.message : String(error));
+    res.status(500).json({ success: false, error: 'Login failed' });
+  }
+});
+
+// User login endpoint (for dropdown login)
+app.post('/api/user/login', async (req, res) => {
+  try {
+    const { username } = req.body;
+
+    if (!username) {
+      return res.status(400).json({ success: false, error: 'Username required' });
+    }
+
+    // Verify user exists in user mappings
+    const mappings = await getUserMappings();
+    const userMapping = mappings.find(m => m.sheetColumnName === username);
+
+    if (!userMapping) {
+      logger.warn('User login failed', `User not found: ${username}`);
+      return res.status(401).json({ success: false, error: 'User not found' });
+    }
+
+    // Generate JWT token for user
+    const token = generateToken(username, 'user');
+    
+    logger.success('User login successful', `User: ${username}`);
+    res.json({ 
+      success: true, 
+      token,
+      expiresIn: '24h',
+      user: {
+        username,
+        role: 'user'
+      }
+    });
+  } catch (error) {
+    console.error('Error during user login:', error);
+    logger.error('User login error', error instanceof Error ? error.message : String(error));
     res.status(500).json({ success: false, error: 'Login failed' });
   }
 });
@@ -62,8 +183,17 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Get Discord channels
-app.get('/api/discord/channels', async (req, res) => {
+// Bot status (alias for health check, used by frontend)
+app.get('/api/bot-status', (req, res) => {
+  res.json({ 
+    status: client.isReady() ? 'running' : 'offline',
+    botReady: client.isReady(),
+    uptime: process.uptime()
+  });
+});
+
+// Get Discord channels (protected)
+app.get('/api/discord/channels', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
   try {
     if (!client.isReady()) {
       return res.status(503).json({ error: 'Bot not ready' });
@@ -87,8 +217,8 @@ app.get('/api/discord/channels', async (req, res) => {
   }
 });
 
-// Get Discord roles
-app.get('/api/discord/roles', async (req, res) => {
+// Get Discord roles (protected)
+app.get('/api/discord/roles', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
   try {
     if (!client.isReady()) {
       return res.status(503).json({ error: 'Bot not ready' });
@@ -113,7 +243,7 @@ app.get('/api/discord/roles', async (req, res) => {
   }
 });
 
-// Get sheet columns
+// Get sheet columns (public for login dropdown)
 app.get('/api/sheet-columns', async (req, res) => {
   try {
     const columns = await getSheetColumns();
@@ -125,7 +255,7 @@ app.get('/api/sheet-columns', async (req, res) => {
   }
 });
 
-// Get sheet data range
+// Get sheet data range (public read for schedule viewing)
 app.get('/api/sheet-data', async (req, res) => {
   try {
     const startRow = parseInt(req.query.startRow as string) || 1;
@@ -139,17 +269,37 @@ app.get('/api/sheet-data', async (req, res) => {
   }
 });
 
-// Update sheet cell
-app.post('/api/sheet-data/update', async (req, res) => {
+// Update sheet cell (protected with validation, users can edit their own columns)
+app.post('/api/sheet-data/update', verifyToken, validate(updateCellSchema), async (req: AuthRequest, res) => {
   try {
     const { row, column, value } = req.body;
     
-    if (!row || !column || value === undefined) {
-      return res.status(400).json({ error: 'Missing required fields: row, column, value' });
+    // Users can only edit their own column (admins can edit all)
+    if (req.user?.role === 'user') {
+      // Get user's column from user mappings
+      const mappings = await getUserMappings();
+      const userMapping = mappings.find(m => m.sheetColumnName === req.user?.username);
+      
+      if (!userMapping) {
+        logger.warn('User column update denied', `User ${req.user?.username} has no mapping`);
+        return res.status(403).json({ error: 'User has no column mapping' });
+      }
+      
+      // Check if user is trying to edit their own column
+      const columns = await getSheetColumns();
+      const userColumn = columns.find(c => c.name === userMapping.sheetColumnName);
+      
+      if (!userColumn || userColumn.column !== column) {
+        logger.warn('User column update denied', `User ${req.user?.username} tried to edit column ${column}`);
+        return res.status(403).json({ error: 'You can only edit your own column' });
+      }
     }
     
-    await updateSheetCell(row, column, value);
-    logger.success('Sheet cell updated', `${column}${row} = ${value}`);
+    // Sanitize value
+    const sanitizedValue = sanitizeString(value);
+    
+    await updateSheetCell(row, column, sanitizedValue);
+    logger.success('Sheet cell updated', `${column}${row} = ${value} by ${req.user?.username}`);
     res.json({ success: true, message: 'Cell updated successfully' });
   } catch (error) {
     console.error('Error updating sheet cell:', error);
@@ -158,8 +308,8 @@ app.post('/api/sheet-data/update', async (req, res) => {
   }
 });
 
-// Get Discord server members
-app.get('/api/discord/members', async (req, res) => {
+// Get Discord server members (protected)
+app.get('/api/discord/members', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
   try {
     if (!client.isReady()) {
       return res.status(503).json({ error: 'Bot not ready' });
@@ -202,8 +352,8 @@ app.get('/api/discord/members', async (req, res) => {
   }
 });
 
-// Get schedule details with status and player lists (single date, cached)
-app.get('/api/schedule-details', async (req, res) => {
+// Get schedule details with status and player lists (single date, cached, optional auth)
+app.get('/api/schedule-details', optionalAuth, async (req: AuthRequest, res) => {
   try {
     const date = req.query.date as string;
     if (!date) {
@@ -223,8 +373,8 @@ app.get('/api/schedule-details', async (req, res) => {
   }
 });
 
-// Get schedule details for multiple dates at once (batch, cached)
-app.get('/api/schedule-details-batch', async (req, res) => {
+// Get schedule details for multiple dates at once (batch, cached, optional auth)
+app.get('/api/schedule-details-batch', optionalAuth, async (req: AuthRequest, res) => {
   try {
     const datesParam = req.query.dates as string;
     if (!datesParam) {
@@ -247,8 +397,8 @@ app.get('/api/cache-stats', (req, res) => {
   res.json(stats);
 });
 
-// Get bot logs
-app.get('/api/logs', (req, res) => {
+// Get bot logs (protected)
+app.get('/api/logs', verifyToken, requireAdmin, (req: AuthRequest, res) => {
   try {
     const limit = req.query.limit ? parseInt(req.query.limit as string) : 100;
     const level = req.query.level as 'info' | 'warn' | 'error' | 'success' | undefined;
@@ -261,7 +411,7 @@ app.get('/api/logs', (req, res) => {
   }
 });
 
-// Get settings
+// Get settings (public read, protected write)
 app.get('/api/settings', async (req, res) => {
   try {
     const settings = await loadSettingsAsync();
@@ -273,15 +423,10 @@ app.get('/api/settings', async (req, res) => {
   }
 });
 
-// Update settings
-app.post('/api/settings', async (req, res) => {
+// Update settings (protected with validation)
+app.post('/api/settings', verifyToken, requireAdmin, strictApiLimiter, validate(settingsSchema), async (req: AuthRequest, res) => {
   try {
     const newSettings = req.body;
-    
-    // Validate settings structure (only discord and scheduling, admin is in .env)
-    if (!newSettings || !newSettings.discord || !newSettings.scheduling) {
-      return res.status(400).json({ error: 'Invalid settings structure' });
-    }
     
     // Save settings to Google Sheets (only discord and scheduling)
     await saveSettings(newSettings);
@@ -300,8 +445,8 @@ app.post('/api/settings', async (req, res) => {
   }
 });
 
-// Reload configuration
-app.post('/api/reload-config', async (req, res) => {
+// Reload configuration (protected)
+app.post('/api/reload-config', verifyToken, requireAdmin, strictApiLimiter, async (req: AuthRequest, res) => {
   try {
     logger.info('Reloading configuration...');
     await reloadConfig();
@@ -325,7 +470,7 @@ app.post('/api/reload-config', async (req, res) => {
   }
 });
 
-// Get all user mappings
+// Get all user mappings (public for login dropdown, but admin required for modifications)
 app.get('/api/user-mappings', async (req, res) => {
   try {
     const mappings = await getUserMappings();
@@ -337,14 +482,10 @@ app.get('/api/user-mappings', async (req, res) => {
   }
 });
 
-// Add new user mapping
-app.post('/api/user-mappings', async (req, res) => {
+// Add new user mapping (protected with validation)
+app.post('/api/user-mappings', verifyToken, requireAdmin, validate(addUserMappingSchema), async (req: AuthRequest, res) => {
   try {
     const { discordId, discordUsername, sheetColumnName, role } = req.body;
-    
-    if (!discordId || !discordUsername || !sheetColumnName || !role) {
-      return res.status(400).json({ success: false, error: 'Missing required fields' });
-    }
     
     await addUserMapping({
       discordId,
@@ -362,10 +503,10 @@ app.post('/api/user-mappings', async (req, res) => {
   }
 });
 
-// Remove user mapping
-app.delete('/api/user-mappings/:discordId', async (req, res) => {
+// Remove user mapping (protected)
+app.delete('/api/user-mappings/:discordId', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
   try {
-    const { discordId } = req.params;
+    const discordId = req.params.discordId as string;
     const success = await removeUserMapping(discordId);
     
     if (success) {
@@ -381,8 +522,8 @@ app.delete('/api/user-mappings/:discordId', async (req, res) => {
   }
 });
 
-// Initialize user mapping sheet
-app.post('/api/user-mappings/init', async (req, res) => {
+// Initialize user mapping sheet (protected)
+app.post('/api/user-mappings/init', verifyToken, requireAdmin, strictApiLimiter, async (req: AuthRequest, res) => {
   try {
     await initializeUserMappingSheet();
     logger.success('User mapping sheet initialized');
@@ -394,8 +535,8 @@ app.post('/api/user-mappings/init', async (req, res) => {
   }
 });
 
-// Post schedule
-app.post('/api/actions/schedule', async (req, res) => {
+// Post schedule (protected)
+app.post('/api/actions/schedule', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
   try {
     const { date } = req.body;
     await postScheduleToChannel(date || undefined);
@@ -412,8 +553,8 @@ app.post('/api/actions/schedule', async (req, res) => {
   }
 });
 
-// Send reminders
-app.post('/api/actions/remind', async (req, res) => {
+// Send reminders (protected)
+app.post('/api/actions/remind', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
   try {
     const { date } = req.body;
     await sendRemindersToUsersWithoutEntry(client, date || undefined);
@@ -430,17 +571,10 @@ app.post('/api/actions/remind', async (req, res) => {
   }
 });
 
-// Create poll
-app.post('/api/actions/poll', async (req, res) => {
+// Create poll (protected with validation)
+app.post('/api/actions/poll', verifyToken, requireAdmin, validate(createPollSchema), async (req: AuthRequest, res) => {
   try {
     const { question, options, duration } = req.body;
-    
-    if (!question || !options || options.length < 2) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Invalid poll data' 
-      });
-    }
     
     await createQuickPoll(question, options, 'dashboard', duration || 1);
     res.json({ 
@@ -456,8 +590,8 @@ app.post('/api/actions/poll', async (req, res) => {
   }
 });
 
-// Send notification
-app.post('/api/actions/notify', async (req, res) => {
+// Send notification (protected with validation)
+app.post('/api/actions/notify', verifyToken, requireAdmin, validate(notificationSchema), async (req: AuthRequest, res) => {
   try {
     const { type, target, specificUserId, title, message } = req.body;
 
@@ -567,8 +701,8 @@ app.post('/api/actions/notify', async (req, res) => {
 
 // Scrim Management Endpoints
 
-// Get all scrims
-app.get('/api/scrims', async (req, res) => {
+// Get all scrims (optional auth)
+app.get('/api/scrims', optionalAuth, async (req: AuthRequest, res) => {
   try {
     const { getAllScrims } = await import('./scrims.js');
     const scrims = await getAllScrims();
@@ -579,11 +713,11 @@ app.get('/api/scrims', async (req, res) => {
   }
 });
 
-// Get scrim by ID
-app.get('/api/scrims/:id', async (req, res) => {
+// Get scrim by ID (optional auth)
+app.get('/api/scrims/:id', optionalAuth, async (req: AuthRequest, res) => {
   try {
     const { getScrimById } = await import('./scrims.js');
-    const scrim = await getScrimById(req.params.id);
+    const scrim = await getScrimById(req.params.id as string);
     
     if (!scrim) {
       return res.status(404).json({ success: false, error: 'Scrim not found' });
@@ -596,18 +730,11 @@ app.get('/api/scrims/:id', async (req, res) => {
   }
 });
 
-// Add new scrim
-app.post('/api/scrims', async (req, res) => {
+// Add new scrim (protected with validation, users can add scrims)
+app.post('/api/scrims', verifyToken, validate(addScrimSchema), async (req: AuthRequest, res) => {
   try {
     const { addScrim, ensureScrimSheetExists } = await import('./scrims.js');
     const { date, opponent, result, scoreUs, scoreThem, map, matchType, ourAgents, theirAgents, vodUrl, notes } = req.body;
-    
-    if (!date || !opponent || !result) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Missing required fields: date, opponent, result' 
-      });
-    }
     
     // Ensure sheet exists before adding
     await ensureScrimSheetExists();
@@ -634,8 +761,8 @@ app.post('/api/scrims', async (req, res) => {
   }
 });
 
-// Update scrim
-app.put('/api/scrims/:id', async (req, res) => {
+// Update scrim (protected with validation, users can update scrims)
+app.put('/api/scrims/:id', verifyToken, validate(updateScrimSchema), async (req: AuthRequest, res) => {
   try {
     const { updateScrim } = await import('./scrims.js');
     const { date, opponent, result, scoreUs, scoreThem, map, matchType, ourAgents, theirAgents, vodUrl, notes } = req.body;
@@ -653,7 +780,7 @@ app.put('/api/scrims/:id', async (req, res) => {
     if (vodUrl !== undefined) updates.vodUrl = vodUrl;
     if (notes !== undefined) updates.notes = notes;
     
-    const updatedScrim = await updateScrim(req.params.id, updates);
+    const updatedScrim = await updateScrim(req.params.id as string, updates);
     
     if (!updatedScrim) {
       return res.status(404).json({ success: false, error: 'Scrim not found' });
@@ -667,11 +794,11 @@ app.put('/api/scrims/:id', async (req, res) => {
   }
 });
 
-// Delete scrim
-app.delete('/api/scrims/:id', async (req, res) => {
+// Delete scrim (protected, users can delete scrims)
+app.delete('/api/scrims/:id', verifyToken, async (req: AuthRequest, res) => {
   try {
     const { deleteScrim } = await import('./scrims.js');
-    const success = await deleteScrim(req.params.id);
+    const success = await deleteScrim(req.params.id as string);
     
     if (!success) {
       return res.status(404).json({ success: false, error: 'Scrim not found' });
@@ -685,8 +812,8 @@ app.delete('/api/scrims/:id', async (req, res) => {
   }
 });
 
-// Get scrim statistics
-app.get('/api/scrims/stats/summary', async (req, res) => {
+// Get scrim statistics (optional auth)
+app.get('/api/scrims/stats/summary', optionalAuth, async (req: AuthRequest, res) => {
   try {
     const { getScrimStats } = await import('./scrims.js');
     const stats = await getScrimStats();
@@ -697,11 +824,12 @@ app.get('/api/scrims/stats/summary', async (req, res) => {
   }
 });
 
-// Get scrims by date range
-app.get('/api/scrims/range/:startDate/:endDate', async (req, res) => {
+// Get scrims by date range (optional auth)
+app.get('/api/scrims/range/:startDate/:endDate', optionalAuth, async (req: AuthRequest, res) => {
   try {
     const { getScrimsByDateRange } = await import('./scrims.js');
-    const { startDate, endDate } = req.params;
+    const startDate = req.params.startDate as string;
+    const endDate = req.params.endDate as string;
     const scrims = await getScrimsByDateRange(startDate, endDate);
     res.json({ success: true, scrims });
   } catch (error) {

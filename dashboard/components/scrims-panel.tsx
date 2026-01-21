@@ -169,17 +169,26 @@ export function ScrimsPanel() {
         notes: formData.notes,
       };
 
+      // Import auth helpers
+      const { getAuthHeaders } = await import('@/lib/auth');
+      
       let response;
       if (editingScrim) {
         response = await fetch(`${BOT_API_URL}/api/scrims/${editingScrim.id}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            ...getAuthHeaders()
+          },
           body: JSON.stringify(body),
         });
       } else {
         response = await fetch(`${BOT_API_URL}/api/scrims`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            ...getAuthHeaders()
+          },
           body: JSON.stringify(body),
         });
       }
@@ -206,8 +215,12 @@ export function ScrimsPanel() {
     if (!confirm('Are you sure you want to delete this match?')) return;
     
     try {
+      // Import auth helpers
+      const { getAuthHeaders } = await import('@/lib/auth');
+      
       const response = await fetch(`${BOT_API_URL}/api/scrims/${id}`, {
         method: 'DELETE',
+        headers: getAuthHeaders(),
       });
       
       const data = await response.json();

@@ -388,9 +388,15 @@ export default function HomePage() {
 
       const value = editStatus === 'unavailable' ? 'x' : `${editTimeFrom}-${editTimeTo}`;
       
+      // Import auth helpers
+      const { getAuthHeaders } = await import('@/lib/auth');
+      
       const response = await fetch(`${BOT_API_URL}/api/sheet-data/update`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...getAuthHeaders()
+        },
         body: JSON.stringify({
           row: rowNumber,
           column: userColumn.column,
@@ -632,7 +638,7 @@ export default function HomePage() {
                             'rgb(156 163 175)',
                           color:
                             selectedDate.scheduleDetails.status === 'Training possible' ? 'rgb(22 163 74)' :
-                            selectedDate.scheduleDetails.status === 'Almost there' ? 'rgb(21 94 117)' :
+                            selectedDate.scheduleDetails.status === 'Almost there' ? 'rgb(6 182 212)' :
                             selectedDate.scheduleDetails.status === 'More players needed' ? 'rgb(202 138 4)' :
                             selectedDate.scheduleDetails.status === 'Insufficient players' ? 'rgb(220 38 38)' :
                             'rgb(107 114 128)'

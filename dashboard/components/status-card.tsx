@@ -23,7 +23,8 @@ export default function StatusCard() {
 
   const checkStatus = async () => {
     try {
-      const response = await fetch('/api/bot-status');
+      const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${BOT_API_URL}/api/bot-status`);
       const data = await response.json();
       setStatus(data);
       setLoading(false);

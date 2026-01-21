@@ -53,8 +53,9 @@ export function UserMappingsPanel() {
   const loadData = async () => {
     setLoading(true);
     try {
+      const { getAuthHeaders } = await import('@/lib/auth');
       const [membersRes, mappingsRes, columnsRes] = await Promise.all([
-        fetch(`${BOT_API_URL}/api/discord/members`),
+        fetch(`${BOT_API_URL}/api/discord/members`, { headers: getAuthHeaders() }),
         fetch(`${BOT_API_URL}/api/user-mappings`),
         fetch(`${BOT_API_URL}/api/sheet-columns`),
       ]);
