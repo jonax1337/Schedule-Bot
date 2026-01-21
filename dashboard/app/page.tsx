@@ -32,6 +32,7 @@ interface ScheduleDetails {
   availablePlayers: string[];
   unavailablePlayers: string[];
   noResponsePlayers: string[];
+  absentPlayers: string[];
 }
 
 interface DateEntry {
@@ -725,18 +726,29 @@ export default function HomePage() {
                         .filter(p => p.status === 'unavailable')
                         .map((player, idx) => {
                           const isCurrentUser = loggedInUser === player.name;
+                          const isAbsent = selectedDate.scheduleDetails?.absentPlayers?.includes(player.name) || false;
                           return (
                             <div key={idx} className={`flex items-center justify-between p-2 rounded border transition-all duration-300 hover:scale-[1.02] animate-slideUp ${
                               isCurrentUser 
                                 ? 'bg-blue-50 dark:bg-blue-950/20 border-blue-300 dark:border-blue-700 ring-1 ring-blue-400' 
-                                : 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800'
+                                : isAbsent
+                                  ? 'bg-orange-50 dark:bg-orange-950/20 border-orange-200 dark:border-orange-800'
+                                  : 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800'
                             }`}
                             style={{ animationDelay: `${idx * 0.12}s` }}
                             >
                               <span className="text-sm font-medium">{player.name}</span>
                               <div className="flex items-center gap-2">
-                                <Badge variant="outline" className="text-xs">
-                                  Not available
+                                <Badge 
+                                  variant="outline" 
+                                  className="text-xs"
+                                  style={isAbsent ? {
+                                    backgroundColor: 'rgb(234 179 8 / 0.2)',
+                                    borderColor: 'rgb(234 179 8)',
+                                    color: 'rgb(202 138 4)'
+                                  } : undefined}
+                                >
+                                  {isAbsent ? 'Absence' : 'Not available'}
                                 </Badge>
                                 {isCurrentUser && !editingUser && (
                                   <Button 

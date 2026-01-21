@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Loader2, ArrowLeft, XCircle, Clock, Copy, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { AbsenceManager } from '@/components/absence-manager';
 
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
 
@@ -20,11 +21,13 @@ interface DateEntry {
   timeFrom: string;
   timeTo: string;
   selected?: boolean;
+  isAbsent?: boolean;
 }
 
 export default function UserSchedule() {
   const router = useRouter();
   const [userName, setUserName] = useState('');
+  const [userDiscordId, setUserDiscordId] = useState('');
   const [entries, setEntries] = useState<DateEntry[]>([]);
   const [userColumn, setUserColumn] = useState('');
   const [userColumnIndex, setUserColumnIndex] = useState(0);
@@ -32,6 +35,7 @@ export default function UserSchedule() {
   const [saving, setSaving] = useState(false);
   const [bulkTimeFrom, setBulkTimeFrom] = useState('');
   const [bulkTimeTo, setBulkTimeTo] = useState('');
+  const [absentDates, setAbsentDates] = useState<{ [date: string]: boolean }>({});
 
   const selectedEntries = entries.filter(e => e.selected);
   const hasSelection = selectedEntries.length > 0;
@@ -49,6 +53,19 @@ export default function UserSchedule() {
   const loadData = async (user: string) => {
     setLoading(true);
     try {
+      let userDiscordIdTemp = '';
+      
+      // Get user's Discord ID from user mappings
+      const mappingsRes = await fetch(`${BOT_API_URL}/api/user-mappings`);
+      if (mappingsRes.ok) {
+        const mappingsData = await mappingsRes.json();
+        const userMapping = mappingsData.mappings.find((m: any) => m.sheetColumnName === user);
+        if (userMapping) {
+          userDiscordIdTemp = userMapping.discordId;
+          setUserDiscordId(userMapping.discordId);
+        }
+      }
+
       // Get user's column
       const columnsRes = await fetch(`${BOT_API_URL}/api/sheet-columns`);
       if (!columnsRes.ok) {
@@ -105,11 +122,47 @@ export default function UserSchedule() {
       }
       
       setEntries(dateEntries);
+      
+      // Load absent dates if we have Discord ID
+      if (userDiscordIdTemp) {
+        await loadAbsentDates(userDiscordIdTemp, dateEntries.map(e => e.date));
+      }
     } catch (error) {
       console.error('Failed to load data:', error);
       toast.error('Failed to load schedule');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadAbsentDates = async (discordId: string, dates: string[]) => {
+    try {
+      const { getAuthHeaders } = await import('@/lib/auth');
+      
+      const response = await fetch(`${BOT_API_URL}/api/absences/check-dates`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders(),
+        },
+        body: JSON.stringify({
+          discordId,
+          dates,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setAbsentDates(data.absentDates || {});
+        
+        // Update entries with isAbsent flag
+        setEntries(prev => prev.map(entry => ({
+          ...entry,
+          isAbsent: data.absentDates[entry.date] || false,
+        })));
+      }
+    } catch (error) {
+      console.error('Failed to load absent dates:', error);
     }
   };
 
@@ -295,44 +348,55 @@ export default function UserSchedule() {
       const sheetRes = await fetch(`${BOT_API_URL}/api/sheet-data?startRow=1&endRow=50`);
       if (!sheetRes.ok) {
         toast.error('Failed to load sheet data');
+        setSaving(false);
         return;
       }
       
       const result = await sheetRes.json();
       const rows = result.data;
 
-      let successCount = 0;
+      // Prepare all updates for bulk operation
+      const updates = [];
       for (const entry of selectedEntries) {
         const rowIndex = rows.findIndex((r: string[]) => r[0] === entry.date);
         if (rowIndex === -1) continue;
 
-        // Import auth helpers
-        const { getAuthHeaders } = await import('@/lib/auth');
-        
-        const response = await fetch(`${BOT_API_URL}/api/sheet-data/update`, {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            ...getAuthHeaders()
-          },
-          body: JSON.stringify({
-            row: rowIndex + 1,
-            column: userColumn,
-            value: entry.value,
-          }),
+        updates.push({
+          row: rowIndex + 1,
+          column: userColumn,
+          value: entry.value,
         });
-
-        if (response.ok) {
-          successCount++;
-        }
       }
 
-      if (successCount === selectedEntries.length) {
-        toast.success(`Saved ${successCount} ${successCount === 1 ? 'entry' : 'entries'}!`);
+      if (updates.length === 0) {
+        toast.error('No valid entries to save');
+        setSaving(false);
+        return;
+      }
+
+      // Import auth helpers
+      const { getAuthHeaders } = await import('@/lib/auth');
+      
+      // Send all updates in a single bulk request
+      const response = await fetch(`${BOT_API_URL}/api/sheet-data/bulk-update`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          ...getAuthHeaders()
+        },
+        body: JSON.stringify({
+          updates,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        toast.success(`Saved ${data.count} ${data.count === 1 ? 'entry' : 'entries'}!`);
         // Deselect all after successful save
         setEntries(prev => prev.map(e => ({ ...e, selected: false })));
       } else {
-        toast.warning(`Saved ${successCount} of ${selectedEntries.length} entries`);
+        const errorData = await response.json();
+        toast.error(errorData.error || 'Failed to save changes');
       }
     } catch (error) {
       console.error('Failed to save:', error);
@@ -396,6 +460,13 @@ export default function UserSchedule() {
             <ThemeToggle />
           </div>
         </div>
+
+        {/* Absence Manager */}
+        {userDiscordId && (
+          <div className="mb-6 animate-slideUp">
+            <AbsenceManager discordId={userDiscordId} username={userName} />
+          </div>
+        )}
 
         {/* Bulk Actions Bar */}
         {hasSelection && (
@@ -486,15 +557,27 @@ export default function UserSchedule() {
             <TableBody>
               {entries.map((entry) => {
                 const display = getDisplayValue(entry.value);
+                const isAbsent = entry.isAbsent || false;
                 return (
-                  <TableRow key={entry.date} className={entry.selected ? 'bg-blue-50 dark:bg-blue-950/20' : ''}>
+                  <TableRow 
+                    key={entry.date} 
+                    className={`${entry.selected ? 'bg-blue-50 dark:bg-blue-950/20' : ''} ${isAbsent ? 'bg-orange-50/30 dark:bg-orange-950/10' : ''}`}
+                  >
                     <TableCell>
                       <Checkbox
                         checked={entry.selected}
                         onCheckedChange={() => toggleSelection(entry.date)}
+                        disabled={isAbsent}
                       />
                     </TableCell>
-                    <TableCell className="font-medium">{entry.date}</TableCell>
+                    <TableCell className="font-medium">
+                      {entry.date}
+                      {isAbsent && (
+                        <span className="ml-2 text-xs text-orange-600 dark:text-orange-400 font-semibold">
+                          (Absence)
+                        </span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-muted-foreground">{getWeekday(entry.date)}</TableCell>
                     <TableCell>
                       <div className={`flex items-center gap-1.5 ${display.color}`}>
@@ -508,7 +591,7 @@ export default function UserSchedule() {
                         value={entry.timeFrom}
                         onChange={(e) => handleTimeChange(entry.date, 'from', e.target.value)}
                         className="h-9 w-32"
-                        disabled={saving}
+                        disabled={saving || isAbsent}
                       />
                     </TableCell>
                     <TableCell>
@@ -517,7 +600,7 @@ export default function UserSchedule() {
                         value={entry.timeTo}
                         onChange={(e) => handleTimeChange(entry.date, 'to', e.target.value)}
                         className="h-9 w-32"
-                        disabled={saving}
+                        disabled={saving || isAbsent}
                       />
                     </TableCell>
                     <TableCell className="text-right">
@@ -526,7 +609,7 @@ export default function UserSchedule() {
                           size="sm"
                           variant="outline"
                           onClick={() => handleSave(entry.date, entry.timeFrom, entry.timeTo)}
-                          disabled={saving || !entry.timeFrom || !entry.timeTo}
+                          disabled={saving || !entry.timeFrom || !entry.timeTo || isAbsent}
                         >
                           Save
                         </Button>
@@ -534,8 +617,8 @@ export default function UserSchedule() {
                           size="sm"
                           variant="ghost"
                           onClick={() => handleNotAvailable(entry.date)}
-                          disabled={saving}
-                          title="Mark as not available"
+                          disabled={saving || isAbsent}
+                          title={isAbsent ? "Cannot edit - you are absent" : "Mark as not available"}
                         >
                           <XCircle className="h-4 w-4 text-red-500" />
                         </Button>

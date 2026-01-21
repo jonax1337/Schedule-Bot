@@ -204,6 +204,28 @@ export async function updateSheetCell(row: number, column: string, value: string
   });
 }
 
+export async function bulkUpdateSheetCells(updates: Array<{ row: number; column: string; value: string }>): Promise<void> {
+  if (updates.length === 0) return;
+  
+  const sheets = await getAuthenticatedClient();
+  
+  // Build data array for batchUpdate
+  const data = updates.map(update => ({
+    range: `${update.column}${update.row}`,
+    values: [[update.value]],
+  }));
+  
+  await sheets.spreadsheets.values.batchUpdate({
+    spreadsheetId: config.googleSheets.sheetId,
+    requestBody: {
+      valueInputOption: 'RAW',
+      data,
+    },
+  });
+  
+  console.log(`[Bulk Update] Updated ${updates.length} cells in a single batch`);
+}
+
 export async function cleanupTimeFormats(): Promise<number> {
   try {
     const sheets = await getAuthenticatedClient();
