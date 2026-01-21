@@ -721,8 +721,8 @@ app.get('/api/scrims/:id', optionalAuth, async (req: AuthRequest, res) => {
   }
 });
 
-// Add new scrim (protected with validation)
-app.post('/api/scrims', verifyToken, requireAdmin, validate(addScrimSchema), async (req: AuthRequest, res) => {
+// Add new scrim (protected with validation, users can add scrims)
+app.post('/api/scrims', verifyToken, validate(addScrimSchema), async (req: AuthRequest, res) => {
   try {
     const { addScrim, ensureScrimSheetExists } = await import('./scrims.js');
     const { date, opponent, result, scoreUs, scoreThem, map, matchType, ourAgents, theirAgents, vodUrl, notes } = req.body;
@@ -752,8 +752,8 @@ app.post('/api/scrims', verifyToken, requireAdmin, validate(addScrimSchema), asy
   }
 });
 
-// Update scrim (protected with validation)
-app.put('/api/scrims/:id', verifyToken, requireAdmin, validate(updateScrimSchema), async (req: AuthRequest, res) => {
+// Update scrim (protected with validation, users can update scrims)
+app.put('/api/scrims/:id', verifyToken, validate(updateScrimSchema), async (req: AuthRequest, res) => {
   try {
     const { updateScrim } = await import('./scrims.js');
     const { date, opponent, result, scoreUs, scoreThem, map, matchType, ourAgents, theirAgents, vodUrl, notes } = req.body;
@@ -785,8 +785,8 @@ app.put('/api/scrims/:id', verifyToken, requireAdmin, validate(updateScrimSchema
   }
 });
 
-// Delete scrim (protected)
-app.delete('/api/scrims/:id', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
+// Delete scrim (protected, users can delete scrims)
+app.delete('/api/scrims/:id', verifyToken, async (req: AuthRequest, res) => {
   try {
     const { deleteScrim } = await import('./scrims.js');
     const success = await deleteScrim(req.params.id as string);
