@@ -308,6 +308,68 @@ app.post('/api/sheet-data/update', verifyToken, validate(updateCellSchema), asyn
   }
 });
 
+// Bulk update sheet cells (protected, users can only edit their own column)
+app.post('/api/sheet-data/bulk-update', verifyToken, async (req: AuthRequest, res) => {
+  try {
+    const { updates } = req.body;
+    
+    if (!Array.isArray(updates) || updates.length === 0) {
+      return res.status(400).json({ error: 'Updates array is required and must not be empty' });
+    }
+    
+    // Validate each update
+    for (const update of updates) {
+      if (!update.row || !update.column || update.value === undefined) {
+        return res.status(400).json({ error: 'Each update must have row, column, and value' });
+      }
+    }
+    
+    // Users can only edit their own column (admins can edit all)
+    if (req.user?.role === 'user') {
+      const mappings = await getUserMappings();
+      const userMapping = mappings.find(m => m.sheetColumnName === req.user?.username);
+      
+      if (!userMapping) {
+        logger.warn('Bulk update denied', `User ${req.user?.username} has no mapping`);
+        return res.status(403).json({ error: 'User has no column mapping' });
+      }
+      
+      const columns = await getSheetColumns();
+      const userColumn = columns.find(c => c.name === userMapping.sheetColumnName);
+      
+      if (!userColumn) {
+        logger.warn('Bulk update denied', `User ${req.user?.username} has no column`);
+        return res.status(403).json({ error: 'User column not found' });
+      }
+      
+      // Check if all updates are for the user's own column
+      const invalidUpdate = updates.find(u => u.column !== userColumn.column);
+      if (invalidUpdate) {
+        logger.warn('Bulk update denied', `User ${req.user?.username} tried to edit column ${invalidUpdate.column}`);
+        return res.status(403).json({ error: 'You can only edit your own column' });
+      }
+    }
+    
+    // Sanitize all values
+    const sanitizedUpdates = updates.map(u => ({
+      row: u.row,
+      column: u.column,
+      value: sanitizeString(u.value),
+    }));
+    
+    // Use bulk update function
+    const { bulkUpdateSheetCells } = await import('./sheets.js');
+    await bulkUpdateSheetCells(sanitizedUpdates);
+    
+    logger.success('Bulk update completed', `${updates.length} cells updated by ${req.user?.username}`);
+    res.json({ success: true, message: `${updates.length} cells updated successfully`, count: updates.length });
+  } catch (error) {
+    console.error('Error in bulk update:', error);
+    logger.error('Failed to bulk update', error instanceof Error ? error.message : String(error));
+    res.status(500).json({ error: 'Failed to bulk update cells' });
+  }
+});
+
 // Get Discord server members (protected)
 app.get('/api/discord/members', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
   try {

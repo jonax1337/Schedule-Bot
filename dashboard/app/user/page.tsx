@@ -348,44 +348,55 @@ export default function UserSchedule() {
       const sheetRes = await fetch(`${BOT_API_URL}/api/sheet-data?startRow=1&endRow=50`);
       if (!sheetRes.ok) {
         toast.error('Failed to load sheet data');
+        setSaving(false);
         return;
       }
       
       const result = await sheetRes.json();
       const rows = result.data;
 
-      let successCount = 0;
+      // Prepare all updates for bulk operation
+      const updates = [];
       for (const entry of selectedEntries) {
         const rowIndex = rows.findIndex((r: string[]) => r[0] === entry.date);
         if (rowIndex === -1) continue;
 
-        // Import auth helpers
-        const { getAuthHeaders } = await import('@/lib/auth');
-        
-        const response = await fetch(`${BOT_API_URL}/api/sheet-data/update`, {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            ...getAuthHeaders()
-          },
-          body: JSON.stringify({
-            row: rowIndex + 1,
-            column: userColumn,
-            value: entry.value,
-          }),
+        updates.push({
+          row: rowIndex + 1,
+          column: userColumn,
+          value: entry.value,
         });
-
-        if (response.ok) {
-          successCount++;
-        }
       }
 
-      if (successCount === selectedEntries.length) {
-        toast.success(`Saved ${successCount} ${successCount === 1 ? 'entry' : 'entries'}!`);
+      if (updates.length === 0) {
+        toast.error('No valid entries to save');
+        setSaving(false);
+        return;
+      }
+
+      // Import auth helpers
+      const { getAuthHeaders } = await import('@/lib/auth');
+      
+      // Send all updates in a single bulk request
+      const response = await fetch(`${BOT_API_URL}/api/sheet-data/bulk-update`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          ...getAuthHeaders()
+        },
+        body: JSON.stringify({
+          updates,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        toast.success(`Saved ${data.count} ${data.count === 1 ? 'entry' : 'entries'}!`);
         // Deselect all after successful save
         setEntries(prev => prev.map(e => ({ ...e, selected: false })));
       } else {
-        toast.warning(`Saved ${successCount} of ${selectedEntries.length} entries`);
+        const errorData = await response.json();
+        toast.error(errorData.error || 'Failed to save changes');
       }
     } catch (error) {
       console.error('Failed to save:', error);
