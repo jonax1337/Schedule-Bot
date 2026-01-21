@@ -72,9 +72,12 @@ export default function SettingsPanel() {
 
   const loadDiscordData = async () => {
     try {
+      // Import auth helpers
+      const { getAuthHeaders } = await import('@/lib/auth');
+      
       const [channelsRes, rolesRes] = await Promise.all([
-        fetch('/api/discord/channels'),
-        fetch('/api/discord/roles'),
+        fetch('/api/discord/channels', { headers: getAuthHeaders() }),
+        fetch('/api/discord/roles', { headers: getAuthHeaders() }),
       ]);
 
       if (channelsRes.ok) {

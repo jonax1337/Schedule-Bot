@@ -22,13 +22,9 @@ export interface Settings {
     cleanChannelBeforePost: boolean;
     changeNotificationsEnabled: boolean;
   };
-  admin: {
-    username: string;
-    password: string;
-  };
 }
 
-const DEFAULT_SETTINGS: Omit<Settings, 'admin'> = {
+const DEFAULT_SETTINGS: Settings = {
   discord: {
     channelId: '',
     pingRoleId: null,
@@ -46,15 +42,6 @@ const DEFAULT_SETTINGS: Omit<Settings, 'admin'> = {
 
 let cachedSettings: Settings | null = null;
 
-/**
- * Get admin credentials from environment variables
- */
-function getAdminCredentials(): { username: string; password: string } {
-  return {
-    username: process.env.ADMIN_USERNAME || 'admin',
-    password: process.env.ADMIN_PASSWORD || 'admin123',
-  };
-}
 
 /**
  * Load settings from Google Sheets (with fallback to settings.json for migration)
@@ -72,23 +59,17 @@ export function loadSettings(): Settings {
  */
 export function reloadSettings(): Settings {
   try {
-    // Admin credentials always come from .env
-    const admin = getAdminCredentials();
-
     // Use defaults (settings should be loaded via async version)
     console.log('Using default settings. Call loadSettingsAsync() to load from Google Sheets.');
     cachedSettings = {
       ...DEFAULT_SETTINGS,
-      admin,
     };
 
     return cachedSettings;
   } catch (error) {
     console.error('Error loading settings, using defaults:', error);
-    const admin = getAdminCredentials();
     cachedSettings = {
       ...DEFAULT_SETTINGS,
-      admin,
     };
     return cachedSettings;
   }
@@ -99,15 +80,12 @@ export function reloadSettings(): Settings {
  */
 export async function loadSettingsAsync(): Promise<Settings> {
   try {
-    const admin = getAdminCredentials();
-    
     // Try to get settings from Google Sheet
     const sheetSettings = await getSettingsFromSheet();
     
     if (sheetSettings) {
       cachedSettings = {
         ...sheetSettings,
-        admin, // Always from .env
         scheduling: {
           ...sheetSettings.scheduling,
           changeNotificationsEnabled: sheetSettings.scheduling.changeNotificationsEnabled ?? true,
@@ -130,16 +108,13 @@ export async function loadSettingsAsync(): Promise<Settings> {
     
     cachedSettings = {
       ...defaultSettings,
-      admin,
     };
     
     return cachedSettings;
   } catch (error) {
     console.error('Error loading settings async:', error);
-    const admin = getAdminCredentials();
     cachedSettings = {
       ...DEFAULT_SETTINGS,
-      admin,
     };
     return cachedSettings;
   }
@@ -150,17 +125,15 @@ export async function loadSettingsAsync(): Promise<Settings> {
  */
 export async function saveSettings(settings: Settings): Promise<void> {
   try {
-    // Only save discord and scheduling to Google Sheets
-    // Admin credentials are not saved (they come from .env)
+    // Save discord and scheduling to Google Sheets
     await saveSettingsToSheet({
       discord: settings.discord,
       scheduling: settings.scheduling,
     });
     
-    // Update cache with new settings + current admin from .env
+    // Update cache with new settings
     cachedSettings = {
       ...settings,
-      admin: getAdminCredentials(),
     };
     
     console.log('Settings saved to Google Sheets successfully');
@@ -173,7 +146,7 @@ export async function saveSettings(settings: Settings): Promise<void> {
 /**
  * Update a specific setting
  */
-export async function updateSetting<K extends keyof Omit<Settings, 'admin'>>(
+export async function updateSetting<K extends keyof Settings>(
   category: K,
   key: keyof Settings[K],
   value: any
