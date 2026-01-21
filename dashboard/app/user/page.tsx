@@ -21,6 +21,7 @@ interface DateEntry {
   timeFrom: string;
   timeTo: string;
   selected?: boolean;
+  isAbsent?: boolean;
 }
 
 export default function UserSchedule() {
@@ -34,6 +35,7 @@ export default function UserSchedule() {
   const [saving, setSaving] = useState(false);
   const [bulkTimeFrom, setBulkTimeFrom] = useState('');
   const [bulkTimeTo, setBulkTimeTo] = useState('');
+  const [absentDates, setAbsentDates] = useState<{ [date: string]: boolean }>({});
 
   const selectedEntries = entries.filter(e => e.selected);
   const hasSelection = selectedEntries.length > 0;
@@ -51,12 +53,15 @@ export default function UserSchedule() {
   const loadData = async (user: string) => {
     setLoading(true);
     try {
+      let userDiscordIdTemp = '';
+      
       // Get user's Discord ID from user mappings
       const mappingsRes = await fetch(`${BOT_API_URL}/api/user-mappings`);
       if (mappingsRes.ok) {
         const mappingsData = await mappingsRes.json();
         const userMapping = mappingsData.mappings.find((m: any) => m.sheetColumnName === user);
         if (userMapping) {
+          userDiscordIdTemp = userMapping.discordId;
           setUserDiscordId(userMapping.discordId);
         }
       }
@@ -117,11 +122,47 @@ export default function UserSchedule() {
       }
       
       setEntries(dateEntries);
+      
+      // Load absent dates if we have Discord ID
+      if (userDiscordIdTemp) {
+        await loadAbsentDates(userDiscordIdTemp, dateEntries.map(e => e.date));
+      }
     } catch (error) {
       console.error('Failed to load data:', error);
       toast.error('Failed to load schedule');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadAbsentDates = async (discordId: string, dates: string[]) => {
+    try {
+      const { getAuthHeaders } = await import('@/lib/auth');
+      
+      const response = await fetch(`${BOT_API_URL}/api/absences/check-dates`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders(),
+        },
+        body: JSON.stringify({
+          discordId,
+          dates,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setAbsentDates(data.absentDates || {});
+        
+        // Update entries with isAbsent flag
+        setEntries(prev => prev.map(entry => ({
+          ...entry,
+          isAbsent: data.absentDates[entry.date] || false,
+        })));
+      }
+    } catch (error) {
+      console.error('Failed to load absent dates:', error);
     }
   };
 
@@ -505,15 +546,27 @@ export default function UserSchedule() {
             <TableBody>
               {entries.map((entry) => {
                 const display = getDisplayValue(entry.value);
+                const isAbsent = entry.isAbsent || false;
                 return (
-                  <TableRow key={entry.date} className={entry.selected ? 'bg-blue-50 dark:bg-blue-950/20' : ''}>
+                  <TableRow 
+                    key={entry.date} 
+                    className={`${entry.selected ? 'bg-blue-50 dark:bg-blue-950/20' : ''} ${isAbsent ? 'bg-orange-50/30 dark:bg-orange-950/10' : ''}`}
+                  >
                     <TableCell>
                       <Checkbox
                         checked={entry.selected}
                         onCheckedChange={() => toggleSelection(entry.date)}
+                        disabled={isAbsent}
                       />
                     </TableCell>
-                    <TableCell className="font-medium">{entry.date}</TableCell>
+                    <TableCell className="font-medium">
+                      {entry.date}
+                      {isAbsent && (
+                        <span className="ml-2 text-xs text-orange-600 dark:text-orange-400 font-semibold">
+                          (Abwesend)
+                        </span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-muted-foreground">{getWeekday(entry.date)}</TableCell>
                     <TableCell>
                       <div className={`flex items-center gap-1.5 ${display.color}`}>
@@ -527,7 +580,7 @@ export default function UserSchedule() {
                         value={entry.timeFrom}
                         onChange={(e) => handleTimeChange(entry.date, 'from', e.target.value)}
                         className="h-9 w-32"
-                        disabled={saving}
+                        disabled={saving || isAbsent}
                       />
                     </TableCell>
                     <TableCell>
@@ -536,7 +589,7 @@ export default function UserSchedule() {
                         value={entry.timeTo}
                         onChange={(e) => handleTimeChange(entry.date, 'to', e.target.value)}
                         className="h-9 w-32"
-                        disabled={saving}
+                        disabled={saving || isAbsent}
                       />
                     </TableCell>
                     <TableCell className="text-right">
@@ -545,7 +598,7 @@ export default function UserSchedule() {
                           size="sm"
                           variant="outline"
                           onClick={() => handleSave(entry.date, entry.timeFrom, entry.timeTo)}
-                          disabled={saving || !entry.timeFrom || !entry.timeTo}
+                          disabled={saving || !entry.timeFrom || !entry.timeTo || isAbsent}
                         >
                           Save
                         </Button>
@@ -553,8 +606,8 @@ export default function UserSchedule() {
                           size="sm"
                           variant="ghost"
                           onClick={() => handleNotAvailable(entry.date)}
-                          disabled={saving}
-                          title="Mark as not available"
+                          disabled={saving || isAbsent}
+                          title={isAbsent ? "Cannot edit - you are absent" : "Mark as not available"}
                         >
                           <XCircle className="h-4 w-4 text-red-500" />
                         </Button>

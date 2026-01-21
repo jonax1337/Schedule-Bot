@@ -921,6 +921,16 @@ app.post('/api/absences', verifyToken, async (req: AuthRequest, res) => {
       reason: reason || '',
     });
     
+    // Immediately mark the absence days in the schedule
+    try {
+      const { processAbsencesForNext14Days } = await import('./absenceProcessor.js');
+      await processAbsencesForNext14Days();
+      logger.success('Absence marked immediately', `Updated schedule for ${username}`);
+    } catch (error) {
+      console.error('Error marking absence immediately:', error);
+      // Don't fail the request if marking fails
+    }
+    
     logger.success('Absence added', `${username} from ${startDate} to ${endDate}`);
     res.json({ success: true, absence: newAbsence });
   } catch (error) {
@@ -976,6 +986,16 @@ app.put('/api/absences/:id', verifyToken, async (req: AuthRequest, res) => {
       return res.status(404).json({ success: false, error: 'Absence not found' });
     }
     
+    // Immediately update the absence days in the schedule
+    try {
+      const { processAbsencesForNext14Days } = await import('./absenceProcessor.js');
+      await processAbsencesForNext14Days();
+      logger.success('Absence updated immediately', `Updated schedule for ID: ${absenceId}`);
+    } catch (error) {
+      console.error('Error updating absence immediately:', error);
+      // Don't fail the request if marking fails
+    }
+    
     logger.success('Absence updated', `ID: ${absenceId}`);
     res.json({ success: true, absence: updatedAbsence });
   } catch (error) {
@@ -1013,6 +1033,10 @@ app.delete('/api/absences/:id', verifyToken, async (req: AuthRequest, res) => {
       return res.status(404).json({ success: false, error: 'Absence not found' });
     }
     
+    // Note: We don't automatically remove 'x' marks after deletion
+    // because the user might have manually set themselves as unavailable
+    // The next hourly job will handle this correctly
+    
     logger.success('Absence deleted', `ID: ${absenceId}`);
     res.json({ success: true, message: 'Absence deleted' });
   } catch (error) {
@@ -1031,6 +1055,46 @@ app.get('/api/absences/date/:date', optionalAuth, async (req: AuthRequest, res) 
   } catch (error) {
     console.error('Error fetching absences for date:', error);
     res.status(500).json({ success: false, error: 'Failed to fetch absences' });
+  }
+});
+
+// Check if user is absent on specific dates (protected)
+app.post('/api/absences/check-dates', verifyToken, async (req: AuthRequest, res) => {
+  try {
+    const { dates, discordId } = req.body;
+    
+    if (!dates || !Array.isArray(dates)) {
+      return res.status(400).json({ success: false, error: 'Dates array required' });
+    }
+    
+    if (!discordId) {
+      return res.status(400).json({ success: false, error: 'Discord ID required' });
+    }
+    
+    // Users can only check their own absences (admins can check anyone)
+    if (req.user?.role === 'user') {
+      const mappings = await getUserMappings();
+      const userMapping = mappings.find(m => m.sheetColumnName === req.user?.username);
+      
+      if (!userMapping || userMapping.discordId !== discordId) {
+        return res.status(403).json({ success: false, error: 'You can only check your own absences' });
+      }
+    }
+    
+    const { isDateInAbsence, getAbsencesByUser } = await import('./absences.js');
+    const userAbsences = await getAbsencesByUser(discordId);
+    
+    // Check each date
+    const absentDates: { [date: string]: boolean } = {};
+    for (const date of dates) {
+      const isAbsent = userAbsences.some(absence => isDateInAbsence(date, absence));
+      absentDates[date] = isAbsent;
+    }
+    
+    res.json({ success: true, absentDates });
+  } catch (error) {
+    console.error('Error checking absent dates:', error);
+    res.status(500).json({ success: false, error: 'Failed to check absent dates' });
   }
 });
 
