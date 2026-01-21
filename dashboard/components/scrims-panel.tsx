@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -89,7 +89,12 @@ export function ScrimsPanel() {
   const [loading, setLoading] = useState(true);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingScrim, setEditingScrim] = useState<ScrimEntry | null>(null);
-  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('table');
+  
+  // Filter states
+  const [filterMap, setFilterMap] = useState<string>('all');
+  const [filterResult, setFilterResult] = useState<string>('all');
+  const [filterMatchType, setFilterMatchType] = useState<string>('all');
   
   // Form state
   const [formData, setFormData] = useState({
@@ -274,6 +279,25 @@ export function ScrimsPanel() {
         return null;
     }
   };
+
+  // Filter scrims based on selected filters - memoized for performance
+  const filteredScrims = useMemo(() => {
+    return scrims.filter((scrim) => {
+      // Filter by map
+      if (filterMap !== 'all' && scrim.map !== filterMap) {
+        return false;
+      }
+      // Filter by result
+      if (filterResult !== 'all' && scrim.result !== filterResult) {
+        return false;
+      }
+      // Filter by match type
+      if (filterMatchType !== 'all' && scrim.matchType !== filterMatchType) {
+        return false;
+      }
+      return true;
+    });
+  }, [scrims, filterMap, filterResult, filterMatchType]);
 
   if (loading) {
     return (
@@ -546,10 +570,89 @@ export function ScrimsPanel() {
             </div>
           </div>
         </CardHeader>
+        
+        {/* Filters Section */}
+        {scrims.length > 0 && (
+          <div className="px-6 pb-4 pt-2 border-b">
+            <div className="flex flex-wrap gap-3 items-center">
+              <div className="text-sm font-medium text-muted-foreground">Filters:</div>
+              
+              {/* Map Filter */}
+              <Select value={filterMap} onValueChange={setFilterMap}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="All Maps" />
+                </SelectTrigger>
+                <SelectContent position="popper">
+                  <SelectItem value="all">All Maps</SelectItem>
+                  {VALORANT_MAPS.map((map) => (
+                    <SelectItem key={map} value={map}>
+                      {map}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              {/* Result Filter */}
+              <Select value={filterResult} onValueChange={setFilterResult}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="All Results" />
+                </SelectTrigger>
+                <SelectContent position="popper">
+                  <SelectItem value="all">All Results</SelectItem>
+                  <SelectItem value="win">Win</SelectItem>
+                  <SelectItem value="loss">Loss</SelectItem>
+                  <SelectItem value="draw">Draw</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              {/* Match Type Filter */}
+              <Select value={filterMatchType} onValueChange={setFilterMatchType}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="All Types" />
+                </SelectTrigger>
+                <SelectContent position="popper">
+                  <SelectItem value="all">All Types</SelectItem>
+                  {MATCH_TYPES.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {type}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              {/* Clear Filters Button */}
+              {(filterMap !== 'all' || filterResult !== 'all' || filterMatchType !== 'all') && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setFilterMap('all');
+                    setFilterResult('all');
+                    setFilterMatchType('all');
+                  }}
+                  className="h-9"
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Clear Filters
+                </Button>
+              )}
+              
+              {/* Showing X of Y results */}
+              <div className="ml-auto text-sm text-muted-foreground">
+                Showing {filteredScrims.length} of {scrims.length} matches
+              </div>
+            </div>
+          </div>
+        )}
+        
         <CardContent>
           {scrims.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               No matches recorded yet. Add your first match to get started!
+            </div>
+          ) : filteredScrims.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              No matches found with the selected filters. Try adjusting your filters.
             </div>
           ) : viewMode === 'table' ? (
             // Table View
@@ -570,7 +673,7 @@ export function ScrimsPanel() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {scrims.map((scrim) => (
+                  {filteredScrims.map((scrim) => (
                     <TableRow key={scrim.id}>
                       <TableCell className="font-medium">{scrim.date}</TableCell>
                       <TableCell>
@@ -660,7 +763,7 @@ export function ScrimsPanel() {
           ) : (
             // Cards View
             <div className="space-y-4">
-              {scrims.map((scrim) => {
+              {filteredScrims.map((scrim) => {
                 const vodId = getYouTubeVideoId(scrim.vodUrl);
                 
                 return (
