@@ -12,7 +12,7 @@ import { ScheduleEditor } from "@/components/schedule-editor";
 import { ScrimsPanel } from "@/components/scrims-panel";
 import StatusCard from "@/components/status-card";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Settings, Zap, Terminal, Users, CalendarDays, LogOut, Trophy } from "lucide-react";
+import { Settings, Zap, Terminal, Users, CalendarDays, LogOut, Trophy, ArrowLeft } from "lucide-react";
 
 export default function Home() {
   const router = useRouter();
@@ -34,19 +34,25 @@ export default function Home() {
         {/* Header */}
         <div className="mb-8 animate-slideDown">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-4xl font-bold tracking-tight">
-                Valorant Schedule Bot
-              </h1>
-              <p className="text-muted-foreground mt-2">
-                Manage your Discord bot settings and execute actions
-              </p>
+            <div className="flex items-center gap-4">
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={() => router.push("/")}
+                title="Back"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <div>
+                <h1 className="text-4xl font-bold tracking-tight">
+                  Admin Dashboard
+                </h1>
+                <p className="text-muted-foreground mt-2">
+                  Configure, monitor und steuere deinen Valorant Bot
+                </p>
+              </div>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" onClick={handleLogout}>
-                <LogOut className="mr-1 h-4 w-4" />
-                Logout
-              </Button>
               <ThemeToggle />
             </div>
           </div>
