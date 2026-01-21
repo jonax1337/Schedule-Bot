@@ -743,12 +743,12 @@ export default function HomePage() {
                                   variant="outline" 
                                   className="text-xs"
                                   style={isAbsent ? {
-                                    backgroundColor: 'rgb(255 237 213 / 0.5)',
-                                    borderColor: 'rgb(251 146 60)',
-                                    color: 'rgb(234 88 12)'
+                                    backgroundColor: 'rgb(234 179 8 / 0.2)',
+                                    borderColor: 'rgb(234 179 8)',
+                                    color: 'rgb(202 138 4)'
                                   } : undefined}
                                 >
-                                  {isAbsent ? 'Abwesend' : 'Not available'}
+                                  {isAbsent ? 'Absence' : 'Not available'}
                                 </Badge>
                                 {isCurrentUser && !editingUser && (
                                   <Button 

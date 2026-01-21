@@ -563,7 +563,7 @@ export default function UserSchedule() {
                       {entry.date}
                       {isAbsent && (
                         <span className="ml-2 text-xs text-orange-600 dark:text-orange-400 font-semibold">
-                          (Abwesend)
+                          (Absence)
                         </span>
                       )}
                     </TableCell>
