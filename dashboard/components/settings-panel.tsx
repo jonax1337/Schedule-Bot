@@ -49,7 +49,8 @@ export default function SettingsPanel() {
 
   const loadSettings = async () => {
     try {
-      const response = await fetch('/api/settings');
+      const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${BOT_API_URL}/api/settings`);
       const data = await response.json();
       
       console.log('Settings loaded from API:', JSON.stringify(data, null, 2));
@@ -81,9 +82,10 @@ export default function SettingsPanel() {
         return;
       }
       
+      const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
       const [channelsRes, rolesRes] = await Promise.all([
-        fetch('/api/discord/channels', { headers: getAuthHeaders() }),
-        fetch('/api/discord/roles', { headers: getAuthHeaders() }),
+        fetch(`${BOT_API_URL}/api/discord/channels`, { headers: getAuthHeaders() }),
+        fetch(`${BOT_API_URL}/api/discord/roles`, { headers: getAuthHeaders() }),
       ]);
 
       if (channelsRes.ok) {
@@ -106,9 +108,15 @@ export default function SettingsPanel() {
   const saveSettings = async () => {
     setSaving(true);
     try {
-      await fetch('/api/settings', {
+      const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
+      const { getAuthHeaders } = await import('@/lib/auth');
+      
+      await fetch(`${BOT_API_URL}/api/settings`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...getAuthHeaders()
+        },
         body: JSON.stringify(settings),
       });
       toast.success('Settings saved and applied successfully!');

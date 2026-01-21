@@ -59,7 +59,10 @@ export default function ActionsPanel() {
 
   const loadMembers = async () => {
     try {
-      const response = await fetch(`${BOT_API_URL}/api/discord/members`);
+      const { getAuthHeaders } = await import('@/lib/auth');
+      const response = await fetch(`${BOT_API_URL}/api/discord/members`, {
+        headers: getAuthHeaders()
+      });
       const data = await response.json();
       setMembers(data.members);
     } catch (error) {
