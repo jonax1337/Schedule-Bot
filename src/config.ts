@@ -38,7 +38,6 @@ export const config = {
   },
   admin: {
     username: requireEnv('ADMIN_USERNAME'),
-    password: requireEnv('ADMIN_PASSWORD'),
   },
 };
 
@@ -56,7 +55,6 @@ export async function reloadConfig(): Promise<void> {
   
   // Admin credentials always come from .env (reload from process.env)
   config.admin.username = process.env.ADMIN_USERNAME || 'admin';
-  config.admin.password = process.env.ADMIN_PASSWORD || 'admin123';
   
   console.log('Configuration reloaded from Google Sheets and .env');
   console.log('New pingRoleId:', config.discord.pingRoleId);

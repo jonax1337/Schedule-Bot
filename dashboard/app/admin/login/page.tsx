@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Shield, Loader2, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
+import { setAuthToken, setUser } from '@/lib/auth';
 
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
 
@@ -35,12 +36,19 @@ export default function AdminLogin() {
 
       const data = await response.json();
 
-      if (data.success) {
+      if (data.success && data.token) {
         toast.success('Login successful!');
-        localStorage.setItem('adminAuth', 'true');
+        
+        // Store JWT token and user info
+        setAuthToken(data.token);
+        setUser(data.user);
+        
+        // Remove old auth flag if exists
+        localStorage.removeItem('adminAuth');
+        
         router.push('/admin');
       } else {
-        toast.error('Invalid username or password');
+        toast.error(data.error || 'Invalid username or password');
       }
     } catch (error) {
       console.error('Login error:', error);

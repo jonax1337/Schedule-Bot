@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Loader2, Plus, Edit, Trash2, TrendingUp, Trophy, Target, X, LayoutGrid, Table as TableIcon } from "lucide-react";
+import { Loader2, Plus, Edit, Trash2, TrendingUp, Trophy, Target, X, LayoutGrid, Table as TableIcon, Video } from "lucide-react";
 import { toast } from "sonner";
 import { AgentSelector } from "./agent-picker";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -169,17 +169,26 @@ export function ScrimsPanel() {
         notes: formData.notes,
       };
 
+      // Import auth helpers
+      const { getAuthHeaders } = await import('@/lib/auth');
+      
       let response;
       if (editingScrim) {
         response = await fetch(`${BOT_API_URL}/api/scrims/${editingScrim.id}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            ...getAuthHeaders()
+          },
           body: JSON.stringify(body),
         });
       } else {
         response = await fetch(`${BOT_API_URL}/api/scrims`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            ...getAuthHeaders()
+          },
           body: JSON.stringify(body),
         });
       }
@@ -206,8 +215,12 @@ export function ScrimsPanel() {
     if (!confirm('Are you sure you want to delete this match?')) return;
     
     try {
+      // Import auth helpers
+      const { getAuthHeaders } = await import('@/lib/auth');
+      
       const response = await fetch(`${BOT_API_URL}/api/scrims/${id}`, {
         method: 'DELETE',
+        headers: getAuthHeaders(),
       });
       
       const data = await response.json();
@@ -674,7 +687,7 @@ export function ScrimsPanel() {
                 </TableHeader>
                 <TableBody>
                   {filteredScrims.map((scrim) => (
-                    <TableRow key={scrim.id}>
+                    <TableRow key={scrim.id} className="relative">
                       <TableCell className="font-medium">{scrim.date}</TableCell>
                       <TableCell>
                         {scrim.matchType && (
@@ -725,12 +738,12 @@ export function ScrimsPanel() {
                         {scrim.vodUrl && (
                           <Button
                             variant="ghost"
-                            size="sm"
-                            className="h-7"
+                            size="icon"
+                            className="h-8 w-8"
                             asChild
                           >
                             <a href={scrim.vodUrl} target="_blank" rel="noopener noreferrer">
-                              📹
+                              <Video className="h-4 w-4" />
                             </a>
                           </Button>
                         )}
@@ -755,6 +768,27 @@ export function ScrimsPanel() {
                           </Button>
                         </div>
                       </TableCell>
+                      {/* Map Background Image with Gradient in a dedicated <td> */}
+                      <TableCell className="p-0 m-0 w-0 align-top relative" style={{width:0,minWidth:0,maxWidth:0}}>
+                        {scrim.map && (
+                          <span
+                            className="block absolute right-0 top-0 bottom-0 w-48 pointer-events-none overflow-hidden"
+                            aria-hidden="true"
+                          >
+                            <span 
+                              className="block absolute right-0 top-0 bottom-0 w-full"
+                              style={{
+                                backgroundImage: `linear-gradient(to right, transparent 0%, rgba(0,0,0,0.05) 20%, rgba(0,0,0,0.08) 100%), url(/assets/maps/Loading_Screen_${scrim.map}.webp)`,
+                                backgroundPosition: 'center',
+                                backgroundSize: 'cover',
+                                backgroundRepeat: 'no-repeat',
+                                maskImage: 'linear-gradient(to left, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.3) 50%, transparent 100%)',
+                                WebkitMaskImage: 'linear-gradient(to left, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.3) 50%, transparent 100%)',
+                              }}
+                            />
+                          </span>
+                        )}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -769,10 +803,10 @@ export function ScrimsPanel() {
                 return (
                   <div
                     key={scrim.id}
-                    className="border rounded-lg hover:bg-accent/50 transition-colors overflow-hidden"
+                    className="border rounded-lg hover:bg-accent/50 transition-colors overflow-hidden relative"
                   >
                     {/* Header with Match Type and Actions */}
-                    <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b bg-muted/30">
+                    <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b bg-muted/30 relative z-10">
                       <div className="flex items-center gap-2">
                         {scrim.matchType && (
                           <Badge variant="outline" className="text-xs font-normal">
@@ -814,7 +848,7 @@ export function ScrimsPanel() {
                     </div>
 
                     {/* Main Content */}
-                    <div className="p-6">
+                    <div className="p-6 relative z-10">
                       {/* Teams and Score Layout */}
                       <div className="flex items-center justify-between gap-4 mb-4">
                         {/* Our Team - Left Side */}
@@ -881,6 +915,23 @@ export function ScrimsPanel() {
                         </div>
                       )}
                     </div>
+                    
+                    {/* Map Background Image with Gradient - Cards View */}
+                    {scrim.map && (
+                      <div className="absolute right-0 top-0 bottom-0 w-56 pointer-events-none overflow-hidden rounded-r-lg">
+                        <div 
+                          className="absolute right-0 top-0 bottom-0 w-full"
+                          style={{
+                            backgroundImage: `linear-gradient(to right, transparent 0%, rgba(0,0,0,0.05) 20%, rgba(0,0,0,0.08) 100%), url(/assets/maps/Loading_Screen_${scrim.map}.webp)`,
+                            backgroundPosition: 'center',
+                            backgroundSize: 'cover',
+                            backgroundRepeat: 'no-repeat',
+                            maskImage: 'linear-gradient(to left, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.35) 50%, transparent 100%)',
+                            WebkitMaskImage: 'linear-gradient(to left, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.35) 50%, transparent 100%)',
+                          }}
+                        />
+                      </div>
+                    )}
                     
                     {/* VOD Embed */}
                     {vodId && (
