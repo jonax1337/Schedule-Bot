@@ -272,9 +272,17 @@ async function handleScheduleCommand(interaction: ChatInputCommandInteraction): 
 
   try {
     const dateOption = interaction.options.getString('date');
-    const targetDate = dateOption || undefined;
-
-    const displayDate = targetDate || new Date().toLocaleDateString('de-DE');
+    
+    // Format date as DD.MM.YYYY
+    const formatDate = (d: Date): string => {
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      return `${day}.${month}.${year}`;
+    };
+    
+    const targetDate = dateOption || formatDate(new Date());
+    const displayDate = targetDate;
 
     const sheetData = await getScheduleForDate(targetDate);
 
@@ -314,8 +322,17 @@ async function handlePostScheduleCommand(interaction: ChatInputCommandInteractio
 
   try {
     const dateOption = interaction.options.getString('date');
-    const targetDate = dateOption || undefined;
-    const displayDate = targetDate || new Date().toLocaleDateString('de-DE');
+    
+    // Format date as DD.MM.YYYY
+    const formatDate = (d: Date): string => {
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      return `${day}.${month}.${year}`;
+    };
+    
+    const targetDate = dateOption || formatDate(new Date());
+    const displayDate = targetDate;
 
     // Post schedule to channel (like cron job does)
     await postScheduleToChannel(targetDate);
@@ -736,11 +753,24 @@ export async function postScheduleToChannel(date?: string): Promise<void> {
   const channel = await client.channels.fetch(config.discord.channelId);
 
   if (!channel || !(channel instanceof TextChannel)) {
-    console.error('Could not find text channel with ID:', config.discord.channelId);
+    console.error('Channel not found or is not a text channel');
     return;
   }
 
   try {
+    // Format date as DD.MM.YYYY
+    const formatDate = (d: Date): string => {
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      return `${day}.${month}.${year}`;
+    };
+    
+    // If no date provided, use today
+    if (!date) {
+      date = formatDate(new Date());
+    }
+
     // Clean channel if enabled in settings
     const { loadSettings } = await import('./settingsManager.js');
     const settings = loadSettings();
@@ -748,14 +778,10 @@ export async function postScheduleToChannel(date?: string): Promise<void> {
     if (settings.scheduling.cleanChannelBeforePost) {
       console.log('Cleaning channel before posting schedule...');
       try {
-        // Fetch messages (limit 100, Discord API limit per request)
         const messages = await channel.messages.fetch({ limit: 100 });
-        
-        // Filter out pinned messages
         const messagestoDelete = messages.filter(msg => !msg.pinned);
         
         if (messagestoDelete.size > 0) {
-          // Bulk delete messages (only works for messages < 14 days old)
           const recentMessages = messagestoDelete.filter(msg => 
             Date.now() - msg.createdTimestamp < 14 * 24 * 60 * 60 * 1000
           );
@@ -768,7 +794,6 @@ export async function postScheduleToChannel(date?: string): Promise<void> {
             console.log('Deleted 1 message from channel');
           }
           
-          // Delete older messages individually
           const oldMessages = messagestoDelete.filter(msg => 
             Date.now() - msg.createdTimestamp >= 14 * 24 * 60 * 60 * 1000
           );
@@ -783,11 +808,10 @@ export async function postScheduleToChannel(date?: string): Promise<void> {
         }
       } catch (error) {
         console.error('Error cleaning channel:', error);
-        // Continue with posting even if cleanup fails
       }
     }
 
-    const displayDate = date || new Date().toLocaleDateString('de-DE');
+    const displayDate = date;
     const sheetData = await getScheduleForDate(date);
 
     if (!sheetData) {
