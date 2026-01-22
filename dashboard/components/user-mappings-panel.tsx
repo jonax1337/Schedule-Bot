@@ -27,24 +27,18 @@ interface UserMapping {
   sortOrder: number;
 }
 
-interface SheetColumn {
-  column: string;
-  name: string;
-  index: number;
-}
-
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
 
 export function UserMappingsPanel() {
   const [members, setMembers] = useState<DiscordMember[]>([]);
   const [mappings, setMappings] = useState<UserMapping[]>([]);
-  const [columns, setColumns] = useState<SheetColumn[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [open, setOpen] = useState(false);
   
   const [selectedUserId, setSelectedUserId] = useState('');
-  const [columnName, setColumnName] = useState('');
+  const [displayName, setDisplayName] = useState('');
+  const [sortOrder, setSortOrder] = useState(0);
   const [role, setRole] = useState<'main' | 'sub' | 'coach'>('main');
 
   useEffect(() => {
@@ -55,10 +49,9 @@ export function UserMappingsPanel() {
     setLoading(true);
     try {
       const { getAuthHeaders } = await import('@/lib/auth');
-      const [membersRes, mappingsRes, columnsRes] = await Promise.all([
+      const [membersRes, mappingsRes] = await Promise.all([
         fetch(`${BOT_API_URL}/api/discord/members`, { headers: getAuthHeaders() }),
         fetch(`${BOT_API_URL}/api/user-mappings`),
-        fetch(`${BOT_API_URL}/api/sheet-columns`),
       ]);
 
       if (membersRes.ok) {
@@ -70,11 +63,6 @@ export function UserMappingsPanel() {
         const data = await mappingsRes.json();
         setMappings(data.mappings || []);
       }
-
-      if (columnsRes.ok) {
-        const data = await columnsRes.json();
-        setColumns(data.columns || []);
-      }
     } catch (error) {
       console.error('Failed to load data:', error);
       toast.error('Failed to load user mappings');
@@ -84,7 +72,7 @@ export function UserMappingsPanel() {
   };
 
   const addMapping = async () => {
-    if (!selectedUserId || !columnName || !role) {
+    if (!selectedUserId || !displayName || !role) {
       toast.error('Please fill all fields');
       return;
     }
@@ -101,12 +89,6 @@ export function UserMappingsPanel() {
       return;
     }
 
-    const selectedColumn = columns.find(c => c.column === columnName);
-    if (!selectedColumn) {
-      toast.error('Selected column not found');
-      return;
-    }
-
     setSaving(true);
     try {
       const { getAuthHeaders } = await import('@/lib/auth');
@@ -116,15 +98,17 @@ export function UserMappingsPanel() {
         body: JSON.stringify({
           discordId: selectedUserId,
           discordUsername: selectedMember.username,
-          sheetColumnName: selectedColumn.name, // Use column name, not letter
+          displayName: displayName,
           role,
+          sortOrder: sortOrder,
         }),
       });
 
       if (response.ok) {
         toast.success('User mapping added successfully!');
         setSelectedUserId('');
-        setColumnName('');
+        setDisplayName('');
+        setSortOrder(0);
         setRole('main');
         loadData();
       } else {
@@ -163,12 +147,6 @@ export function UserMappingsPanel() {
   };
 
   const selectedMember = members.find(m => m.id === selectedUserId);
-  const selectedColumn = columns.find(c => c.column === columnName);
-  
-  // Get available columns (not already mapped by name)
-  const availableColumns = columns.filter(
-    col => !mappings.some(m => m.sheetColumnName === col.name)
-  );
 
   if (loading) {
     return (
@@ -298,28 +276,6 @@ export function UserMappingsPanel() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="column">Sheet Column</Label>
-            <Select value={columnName} onValueChange={setColumnName}>
-              <SelectTrigger id="column" className="w-full">
-                <SelectValue placeholder="Select column...">
-                  {selectedColumn && (
-                    <span>
-                      <span className="font-mono font-semibold">{selectedColumn.column}</span> - {selectedColumn.name}
-                    </span>
-                  )}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent position="popper">
-                {availableColumns.map((col) => (
-                  <SelectItem key={col.column} value={col.column}>
-                    <span className="font-mono font-semibold">{col.column}</span> - {col.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
             <Label htmlFor="role">Role</Label>
             <Select value={role} onValueChange={(value: 'main' | 'sub' | 'coach') => setRole(value)}>
               <SelectTrigger id="role" className="w-full">
@@ -374,9 +330,11 @@ export function UserMappingsPanel() {
                   <div className="flex-1">
                     <div className="font-medium">{mapping.discordUsername}</div>
                     <div className="text-sm text-muted-foreground">
-                      Column: <span className="font-mono font-semibold">{mapping.sheetColumnName}</span>
+                      Display: <span className="font-semibold">{mapping.displayName}</span>
                       {' • '}
                       Role: <span className="capitalize">{mapping.role}</span>
+                      {' • '}
+                      Order: <span className="font-mono">{mapping.sortOrder}</span>
                     </div>
                   </div>
                   <Button
