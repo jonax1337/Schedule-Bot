@@ -78,7 +78,7 @@ export function LoginForm({
       const response = await fetch(`${BOT_API_URL}/api/user-mappings`);
       if (response.ok) {
         const data = await response.json();
-        const mappedColumnNames = data.mappings.map((m: any) => m.sheetColumnName);
+        const mappedColumnNames = data.mappings.map((m: any) => m.displayName);
         setUserMappings(mappedColumnNames);
       }
     } catch (error) {
