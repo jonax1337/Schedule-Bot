@@ -1,6 +1,3 @@
-// Prisma Schema for Schedule Bot
-// PostgreSQL Database
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,46 +7,43 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Main schedule table - replaces Sheet1
 model Schedule {
   id        Int              @id @default(autoincrement())
-  date      String           @unique // Format: DD.MM.YYYY
+  date      String           @unique
   reason    String           @default("")
   focus     String           @default("")
-  players   SchedulePlayer[]
   createdAt DateTime         @default(now()) @map("created_at")
   updatedAt DateTime         @updatedAt @map("updated_at")
+  players   SchedulePlayer[]
 
   @@index([date])
   @@map("schedules")
 }
 
-// Dynamic player entries for each schedule
 model SchedulePlayer {
   id           Int      @id @default(autoincrement())
   scheduleId   Int      @map("schedule_id")
-  schedule     Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
-  userId       String   @map("user_id") // Discord ID
-  displayName  String   @map("display_name") // Custom name for Discord
+  userId       String   @map("user_id")
+  displayName  String   @map("display_name")
   role         UserRole
-  availability String   @default("") // "14:00-20:00", "x", ""
-  sortOrder    Int      @default(0) @map("sort_order") // Order in Discord message
+  availability String   @default("")
+  sortOrder    Int      @default(0) @map("sort_order")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
+  schedule     Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
 
   @@index([scheduleId])
   @@index([userId])
   @@map("schedule_players")
 }
 
-// User mapping table - replaces UserMapping sheet
 model UserMapping {
   id              Int      @id @default(autoincrement())
   discordId       String   @unique @map("discord_id")
   discordUsername String   @map("discord_username")
-  displayName     String   @map("display_name") // Custom name for Discord messages
+  displayName     String   @map("display_name")
   role            UserRole
-  sortOrder       Int      @default(0) @map("sort_order") // Order in lists
+  sortOrder       Int      @default(0) @map("sort_order")
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
@@ -58,19 +52,12 @@ model UserMapping {
   @@map("user_mappings")
 }
 
-enum UserRole {
-  MAIN
-  SUB
-  COACH
-}
-
-// Absences table - replaces Absences sheet
 model Absence {
-  id        String   @id // Format: abs_timestamp_random
+  id        String   @id
   userId    String   @map("discord_id")
   username  String
-  startDate String   @map("start_date") // Format: DD.MM.YYYY
-  endDate   String   @map("end_date") // Format: DD.MM.YYYY
+  startDate String   @map("start_date")
+  endDate   String   @map("end_date")
   reason    String?
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -81,18 +68,17 @@ model Absence {
   @@map("absences")
 }
 
-// Scrims/Matches table - replaces Matches sheet
 model Scrim {
-  id          String      @id // Format: scrim_timestamp_random
-  date        String      // Format: DD.MM.YYYY
+  id          String      @id
+  date        String
   opponent    String
   result      ScrimResult
   scoreUs     Int         @default(0) @map("score_us")
   scoreThem   Int         @default(0) @map("score_them")
   map         String      @default("")
   matchType   String      @default("") @map("match_type")
-  ourAgents   String      @default("") @map("our_agents") // Comma-separated
-  theirAgents String      @default("") @map("their_agents") // Comma-separated
+  ourAgents   String      @default("") @map("our_agents")
+  theirAgents String      @default("") @map("their_agents")
   vodUrl      String      @default("") @map("vod_url")
   notes       String      @default("")
   createdAt   DateTime    @default(now()) @map("created_at")
@@ -102,13 +88,6 @@ model Scrim {
   @@map("scrims")
 }
 
-enum ScrimResult {
-  WIN
-  LOSS
-  DRAW
-}
-
-// Settings table - replaces Settings sheet
 model Setting {
   id        Int      @id @default(autoincrement())
   key       String   @unique
@@ -117,4 +96,16 @@ model Setting {
   updatedAt DateTime @updatedAt
 
   @@map("settings")
+}
+
+enum UserRole {
+  MAIN
+  SUB
+  COACH
+}
+
+enum ScrimResult {
+  WIN
+  LOSS
+  DRAW
 }
