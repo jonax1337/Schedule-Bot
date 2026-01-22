@@ -428,12 +428,77 @@ export default function HomePage() {
       if (response.ok) {
         toast.success('Availability updated');
         setEditingUser(false);
-        // Reload calendar
-        await loadCalendar();
-        // Update selected date
-        const updatedEntry = entries.find(e => e.date === selectedDate.date);
-        if (updatedEntry) {
-          setSelectedDate(updatedEntry);
+        
+        // Update the entry in-place without full reload
+        const updatedEntries = entries.map(entry => {
+          if (entry.date === selectedDate.date) {
+            // Update the player status for the logged-in user
+            const updatedPlayers = entry.players.map(player => {
+              if (player.name === loggedInUser) {
+                if (editStatus === 'unavailable') {
+                  return { name: player.name, status: 'unavailable' as const };
+                } else {
+                  return { 
+                    name: player.name, 
+                    status: 'available' as const, 
+                    time: `${editTimeFrom}-${editTimeTo}` 
+                  };
+                }
+              }
+              return player;
+            });
+
+            // Recalculate availability counts
+            const available = updatedPlayers.filter(p => p.status === 'available').length;
+            const unavailable = updatedPlayers.filter(p => p.status === 'unavailable').length;
+            const notSet = updatedPlayers.filter(p => p.status === 'not-set').length;
+
+            // Determine user status
+            const userPlayer = updatedPlayers.find(p => p.name === loggedInUser);
+            const userStatus = userPlayer?.status || 'not-set';
+
+            return {
+              ...entry,
+              players: updatedPlayers,
+              availability: { available, unavailable, notSet },
+              userHasSet: userStatus !== 'not-set',
+              userStatus,
+            };
+          }
+          return entry;
+        });
+
+        setEntries(updatedEntries);
+        
+        // Update selected date with new data
+        const updatedSelectedDate = updatedEntries.find(e => e.date === selectedDate.date);
+        if (updatedSelectedDate) {
+          setSelectedDate(updatedSelectedDate);
+        }
+
+        // Fetch updated schedule details in background
+        try {
+          const detailsRes = await fetch(`${BOT_API_URL}/api/schedule-details-batch?dates=${encodeURIComponent(selectedDate.date)}`);
+          if (detailsRes.ok) {
+            const detailsBatch = await detailsRes.json();
+            if (detailsBatch[selectedDate.date]) {
+              // Update with fresh schedule details
+              const entriesWithDetails = updatedEntries.map(entry => {
+                if (entry.date === selectedDate.date) {
+                  return { ...entry, scheduleDetails: detailsBatch[selectedDate.date] };
+                }
+                return entry;
+              });
+              setEntries(entriesWithDetails);
+              
+              const finalSelectedDate = entriesWithDetails.find(e => e.date === selectedDate.date);
+              if (finalSelectedDate) {
+                setSelectedDate(finalSelectedDate);
+              }
+            }
+          }
+        } catch (err) {
+          console.error('Failed to fetch schedule details:', err);
         }
       } else {
         const errorData = await response.json();
