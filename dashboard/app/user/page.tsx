@@ -94,11 +94,19 @@ export default function UserSchedule() {
       }
       
       const scheduleData = await scheduleRes.json();
+      const schedules = scheduleData.schedules || [];
       const dateEntries: DateEntry[] = [];
       
-      // Parse schedule data
-      for (const schedule of scheduleData.schedules || []) {
-        const player = schedule.players?.find((p: any) => p.userId === userMapping.discordId);
+      // Generate next 14 dates
+      const today = new Date();
+      for (let i = 0; i < 14; i++) {
+        const date = new Date(today);
+        date.setDate(today.getDate() + i);
+        const dateStr = date.toLocaleDateString('de-DE');
+        
+        // Find schedule for this date
+        const schedule = schedules.find((s: any) => s.date === dateStr);
+        const player = schedule?.players?.find((p: any) => p.userId === userMapping.discordId);
         const availability = player?.availability || '';
         
         // Parse time range
@@ -114,7 +122,7 @@ export default function UserSchedule() {
         }
         
         dateEntries.push({
-          date: schedule.date,
+          date: dateStr,
           value: availability,
           timeFrom,
           timeTo,
