@@ -22,14 +22,14 @@ import { ChannelType, EmbedBuilder } from 'discord.js';
 import { config, reloadConfig } from './config.js';
 import { logger } from './logger.js';
 import { restartScheduler } from './scheduler.js';
-import { getUserMappings, addUserMapping, removeUserMapping, initializeUserMappingSheet, getUserMapping } from './userMapping.js';
-import { getSheetColumns, getSheetDataRange, updateSheetCell } from './sheets.js';
+import { getUserMappings, addUserMapping, removeUserMapping, getUserMapping } from './database/userMappings.js';
+import { getScheduleForDate, updatePlayerAvailability, syncUserMappingsToSchedules } from './database/schedules.js';
 import { loadSettingsAsync, saveSettings } from './settingsManager.js';
 import { initiateDiscordAuth, handleDiscordCallback, getUserFromSession, logout } from './auth.js';
-import { preloadCache, getScheduleDetails, getScheduleDetailsBatch, getCacheStats } from './scheduleCache.js';
+import { getScheduleDetails, getScheduleDetailsBatch } from './scheduleDetails.js';
 
 const app = express();
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 
 // Trust proxy - required for rate limiting behind reverse proxy
 app.set('trust proxy', 1);
@@ -50,10 +50,7 @@ app.use(helmet({
   },
 }));
 
-// Preload schedule cache on startup
-setTimeout(() => {
-  preloadCache().catch(err => console.error('[Server] Cache preload failed:', err));
-}, 2000); // Wait 2 seconds after server start
+// No caching needed with PostgreSQL - direct queries are fast enough
 
 // Cache for Discord members to avoid rate limiting
 let membersCache: Array<{
@@ -69,13 +66,17 @@ const MEMBERS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 const allowedOrigins = [
   'http://localhost:3000',
   'http://127.0.0.1:3000',
+  'https://schedule-bot-dashboard.up.railway.app',
+  'https://schedule-bot-dashboard-production.up.railway.app',
   process.env.DASHBOARD_URL,
 ].filter(Boolean) as string[];
 
 app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (mobile apps, curl, etc.)
-    if (!origin) return callback(null, true);
+    if (!origin) {
+      return callback(null, true);
+    }
     
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
@@ -84,8 +85,11 @@ app.use(cors({
     }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['Content-Type', 'Authorization'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 }));
 
 app.use(express.json({ limit: '1mb' }));
@@ -147,11 +151,11 @@ app.post('/api/user/login', async (req, res) => {
 
     // Verify user exists in user mappings
     const mappings = await getUserMappings();
-    const userMapping = mappings.find(m => m.sheetColumnName === username);
+    const userMapping = mappings.find(m => m.displayName === username);
 
     if (!userMapping) {
       logger.warn('User login failed', `User not found: ${username}`);
-      return res.status(401).json({ success: false, error: 'User not found' });
+      return res.status(401).json({ success: false, error: 'Invalid username' });
     }
 
     // Generate JWT token for user
@@ -243,130 +247,66 @@ app.get('/api/discord/roles', verifyToken, requireAdmin, async (req: AuthRequest
   }
 });
 
-// Get sheet columns (public for login dropdown)
-app.get('/api/sheet-columns', async (req, res) => {
+// Get next 14 days schedule (protected)
+app.get('/api/schedule/next14', verifyToken, async (req: AuthRequest, res) => {
   try {
-    const columns = await getSheetColumns();
-    res.json({ columns });
+    const { getNext14DaysSchedule } = await import('./database/schedules.js');
+    const schedules = await getNext14DaysSchedule();
+    res.json({ success: true, schedules });
   } catch (error) {
-    console.error('Error fetching sheet columns:', error);
-    logger.error('Failed to fetch sheet columns', error instanceof Error ? error.message : String(error));
-    res.status(500).json({ error: 'Failed to fetch sheet columns' });
+    console.error('Error fetching next 14 days schedule:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch schedule' });
   }
 });
 
-// Get sheet data range (public read for schedule viewing)
-app.get('/api/sheet-data', async (req, res) => {
+// Get schedules with pagination (protected, admin only)
+app.get('/api/schedule/paginated', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
   try {
-    const startRow = parseInt(req.query.startRow as string) || 1;
-    const endRow = parseInt(req.query.endRow as string) || 50;
-    const data = await getSheetDataRange(startRow, endRow);
-    res.json({ data });
+    const { getSchedulesPaginated } = await import('./database/schedules.js');
+    const offset = parseInt(req.query.offset as string) || 0;
+    const result = await getSchedulesPaginated(offset);
+    res.json({ success: true, ...result });
   } catch (error) {
-    console.error('Error fetching sheet data:', error);
-    logger.error('Failed to fetch sheet data', error instanceof Error ? error.message : String(error));
-    res.status(500).json({ error: 'Failed to fetch sheet data' });
+    console.error('Error fetching paginated schedules:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch schedules' });
   }
 });
 
-// Update sheet cell (protected with validation, users can edit their own columns)
-app.post('/api/sheet-data/update', verifyToken, validate(updateCellSchema), async (req: AuthRequest, res) => {
+// Update player availability (protected, users can edit their own availability)
+app.post('/api/schedule/update-availability', verifyToken, async (req: AuthRequest, res) => {
   try {
-    const { row, column, value } = req.body;
+    const { date, userId, availability } = req.body;
     
-    // Users can only edit their own column (admins can edit all)
+    if (!date || !userId || availability === undefined) {
+      return res.status(400).json({ error: 'Date, userId, and availability are required' });
+    }
+    
+    // Users can only edit their own availability (admins can edit anyone's)
     if (req.user?.role === 'user') {
-      // Get user's column from user mappings
       const mappings = await getUserMappings();
-      const userMapping = mappings.find(m => m.sheetColumnName === req.user?.username);
+      const userMapping = mappings.find(m => m.displayName === req.user?.username);
       
-      if (!userMapping) {
-        logger.warn('User column update denied', `User ${req.user?.username} has no mapping`);
-        return res.status(403).json({ error: 'User has no column mapping' });
-      }
-      
-      // Check if user is trying to edit their own column
-      const columns = await getSheetColumns();
-      const userColumn = columns.find(c => c.name === userMapping.sheetColumnName);
-      
-      if (!userColumn || userColumn.column !== column) {
-        logger.warn('User column update denied', `User ${req.user?.username} tried to edit column ${column}`);
-        return res.status(403).json({ error: 'You can only edit your own column' });
+      if (!userMapping || userMapping.discordId !== userId) {
+        logger.warn('Availability update denied', `User ${req.user?.username} tried to edit ${userId}`);
+        return res.status(403).json({ error: 'You can only edit your own availability' });
       }
     }
     
     // Sanitize value
-    const sanitizedValue = sanitizeString(value);
+    const sanitizedValue = sanitizeString(availability);
     
-    await updateSheetCell(row, column, sanitizedValue);
-    logger.success('Sheet cell updated', `${column}${row} = ${value} by ${req.user?.username}`);
-    res.json({ success: true, message: 'Cell updated successfully' });
+    const success = await updatePlayerAvailability(date, userId, sanitizedValue);
+    
+    if (success) {
+      logger.success('Availability updated', `${userId} for ${date} = ${availability}`);
+      res.json({ success: true, message: 'Availability updated successfully' });
+    } else {
+      res.status(500).json({ error: 'Failed to update availability' });
+    }
   } catch (error) {
-    console.error('Error updating sheet cell:', error);
-    logger.error('Failed to update sheet cell', error instanceof Error ? error.message : String(error));
-    res.status(500).json({ error: 'Failed to update sheet cell' });
-  }
-});
-
-// Bulk update sheet cells (protected, users can only edit their own column)
-app.post('/api/sheet-data/bulk-update', verifyToken, async (req: AuthRequest, res) => {
-  try {
-    const { updates } = req.body;
-    
-    if (!Array.isArray(updates) || updates.length === 0) {
-      return res.status(400).json({ error: 'Updates array is required and must not be empty' });
-    }
-    
-    // Validate each update
-    for (const update of updates) {
-      if (!update.row || !update.column || update.value === undefined) {
-        return res.status(400).json({ error: 'Each update must have row, column, and value' });
-      }
-    }
-    
-    // Users can only edit their own column (admins can edit all)
-    if (req.user?.role === 'user') {
-      const mappings = await getUserMappings();
-      const userMapping = mappings.find(m => m.sheetColumnName === req.user?.username);
-      
-      if (!userMapping) {
-        logger.warn('Bulk update denied', `User ${req.user?.username} has no mapping`);
-        return res.status(403).json({ error: 'User has no column mapping' });
-      }
-      
-      const columns = await getSheetColumns();
-      const userColumn = columns.find(c => c.name === userMapping.sheetColumnName);
-      
-      if (!userColumn) {
-        logger.warn('Bulk update denied', `User ${req.user?.username} has no column`);
-        return res.status(403).json({ error: 'User column not found' });
-      }
-      
-      // Check if all updates are for the user's own column
-      const invalidUpdate = updates.find(u => u.column !== userColumn.column);
-      if (invalidUpdate) {
-        logger.warn('Bulk update denied', `User ${req.user?.username} tried to edit column ${invalidUpdate.column}`);
-        return res.status(403).json({ error: 'You can only edit your own column' });
-      }
-    }
-    
-    // Sanitize all values
-    const sanitizedUpdates = updates.map(u => ({
-      row: u.row,
-      column: u.column,
-      value: sanitizeString(u.value),
-    }));
-    
-    // Use bulk update function
-    const { bulkUpdateSheetCells } = await import('./sheets.js');
-    await bulkUpdateSheetCells(sanitizedUpdates);
-    
-    logger.success('Bulk update completed', `${updates.length} cells updated by ${req.user?.username}`);
-    res.json({ success: true, message: `${updates.length} cells updated successfully`, count: updates.length });
-  } catch (error) {
-    console.error('Error in bulk update:', error);
-    logger.error('Failed to bulk update', error instanceof Error ? error.message : String(error));
-    res.status(500).json({ error: 'Failed to bulk update cells' });
+    console.error('Error updating availability:', error);
+    logger.error('Failed to update availability', error instanceof Error ? error.message : String(error));
+    res.status(500).json({ error: 'Failed to update availability' });
   }
 });
 
@@ -435,7 +375,7 @@ app.get('/api/schedule-details', optionalAuth, async (req: AuthRequest, res) => 
   }
 });
 
-// Get schedule details for multiple dates at once (batch, cached, optional auth)
+// Get schedule details for multiple dates at once (batch, optional auth)
 app.get('/api/schedule-details-batch', optionalAuth, async (req: AuthRequest, res) => {
   try {
     const datesParam = req.query.dates as string;
@@ -453,11 +393,7 @@ app.get('/api/schedule-details-batch', optionalAuth, async (req: AuthRequest, re
   }
 });
 
-// Get cache statistics (for debugging)
-app.get('/api/cache-stats', (req, res) => {
-  const stats = getCacheStats();
-  res.json(stats);
-});
+// Cache stats endpoint removed - no caching with PostgreSQL
 
 // Get bot logs (protected)
 app.get('/api/logs', verifyToken, requireAdmin, (req: AuthRequest, res) => {
@@ -547,20 +483,24 @@ app.get('/api/user-mappings', async (req, res) => {
 // Add new user mapping (protected with validation)
 app.post('/api/user-mappings', verifyToken, requireAdmin, validate(addUserMappingSchema), async (req: AuthRequest, res) => {
   try {
-    const { discordId, discordUsername, sheetColumnName, role } = req.body;
+    const { discordId, discordUsername, displayName, role, sortOrder } = req.body;
     
     await addUserMapping({
       discordId,
       discordUsername,
-      sheetColumnName,
+      displayName: displayName || discordUsername,
       role,
+      sortOrder: sortOrder || 0,
     });
     
-    logger.success('User mapping added', `${discordUsername} → ${sheetColumnName}`);
+    // Sync to all schedules
+    await syncUserMappingsToSchedules();
+    
+    logger.success('User mapping added', `${discordUsername} → ${displayName || discordUsername}`);
     res.json({ success: true, message: 'User mapping added successfully' });
   } catch (error) {
     console.error('Error adding user mapping:', error);
-    logger.error('Failed to add user mapping', error instanceof Error ? error.message : String(error));
+    logger.error('User mapping add failed', error instanceof Error ? error.message : 'Unknown error');
     res.status(500).json({ success: false, error: 'Failed to add user mapping' });
   }
 });
@@ -572,6 +512,9 @@ app.delete('/api/user-mappings/:discordId', verifyToken, requireAdmin, async (re
     const success = await removeUserMapping(discordId);
     
     if (success) {
+      // Sync to all schedules (removes player from all schedules)
+      await syncUserMappingsToSchedules();
+      
       logger.success('User mapping removed', `Discord ID: ${discordId}`);
       res.json({ success: true, message: 'User mapping removed successfully' });
     } else {
@@ -584,18 +527,7 @@ app.delete('/api/user-mappings/:discordId', verifyToken, requireAdmin, async (re
   }
 });
 
-// Initialize user mapping sheet (protected)
-app.post('/api/user-mappings/init', verifyToken, requireAdmin, strictApiLimiter, async (req: AuthRequest, res) => {
-  try {
-    await initializeUserMappingSheet();
-    logger.success('User mapping sheet initialized');
-    res.json({ success: true, message: 'User mapping sheet initialized' });
-  } catch (error) {
-    console.error('Error initializing user mapping sheet:', error);
-    logger.error('Failed to initialize user mapping sheet', error instanceof Error ? error.message : String(error));
-    res.status(500).json({ success: false, error: 'Failed to initialize sheet' });
-  }
-});
+// User mapping sheet initialization not needed with PostgreSQL - tables auto-created by Prisma
 
 // Post schedule (protected)
 app.post('/api/actions/schedule', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
@@ -766,7 +698,7 @@ app.post('/api/actions/notify', verifyToken, requireAdmin, validate(notification
 // Get all scrims (optional auth)
 app.get('/api/scrims', optionalAuth, async (req: AuthRequest, res) => {
   try {
-    const { getAllScrims } = await import('./scrims.js');
+    const { getAllScrims } = await import('./database/scrims.js');
     const scrims = await getAllScrims();
     res.json({ success: true, scrims });
   } catch (error) {
@@ -778,7 +710,7 @@ app.get('/api/scrims', optionalAuth, async (req: AuthRequest, res) => {
 // Get scrim by ID (optional auth)
 app.get('/api/scrims/:id', optionalAuth, async (req: AuthRequest, res) => {
   try {
-    const { getScrimById } = await import('./scrims.js');
+    const { getScrimById } = await import('./database/scrims.js');
     const scrim = await getScrimById(req.params.id as string);
     
     if (!scrim) {
@@ -795,11 +727,8 @@ app.get('/api/scrims/:id', optionalAuth, async (req: AuthRequest, res) => {
 // Add new scrim (protected with validation, users can add scrims)
 app.post('/api/scrims', verifyToken, validate(addScrimSchema), async (req: AuthRequest, res) => {
   try {
-    const { addScrim, ensureScrimSheetExists } = await import('./scrims.js');
+    const { addScrim } = await import('./database/scrims.js');
     const { date, opponent, result, scoreUs, scoreThem, map, matchType, ourAgents, theirAgents, vodUrl, notes } = req.body;
-    
-    // Ensure sheet exists before adding
-    await ensureScrimSheetExists();
     
     const newScrim = await addScrim({
       date,
@@ -826,7 +755,7 @@ app.post('/api/scrims', verifyToken, validate(addScrimSchema), async (req: AuthR
 // Update scrim (protected with validation, users can update scrims)
 app.put('/api/scrims/:id', verifyToken, validate(updateScrimSchema), async (req: AuthRequest, res) => {
   try {
-    const { updateScrim } = await import('./scrims.js');
+    const { updateScrim } = await import('./database/scrims.js');
     const { date, opponent, result, scoreUs, scoreThem, map, matchType, ourAgents, theirAgents, vodUrl, notes } = req.body;
     
     const updates: any = {};
@@ -859,7 +788,7 @@ app.put('/api/scrims/:id', verifyToken, validate(updateScrimSchema), async (req:
 // Delete scrim (protected, users can delete scrims)
 app.delete('/api/scrims/:id', verifyToken, async (req: AuthRequest, res) => {
   try {
-    const { deleteScrim } = await import('./scrims.js');
+    const { deleteScrim } = await import('./database/scrims.js');
     const success = await deleteScrim(req.params.id as string);
     
     if (!success) {
@@ -877,7 +806,7 @@ app.delete('/api/scrims/:id', verifyToken, async (req: AuthRequest, res) => {
 // Get scrim statistics (optional auth)
 app.get('/api/scrims/stats/summary', optionalAuth, async (req: AuthRequest, res) => {
   try {
-    const { getScrimStats } = await import('./scrims.js');
+    const { getScrimStats } = await import('./database/scrims.js');
     const stats = await getScrimStats();
     res.json({ success: true, stats });
   } catch (error) {
@@ -889,7 +818,7 @@ app.get('/api/scrims/stats/summary', optionalAuth, async (req: AuthRequest, res)
 // Get scrims by date range (optional auth)
 app.get('/api/scrims/range/:startDate/:endDate', optionalAuth, async (req: AuthRequest, res) => {
   try {
-    const { getScrimsByDateRange } = await import('./scrims.js');
+    const { getScrimsByDateRange } = await import('./database/scrims.js');
     const startDate = req.params.startDate as string;
     const endDate = req.params.endDate as string;
     const scrims = await getScrimsByDateRange(startDate, endDate);
@@ -900,277 +829,18 @@ app.get('/api/scrims/range/:startDate/:endDate', optionalAuth, async (req: AuthR
   }
 });
 
-// Absence Management Endpoints
-
-// Get all absences (optional auth)
-app.get('/api/absences', optionalAuth, async (req: AuthRequest, res) => {
-  try {
-    const { getAllAbsences } = await import('./absences.js');
-    const absences = await getAllAbsences();
-    res.json({ success: true, absences });
-  } catch (error) {
-    console.error('Error fetching absences:', error);
-    res.status(500).json({ success: false, error: 'Failed to fetch absences' });
-  }
-});
-
-// Get absences by user (optional auth)
-app.get('/api/absences/user/:discordId', optionalAuth, async (req: AuthRequest, res) => {
-  try {
-    const { getAbsencesByUser } = await import('./absences.js');
-    const absences = await getAbsencesByUser(req.params.discordId as string);
-    res.json({ success: true, absences });
-  } catch (error) {
-    console.error('Error fetching user absences:', error);
-    res.status(500).json({ success: false, error: 'Failed to fetch absences' });
-  }
-});
-
-// Get absence by ID (optional auth)
-app.get('/api/absences/:id', optionalAuth, async (req: AuthRequest, res) => {
-  try {
-    const { getAbsenceById } = await import('./absences.js');
-    const absence = await getAbsenceById(req.params.id as string);
-    
-    if (!absence) {
-      return res.status(404).json({ success: false, error: 'Absence not found' });
-    }
-    
-    res.json({ success: true, absence });
-  } catch (error) {
-    console.error('Error fetching absence:', error);
-    res.status(500).json({ success: false, error: 'Failed to fetch absence' });
-  }
-});
-
-// Add new absence (protected with validation, users can add their own absences)
-app.post('/api/absences', verifyToken, async (req: AuthRequest, res) => {
-  try {
-    const { addAbsence, ensureAbsencesSheetExists } = await import('./absences.js');
-    const { addAbsenceSchema } = await import('./middleware/validation.js');
-    
-    // Validate request body
-    const { error, value } = addAbsenceSchema.validate(req.body);
-    if (error) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Validation failed',
-        details: error.details.map(d => d.message)
-      });
-    }
-    
-    const { discordId, username, startDate, endDate, reason } = value;
-    
-    // Users can only add absences for themselves (admins can add for anyone)
-    if (req.user?.role === 'user') {
-      const mappings = await getUserMappings();
-      const userMapping = mappings.find(m => m.sheetColumnName === req.user?.username);
-      
-      if (!userMapping || userMapping.discordId !== discordId) {
-        logger.warn('Absence creation denied', `User ${req.user?.username} tried to add absence for ${username}`);
-        return res.status(403).json({ success: false, error: 'You can only add absences for yourself' });
-      }
-    }
-    
-    // Ensure sheet exists before adding
-    await ensureAbsencesSheetExists();
-    
-    const newAbsence = await addAbsence({
-      discordId,
-      username,
-      startDate,
-      endDate,
-      reason: reason || '',
-    });
-    
-    // Immediately mark the absence days in the schedule
-    try {
-      const { processAbsencesForNext14Days } = await import('./absenceProcessor.js');
-      await processAbsencesForNext14Days();
-      logger.success('Absence marked immediately', `Updated schedule for ${username}`);
-    } catch (error) {
-      console.error('Error marking absence immediately:', error);
-      // Don't fail the request if marking fails
-    }
-    
-    logger.success('Absence added', `${username} from ${startDate} to ${endDate}`);
-    res.json({ success: true, absence: newAbsence });
-  } catch (error) {
-    console.error('Error adding absence:', error);
-    res.status(500).json({ success: false, error: 'Failed to add absence' });
-  }
-});
-
-// Update absence (protected with validation, users can update their own absences)
-app.put('/api/absences/:id', verifyToken, async (req: AuthRequest, res) => {
-  try {
-    const { updateAbsence, getAbsenceById } = await import('./absences.js');
-    const { updateAbsenceSchema } = await import('./middleware/validation.js');
-    
-    // Validate request body
-    const { error, value } = updateAbsenceSchema.validate(req.body);
-    if (error) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Validation failed',
-        details: error.details.map(d => d.message)
-      });
-    }
-    
-    const absenceId = req.params.id as string;
-    const existingAbsence = await getAbsenceById(absenceId);
-    
-    if (!existingAbsence) {
-      return res.status(404).json({ success: false, error: 'Absence not found' });
-    }
-    
-    // Users can only update their own absences (admins can update any)
-    if (req.user?.role === 'user') {
-      const mappings = await getUserMappings();
-      const userMapping = mappings.find(m => m.sheetColumnName === req.user?.username);
-      
-      if (!userMapping || userMapping.discordId !== existingAbsence.discordId) {
-        logger.warn('Absence update denied', `User ${req.user?.username} tried to update absence ${absenceId}`);
-        return res.status(403).json({ success: false, error: 'You can only update your own absences' });
-      }
-    }
-    
-    const { username, startDate, endDate, reason } = value;
-    const updates: any = {};
-    if (username !== undefined) updates.username = username;
-    if (startDate !== undefined) updates.startDate = startDate;
-    if (endDate !== undefined) updates.endDate = endDate;
-    if (reason !== undefined) updates.reason = reason;
-    
-    const updatedAbsence = await updateAbsence(absenceId, updates);
-    
-    if (!updatedAbsence) {
-      return res.status(404).json({ success: false, error: 'Absence not found' });
-    }
-    
-    // Immediately update the absence days in the schedule
-    try {
-      const { processAbsencesForNext14Days } = await import('./absenceProcessor.js');
-      await processAbsencesForNext14Days();
-      logger.success('Absence updated immediately', `Updated schedule for ID: ${absenceId}`);
-    } catch (error) {
-      console.error('Error updating absence immediately:', error);
-      // Don't fail the request if marking fails
-    }
-    
-    logger.success('Absence updated', `ID: ${absenceId}`);
-    res.json({ success: true, absence: updatedAbsence });
-  } catch (error) {
-    console.error('Error updating absence:', error);
-    res.status(500).json({ success: false, error: 'Failed to update absence' });
-  }
-});
-
-// Delete absence (protected, users can delete their own absences)
-app.delete('/api/absences/:id', verifyToken, async (req: AuthRequest, res) => {
-  try {
-    const { deleteAbsence, getAbsenceById } = await import('./absences.js');
-    const absenceId = req.params.id as string;
-    
-    const existingAbsence = await getAbsenceById(absenceId);
-    
-    if (!existingAbsence) {
-      return res.status(404).json({ success: false, error: 'Absence not found' });
-    }
-    
-    // Users can only delete their own absences (admins can delete any)
-    if (req.user?.role === 'user') {
-      const mappings = await getUserMappings();
-      const userMapping = mappings.find(m => m.sheetColumnName === req.user?.username);
-      
-      if (!userMapping || userMapping.discordId !== existingAbsence.discordId) {
-        logger.warn('Absence deletion denied', `User ${req.user?.username} tried to delete absence ${absenceId}`);
-        return res.status(403).json({ success: false, error: 'You can only delete your own absences' });
-      }
-    }
-    
-    const success = await deleteAbsence(absenceId);
-    
-    if (!success) {
-      return res.status(404).json({ success: false, error: 'Absence not found' });
-    }
-    
-    // Note: We don't automatically remove 'x' marks after deletion
-    // because the user might have manually set themselves as unavailable
-    // The next hourly job will handle this correctly
-    
-    logger.success('Absence deleted', `ID: ${absenceId}`);
-    res.json({ success: true, message: 'Absence deleted' });
-  } catch (error) {
-    console.error('Error deleting absence:', error);
-    res.status(500).json({ success: false, error: 'Failed to delete absence' });
-  }
-});
-
-// Get active absences for a specific date (optional auth)
-app.get('/api/absences/date/:date', optionalAuth, async (req: AuthRequest, res) => {
-  try {
-    const { getActiveAbsencesForDate } = await import('./absences.js');
-    const date = req.params.date as string;
-    const absences = await getActiveAbsencesForDate(date);
-    res.json({ success: true, absences });
-  } catch (error) {
-    console.error('Error fetching absences for date:', error);
-    res.status(500).json({ success: false, error: 'Failed to fetch absences' });
-  }
-});
-
-// Check if user is absent on specific dates (protected)
-app.post('/api/absences/check-dates', verifyToken, async (req: AuthRequest, res) => {
-  try {
-    const { dates, discordId } = req.body;
-    
-    if (!dates || !Array.isArray(dates)) {
-      return res.status(400).json({ success: false, error: 'Dates array required' });
-    }
-    
-    if (!discordId) {
-      return res.status(400).json({ success: false, error: 'Discord ID required' });
-    }
-    
-    // Users can only check their own absences (admins can check anyone)
-    if (req.user?.role === 'user') {
-      const mappings = await getUserMappings();
-      const userMapping = mappings.find(m => m.sheetColumnName === req.user?.username);
-      
-      if (!userMapping || userMapping.discordId !== discordId) {
-        return res.status(403).json({ success: false, error: 'You can only check your own absences' });
-      }
-    }
-    
-    const { isDateInAbsence, getAbsencesByUser } = await import('./absences.js');
-    const userAbsences = await getAbsencesByUser(discordId);
-    
-    // Check each date
-    const absentDates: { [date: string]: boolean } = {};
-    for (const date of dates) {
-      const isAbsent = userAbsences.some(absence => isDateInAbsence(date, absence));
-      absentDates[date] = isAbsent;
-    }
-    
-    res.json({ success: true, absentDates });
-  } catch (error) {
-    console.error('Error checking absent dates:', error);
-    res.status(500).json({ success: false, error: 'Failed to check absent dates' });
-  }
-});
-
-// Discord OAuth routes
-app.get('/api/auth/discord', initiateDiscordAuth);
-app.get('/api/auth/discord/callback', handleDiscordCallback);
-app.get('/api/auth/user', getUserFromSession);
-app.post('/api/auth/logout', logout);
-
+// Export startApiServer function
 export function startApiServer(): void {
   app.listen(PORT, () => {
     console.log(`API Server listening on port ${PORT}`);
     logger.success('API Server started', `Listening on port ${PORT}`);
   });
 }
+
+// Discord OAuth routes
+app.get('/api/auth/discord', initiateDiscordAuth);
+app.get('/api/auth/discord/callback', handleDiscordCallback);
+app.get('/api/auth/user', getUserFromSession);
+app.post('/api/auth/logout', logout);
 
 export { app };

@@ -1,6 +1,7 @@
 import { startBot, client } from './bot.js';
 import { startScheduler, stopScheduler, getNextScheduledTime } from './scheduler.js';
-import { testConnection, deleteOldRows } from './sheets.js';
+import { connectDatabase } from './database/client.js';
+import { deleteOldRows } from './database/schedules.js';
 import { config, reloadConfig } from './config.js';
 import { startApiServer } from './apiServer.js';
 import { logger } from './logger.js';
@@ -10,17 +11,19 @@ async function main(): Promise<void> {
   console.log('Valorant Schedule Bot');
   console.log('='.repeat(50));
 
-  // Test Google Sheets connection
-  console.log('\nTesting Google Sheets connection...');
-  logger.info('Testing Google Sheets connection');
-  const sheetsConnected = await testConnection();
-  if (!sheetsConnected) {
-    console.error('Failed to connect to Google Sheets. Please check your credentials.');
-    logger.error('Google Sheets connection failed', 'Check credentials.json');
+  // Connect to PostgreSQL Database
+  console.log('\nConnecting to PostgreSQL database...');
+  logger.info('Connecting to PostgreSQL database');
+  
+  try {
+    await connectDatabase();
+    console.log('PostgreSQL connection successful!');
+    logger.success('PostgreSQL connected');
+  } catch (error) {
+    console.error('Failed to connect to PostgreSQL. Exiting...', error);
+    logger.error('PostgreSQL connection failed', error instanceof Error ? error.message : String(error));
     process.exit(1);
   }
-  console.log('Google Sheets connection successful!');
-  logger.success('Google Sheets connected');
 
   // Load/migrate settings
   console.log('\nLoading settings...');
@@ -35,16 +38,22 @@ async function main(): Promise<void> {
     logger.error('Settings load failed', error instanceof Error ? error.message : String(error));
   }
 
-  // Run cleanup job on startup
-  console.log('\nRunning table cleanup and maintenance...');
+  // Cleanup job DISABLED - keeping all historical data
+  console.log('\nSchedule data cleanup disabled - all historical data will be preserved.');
+
+  // Ensure next 14 days have schedule entries
+  console.log('\nEnsuring schedule entries for next 14 days...');
   try {
-    await deleteOldRows();
-    console.log('Table cleanup completed successfully!');
+    const { addMissingDays } = await import('./database/schedules.js');
+    await addMissingDays();
+    console.log('Schedule entries verified successfully!');
+    logger.success('Schedule entries verified');
   } catch (error) {
-    console.error('Error during table cleanup:', error);
-    // Don't exit, just log the error
+    console.error('Error ensuring schedule entries:', error);
+    logger.error('Schedule verification failed', error instanceof Error ? error.message : String(error));
   }
-logger.info('Starting Discord bot');
+
+  logger.info('Starting Discord bot');
   await startBot();
 
   // Wait for bot to be ready before starting scheduler

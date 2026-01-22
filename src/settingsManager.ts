@@ -1,12 +1,17 @@
-import { readFileSync, writeFileSync, existsSync } from 'fs';
-import { resolve, dirname } from 'path';
-import { fileURLToPath } from 'url';
-import { getSettingsFromSheet, saveSettingsToSheet, type SheetSettings } from './sheets.js';
+import { prisma } from './database/client.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const SETTINGS_PATH = resolve(__dirname, '../settings.json');
+function flattenSettings(settings: Settings): Record<string, string | number | boolean> {
+  return {
+    'discord.channelId': settings.discord.channelId,
+    'discord.pingRoleId': settings.discord.pingRoleId || '',
+    'discord.allowDiscordAuth': settings.discord.allowDiscordAuth,
+    'scheduling.dailyPostTime': settings.scheduling.dailyPostTime,
+    'scheduling.reminderHoursBefore': settings.scheduling.reminderHoursBefore,
+    'scheduling.timezone': settings.scheduling.timezone,
+    'scheduling.cleanChannelBeforePost': settings.scheduling.cleanChannelBeforePost,
+    'scheduling.trainingStartPollEnabled': settings.scheduling.trainingStartPollEnabled,
+  };
+}
 
 export interface Settings {
   discord: {
@@ -58,21 +63,9 @@ export function loadSettings(): Settings {
  * Force reload settings from Google Sheets (bypasses cache)
  */
 export function reloadSettings(): Settings {
-  try {
-    // Use defaults (settings should be loaded via async version)
-    console.log('Using default settings. Call loadSettingsAsync() to load from Google Sheets.');
-    cachedSettings = {
-      ...DEFAULT_SETTINGS,
-    };
-
-    return cachedSettings;
-  } catch (error) {
-    console.error('Error loading settings, using defaults:', error);
-    cachedSettings = {
-      ...DEFAULT_SETTINGS,
-    };
-    return cachedSettings;
-  }
+  console.log('Using default settings. Call loadSettingsAsync() to load from PostgreSQL.');
+  cachedSettings = { ...DEFAULT_SETTINGS };
+  return cachedSettings;
 }
 
 /**
@@ -80,42 +73,57 @@ export function reloadSettings(): Settings {
  */
 export async function loadSettingsAsync(): Promise<Settings> {
   try {
-    // Try to get settings from Google Sheet
-    const sheetSettings = await getSettingsFromSheet();
+    // Settings from PostgreSQL Settings table
+    const settingsRecords = await prisma.setting.findMany();
     
-    if (sheetSettings) {
-      cachedSettings = {
-        ...sheetSettings,
-        scheduling: {
-          ...sheetSettings.scheduling,
-          changeNotificationsEnabled: sheetSettings.scheduling.changeNotificationsEnabled ?? true,
-        },
+    if (settingsRecords.length === 0) {
+      console.log('No settings found in PostgreSQL. Creating default settings...');
+      const defaultSettings = {
+        discord: DEFAULT_SETTINGS.discord,
+        scheduling: DEFAULT_SETTINGS.scheduling,
       };
-      console.log('✅ Settings loaded from Google Sheets');
+      
+      // Save default settings to PostgreSQL
+      for (const [key, value] of Object.entries(flattenSettings(defaultSettings))) {
+        await prisma.setting.upsert({
+          where: { key },
+          create: { key, value: String(value) },
+          update: { value: String(value) },
+        });
+      }
+      console.log('✅ Default settings created in PostgreSQL');
+      
+      cachedSettings = { ...defaultSettings };
       return cachedSettings;
     }
-
-    // No settings in Google Sheet - create defaults
-    console.log('No settings found in Google Sheets. Creating default settings...');
-    const defaultSettings = {
-      discord: DEFAULT_SETTINGS.discord,
-      scheduling: DEFAULT_SETTINGS.scheduling,
-    };
     
-    // Save defaults to Google Sheet
-    await saveSettingsToSheet(defaultSettings);
-    console.log('✅ Default settings created in Google Sheets');
+    // Parse settings from flat key-value pairs
+    const settingsMap: Record<string, string> = {};
+    for (const record of settingsRecords) {
+      settingsMap[record.key] = record.value;
+    }
     
     cachedSettings = {
-      ...defaultSettings,
+      discord: {
+        channelId: settingsMap['discord.channelId'] || DEFAULT_SETTINGS.discord.channelId,
+        pingRoleId: settingsMap['discord.pingRoleId'] || DEFAULT_SETTINGS.discord.pingRoleId,
+        allowDiscordAuth: settingsMap['discord.allowDiscordAuth'] === 'true',
+      },
+      scheduling: {
+        dailyPostTime: settingsMap['scheduling.dailyPostTime'] || DEFAULT_SETTINGS.scheduling.dailyPostTime,
+        reminderHoursBefore: parseInt(settingsMap['scheduling.reminderHoursBefore']) || DEFAULT_SETTINGS.scheduling.reminderHoursBefore,
+        trainingStartPollEnabled: settingsMap['scheduling.trainingStartPollEnabled'] === 'true',
+        timezone: settingsMap['scheduling.timezone'] || DEFAULT_SETTINGS.scheduling.timezone,
+        cleanChannelBeforePost: settingsMap['scheduling.cleanChannelBeforePost'] === 'true',
+        changeNotificationsEnabled: settingsMap['scheduling.changeNotificationsEnabled'] !== 'false',
+      },
     };
     
+    console.log('✅ Settings loaded from PostgreSQL');
     return cachedSettings;
   } catch (error) {
-    console.error('Error loading settings async:', error);
-    cachedSettings = {
-      ...DEFAULT_SETTINGS,
-    };
+    console.error('Error loading settings:', error);
+    cachedSettings = { ...DEFAULT_SETTINGS };
     return cachedSettings;
   }
 }
@@ -125,18 +133,18 @@ export async function loadSettingsAsync(): Promise<Settings> {
  */
 export async function saveSettings(settings: Settings): Promise<void> {
   try {
-    // Save discord and scheduling to Google Sheets
-    await saveSettingsToSheet({
-      discord: settings.discord,
-      scheduling: settings.scheduling,
-    });
+    // Save settings to PostgreSQL
+    const flatSettings = flattenSettings(settings);
+    for (const [key, value] of Object.entries(flatSettings)) {
+      await prisma.setting.upsert({
+        where: { key },
+        create: { key, value: String(value) },
+        update: { value: String(value) },
+      });
+    }
     
-    // Update cache with new settings
-    cachedSettings = {
-      ...settings,
-    };
-    
-    console.log('Settings saved to Google Sheets successfully');
+    cachedSettings = { ...settings };
+    console.log('Settings saved to PostgreSQL successfully');
   } catch (error) {
     console.error('Error saving settings:', error);
     throw error;

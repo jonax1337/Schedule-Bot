@@ -1,14 +1,12 @@
 import cron from 'node-cron';
 import { config } from './config.js';
 import { postScheduleToChannel, client } from './bot.js';
-import { deleteOldRows } from './sheets.js';
+import { deleteOldRows } from './database/schedules.js';
 import { sendRemindersToUsersWithoutEntry } from './reminder.js';
-import { processAbsencesForNext14Days } from './absenceProcessor.js';
 
 let scheduledTask: cron.ScheduledTask | null = null;
 let cleanupTask: cron.ScheduledTask | null = null;
 let reminderTask: cron.ScheduledTask | null = null;
-let absenceTask: cron.ScheduledTask | null = null;
 
 function parseTime(timeStr: string): { hour: number; minute: number } {
   const [hourStr, minuteStr] = timeStr.split(':');
@@ -45,26 +43,9 @@ export function startScheduler(): void {
 
   console.log('Scheduler started successfully.');
 
-  // Daily cleanup at 00:00 to delete old rows
-  console.log('Setting up daily cleanup at 00:00 to remove old rows...');
-  
-  cleanupTask = cron.schedule(
-    '0 0 * * *', // Every day at 00:00
-    async () => {
-      console.log(`[${new Date().toISOString()}] Running scheduled cleanup...`);
-      try {
-        const deletedCount = await deleteOldRows();
-        console.log(`Cleanup completed. Deleted ${deletedCount} old row(s).`);
-      } catch (error) {
-        console.error('Error during scheduled cleanup:', error);
-      }
-    },
-    {
-      timezone: config.scheduling.timezone,
-    }
-  );
-
-  console.log('Cleanup scheduler started successfully.');
+  // Daily cleanup DISABLED - keeping all historical data
+  // Old schedules are no longer automatically deleted
+  console.log('Cleanup job disabled - all schedule data will be preserved.');
 
   // Reminder job X hours before daily post
   const reminderTime = calculateReminderTime(hour, minute, config.scheduling.reminderHoursBefore);
@@ -90,27 +71,6 @@ export function startScheduler(): void {
   );
 
   console.log('Reminder scheduler started successfully.');
-
-  // Absence processing job - runs every hour to mark absences
-  console.log('Setting up absence processing job (runs every hour)...');
-  
-  absenceTask = cron.schedule(
-    '0 * * * *', // Every hour at minute 0
-    async () => {
-      console.log(`[${new Date().toISOString()}] Running scheduled absence processing...`);
-      try {
-        const updatedCount = await processAbsencesForNext14Days();
-        console.log(`Absence processing completed. Updated ${updatedCount} cell(s).`);
-      } catch (error) {
-        console.error('Error during scheduled absence processing:', error);
-      }
-    },
-    {
-      timezone: config.scheduling.timezone,
-    }
-  );
-
-  console.log('Absence processing scheduler started successfully.');
 }
 
 export function restartScheduler(): void {
@@ -135,11 +95,6 @@ export function stopScheduler(): void {
     reminderTask.stop();
     reminderTask = null;
     console.log('Reminder scheduler stopped.');
-  }
-  if (absenceTask) {
-    absenceTask.stop();
-    absenceTask = null;
-    console.log('Absence processing scheduler stopped.');
   }
 }
 

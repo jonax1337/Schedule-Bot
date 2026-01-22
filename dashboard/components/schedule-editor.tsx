@@ -6,103 +6,139 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { Loader2, Calendar, Save, RefreshCw } from 'lucide-react';
+import { Loader2, Calendar, Save, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
 
-interface CellEdit {
-  row: number;
-  column: string;
-  value: string;
+interface UserMapping {
+  discordId: string;
+  discordUsername: string;
+  displayName: string;
+  role: 'main' | 'sub' | 'coach';
+  sortOrder: number;
+}
+
+interface SchedulePlayer {
+  userId: string;
+  displayName: string;
+  availability: string;
+  role: string;
+}
+
+interface ScheduleData {
+  date: string;
+  players: SchedulePlayer[];
+  reason?: string;
+  focus?: string;
 }
 
 export function ScheduleEditor() {
-  const [data, setData] = useState<string[][]>([]);
-  const [headers, setHeaders] = useState<string[]>([]);
+  const [schedules, setSchedules] = useState<ScheduleData[]>([]);
+  const [userMappings, setUserMappings] = useState<UserMapping[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [editingCell, setEditingCell] = useState<{ row: number; col: number } | null>(null);
+  const [editingCell, setEditingCell] = useState<{ date: string; userId: string } | null>(null);
   const [editValue, setEditValue] = useState('');
+  const [currentPage, setCurrentPage] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
-    loadSheetData();
+    loadData();
   }, []);
 
-  const loadSheetData = async () => {
+  const loadData = async (page: number = 0) => {
     setLoading(true);
     try {
-      const response = await fetch(`${BOT_API_URL}/api/sheet-data?startRow=1&endRow=50`);
-      if (response.ok) {
-        const result = await response.json();
-        if (result.data && result.data.length > 0) {
-          setHeaders(result.data[0]);
-          setData(result.data.slice(1));
-        }
-      } else {
-        toast.error('Failed to load sheet data');
+      const { getAuthHeaders } = await import('@/lib/auth');
+      
+      // Load user mappings and schedules
+      const [mappingsRes, schedulesRes] = await Promise.all([
+        fetch(`${BOT_API_URL}/api/user-mappings`),
+        fetch(`${BOT_API_URL}/api/schedule/paginated?offset=${page}`, { headers: getAuthHeaders() }),
+      ]);
+
+      if (mappingsRes.ok) {
+        const data = await mappingsRes.json();
+        const sorted = (data.mappings || []).sort((a: UserMapping, b: UserMapping) => a.sortOrder - b.sortOrder);
+        setUserMappings(sorted);
+      }
+
+      if (schedulesRes.ok) {
+        const data = await schedulesRes.json();
+        setSchedules(data.schedules || []);
+        setHasMore(data.hasMore || false);
+        setTotalPages(data.totalPages || 1);
+        setCurrentPage(page);
       }
     } catch (error) {
-      console.error('Failed to load sheet data:', error);
-      toast.error('Failed to load sheet data');
+      console.error('Failed to load data:', error);
+      toast.error('Failed to load schedule data');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCellClick = (rowIndex: number, colIndex: number, currentValue: string) => {
-    setEditingCell({ row: rowIndex, col: colIndex });
+  const handleCellClick = (date: string, userId: string, currentValue: string) => {
+    setEditingCell({ date, userId });
     setEditValue(currentValue || '');
   };
 
   const handleCellBlur = async () => {
     if (!editingCell) return;
 
-    const { row, col } = editingCell;
-    const currentValue = data[row]?.[col] || '';
+    const { date, userId } = editingCell;
+    const schedule = schedules.find(s => s.date === date);
+    const player = schedule?.players.find(p => p.userId === userId);
+    const currentValue = player?.availability || '';
 
     if (editValue !== currentValue) {
-      await saveCell(row + 2, col, editValue); // +2 because: +1 for header, +1 for 1-based indexing
+      await saveCell(date, userId, editValue);
     }
 
     setEditingCell(null);
   };
 
-  const saveCell = async (row: number, colIndex: number, value: string) => {
+  const saveCell = async (date: string, userId: string, availability: string) => {
     setSaving(true);
     try {
-      const columnLetter = String.fromCharCode(65 + colIndex); // A=65
       const { getAuthHeaders } = await import('@/lib/auth');
-      const response = await fetch(`${BOT_API_URL}/api/sheet-data/update`, {
+      const response = await fetch(`${BOT_API_URL}/api/schedule/update-availability`, {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          ...getAuthHeaders()
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
-          row,
-          column: columnLetter,
-          value,
+          date,
+          userId,
+          availability,
         }),
       });
 
       if (response.ok) {
-        toast.success('Cell updated successfully');
-        // Update local data
-        setData(prevData => {
-          const newData = [...prevData];
-          if (!newData[row - 2]) {
-            newData[row - 2] = [];
-          }
-          newData[row - 2][colIndex] = value;
-          return newData;
+        toast.success('Availability updated');
+        // Update local state
+        setSchedules(prevSchedules => {
+          return prevSchedules.map(schedule => {
+            if (schedule.date === date) {
+              return {
+                ...schedule,
+                players: schedule.players.map(player => {
+                  if (player.userId === userId) {
+                    return { ...player, availability };
+                  }
+                  return player;
+                }),
+              };
+            }
+            return schedule;
+          });
         });
       } else {
-        toast.error('Failed to update cell');
+        toast.error('Failed to update availability');
       }
     } catch (error) {
-      console.error('Failed to update cell:', error);
-      toast.error('Failed to update cell');
+      console.error('Failed to update:', error);
+      toast.error('Failed to update availability');
     } finally {
       setSaving(false);
     }
@@ -156,46 +192,47 @@ export function ScheduleEditor() {
               Schedule Editor
             </CardTitle>
             <CardDescription>
-              Click any cell to edit directly. Changes are saved automatically.
+              {currentPage === 0 
+                ? 'Edit player availability for the next 14 days'
+                : `Viewing historical data (${currentPage * 14} - ${(currentPage + 1) * 14} days from now)`
+              }
             </CardDescription>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={loadSheetData}
-            disabled={loading}
-          >
+          <Button onClick={() => loadData(currentPage)} variant="outline" size="sm">
             <RefreshCw className="w-4 h-4 mr-2" />
             Refresh
           </Button>
         </div>
       </CardHeader>
       <CardContent>
-        <div className="border rounded-lg overflow-auto max-h-[600px]">
+        <div className="rounded-md border overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                {headers.map((header, index) => (
-                  <TableHead key={index} className="font-semibold sticky top-0 bg-background">
-                    {header || `Column ${String.fromCharCode(65 + index)}`}
+                <TableHead className="sticky left-0 bg-background z-10 min-w-[100px]">Date</TableHead>
+                {userMappings.map((mapping) => (
+                  <TableHead key={mapping.discordId} className="min-w-[120px]">
+                    <div className="flex flex-col">
+                      <span className="font-semibold">{mapping.displayName}</span>
+                      <span className="text-xs text-muted-foreground capitalize">{mapping.role}</span>
+                    </div>
                   </TableHead>
                 ))}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.map((row, rowIndex) => (
-                <TableRow key={rowIndex}>
-                  {headers.map((_, colIndex) => {
-                    const isEditing = editingCell?.row === rowIndex && editingCell?.col === colIndex;
-                    const cellValue = row[colIndex] || '';
-                    const isDateColumn = colIndex === 0; // First column is Date
+              {schedules.map((schedule) => (
+                <TableRow key={schedule.date}>
+                  <TableCell className="sticky left-0 bg-background z-10 font-medium">
+                    {schedule.date}
+                  </TableCell>
+                  {userMappings.map((mapping) => {
+                    const player = schedule.players.find(p => p.userId === mapping.discordId);
+                    const availability = player?.availability || '';
+                    const isEditing = editingCell?.date === schedule.date && editingCell?.userId === mapping.discordId;
 
                     return (
-                      <TableCell
-                        key={colIndex}
-                        className={!isDateColumn ? 'cursor-pointer hover:bg-accent/50 transition-colors' : ''}
-                        onClick={() => !isEditing && !isDateColumn && handleCellClick(rowIndex, colIndex, cellValue)}
-                      >
+                      <TableCell key={mapping.discordId} className="p-1">
                         {isEditing ? (
                           <Input
                             value={editValue}
@@ -203,12 +240,16 @@ export function ScheduleEditor() {
                             onBlur={handleCellBlur}
                             onKeyDown={handleKeyDown}
                             autoFocus
-                            className="h-8 min-w-[100px]"
+                            className="h-8 text-sm"
+                            placeholder="14:00-20:00 or x"
                           />
                         ) : (
-                          <span className={cellValue ? '' : 'text-muted-foreground'}>
-                            {cellValue || '—'}
-                          </span>
+                          <div
+                            onClick={() => handleCellClick(schedule.date, mapping.discordId, availability)}
+                            className="h-8 px-2 flex items-center cursor-pointer hover:bg-accent rounded text-sm"
+                          >
+                            {availability || '-'}
+                          </div>
                         )}
                       </TableCell>
                     );
@@ -219,11 +260,42 @@ export function ScheduleEditor() {
           </Table>
         </div>
         {saving && (
-          <div className="flex items-center gap-2 mt-4 text-sm text-muted-foreground">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            Saving changes...
+          <div className="flex items-center justify-center mt-4 text-sm text-muted-foreground">
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            Saving...
           </div>
         )}
+        
+        {/* Pagination Controls */}
+        <div className="flex items-center justify-between mt-4">
+          <div className="text-sm text-muted-foreground">
+            {currentPage === 0 ? (
+              <span className="font-medium">Next 14 days</span>
+            ) : (
+              <span>Page {currentPage + 1} of {totalPages}</span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => loadData(currentPage + 1)}
+              disabled={!hasMore || loading}
+            >
+              <ChevronLeft className="w-4 h-4 mr-1" />
+              Older
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => loadData(currentPage - 1)}
+              disabled={currentPage === 0 || loading}
+            >
+              Newer
+              <ChevronRight className="w-4 h-4 ml-1" />
+            </Button>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );

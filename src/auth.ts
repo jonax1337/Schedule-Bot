@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import crypto from 'crypto';
-import { getUserMapping } from './userMapping.js';
+import { getUserMapping } from './database/userMappings.js';
 import { loadSettings } from './settingsManager.js';
 
 interface OAuthState {
@@ -179,14 +179,14 @@ export async function handleDiscordCallback(req: Request, res: Response) {
 
     // Generate JWT token instead of session token
     const { generateToken } = await import('./middleware/auth.js');
-    const token = generateToken(mapping.sheetColumnName, 'user');
-
+    const token = generateToken(mapping.displayName, 'user');
+    
     res.json({
       success: true,
       token,
-      expiresIn: '24h',
       user: {
-        username: mapping.sheetColumnName,
+        id: discordUser.id,
+        username: mapping.displayName,
         role: 'user',
         discordId,
         discordUsername,

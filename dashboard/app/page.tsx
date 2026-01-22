@@ -122,106 +122,261 @@ export default function HomePage() {
       const response = await fetch(`${BOT_API_URL}/api/user-mappings`);
       if (response.ok) {
         const data = await response.json();
-        const mappedColumnNames = data.mappings.map((m: any) => m.sheetColumnName);
-        setUserMappings(mappedColumnNames);
+        const mappedDisplayNames = data.mappings.map((m: any) => m.displayName);
+        setUserMappings(mappedDisplayNames);
       }
     } catch (error) {
       console.error('Failed to load user mappings:', error);
     }
   };
 
-  const loadCalendar = async () => {
-    setLoading(true);
+  const reloadSingleDate = async (dateStr: string) => {
     try {
-      // Load columns first
-      const columnsRes = await fetch(`${BOT_API_URL}/api/sheet-columns`);
-      if (!columnsRes.ok) return;
+      // Load user mappings to get all players
+      const mappingsRes = await fetch(`${BOT_API_URL}/api/user-mappings`);
+      if (!mappingsRes.ok) return;
       
-      const columnsData = await columnsRes.json();
-      // Filter to only show columns with Discord user mappings
-      const columns = columnsData.columns.filter((col: any) => 
-        !userMappings || userMappings.length === 0 || userMappings.includes(col.name)
-      );
+      const mappingsData = await mappingsRes.json();
+      const allPlayers = mappingsData.mappings
+        .sort((a: any, b: any) => a.sortOrder - b.sortOrder)
+        .map((m: any) => ({
+          userId: m.discordId,
+          displayName: m.displayName,
+          role: m.role,
+        }));
 
-      // Load sheet data for next 14 days
-      const sheetRes = await fetch(`${BOT_API_URL}/api/sheet-data?startRow=1&endRow=15`);
-      if (!sheetRes.ok) return;
+      // Load schedule for this specific date
+      const { getAuthHeaders } = await import('@/lib/auth');
+      const scheduleRes = await fetch(`${BOT_API_URL}/api/schedule/next14`, {
+        headers: getAuthHeaders(),
+      });
       
-      const result = await sheetRes.json();
-      const rows = result.data;
-
-      const calendarEntries: DateEntry[] = [];
+      if (!scheduleRes.ok) return;
       
-      for (let i = 1; i < Math.min(rows.length, 15); i++) {
-        const row = rows[i];
-        if (row && row[0]) {
-          let available = 0;
-          let unavailable = 0;
-          let notSet = 0;
-          const players: PlayerStatus[] = [];
-          
-          // Get reason from column 9 (REASON column)
-          const reason = row[9] || '';
-          
-          // Check if it's an off-day
-          const isOffDay = reason.toLowerCase().includes('off-day') ||
-                          reason.toLowerCase().includes('off day') ||
-                          reason.toLowerCase() === 'off';
+      const scheduleData = await scheduleRes.json();
+      const schedules = scheduleData.schedules || [];
+      const schedule = schedules.find((s: any) => s.date === dateStr);
 
-          // Process each player column
-          for (let j = 0; j < columns.length; j++) {
-            const columnIndex = columns[j].index;
-            const value = row[columnIndex] || '';
-            const playerName = columns[j].name;
+      // Fetch fresh schedule details
+      const detailsRes = await fetch(`${BOT_API_URL}/api/schedule-details?date=${dateStr}`, {
+        headers: getAuthHeaders(),
+      });
+      const scheduleDetails = detailsRes.ok ? await detailsRes.json() : null;
 
-            if (value === 'x') {
-              unavailable++;
-              players.push({
-                name: playerName,
-                status: 'unavailable'
-              });
-            } else if (value && value.trim() !== '') {
-              available++;
-              players.push({
-                name: playerName,
-                status: 'available',
-                time: value
-              });
-            } else {
-              notSet++;
-              players.push({
-                name: playerName,
-                status: 'not-set'
-              });
-            }
-          }
+      let available = 0;
+      let unavailable = 0;
+      let notSet = 0;
+      const players: PlayerStatus[] = [];
+      
+      const reason = schedule?.reason || '';
+      const isOffDay = reason.toLowerCase().includes('off-day') ||
+                      reason.toLowerCase().includes('off day') ||
+                      reason.toLowerCase() === 'off';
 
-          // Check if logged-in user has set their availability
-          let userHasSet = false;
-          let userStatus: 'available' | 'unavailable' | 'not-set' = 'not-set';
-          if (loggedInUser) {
-            const userPlayer = players.find(p => p.name === loggedInUser);
-            if (userPlayer) {
-              userHasSet = userPlayer.status !== 'not-set';
-              userStatus = userPlayer.status;
-            }
-          }
+      // Process each player
+      for (const player of allPlayers) {
+        const schedulePlayer = schedule?.players?.find((p: any) => p.userId === player.userId);
+        const availability = schedulePlayer?.availability || '';
 
-          calendarEntries.push({
-            date: row[0],
-            weekday: getWeekday(row[0]),
+        if (availability === 'x') {
+          unavailable++;
+          players.push({
+            name: player.displayName,
+            status: 'unavailable'
+          });
+        } else if (availability && availability.trim() !== '') {
+          available++;
+          players.push({
+            name: player.displayName,
+            status: 'available',
+            time: availability
+          });
+        } else {
+          notSet++;
+          players.push({
+            name: player.displayName,
+            status: 'not-set'
+          });
+        }
+      }
+
+      // Check if logged-in user has set their availability
+      let userHasSet = false;
+      let userStatus: 'available' | 'unavailable' | 'not-set' = 'not-set';
+      if (loggedInUser) {
+        const userPlayer = players.find(p => p.name === loggedInUser);
+        if (userPlayer) {
+          userHasSet = userPlayer.status !== 'not-set';
+          userStatus = userPlayer.status;
+        }
+      }
+
+      // Helper to get weekday
+      const getWeekday = (dateStr: string): string => {
+        const [day, month, year] = dateStr.split('.');
+        const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        return date.toLocaleDateString('en-US', { weekday: 'short' });
+      };
+
+      // Update only this entry in the state
+      setEntries(prev => prev.map(entry => {
+        if (entry.date === dateStr) {
+          return {
+            date: dateStr,
+            weekday: getWeekday(dateStr),
             availability: {
               available,
               unavailable,
-              notSet
+              notSet,
             },
             players,
             reason,
             isOffDay,
             userHasSet,
-            userStatus
-          });
+            userStatus,
+            scheduleDetails,
+          };
         }
+        return entry;
+      }));
+
+      // Update selectedDate if it's the current one
+      if (selectedDate?.date === dateStr) {
+        setSelectedDate({
+          date: dateStr,
+          weekday: getWeekday(dateStr),
+          availability: {
+            available,
+            unavailable,
+            notSet,
+          },
+          players,
+          reason,
+          isOffDay,
+          userHasSet,
+          userStatus,
+          scheduleDetails,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to reload single date:', error);
+    }
+  };
+
+  const loadCalendar = async () => {
+    setLoading(true);
+    try {
+      // Load user mappings to get all players
+      const mappingsRes = await fetch(`${BOT_API_URL}/api/user-mappings`);
+      if (!mappingsRes.ok) {
+        setLoading(false);
+        return;
+      }
+      
+      const mappingsData = await mappingsRes.json();
+      const allPlayers = mappingsData.mappings
+        .sort((a: any, b: any) => a.sortOrder - b.sortOrder)
+        .map((m: any) => ({
+          userId: m.discordId,
+          displayName: m.displayName,
+          role: m.role,
+        }));
+
+      // Load schedule for next 14 days
+      const { getAuthHeaders } = await import('@/lib/auth');
+      const scheduleRes = await fetch(`${BOT_API_URL}/api/schedule/next14`, {
+        headers: getAuthHeaders(),
+      });
+      
+      if (!scheduleRes.ok) {
+        setLoading(false);
+        return;
+      }
+      
+      const scheduleData = await scheduleRes.json();
+      const schedules = scheduleData.schedules || [];
+
+      const calendarEntries: DateEntry[] = [];
+      
+      // Generate next 14 dates
+      const today = new Date();
+      const formatDate = (d: Date): string => {
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const year = d.getFullYear();
+        return `${day}.${month}.${year}`;
+      };
+      
+      for (let i = 0; i < 14; i++) {
+        const date = new Date(today);
+        date.setDate(today.getDate() + i);
+        const dateStr = formatDate(date);
+        
+        // Find schedule for this date
+        const schedule = schedules.find((s: any) => s.date === dateStr);
+        
+        let available = 0;
+        let unavailable = 0;
+        let notSet = 0;
+        const players: PlayerStatus[] = [];
+        
+        const reason = schedule?.reason || '';
+        const isOffDay = reason.toLowerCase().includes('off-day') ||
+                        reason.toLowerCase().includes('off day') ||
+                        reason.toLowerCase() === 'off';
+
+        // Process each player
+        for (const player of allPlayers) {
+          const schedulePlayer = schedule?.players?.find((p: any) => p.userId === player.userId);
+          const availability = schedulePlayer?.availability || '';
+
+          if (availability === 'x') {
+            unavailable++;
+            players.push({
+              name: player.displayName,
+              status: 'unavailable'
+            });
+          } else if (availability && availability.trim() !== '') {
+            available++;
+            players.push({
+              name: player.displayName,
+              status: 'available',
+              time: availability
+            });
+          } else {
+            notSet++;
+            players.push({
+              name: player.displayName,
+              status: 'not-set'
+            });
+          }
+        }
+
+        // Check if logged-in user has set their availability
+        let userHasSet = false;
+        let userStatus: 'available' | 'unavailable' | 'not-set' = 'not-set';
+        if (loggedInUser) {
+          const userPlayer = players.find(p => p.name === loggedInUser);
+          if (userPlayer) {
+            userHasSet = userPlayer.status !== 'not-set';
+            userStatus = userPlayer.status;
+          }
+        }
+
+        calendarEntries.push({
+          date: dateStr,
+          weekday: getWeekday(dateStr),
+          availability: {
+            available,
+            unavailable,
+            notSet
+          },
+          players,
+          reason,
+          isOffDay,
+          userHasSet,
+          userStatus
+        });
       }
 
       // Fetch schedule details in batch (all dates at once)
@@ -377,32 +532,19 @@ export default function HomePage() {
     
     setSaving(true);
     try {
-      // Finde die Spalte des Users
-      const columnsRes = await fetch(`${BOT_API_URL}/api/sheet-columns`);
-      const columnsData = await columnsRes.json();
-      const userColumn = columnsData.columns.find((col: any) => col.name === loggedInUser);
-      
-      if (!userColumn) {
-        toast.error('User column not found');
+      // Get user's Discord ID from mappings
+      const mappingsRes = await fetch(`${BOT_API_URL}/api/user-mappings`);
+      if (!mappingsRes.ok) {
+        toast.error('Failed to load user mappings');
         setSaving(false);
         return;
       }
-
-      // Lade alle Daten um die Row zu finden
-      const sheetRes = await fetch(`${BOT_API_URL}/api/sheet-data?startRow=1&endRow=15`);
-      const sheetData = await sheetRes.json();
       
-      // Finde die Row für das ausgewählte Datum
-      let rowNumber = -1;
-      for (let i = 1; i < sheetData.data.length; i++) {
-        if (sheetData.data[i][0] === selectedDate.date) {
-          rowNumber = i + 1; // +1 weil Sheet 1-basiert ist
-          break;
-        }
-      }
-
-      if (rowNumber === -1) {
-        toast.error('Date not found in sheet');
+      const mappingsData = await mappingsRes.json();
+      const userMapping = mappingsData.mappings.find((m: any) => m.displayName === loggedInUser);
+      
+      if (!userMapping) {
+        toast.error('User mapping not found');
         setSaving(false);
         return;
       }
@@ -412,29 +554,22 @@ export default function HomePage() {
       // Import auth helpers
       const { getAuthHeaders } = await import('@/lib/auth');
       
-      const response = await fetch(`${BOT_API_URL}/api/sheet-data/update`, {
+      const response = await fetch(`${BOT_API_URL}/api/schedule/update-availability`, {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          ...getAuthHeaders()
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
-          row: rowNumber,
-          column: userColumn.column,
-          value
-        })
+          date: selectedDate.date,
+          userId: userMapping.discordId,
+          availability: value,
+        }),
       });
 
       if (response.ok) {
         toast.success('Availability updated');
         setEditingUser(false);
-        // Reload calendar
-        await loadCalendar();
-        // Update selected date
-        const updatedEntry = entries.find(e => e.date === selectedDate.date);
-        if (updatedEntry) {
-          setSelectedDate(updatedEntry);
-        }
+        
+        // Reload only the affected date's data (no full reload - prevents animation restart)
+        await reloadSingleDate(selectedDate.date);
       } else {
         const errorData = await response.json();
         console.error('Update failed:', errorData);
@@ -668,7 +803,9 @@ export default function HomePage() {
                         {selectedDate.scheduleDetails.status}
                       </Badge>
                     </div>
-                    {selectedDate.scheduleDetails.startTime && selectedDate.scheduleDetails.endTime && (
+                    {selectedDate.scheduleDetails.status === 'Training possible' && 
+                     selectedDate.scheduleDetails.startTime && 
+                     selectedDate.scheduleDetails.endTime && (
                       <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
                         <Clock className="w-4 h-4" />
                         <span>{selectedDate.scheduleDetails.startTime} - {selectedDate.scheduleDetails.endTime}</span>
@@ -756,7 +893,7 @@ export default function HomePage() {
                                     color: 'rgb(202 138 4)'
                                   } : undefined}
                                 >
-                                  {isAbsent ? 'Absence' : 'Not available'}
+                                  Not available
                                 </Badge>
                                 {isCurrentUser && !editingUser && (
                                   <Button 

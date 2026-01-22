@@ -13,12 +13,11 @@ import {
   ChatInputCommandInteraction,
   MessageFlags,
 } from 'discord.js';
-import { getUserMapping } from './userMapping.js';
-import { updatePlayerAvailability, getPlayerAvailabilityForRange, getAvailableDates } from './sheetUpdater.js';
-import { getScheduleForDate } from './sheets.js';
+import { getUserMapping } from './database/userMappings.js';
+import { updatePlayerAvailability, getScheduleForDate, getNext14Dates } from './database/schedules.js';
 import { parseSchedule, analyzeSchedule } from './analyzer.js';
 import { buildScheduleEmbed } from './embed.js';
-import { updateWeekAvailability, getNextSevenDates, getDayName, WeekAvailability } from './bulkOperations.js';
+// Week operations removed - use individual updatePlayerAvailability calls
 import { client } from './bot.js';
 
 export async function createDateNavigationButtons(currentDate: string): Promise<ActionRowBuilder<ButtonBuilder>> {
@@ -27,7 +26,7 @@ export async function createDateNavigationButtons(currentDate: string): Promise<
   const today = new Date().toLocaleDateString('de-DE');
 
   // Get available dates from sheet
-  const availableDates = await getAvailableDates();
+  const availableDates = getNext14Dates();
   
   // Normalize all dates to DD.MM.YYYY format with leading zeros
   const normalizedAvailableDates = availableDates.map(d => normalizeDateFormat(d.trim()));
@@ -74,7 +73,7 @@ export function createAvailabilityButtons(date: string): ActionRowBuilder<Button
 }
 
 export async function createDateSelectMenu(): Promise<ActionRowBuilder<StringSelectMenuBuilder>> {
-  const dates = await getAvailableDates();
+  const dates = getNext14Dates();
   const options = dates.slice(0, 25).map(date => ({
     label: date,
     value: date,
@@ -190,7 +189,7 @@ export async function handleAvailabilityButton(
       return;
     }
     
-    const success = await updatePlayerAvailability(date, userMapping.sheetColumnName, 'x');
+    const success = await updatePlayerAvailability(date, userMapping.discordId, 'x');
     
     if (success) {
       await interaction.editReply({
@@ -230,7 +229,7 @@ export async function handleTimeModal(
   }
 
   const timeRange = `${startTime}-${endTime}`;
-  const success = await updatePlayerAvailability(date, userMapping.sheetColumnName, timeRange);
+  const success = await updatePlayerAvailability(date, userMapping.discordId, timeRange);
 
   if (success) {
     const normalizedDate = normalizeDateFormat(date);
@@ -327,26 +326,35 @@ export async function sendMySchedule(
   const endDate = new Date(today);
   endDate.setDate(endDate.getDate() + 13);
 
-  const availability = await getPlayerAvailabilityForRange(
-    userMapping.sheetColumnName,
-    today.toLocaleDateString('de-DE'),
-    endDate.toLocaleDateString('de-DE')
-  );
+  // Simplified - fetch schedules for next 14 days
+  const dates = getNext14Dates();
+  const availability: Record<string, string> = {};
+  
+  for (const date of dates) {
+    const schedule = await getScheduleForDate(date);
+    if (schedule) {
+      const player = schedule.players.find(p => p.userId === userMapping.discordId);
+      if (player && player.availability) {
+        availability[date] = player.availability;
+      }
+    }
+  }
 
   const embed = new EmbedBuilder()
-    .setTitle(`📋 Your Availability (${userMapping.sheetColumnName})`)
+    .setTitle(`📋 Your Availability (${userMapping.displayName})`)
     .setColor(0x2ecc71)
     .setTimestamp();
 
-  if (availability.length === 0) {
+  const availabilityEntries = Object.entries(availability);
+  if (availabilityEntries.length === 0) {
     embed.setDescription('No entries for the next 14 days.');
   } else {
     let description = '';
-    for (const entry of availability) {
-      const status = entry.availability 
-        ? (entry.availability === 'x' ? '❌ Not available' : `✅ ${entry.availability}`)
+    for (const [date, value] of availabilityEntries) {
+      const status = value 
+        ? (value === 'x' ? '❌ Not available' : `✅ ${value}`)
         : '⚪ No entry';
-      description += `**${entry.date}**: ${status}\n`;
+      description += `**${date}**: ${status}\n`;
     }
     embed.setDescription(description);
   }
@@ -355,7 +363,7 @@ export async function sendMySchedule(
 }
 
 export async function createWeekModal(userId: string): Promise<ModalBuilder> {
-  const dates = getNextSevenDates();
+  const dates = getNext14Dates().slice(0, 5); // First 5 days
   
   // Get user mapping to fetch current values
   const userMapping = await getUserMapping(userId);
@@ -363,17 +371,23 @@ export async function createWeekModal(userId: string): Promise<ModalBuilder> {
   
   if (userMapping) {
     // Fetch current availability for the next 5 days
-    const availability = await getPlayerAvailabilityForRange(
-      userMapping.sheetColumnName,
-      dates[0],
-      dates[4]
-    );
+    // Fetch availability for first 5 days
+    const availability: Record<string, string> = {};
+    for (let i = 0; i < 5 && i < dates.length; i++) {
+      const schedule = await getScheduleForDate(dates[i]);
+      if (schedule) {
+        const player = schedule.players.find(p => p.userId === userMapping.discordId);
+        if (player) {
+          availability[dates[i]] = player.availability;
+        }
+      }
+    }
     
     // Map availability to values array
     for (let i = 0; i < dates.length && i < 5; i++) {
-      const entry = availability.find(a => a.date === dates[i]);
-      if (entry && entry.availability) {
-        currentValues[i] = entry.availability;
+      const value = availability[dates[i]];
+      if (value) {
+        currentValues[i] = value;
       }
     }
   }
@@ -385,7 +399,7 @@ export async function createWeekModal(userId: string): Promise<ModalBuilder> {
       new ActionRowBuilder<TextInputBuilder>().addComponents(
         new TextInputBuilder()
           .setCustomId('day_0')
-          .setLabel(`${getDayName(dates[0])} (${dates[0]})`)
+          .setLabel(`Day 1 (${dates[0]})`)
           .setStyle(TextInputStyle.Short)
           .setPlaceholder('14:00-22:00 or x (not available) or leave empty')
           .setRequired(false)
@@ -395,7 +409,7 @@ export async function createWeekModal(userId: string): Promise<ModalBuilder> {
       new ActionRowBuilder<TextInputBuilder>().addComponents(
         new TextInputBuilder()
           .setCustomId('day_1')
-          .setLabel(`${getDayName(dates[1])} (${dates[1]})`)
+          .setLabel(`Day 2 (${dates[1]})`)
           .setStyle(TextInputStyle.Short)
           .setPlaceholder('14:00-22:00 or x (not available) or leave empty')
           .setRequired(false)
@@ -405,7 +419,7 @@ export async function createWeekModal(userId: string): Promise<ModalBuilder> {
       new ActionRowBuilder<TextInputBuilder>().addComponents(
         new TextInputBuilder()
           .setCustomId('day_2')
-          .setLabel(`${getDayName(dates[2])} (${dates[2]})`)
+          .setLabel(`Day 3 (${dates[2]})`)
           .setStyle(TextInputStyle.Short)
           .setPlaceholder('14:00-22:00 or x (not available) or leave empty')
           .setRequired(false)
@@ -415,7 +429,7 @@ export async function createWeekModal(userId: string): Promise<ModalBuilder> {
       new ActionRowBuilder<TextInputBuilder>().addComponents(
         new TextInputBuilder()
           .setCustomId('day_3')
-          .setLabel(`${getDayName(dates[3])} (${dates[3]})`)
+          .setLabel(`Day 4 (${dates[3]})`)
           .setStyle(TextInputStyle.Short)
           .setPlaceholder('14:00-22:00 or x (not available) or leave empty')
           .setRequired(false)
@@ -425,7 +439,7 @@ export async function createWeekModal(userId: string): Promise<ModalBuilder> {
       new ActionRowBuilder<TextInputBuilder>().addComponents(
         new TextInputBuilder()
           .setCustomId('day_4')
-          .setLabel(`${getDayName(dates[4])} (${dates[4]})`)
+          .setLabel(`Day 5 (${dates[4]})`)
           .setStyle(TextInputStyle.Short)
           .setPlaceholder('14:00-22:00 or x (not available) or leave empty')
           .setRequired(false)
@@ -466,8 +480,8 @@ export async function handleWeekModal(
     return;
   }
 
-  const dates = getNextSevenDates();
-  const weekData: WeekAvailability = {};
+  const dates = getNext14Dates().slice(0, 5);
+  const weekData: Record<string, string> = {};
   const entries: string[] = [];
 
   // Collect all 7 days (only first 5 are in modal due to Discord limit)
@@ -498,7 +512,14 @@ export async function handleWeekModal(
   }
 
   // Update all entries
-  const result = await updateWeekAvailability(userMapping.sheetColumnName, weekData);
+  // Update each day individually
+  let successCount = 0;
+  for (const [date, value] of Object.entries(weekData)) {
+    const success = await updatePlayerAvailability(date, userMapping.discordId, value);
+    if (success) successCount++;
+  }
+  
+  const result = { success: successCount === Object.keys(weekData).length, updated: successCount };
 
   if (result.success) {
     await interaction.editReply({
@@ -506,7 +527,7 @@ export async function handleWeekModal(
     });
   } else {
     await interaction.editReply({
-      content: `⚠️ Partially updated. ${result.updated} days updated, ${result.failed.length} failed.\n\nFailed dates: ${result.failed.join(', ')}`,
+      content: `⚠️ Partially updated. ${result.updated}/${Object.keys(weekData).length} days updated successfully.`,
     });
   }
 }
@@ -582,7 +603,7 @@ export async function handleInfoModal(
       recipientNames.push(userMapping.discordUsername);
     } else {
       // Get all user mappings and filter by target
-      const { getUserMappings } = await import('./userMapping.js');
+      const { getUserMappings } = await import('./database/userMappings.js');
       const allMappings = await getUserMappings();
 
       const filteredMappings = allMappings.filter(mapping => {

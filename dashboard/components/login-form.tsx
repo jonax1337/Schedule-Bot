@@ -21,12 +21,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, UserCircle } from "lucide-react";
 import { toast } from "sonner";
 
-interface SheetColumn {
-  column: string;
-  name: string;
-  index: number;
-}
-
 interface Settings {
   discord: {
     allowDiscordAuth: boolean;
@@ -40,10 +34,9 @@ export function LoginForm({
   ...props
 }: React.ComponentProps<"div">) {
   const router = useRouter();
-  const [columns, setColumns] = useState<SheetColumn[]>([]);
+  const [columns, setColumns] = useState<Array<{ displayName: string; discordId: string }>>([]);
   const [selectedUser, setSelectedUser] = useState('');
   const [loading, setLoading] = useState(true);
-  const [userMappings, setUserMappings] = useState<string[] | null>(null);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [settingsLoading, setSettingsLoading] = useState(true);
   const [discordLoading, setDiscordLoading] = useState(false);
@@ -52,12 +45,6 @@ export function LoginForm({
     loadSettings();
     loadUserMappings();
   }, []);
-
-  useEffect(() => {
-    if (userMappings !== null) {
-      loadColumns();
-    }
-  }, [userMappings]);
 
   const loadSettings = async () => {
     try {
@@ -74,31 +61,20 @@ export function LoginForm({
   };
 
   const loadUserMappings = async () => {
+    setLoading(true);
     try {
       const response = await fetch(`${BOT_API_URL}/api/user-mappings`);
       if (response.ok) {
         const data = await response.json();
-        const mappedColumnNames = data.mappings.map((m: any) => m.sheetColumnName);
-        setUserMappings(mappedColumnNames);
+        // Map to display names for dropdown
+        const mappedUsers = data.mappings.map((m: any) => ({
+          displayName: m.displayName,
+          discordId: m.discordId,
+        }));
+        setColumns(mappedUsers);
       }
     } catch (error) {
       console.error('Failed to load user mappings:', error);
-    }
-  };
-
-  const loadColumns = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(`${BOT_API_URL}/api/sheet-columns`);
-      if (response.ok) {
-        const data = await response.json();
-        const filteredColumns = data.columns.filter((col: SheetColumn) => 
-          !userMappings || userMappings.length === 0 || userMappings.includes(col.name)
-        );
-        setColumns(filteredColumns);
-      }
-    } catch (error) {
-      console.error('Failed to load columns:', error);
     } finally {
       setLoading(false);
     }
@@ -193,9 +169,9 @@ export function LoginForm({
                       <SelectValue placeholder="Select your name" />
                     </SelectTrigger>
                     <SelectContent position="popper">
-                      {columns.map((col) => (
-                        <SelectItem key={col.column} value={col.name}>
-                          {col.name}
+                      {columns.map((user) => (
+                        <SelectItem key={user.discordId} value={user.displayName}>
+                          {user.displayName}
                         </SelectItem>
                       ))}
                     </SelectContent>
