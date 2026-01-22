@@ -41,6 +41,18 @@ async function main(): Promise<void> {
   // Cleanup job DISABLED - keeping all historical data
   console.log('\nSchedule data cleanup disabled - all historical data will be preserved.');
 
+  // Ensure next 14 days have schedule entries
+  console.log('\nEnsuring schedule entries for next 14 days...');
+  try {
+    const { addMissingDays } = await import('./database/schedules.js');
+    await addMissingDays();
+    console.log('Schedule entries verified successfully!');
+    logger.success('Schedule entries verified');
+  } catch (error) {
+    console.error('Error ensuring schedule entries:', error);
+    logger.error('Schedule verification failed', error instanceof Error ? error.message : String(error));
+  }
+
   logger.info('Starting Discord bot');
   await startBot();
 
