@@ -72,20 +72,30 @@ const allowedOrigins = [
   process.env.DASHBOARD_URL,
 ].filter(Boolean) as string[];
 
+console.log('[CORS] Allowed origins:', allowedOrigins);
+console.log('[CORS] DASHBOARD_URL from env:', process.env.DASHBOARD_URL);
+
 app.use(cors({
   origin: (origin, callback) => {
+    console.log('[CORS] Request from origin:', origin);
+    
     // Allow requests with no origin (mobile apps, curl, etc.)
     if (!origin) return callback(null, true);
     
     if (allowedOrigins.includes(origin)) {
+      console.log('[CORS] Origin allowed:', origin);
       callback(null, true);
     } else {
+      console.log('[CORS] Origin blocked:', origin);
       callback(new Error('Not allowed by CORS'));
     }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['Content-Type', 'Authorization'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 }));
 
 app.use(express.json({ limit: '1mb' }));
