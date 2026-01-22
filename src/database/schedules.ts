@@ -317,3 +317,52 @@ export async function getAllSchedules(): Promise<ScheduleData[]> {
     focus: schedule.focus,
   }));
 }
+
+/**
+ * Get schedules with pagination (14 days per page)
+ * offset: 0 = next 14 days, 1 = previous 14 days, etc.
+ */
+export async function getSchedulesPaginated(offset: number = 0): Promise<{
+  schedules: ScheduleData[];
+  hasMore: boolean;
+  totalPages: number;
+}> {
+  const pageSize = 14;
+  const today = new Date();
+  
+  // Calculate date range for this page
+  const startOffset = offset * pageSize;
+  const dates: string[] = [];
+  
+  for (let i = startOffset; i < startOffset + pageSize; i++) {
+    const date = new Date(today);
+    date.setDate(today.getDate() + i);
+    
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    
+    dates.push(`${day}.${month}.${year}`);
+  }
+  
+  // Get schedules for these dates
+  const schedules = await getSchedulesForDates(dates);
+  
+  // Check if there are older schedules (for hasMore)
+  const oldestDate = dates[dates.length - 1];
+  const olderSchedules = await prisma.schedule.findFirst({
+    where: {
+      date: { lt: oldestDate },
+    },
+  });
+  
+  // Calculate total pages based on all schedules
+  const totalScheduleCount = await prisma.schedule.count();
+  const totalPages = Math.ceil(totalScheduleCount / pageSize);
+  
+  return {
+    schedules,
+    hasMore: !!olderSchedules,
+    totalPages,
+  };
+}

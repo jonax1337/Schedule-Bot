@@ -269,6 +269,19 @@ app.get('/api/schedule/next14', verifyToken, async (req: AuthRequest, res) => {
   }
 });
 
+// Get schedules with pagination (protected, admin only)
+app.get('/api/schedule/paginated', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
+  try {
+    const { getSchedulesPaginated } = await import('./database/schedules.js');
+    const offset = parseInt(req.query.offset as string) || 0;
+    const result = await getSchedulesPaginated(offset);
+    res.json({ success: true, ...result });
+  } catch (error) {
+    console.error('Error fetching paginated schedules:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch schedules' });
+  }
+});
+
 // Update player availability (protected, users can edit their own availability)
 app.post('/api/schedule/update-availability', verifyToken, async (req: AuthRequest, res) => {
   try {

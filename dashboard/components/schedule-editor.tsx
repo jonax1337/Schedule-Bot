@@ -186,7 +186,10 @@ export function ScheduleEditor() {
               Schedule Editor
             </CardTitle>
             <CardDescription>
-              Edit player availability for the next 14 days
+              {currentPage === 0 
+                ? 'Edit player availability for the next 14 days'
+                : `Viewing historical data (${currentPage * 14} - ${(currentPage + 1) * 14} days from now)`
+              }
             </CardDescription>
           </div>
           <Button onClick={loadData} variant="outline" size="sm">
@@ -256,6 +259,37 @@ export function ScheduleEditor() {
             Saving...
           </div>
         )}
+        
+        {/* Pagination Controls */}
+        <div className="flex items-center justify-between mt-4">
+          <div className="text-sm text-muted-foreground">
+            {currentPage === 0 ? (
+              <span className="font-medium">Next 14 days</span>
+            ) : (
+              <span>Page {currentPage + 1} of {totalPages}</span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => loadData(currentPage - 1)}
+              disabled={currentPage === 0 || loading}
+            >
+              <ChevronLeft className="w-4 h-4 mr-1" />
+              Newer
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => loadData(currentPage + 1)}
+              disabled={!hasMore || loading}
+            >
+              Older
+              <ChevronRight className="w-4 h-4 ml-1" />
+            </Button>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
