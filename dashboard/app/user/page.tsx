@@ -19,6 +19,9 @@ interface DateEntry {
   value: string;
   timeFrom: string;
   timeTo: string;
+  // Original values from DB for change detection
+  originalTimeFrom: string;
+  originalTimeTo: string;
 }
 
 export default function UserSchedule() {
@@ -125,6 +128,8 @@ export default function UserSchedule() {
           value: availability,
           timeFrom,
           timeTo,
+          originalTimeFrom: timeFrom,
+          originalTimeTo: timeTo,
         });
       }
 
@@ -317,7 +322,13 @@ export default function UserSchedule() {
                         <Button
                           size="sm"
                           onClick={() => saveEntry(entry.date, entry.timeFrom, entry.timeTo)}
-                          disabled={saving || entry.value === 'x' || !entry.timeFrom || !entry.timeTo}
+                          disabled={
+                            saving || 
+                            entry.value === 'x' || 
+                            !entry.timeFrom || 
+                            !entry.timeTo ||
+                            (entry.timeFrom === entry.originalTimeFrom && entry.timeTo === entry.originalTimeTo)
+                          }
                         >
                           Save
                         </Button>
