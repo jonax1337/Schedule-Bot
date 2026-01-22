@@ -179,14 +179,14 @@ export async function handleDiscordCallback(req: Request, res: Response) {
 
     // Generate JWT token instead of session token
     const { generateToken } = await import('./middleware/auth.js');
-    const token = generateToken(mapping.sheetColumnName, 'user');
-
+    const token = generateToken(mapping.displayName, 'user');
+    
     res.json({
       success: true,
       token,
-      expiresIn: '24h',
       user: {
-        username: mapping.sheetColumnName,
+        id: discordUser.id,
+        username: mapping.displayName,
         role: 'user',
         discordId,
         discordUsername,

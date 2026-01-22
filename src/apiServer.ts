@@ -23,7 +23,7 @@ import { config, reloadConfig } from './config.js';
 import { logger } from './logger.js';
 import { restartScheduler } from './scheduler.js';
 import { getUserMappings, addUserMapping, removeUserMapping, getUserMapping } from './database/userMappings.js';
-import { getSheetColumns, getSheetDataRange, updateSheetCell, bulkUpdateSheetCells } from './database/schedules.js';
+import { getScheduleForDate, updatePlayerAvailability, syncUserMappingsToSchedules } from './database/schedules.js';
 import { loadSettingsAsync, saveSettings } from './settingsManager.js';
 import { initiateDiscordAuth, handleDiscordCallback, getUserFromSession, logout } from './auth.js';
 import { preloadCache, getScheduleDetails, getScheduleDetailsBatch, getCacheStats } from './scheduleCache.js';
@@ -150,11 +150,11 @@ app.post('/api/user/login', async (req, res) => {
 
     // Verify user exists in user mappings
     const mappings = await getUserMappings();
-    const userMapping = mappings.find(m => m.sheetColumnName === username);
+    const userMapping = mappings.find(m => m.displayName === username);
 
     if (!userMapping) {
       logger.warn('User login failed', `User not found: ${username}`);
-      return res.status(401).json({ success: false, error: 'User not found' });
+      return res.status(401).json({ success: false, error: 'Invalid username' });
     }
 
     // Generate JWT token for user
@@ -246,130 +246,41 @@ app.get('/api/discord/roles', verifyToken, requireAdmin, async (req: AuthRequest
   }
 });
 
-// Get sheet columns (public for login dropdown)
-app.get('/api/sheet-columns', async (req, res) => {
+// Update player availability (protected, users can edit their own availability)
+app.post('/api/schedule/update-availability', verifyToken, async (req: AuthRequest, res) => {
   try {
-    const columns = await getSheetColumns();
-    res.json({ columns });
-  } catch (error) {
-    console.error('Error fetching sheet columns:', error);
-    logger.error('Failed to fetch sheet columns', error instanceof Error ? error.message : String(error));
-    res.status(500).json({ error: 'Failed to fetch sheet columns' });
-  }
-});
-
-// Get sheet data range (public read for schedule viewing)
-app.get('/api/sheet-data', async (req, res) => {
-  try {
-    const startRow = parseInt(req.query.startRow as string) || 1;
-    const endRow = parseInt(req.query.endRow as string) || 50;
-    const data = await getSheetDataRange(startRow, endRow);
-    res.json({ data });
-  } catch (error) {
-    console.error('Error fetching sheet data:', error);
-    logger.error('Failed to fetch sheet data', error instanceof Error ? error.message : String(error));
-    res.status(500).json({ error: 'Failed to fetch sheet data' });
-  }
-});
-
-// Update sheet cell (protected with validation, users can edit their own columns)
-app.post('/api/sheet-data/update', verifyToken, validate(updateCellSchema), async (req: AuthRequest, res) => {
-  try {
-    const { row, column, value } = req.body;
+    const { date, userId, availability } = req.body;
     
-    // Users can only edit their own column (admins can edit all)
+    if (!date || !userId || availability === undefined) {
+      return res.status(400).json({ error: 'Date, userId, and availability are required' });
+    }
+    
+    // Users can only edit their own availability (admins can edit anyone's)
     if (req.user?.role === 'user') {
-      // Get user's column from user mappings
       const mappings = await getUserMappings();
-      const userMapping = mappings.find(m => m.sheetColumnName === req.user?.username);
+      const userMapping = mappings.find(m => m.displayName === req.user?.username);
       
-      if (!userMapping) {
-        logger.warn('User column update denied', `User ${req.user?.username} has no mapping`);
-        return res.status(403).json({ error: 'User has no column mapping' });
-      }
-      
-      // Check if user is trying to edit their own column
-      const columns = await getSheetColumns();
-      const userColumn = columns.find(c => c.name === userMapping.sheetColumnName);
-      
-      if (!userColumn || userColumn.column !== column) {
-        logger.warn('User column update denied', `User ${req.user?.username} tried to edit column ${column}`);
-        return res.status(403).json({ error: 'You can only edit your own column' });
+      if (!userMapping || userMapping.discordId !== userId) {
+        logger.warn('Availability update denied', `User ${req.user?.username} tried to edit ${userId}`);
+        return res.status(403).json({ error: 'You can only edit your own availability' });
       }
     }
     
     // Sanitize value
-    const sanitizedValue = sanitizeString(value);
+    const sanitizedValue = sanitizeString(availability);
     
-    await updateSheetCell(row, column, sanitizedValue);
-    logger.success('Sheet cell updated', `${column}${row} = ${value} by ${req.user?.username}`);
-    res.json({ success: true, message: 'Cell updated successfully' });
+    const success = await updatePlayerAvailability(date, userId, sanitizedValue);
+    
+    if (success) {
+      logger.success('Availability updated', `${userId} for ${date} = ${availability}`);
+      res.json({ success: true, message: 'Availability updated successfully' });
+    } else {
+      res.status(500).json({ error: 'Failed to update availability' });
+    }
   } catch (error) {
-    console.error('Error updating sheet cell:', error);
-    logger.error('Failed to update sheet cell', error instanceof Error ? error.message : String(error));
-    res.status(500).json({ error: 'Failed to update sheet cell' });
-  }
-});
-
-// Bulk update sheet cells (protected, users can only edit their own column)
-app.post('/api/sheet-data/bulk-update', verifyToken, async (req: AuthRequest, res) => {
-  try {
-    const { updates } = req.body;
-    
-    if (!Array.isArray(updates) || updates.length === 0) {
-      return res.status(400).json({ error: 'Updates array is required and must not be empty' });
-    }
-    
-    // Validate each update
-    for (const update of updates) {
-      if (!update.row || !update.column || update.value === undefined) {
-        return res.status(400).json({ error: 'Each update must have row, column, and value' });
-      }
-    }
-    
-    // Users can only edit their own column (admins can edit all)
-    if (req.user?.role === 'user') {
-      const mappings = await getUserMappings();
-      const userMapping = mappings.find(m => m.sheetColumnName === req.user?.username);
-      
-      if (!userMapping) {
-        logger.warn('Bulk update denied', `User ${req.user?.username} has no mapping`);
-        return res.status(403).json({ error: 'User has no column mapping' });
-      }
-      
-      const columns = await getSheetColumns();
-      const userColumn = columns.find(c => c.name === userMapping.sheetColumnName);
-      
-      if (!userColumn) {
-        logger.warn('Bulk update denied', `User ${req.user?.username} has no column`);
-        return res.status(403).json({ error: 'User column not found' });
-      }
-      
-      // Check if all updates are for the user's own column
-      const invalidUpdate = updates.find(u => u.column !== userColumn.column);
-      if (invalidUpdate) {
-        logger.warn('Bulk update denied', `User ${req.user?.username} tried to edit column ${invalidUpdate.column}`);
-        return res.status(403).json({ error: 'You can only edit your own column' });
-      }
-    }
-    
-    // Sanitize all values
-    const sanitizedUpdates = updates.map(u => ({
-      row: u.row,
-      column: u.column,
-      value: sanitizeString(u.value),
-    }));
-    
-    // Use bulk update function
-    // Bulk update functionality moved to database/scheduleOperations.js
-    await bulkUpdateSheetCells(sanitizedUpdates);
-    
-    logger.success('Bulk update completed', `${updates.length} cells updated by ${req.user?.username}`);
-    res.json({ success: true, message: `${updates.length} cells updated successfully`, count: updates.length });
-  } catch (error) {
-    console.error('Error in bulk update:', error);
-    logger.error('Failed to bulk update', error instanceof Error ? error.message : String(error));
-    res.status(500).json({ error: 'Failed to bulk update cells' });
+    console.error('Error updating availability:', error);
+    logger.error('Failed to update availability', error instanceof Error ? error.message : String(error));
+    res.status(500).json({ error: 'Failed to update availability' });
   }
 });
 
@@ -550,20 +461,24 @@ app.get('/api/user-mappings', async (req, res) => {
 // Add new user mapping (protected with validation)
 app.post('/api/user-mappings', verifyToken, requireAdmin, validate(addUserMappingSchema), async (req: AuthRequest, res) => {
   try {
-    const { discordId, discordUsername, sheetColumnName, role } = req.body;
+    const { discordId, discordUsername, displayName, role, sortOrder } = req.body;
     
     await addUserMapping({
       discordId,
       discordUsername,
-      sheetColumnName,
+      displayName: displayName || discordUsername,
       role,
+      sortOrder: sortOrder || 0,
     });
     
-    logger.success('User mapping added', `${discordUsername} → ${sheetColumnName}`);
+    // Sync to all schedules
+    await syncUserMappingsToSchedules();
+    
+    logger.success('User mapping added', `${discordUsername} → ${displayName || discordUsername}`);
     res.json({ success: true, message: 'User mapping added successfully' });
   } catch (error) {
     console.error('Error adding user mapping:', error);
-    logger.error('Failed to add user mapping', error instanceof Error ? error.message : String(error));
+    logger.error('User mapping add failed', error instanceof Error ? error.message : 'Unknown error');
     res.status(500).json({ success: false, error: 'Failed to add user mapping' });
   }
 });
@@ -575,6 +490,9 @@ app.delete('/api/user-mappings/:discordId', verifyToken, requireAdmin, async (re
     const success = await removeUserMapping(discordId);
     
     if (success) {
+      // Sync to all schedules (removes player from all schedules)
+      await syncUserMappingsToSchedules();
+      
       logger.success('User mapping removed', `Discord ID: ${discordId}`);
       res.json({ success: true, message: 'User mapping removed successfully' });
     } else {
@@ -941,7 +859,7 @@ app.post('/api/absences', verifyToken, async (req: AuthRequest, res) => {
     // Users can only add absences for themselves (admins can add for anyone)
     if (req.user?.role === 'user') {
       const mappings = await getUserMappings();
-      const userMapping = mappings.find(m => m.sheetColumnName === req.user?.username);
+      const userMapping = mappings.find(m => m.displayName === req.user?.username);
       
       if (!userMapping || userMapping.discordId !== discordId) {
         logger.warn('Absence creation denied', `User ${req.user?.username} tried to add absence for ${username}`);
@@ -1000,7 +918,7 @@ app.put('/api/absences/:id', verifyToken, async (req: AuthRequest, res) => {
     // Users can only update their own absences (admins can update any)
     if (req.user?.role === 'user') {
       const mappings = await getUserMappings();
-      const userMapping = mappings.find(m => m.sheetColumnName === req.user?.username);
+      const userMapping = mappings.find(m => m.displayName === req.user?.username);
       
       if (!userMapping || userMapping.discordId !== existingAbsence.discordId) {
         logger.warn('Absence update denied', `User ${req.user?.username} tried to update absence ${absenceId}`);
@@ -1054,7 +972,7 @@ app.delete('/api/absences/:id', verifyToken, async (req: AuthRequest, res) => {
     // Users can only delete their own absences (admins can delete any)
     if (req.user?.role === 'user') {
       const mappings = await getUserMappings();
-      const userMapping = mappings.find(m => m.sheetColumnName === req.user?.username);
+      const userMapping = mappings.find(m => m.displayName === req.user?.username);
       
       if (!userMapping || userMapping.discordId !== existingAbsence.discordId) {
         logger.warn('Absence deletion denied', `User ${req.user?.username} tried to delete absence ${absenceId}`);
@@ -1109,7 +1027,7 @@ app.post('/api/absences/check-dates', verifyToken, async (req: AuthRequest, res)
     // Users can only check their own absences (admins can check anyone)
     if (req.user?.role === 'user') {
       const mappings = await getUserMappings();
-      const userMapping = mappings.find(m => m.sheetColumnName === req.user?.username);
+      const userMapping = mappings.find(m => m.displayName === req.user?.username);
       
       if (!userMapping || userMapping.discordId !== discordId) {
         return res.status(403).json({ success: false, error: 'You can only check your own absences' });

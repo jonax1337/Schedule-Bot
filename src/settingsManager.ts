@@ -1,4 +1,17 @@
-import { getSettingsFromSheet, saveSettingsToSheet, type SheetSettings } from './database/schedules.js';
+import { prisma } from './database/client.js';
+
+function flattenSettings(settings: Settings): Record<string, string | number | boolean> {
+  return {
+    'discord.channelId': settings.discord.channelId,
+    'discord.pingRoleId': settings.discord.pingRoleId || '',
+    'discord.allowDiscordAuth': settings.discord.allowDiscordAuth,
+    'scheduling.dailyPostTime': settings.scheduling.dailyPostTime,
+    'scheduling.reminderHoursBefore': settings.scheduling.reminderHoursBefore,
+    'scheduling.timezone': settings.scheduling.timezone,
+    'scheduling.cleanChannelBeforePost': settings.scheduling.cleanChannelBeforePost,
+    'scheduling.trainingStartPollEnabled': settings.scheduling.trainingStartPollEnabled,
+  };
+}
 
 export interface Settings {
   discord: {
@@ -60,30 +73,53 @@ export function reloadSettings(): Settings {
  */
 export async function loadSettingsAsync(): Promise<Settings> {
   try {
-    const sheetSettings = await getSettingsFromSheet();
+    // Settings from PostgreSQL Settings table
+    const settingsRecords = await prisma.setting.findMany();
     
-    if (sheetSettings) {
-      cachedSettings = {
-        ...sheetSettings,
-        scheduling: {
-          ...sheetSettings.scheduling,
-          changeNotificationsEnabled: sheetSettings.scheduling.changeNotificationsEnabled ?? true,
-        },
+    if (settingsRecords.length === 0) {
+      console.log('No settings found in PostgreSQL. Creating default settings...');
+      const defaultSettings = {
+        discord: DEFAULT_SETTINGS.discord,
+        scheduling: DEFAULT_SETTINGS.scheduling,
       };
-      console.log('✅ Settings loaded from PostgreSQL');
+      
+      // Save default settings to PostgreSQL
+      for (const [key, value] of Object.entries(flattenSettings(defaultSettings))) {
+        await prisma.setting.upsert({
+          where: { key },
+          create: { key, value: String(value) },
+          update: { value: String(value) },
+        });
+      }
+      console.log('✅ Default settings created in PostgreSQL');
+      
+      cachedSettings = { ...defaultSettings };
       return cachedSettings;
     }
-
-    console.log('No settings found in PostgreSQL. Creating default settings...');
-    const defaultSettings = {
-      discord: DEFAULT_SETTINGS.discord,
-      scheduling: DEFAULT_SETTINGS.scheduling,
+    
+    // Parse settings from flat key-value pairs
+    const settingsMap: Record<string, string> = {};
+    for (const record of settingsRecords) {
+      settingsMap[record.key] = record.value;
+    }
+    
+    cachedSettings = {
+      discord: {
+        channelId: settingsMap['discord.channelId'] || DEFAULT_SETTINGS.discord.channelId,
+        pingRoleId: settingsMap['discord.pingRoleId'] || DEFAULT_SETTINGS.discord.pingRoleId,
+        allowDiscordAuth: settingsMap['discord.allowDiscordAuth'] === 'true',
+      },
+      scheduling: {
+        dailyPostTime: settingsMap['scheduling.dailyPostTime'] || DEFAULT_SETTINGS.scheduling.dailyPostTime,
+        reminderHoursBefore: parseInt(settingsMap['scheduling.reminderHoursBefore']) || DEFAULT_SETTINGS.scheduling.reminderHoursBefore,
+        trainingStartPollEnabled: settingsMap['scheduling.trainingStartPollEnabled'] === 'true',
+        timezone: settingsMap['scheduling.timezone'] || DEFAULT_SETTINGS.scheduling.timezone,
+        cleanChannelBeforePost: settingsMap['scheduling.cleanChannelBeforePost'] === 'true',
+        changeNotificationsEnabled: settingsMap['scheduling.changeNotificationsEnabled'] !== 'false',
+      },
     };
     
-    await saveSettingsToSheet(defaultSettings);
-    console.log('✅ Default settings created in PostgreSQL');
-    
-    cachedSettings = { ...defaultSettings };
+    console.log('✅ Settings loaded from PostgreSQL');
     return cachedSettings;
   } catch (error) {
     console.error('Error loading settings:', error);
@@ -97,10 +133,15 @@ export async function loadSettingsAsync(): Promise<Settings> {
  */
 export async function saveSettings(settings: Settings): Promise<void> {
   try {
-    await saveSettingsToSheet({
-      discord: settings.discord,
-      scheduling: settings.scheduling,
-    });
+    // Save settings to PostgreSQL
+    const flatSettings = flattenSettings(settings);
+    for (const [key, value] of Object.entries(flatSettings)) {
+      await prisma.setting.upsert({
+        where: { key },
+        create: { key, value: String(value) },
+        update: { value: String(value) },
+      });
+    }
     
     cachedSettings = { ...settings };
     console.log('Settings saved to PostgreSQL successfully');

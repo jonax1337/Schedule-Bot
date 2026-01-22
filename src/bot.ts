@@ -13,7 +13,7 @@ import {
 import { config } from './config.js';
 import { getScheduleForDate } from './database/schedules.js';
 import { parseSchedule, analyzeSchedule } from './analyzer.js';
-import { buildScheduleEmbed, buildNoDataEmbed, buildErrorEmbed } from './embed.js';
+import { buildScheduleEmbed } from './embed.js';
 import {
   createDateNavigationButtons,
   createDateSelectMenu,
@@ -279,7 +279,11 @@ async function handleScheduleCommand(interaction: ChatInputCommandInteraction): 
     const sheetData = await getScheduleForDate(targetDate);
 
     if (!sheetData) {
-      await interaction.editReply({ embeds: [buildNoDataEmbed(displayDate)] });
+      const embed = new EmbedBuilder()
+        .setTitle(displayDate)
+        .setDescription('No schedule data available for this date.')
+        .setColor(0xe74c3c);
+      await interaction.editReply({ embeds: [embed] });
       return;
     }
 
@@ -295,8 +299,12 @@ async function handleScheduleCommand(interaction: ChatInputCommandInteraction): 
     });
   } catch (error) {
     console.error('Error handling schedule command:', error);
+    const embed = new EmbedBuilder()
+      .setTitle('Error')
+      .setDescription('An error occurred. Please try again later.')
+      .setColor(0xe74c3c);
     await interaction.editReply({
-      embeds: [buildErrorEmbed('An error occurred. Please try again later.')],
+      embeds: [embed],
     });
   }
 }
@@ -361,7 +369,7 @@ async function handleRegisterCommand(interaction: ChatInputCommandInteraction): 
     const existingMapping = await getUserMapping(user.id);
     if (existingMapping) {
       await interaction.editReply({
-        content: `❌ ${user.username} is already registered as **${existingMapping.sheetColumnName}**.`,
+        content: `❌ ${user.username} is already registered as **${existingMapping.displayName}**.`,
       });
       return;
     }
@@ -369,8 +377,9 @@ async function handleRegisterCommand(interaction: ChatInputCommandInteraction): 
     await addUserMapping({
       discordId: user.id,
       discordUsername: user.username,
-      sheetColumnName: columnName,
+      displayName: columnName,
       role,
+      sortOrder: 0,
     });
 
     await interaction.editReply({
@@ -782,7 +791,11 @@ export async function postScheduleToChannel(date?: string): Promise<void> {
     const sheetData = await getScheduleForDate(date);
 
     if (!sheetData) {
-      await channel.send({ embeds: [buildNoDataEmbed(displayDate)] });
+      const embed = new EmbedBuilder()
+        .setTitle(displayDate)
+        .setDescription('No schedule data available for this date.')
+        .setColor(0xe74c3c);
+      await channel.send({ embeds: [embed] });
       return;
     }
 
@@ -807,7 +820,12 @@ export async function postScheduleToChannel(date?: string): Promise<void> {
   } catch (error) {
     console.error('Error posting schedule to channel:', error);
     await channel.send({
-      embeds: [buildErrorEmbed('Error fetching schedule.')],
+      embeds: [
+        new EmbedBuilder()
+          .setTitle('Error')
+          .setDescription('Failed to fetch schedule data')
+          .setColor(0xe74c3c)
+      ],
     });
   }
 }
