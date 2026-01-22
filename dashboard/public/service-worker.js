@@ -1,8 +1,5 @@
-const CACHE_NAME = 'schedule-bot-v1';
+const CACHE_NAME = 'schedule-bot-v2';
 const urlsToCache = [
-  '/',
-  '/user',
-  '/admin',
   '/login',
   '/globals.css'
 ];
@@ -12,8 +9,19 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('Opened cache');
-        return cache.addAll(urlsToCache);
+        console.log('[SW] Opened cache');
+        // Cache URLs individually with error handling
+        return Promise.allSettled(
+          urlsToCache.map(url => 
+            cache.add(url).catch(err => {
+              console.warn(`[SW] Failed to cache ${url}:`, err);
+              return null;
+            })
+          )
+        );
+      })
+      .catch(err => {
+        console.error('[SW] Cache installation failed:', err);
       })
   );
   self.skipWaiting();
