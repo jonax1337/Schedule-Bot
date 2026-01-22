@@ -22,14 +22,14 @@ import { ChannelType, EmbedBuilder } from 'discord.js';
 import { config, reloadConfig } from './config.js';
 import { logger } from './logger.js';
 import { restartScheduler } from './scheduler.js';
-import { getUserMappings, addUserMapping, removeUserMapping, initializeUserMappingSheet, getUserMapping } from './userMapping.js';
-import { getSheetColumns, getSheetDataRange, updateSheetCell } from './sheets.js';
+import { getUserMappings, addUserMapping, removeUserMapping, getUserMapping } from './database/userMappings.js';
+import { getSheetColumns, getSheetDataRange, updateSheetCell, bulkUpdateSheetCells } from './database/schedules.js';
 import { loadSettingsAsync, saveSettings } from './settingsManager.js';
 import { initiateDiscordAuth, handleDiscordCallback, getUserFromSession, logout } from './auth.js';
 import { preloadCache, getScheduleDetails, getScheduleDetailsBatch, getCacheStats } from './scheduleCache.js';
 
 const app = express();
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 
 // Trust proxy - required for rate limiting behind reverse proxy
 app.set('trust proxy', 1);
@@ -358,7 +358,7 @@ app.post('/api/sheet-data/bulk-update', verifyToken, async (req: AuthRequest, re
     }));
     
     // Use bulk update function
-    const { bulkUpdateSheetCells } = await import('./sheets.js');
+    // Bulk update functionality moved to database/scheduleOperations.js
     await bulkUpdateSheetCells(sanitizedUpdates);
     
     logger.success('Bulk update completed', `${updates.length} cells updated by ${req.user?.username}`);
@@ -584,18 +584,7 @@ app.delete('/api/user-mappings/:discordId', verifyToken, requireAdmin, async (re
   }
 });
 
-// Initialize user mapping sheet (protected)
-app.post('/api/user-mappings/init', verifyToken, requireAdmin, strictApiLimiter, async (req: AuthRequest, res) => {
-  try {
-    await initializeUserMappingSheet();
-    logger.success('User mapping sheet initialized');
-    res.json({ success: true, message: 'User mapping sheet initialized' });
-  } catch (error) {
-    console.error('Error initializing user mapping sheet:', error);
-    logger.error('Failed to initialize user mapping sheet', error instanceof Error ? error.message : String(error));
-    res.status(500).json({ success: false, error: 'Failed to initialize sheet' });
-  }
-});
+// User mapping sheet initialization not needed with PostgreSQL - tables auto-created by Prisma
 
 // Post schedule (protected)
 app.post('/api/actions/schedule', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
@@ -766,7 +755,7 @@ app.post('/api/actions/notify', verifyToken, requireAdmin, validate(notification
 // Get all scrims (optional auth)
 app.get('/api/scrims', optionalAuth, async (req: AuthRequest, res) => {
   try {
-    const { getAllScrims } = await import('./scrims.js');
+    const { getAllScrims } = await import('./database/scrims.js');
     const scrims = await getAllScrims();
     res.json({ success: true, scrims });
   } catch (error) {
@@ -778,7 +767,7 @@ app.get('/api/scrims', optionalAuth, async (req: AuthRequest, res) => {
 // Get scrim by ID (optional auth)
 app.get('/api/scrims/:id', optionalAuth, async (req: AuthRequest, res) => {
   try {
-    const { getScrimById } = await import('./scrims.js');
+    const { getScrimById } = await import('./database/scrims.js');
     const scrim = await getScrimById(req.params.id as string);
     
     if (!scrim) {
@@ -795,11 +784,8 @@ app.get('/api/scrims/:id', optionalAuth, async (req: AuthRequest, res) => {
 // Add new scrim (protected with validation, users can add scrims)
 app.post('/api/scrims', verifyToken, validate(addScrimSchema), async (req: AuthRequest, res) => {
   try {
-    const { addScrim, ensureScrimSheetExists } = await import('./scrims.js');
+    const { addScrim } = await import('./database/scrims.js');
     const { date, opponent, result, scoreUs, scoreThem, map, matchType, ourAgents, theirAgents, vodUrl, notes } = req.body;
-    
-    // Ensure sheet exists before adding
-    await ensureScrimSheetExists();
     
     const newScrim = await addScrim({
       date,
@@ -826,7 +812,7 @@ app.post('/api/scrims', verifyToken, validate(addScrimSchema), async (req: AuthR
 // Update scrim (protected with validation, users can update scrims)
 app.put('/api/scrims/:id', verifyToken, validate(updateScrimSchema), async (req: AuthRequest, res) => {
   try {
-    const { updateScrim } = await import('./scrims.js');
+    const { updateScrim } = await import('./database/scrims.js');
     const { date, opponent, result, scoreUs, scoreThem, map, matchType, ourAgents, theirAgents, vodUrl, notes } = req.body;
     
     const updates: any = {};
@@ -859,7 +845,7 @@ app.put('/api/scrims/:id', verifyToken, validate(updateScrimSchema), async (req:
 // Delete scrim (protected, users can delete scrims)
 app.delete('/api/scrims/:id', verifyToken, async (req: AuthRequest, res) => {
   try {
-    const { deleteScrim } = await import('./scrims.js');
+    const { deleteScrim } = await import('./database/scrims.js');
     const success = await deleteScrim(req.params.id as string);
     
     if (!success) {
@@ -877,7 +863,7 @@ app.delete('/api/scrims/:id', verifyToken, async (req: AuthRequest, res) => {
 // Get scrim statistics (optional auth)
 app.get('/api/scrims/stats/summary', optionalAuth, async (req: AuthRequest, res) => {
   try {
-    const { getScrimStats } = await import('./scrims.js');
+    const { getScrimStats } = await import('./database/scrims.js');
     const stats = await getScrimStats();
     res.json({ success: true, stats });
   } catch (error) {
@@ -889,7 +875,7 @@ app.get('/api/scrims/stats/summary', optionalAuth, async (req: AuthRequest, res)
 // Get scrims by date range (optional auth)
 app.get('/api/scrims/range/:startDate/:endDate', optionalAuth, async (req: AuthRequest, res) => {
   try {
-    const { getScrimsByDateRange } = await import('./scrims.js');
+    const { getScrimsByDateRange } = await import('./database/scrims.js');
     const startDate = req.params.startDate as string;
     const endDate = req.params.endDate as string;
     const scrims = await getScrimsByDateRange(startDate, endDate);
@@ -905,7 +891,7 @@ app.get('/api/scrims/range/:startDate/:endDate', optionalAuth, async (req: AuthR
 // Get all absences (optional auth)
 app.get('/api/absences', optionalAuth, async (req: AuthRequest, res) => {
   try {
-    const { getAllAbsences } = await import('./absences.js');
+    const { getAllAbsences } = await import('./database/absences.js');
     const absences = await getAllAbsences();
     res.json({ success: true, absences });
   } catch (error) {
@@ -917,7 +903,7 @@ app.get('/api/absences', optionalAuth, async (req: AuthRequest, res) => {
 // Get absences by user (optional auth)
 app.get('/api/absences/user/:discordId', optionalAuth, async (req: AuthRequest, res) => {
   try {
-    const { getAbsencesByUser } = await import('./absences.js');
+    const { getAbsencesByUser } = await import('./database/absences.js');
     const absences = await getAbsencesByUser(req.params.discordId as string);
     res.json({ success: true, absences });
   } catch (error) {
@@ -929,7 +915,7 @@ app.get('/api/absences/user/:discordId', optionalAuth, async (req: AuthRequest, 
 // Get absence by ID (optional auth)
 app.get('/api/absences/:id', optionalAuth, async (req: AuthRequest, res) => {
   try {
-    const { getAbsenceById } = await import('./absences.js');
+    const { getAbsenceById } = await import('./database/absences.js');
     const absence = await getAbsenceById(req.params.id as string);
     
     if (!absence) {
@@ -943,23 +929,11 @@ app.get('/api/absences/:id', optionalAuth, async (req: AuthRequest, res) => {
   }
 });
 
-// Add new absence (protected with validation, users can add their own absences)
+// Add new absence (protected, users can add their own absences)
 app.post('/api/absences', verifyToken, async (req: AuthRequest, res) => {
   try {
-    const { addAbsence, ensureAbsencesSheetExists } = await import('./absences.js');
-    const { addAbsenceSchema } = await import('./middleware/validation.js');
-    
-    // Validate request body
-    const { error, value } = addAbsenceSchema.validate(req.body);
-    if (error) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Validation failed',
-        details: error.details.map(d => d.message)
-      });
-    }
-    
-    const { discordId, username, startDate, endDate, reason } = value;
+    const { addAbsence } = await import('./database/absences.js');
+    const { discordId, username, startDate, endDate, reason } = req.body;
     
     // Users can only add absences for themselves (admins can add for anyone)
     if (req.user?.role === 'user') {
@@ -971,9 +945,6 @@ app.post('/api/absences', verifyToken, async (req: AuthRequest, res) => {
         return res.status(403).json({ success: false, error: 'You can only add absences for yourself' });
       }
     }
-    
-    // Ensure sheet exists before adding
-    await ensureAbsencesSheetExists();
     
     const newAbsence = await addAbsence({
       discordId,
@@ -990,7 +961,6 @@ app.post('/api/absences', verifyToken, async (req: AuthRequest, res) => {
       logger.success('Absence marked immediately', `Updated schedule for ${username}`);
     } catch (error) {
       console.error('Error marking absence immediately:', error);
-      // Don't fail the request if marking fails
     }
     
     logger.success('Absence added', `${username} from ${startDate} to ${endDate}`);
@@ -1004,7 +974,7 @@ app.post('/api/absences', verifyToken, async (req: AuthRequest, res) => {
 // Update absence (protected with validation, users can update their own absences)
 app.put('/api/absences/:id', verifyToken, async (req: AuthRequest, res) => {
   try {
-    const { updateAbsence, getAbsenceById } = await import('./absences.js');
+    const { updateAbsence, getAbsenceById } = await import('./database/absences.js');
     const { updateAbsenceSchema } = await import('./middleware/validation.js');
     
     // Validate request body
@@ -1069,7 +1039,7 @@ app.put('/api/absences/:id', verifyToken, async (req: AuthRequest, res) => {
 // Delete absence (protected, users can delete their own absences)
 app.delete('/api/absences/:id', verifyToken, async (req: AuthRequest, res) => {
   try {
-    const { deleteAbsence, getAbsenceById } = await import('./absences.js');
+    const { deleteAbsence, getAbsenceById } = await import('./database/absences.js');
     const absenceId = req.params.id as string;
     
     const existingAbsence = await getAbsenceById(absenceId);
@@ -1110,7 +1080,7 @@ app.delete('/api/absences/:id', verifyToken, async (req: AuthRequest, res) => {
 // Get active absences for a specific date (optional auth)
 app.get('/api/absences/date/:date', optionalAuth, async (req: AuthRequest, res) => {
   try {
-    const { getActiveAbsencesForDate } = await import('./absences.js');
+    const { getActiveAbsencesForDate } = await import('./database/absences.js');
     const date = req.params.date as string;
     const absences = await getActiveAbsencesForDate(date);
     res.json({ success: true, absences });
@@ -1143,7 +1113,7 @@ app.post('/api/absences/check-dates', verifyToken, async (req: AuthRequest, res)
       }
     }
     
-    const { isDateInAbsence, getAbsencesByUser } = await import('./absences.js');
+    const { isDateInAbsence, getAbsencesByUser } = await import('./database/absences.js');
     const userAbsences = await getAbsencesByUser(discordId);
     
     // Check each date
@@ -1160,17 +1130,18 @@ app.post('/api/absences/check-dates', verifyToken, async (req: AuthRequest, res)
   }
 });
 
-// Discord OAuth routes
-app.get('/api/auth/discord', initiateDiscordAuth);
-app.get('/api/auth/discord/callback', handleDiscordCallback);
-app.get('/api/auth/user', getUserFromSession);
-app.post('/api/auth/logout', logout);
-
+// Export startApiServer function
 export function startApiServer(): void {
   app.listen(PORT, () => {
     console.log(`API Server listening on port ${PORT}`);
     logger.success('API Server started', `Listening on port ${PORT}`);
   });
 }
+
+// Discord OAuth routes
+app.get('/api/auth/discord', initiateDiscordAuth);
+app.get('/api/auth/discord/callback', handleDiscordCallback);
+app.get('/api/auth/user', getUserFromSession);
+app.post('/api/auth/logout', logout);
 
 export { app };

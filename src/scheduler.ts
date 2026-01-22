@@ -1,7 +1,7 @@
 import cron from 'node-cron';
 import { config } from './config.js';
 import { postScheduleToChannel, client } from './bot.js';
-import { deleteOldRows } from './sheets.js';
+import { deleteOldRows } from './database/schedules.js';
 import { sendRemindersToUsersWithoutEntry } from './reminder.js';
 import { processAbsencesForNext14Days } from './absenceProcessor.js';
 

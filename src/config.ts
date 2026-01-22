@@ -26,10 +26,6 @@ export const config = {
     guildId: requireEnv('DISCORD_GUILD_ID'),
     pingRoleId: settings.discord.pingRoleId,
   },
-  googleSheets: {
-    sheetId: requireEnv('GOOGLE_SHEET_ID'),
-    credentialsPath: process.env.GOOGLE_CREDENTIALS_PATH || './credentials.json',
-  },
   scheduling: {
     dailyPostTime: settings.scheduling.dailyPostTime,
     timezone: settings.scheduling.timezone,
@@ -43,7 +39,7 @@ export const config = {
 
 // Function to reload settings at runtime
 export async function reloadConfig(): Promise<void> {
-  settings = await loadSettingsAsync(); // Force reload from Google Sheets
+  settings = await loadSettingsAsync(); // Force reload from PostgreSQL
   
   // Update config with new settings
   config.discord.channelId = settings.discord.channelId;
@@ -56,13 +52,13 @@ export async function reloadConfig(): Promise<void> {
   // Admin credentials always come from .env (reload from process.env)
   config.admin.username = process.env.ADMIN_USERNAME || 'admin';
   
-  console.log('Configuration reloaded from Google Sheets and .env');
+  console.log('Configuration reloaded from PostgreSQL and .env');
   console.log('New pingRoleId:', config.discord.pingRoleId);
   console.log('New channelId:', config.discord.channelId);
   console.log('New dailyPostTime:', config.scheduling.dailyPostTime);
 }
 
-// Column indices in the Google Sheet (0-based)
+// Column name mappings (used for user mapping compatibility)
 export const SHEET_COLUMNS = {
   DATE: 0,
   PLAYER_1: 1,

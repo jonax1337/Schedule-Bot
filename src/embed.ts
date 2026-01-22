@@ -11,7 +11,7 @@ const COLORS = {
 };
 
 const THUMBNAIL_URL = 'https://cdn-icons-png.flaticon.com/512/3652/3652191.png';
-const SHEET_URL = `https://docs.google.com/spreadsheets/d/${config.googleSheets.sheetId}/edit?usp=sharing`;
+// Google Sheets URL removed - now using PostgreSQL database
 
 function formatPlayer(player: PlayerAvailability): string {
   if (player.available && player.timeRange) {
@@ -62,7 +62,6 @@ export function buildScheduleEmbed(result: ScheduleResult): EmbedBuilder {
   if (status === 'OFF_DAY') {
     return new EmbedBuilder()
       .setTitle(schedule.dateFormatted)
-      .setURL(SHEET_URL)
       .setDescription('**Off-Day** — No practice today.')
       .setColor(COLORS.OFF_DAY)
       .setThumbnail(THUMBNAIL_URL)
@@ -72,7 +71,6 @@ export function buildScheduleEmbed(result: ScheduleResult): EmbedBuilder {
   const embed = new EmbedBuilder()
     .setColor(canProceed ? (status === 'FULL_ROSTER' ? COLORS.SUCCESS : COLORS.WARNING) : COLORS.ERROR)
     .setTitle(schedule.dateFormatted)
-    .setURL(SHEET_URL)
     .setThumbnail(THUMBNAIL_URL)
     .setTimestamp();
 
@@ -134,10 +132,18 @@ export function buildScheduleEmbed(result: ScheduleResult): EmbedBuilder {
   return embed;
 }
 
+export function buildReminderEmbed(date: string, time: string): EmbedBuilder {
+  return new EmbedBuilder()
+    .setColor(COLORS.WARNING)
+    .setTitle(`⏰ Reminder: Training Today!`)
+    .setDescription(`Don't forget to set your availability for **${date}**!\n\nTraining starts at **${time}**.`)
+    .setThumbnail(THUMBNAIL_URL)
+    .setTimestamp();
+}
+
 export function buildNoDataEmbed(date: string): EmbedBuilder {
   return new EmbedBuilder()
     .setTitle('❌ No Data')
-    .setURL(SHEET_URL)
     .setDescription(`No entries found for **${date}**.`)
     .setColor(COLORS.ERROR)
     .setThumbnail(THUMBNAIL_URL)

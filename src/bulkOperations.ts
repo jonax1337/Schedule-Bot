@@ -1,4 +1,4 @@
-import { updatePlayerAvailability } from './sheetUpdater.js';
+import { updatePlayerAvailability } from './database/scheduleOperations.js';
 
 export interface WeekAvailability {
   [date: string]: string; // date -> time range or 'x'

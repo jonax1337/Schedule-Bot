@@ -1,0 +1,107 @@
+// Prisma Schema for Schedule Bot
+// PostgreSQL Database
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Main schedule table - replaces Sheet1
+model Schedule {
+  id        Int      @id @default(autoincrement())
+  date      String   @unique // Format: DD.MM.YYYY
+  player1   String   @default("")
+  player2   String   @default("")
+  player3   String   @default("")
+  player4   String   @default("")
+  player5   String   @default("")
+  sub1      String   @default("")
+  sub2      String   @default("")
+  coach     String   @default("")
+  reason    String   @default("")
+  focus     String   @default("")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([date])
+  @@map("schedules")
+}
+
+// User mapping table - replaces UserMapping sheet
+model UserMapping {
+  id              Int      @id @default(autoincrement())
+  discordId       String   @unique @map("discord_id")
+  discordUsername String   @map("discord_username")
+  sheetColumnName String   @map("sheet_column_name") // player1, player2, etc.
+  role            UserRole
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@index([discordId])
+  @@map("user_mappings")
+}
+
+enum UserRole {
+  MAIN
+  SUB
+  COACH
+}
+
+// Absences table - replaces Absences sheet
+model Absence {
+  id        String   @id // Format: abs_timestamp_random
+  userId    String   @map("discord_id")
+  username  String
+  startDate String   @map("start_date") // Format: DD.MM.YYYY
+  endDate   String   @map("end_date") // Format: DD.MM.YYYY
+  reason    String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([startDate])
+  @@index([endDate])
+  @@map("absences")
+}
+
+// Scrims/Matches table - replaces Matches sheet
+model Scrim {
+  id          String      @id // Format: scrim_timestamp_random
+  date        String      // Format: DD.MM.YYYY
+  opponent    String
+  result      ScrimResult
+  scoreUs     Int         @default(0) @map("score_us")
+  scoreThem   Int         @default(0) @map("score_them")
+  map         String      @default("")
+  matchType   String      @default("") @map("match_type")
+  ourAgents   String      @default("") @map("our_agents") // Comma-separated
+  theirAgents String      @default("") @map("their_agents") // Comma-separated
+  vodUrl      String      @default("") @map("vod_url")
+  notes       String      @default("")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  @@index([date])
+  @@map("scrims")
+}
+
+enum ScrimResult {
+  WIN
+  LOSS
+  DRAW
+}
+
+// Settings table - replaces Settings sheet
+model Setting {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
+}

@@ -1,7 +1,6 @@
-import { getUsersAbsentOnDate } from './absences.js';
-import { getUserMappings } from './userMapping.js';
-import { bulkUpdateSheetCells, getSheetDataRange } from './sheets.js';
-import { getSheetColumns } from './sheets.js';
+import { getUsersAbsentOnDate } from './database/absences.js';
+import { getUserMappings } from './database/userMappings.js';
+import { bulkUpdateSheetCells, getSheetDataRange, getSheetColumns } from './database/schedules.js';
 
 export async function processAbsencesForDate(date: string, bulkUpdates: Array<{ row: number; column: string; value: string }>): Promise<number> {
   try {

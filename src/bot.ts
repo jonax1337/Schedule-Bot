@@ -11,7 +11,7 @@ import {
   EmbedBuilder,
 } from 'discord.js';
 import { config } from './config.js';
-import { getScheduleForDate } from './sheets.js';
+import { getScheduleForDate } from './database/schedules.js';
 import { parseSchedule, analyzeSchedule } from './analyzer.js';
 import { buildScheduleEmbed, buildNoDataEmbed, buildErrorEmbed } from './embed.js';
 import {
@@ -27,7 +27,7 @@ import {
   sendMySchedule,
   handleSetWeekCommand,
 } from './interactive.js';
-import { getUserMapping, addUserMapping, removeUserMapping, initializeUserMappingSheet } from './userMapping.js';
+import { getUserMapping, addUserMapping, removeUserMapping } from './database/userMappings.js';
 import { sendRemindersToUsersWithoutEntry } from './reminder.js';
 
 export const client = new Client({
@@ -571,7 +571,7 @@ async function handleAddScrimCommand(interaction: ChatInputCommandInteraction): 
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   try {
-    const { addScrim, ensureScrimSheetExists } = await import('./scrims.js');
+    const { addScrim } = await import('./database/scrims.js');
     
     const date = interaction.options.getString('date', true);
     const opponent = interaction.options.getString('opponent', true);
@@ -581,9 +581,6 @@ async function handleAddScrimCommand(interaction: ChatInputCommandInteraction): 
     const map = interaction.options.getString('map') || '';
     const matchType = interaction.options.getString('match-type') || 'Scrim';
     const notes = interaction.options.getString('notes') || '';
-    
-    // Ensure scrim sheet exists
-    await ensureScrimSheetExists();
     
     const scrim = await addScrim({
       date,
@@ -621,7 +618,7 @@ async function handleViewScrimsCommand(interaction: ChatInputCommandInteraction)
   await interaction.deferReply();
 
   try {
-    const { getAllScrims } = await import('./scrims.js');
+    const { getAllScrims } = await import('./database/scrims.js');
     const limit = interaction.options.getInteger('limit') || 10;
     
     const scrims = await getAllScrims();
@@ -671,7 +668,7 @@ async function handleScrimStatsCommand(interaction: ChatInputCommandInteraction)
   await interaction.deferReply();
 
   try {
-    const { getScrimStats } = await import('./scrims.js');
+    const { getScrimStats } = await import('./database/scrims.js');
     
     const stats = await getScrimStats();
     
@@ -817,7 +814,7 @@ export async function postScheduleToChannel(date?: string): Promise<void> {
 
 client.once('clientReady', async () => {
   console.log(`Bot is ready! Logged in as ${client.user?.tag}`);
-  await initializeUserMappingSheet();
+      // User mapping table auto-created by Prisma
   await registerCommands();
 });
 

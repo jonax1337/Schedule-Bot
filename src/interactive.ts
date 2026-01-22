@@ -13,9 +13,9 @@ import {
   ChatInputCommandInteraction,
   MessageFlags,
 } from 'discord.js';
-import { getUserMapping } from './userMapping.js';
-import { updatePlayerAvailability, getPlayerAvailabilityForRange, getAvailableDates } from './sheetUpdater.js';
-import { getScheduleForDate } from './sheets.js';
+import { getUserMapping } from './database/userMappings.js';
+import { updatePlayerAvailability, getPlayerAvailabilityForRange, getAvailableDates } from './database/scheduleOperations.js';
+import { getScheduleForDate } from './database/schedules.js';
 import { parseSchedule, analyzeSchedule } from './analyzer.js';
 import { buildScheduleEmbed } from './embed.js';
 import { updateWeekAvailability, getNextSevenDates, getDayName, WeekAvailability } from './bulkOperations.js';
@@ -338,15 +338,16 @@ export async function sendMySchedule(
     .setColor(0x2ecc71)
     .setTimestamp();
 
-  if (availability.length === 0) {
+  const availabilityEntries = Object.entries(availability);
+  if (availabilityEntries.length === 0) {
     embed.setDescription('No entries for the next 14 days.');
   } else {
     let description = '';
-    for (const entry of availability) {
-      const status = entry.availability 
-        ? (entry.availability === 'x' ? '❌ Not available' : `✅ ${entry.availability}`)
+    for (const [date, value] of availabilityEntries) {
+      const status = value 
+        ? (value === 'x' ? '❌ Not available' : `✅ ${value}`)
         : '⚪ No entry';
-      description += `**${entry.date}**: ${status}\n`;
+      description += `**${date}**: ${status}\n`;
     }
     embed.setDescription(description);
   }
@@ -371,9 +372,9 @@ export async function createWeekModal(userId: string): Promise<ModalBuilder> {
     
     // Map availability to values array
     for (let i = 0; i < dates.length && i < 5; i++) {
-      const entry = availability.find(a => a.date === dates[i]);
-      if (entry && entry.availability) {
-        currentValues[i] = entry.availability;
+      const value = availability[dates[i]];
+      if (value) {
+        currentValues[i] = value;
       }
     }
   }
@@ -582,7 +583,7 @@ export async function handleInfoModal(
       recipientNames.push(userMapping.discordUsername);
     } else {
       // Get all user mappings and filter by target
-      const { getUserMappings } = await import('./userMapping.js');
+      const { getUserMappings } = await import('./database/userMappings.js');
       const allMappings = await getUserMappings();
 
       const filteredMappings = allMappings.filter(mapping => {

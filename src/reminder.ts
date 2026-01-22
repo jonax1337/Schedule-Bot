@@ -1,6 +1,6 @@
 import { Client, User, EmbedBuilder } from 'discord.js';
-import { getUserMappings } from './userMapping.js';
-import { getScheduleForDate } from './sheets.js';
+import { getUserMappings } from './database/userMappings.js';
+import { getScheduleForDate } from './database/schedules.js';
 import { createAvailabilityButtons } from './interactive.js';
 
 function normalizeDateFormat(dateStr: string): string {

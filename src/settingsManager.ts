@@ -1,12 +1,4 @@
-import { readFileSync, writeFileSync, existsSync } from 'fs';
-import { resolve, dirname } from 'path';
-import { fileURLToPath } from 'url';
-import { getSettingsFromSheet, saveSettingsToSheet, type SheetSettings } from './sheets.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const SETTINGS_PATH = resolve(__dirname, '../settings.json');
+import { getSettingsFromSheet, saveSettingsToSheet, type SheetSettings } from './database/schedules.js';
 
 export interface Settings {
   discord: {
@@ -58,21 +50,9 @@ export function loadSettings(): Settings {
  * Force reload settings from Google Sheets (bypasses cache)
  */
 export function reloadSettings(): Settings {
-  try {
-    // Use defaults (settings should be loaded via async version)
-    console.log('Using default settings. Call loadSettingsAsync() to load from Google Sheets.');
-    cachedSettings = {
-      ...DEFAULT_SETTINGS,
-    };
-
-    return cachedSettings;
-  } catch (error) {
-    console.error('Error loading settings, using defaults:', error);
-    cachedSettings = {
-      ...DEFAULT_SETTINGS,
-    };
-    return cachedSettings;
-  }
+  console.log('Using default settings. Call loadSettingsAsync() to load from PostgreSQL.');
+  cachedSettings = { ...DEFAULT_SETTINGS };
+  return cachedSettings;
 }
 
 /**
@@ -80,7 +60,6 @@ export function reloadSettings(): Settings {
  */
 export async function loadSettingsAsync(): Promise<Settings> {
   try {
-    // Try to get settings from Google Sheet
     const sheetSettings = await getSettingsFromSheet();
     
     if (sheetSettings) {
@@ -91,31 +70,24 @@ export async function loadSettingsAsync(): Promise<Settings> {
           changeNotificationsEnabled: sheetSettings.scheduling.changeNotificationsEnabled ?? true,
         },
       };
-      console.log('✅ Settings loaded from Google Sheets');
+      console.log('✅ Settings loaded from PostgreSQL');
       return cachedSettings;
     }
 
-    // No settings in Google Sheet - create defaults
-    console.log('No settings found in Google Sheets. Creating default settings...');
+    console.log('No settings found in PostgreSQL. Creating default settings...');
     const defaultSettings = {
       discord: DEFAULT_SETTINGS.discord,
       scheduling: DEFAULT_SETTINGS.scheduling,
     };
     
-    // Save defaults to Google Sheet
     await saveSettingsToSheet(defaultSettings);
-    console.log('✅ Default settings created in Google Sheets');
+    console.log('✅ Default settings created in PostgreSQL');
     
-    cachedSettings = {
-      ...defaultSettings,
-    };
-    
+    cachedSettings = { ...defaultSettings };
     return cachedSettings;
   } catch (error) {
-    console.error('Error loading settings async:', error);
-    cachedSettings = {
-      ...DEFAULT_SETTINGS,
-    };
+    console.error('Error loading settings:', error);
+    cachedSettings = { ...DEFAULT_SETTINGS };
     return cachedSettings;
   }
 }
@@ -125,18 +97,13 @@ export async function loadSettingsAsync(): Promise<Settings> {
  */
 export async function saveSettings(settings: Settings): Promise<void> {
   try {
-    // Save discord and scheduling to Google Sheets
     await saveSettingsToSheet({
       discord: settings.discord,
       scheduling: settings.scheduling,
     });
     
-    // Update cache with new settings
-    cachedSettings = {
-      ...settings,
-    };
-    
-    console.log('Settings saved to Google Sheets successfully');
+    cachedSettings = { ...settings };
+    console.log('Settings saved to PostgreSQL successfully');
   } catch (error) {
     console.error('Error saving settings:', error);
     throw error;

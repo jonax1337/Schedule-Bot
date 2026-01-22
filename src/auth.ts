@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import crypto from 'crypto';
-import { getUserMapping } from './userMapping.js';
+import { getUserMapping } from './database/userMappings.js';
 import { loadSettings } from './settingsManager.js';
 
 interface OAuthState {

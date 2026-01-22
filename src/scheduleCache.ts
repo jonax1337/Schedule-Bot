@@ -1,8 +1,7 @@
-import { getScheduleStatus } from './analyzer.js';
-import { getAuthenticatedClient } from './sheetUpdater.js';
-import { config, SHEET_COLUMNS } from './config.js';
-import { getUsersAbsentOnDate } from './absences.js';
-import { getUserMappings } from './userMapping.js';
+import { getUsersAbsentOnDate } from './database/absences.js';
+import { getUserMappings } from './database/userMappings.js';
+import { getScheduleForDate } from './database/schedules.js';
+import { parseSchedule, analyzeSchedule } from './analyzer.js';
 
 interface CachedScheduleDetail {
   status: string;
@@ -37,8 +36,11 @@ export async function getScheduleDetails(date: string): Promise<CachedScheduleDe
 
   // Fetch fresh data
   try {
-    const sheets = await getAuthenticatedClient();
-    const status = await getScheduleStatus(date, sheets);
+    const sheetData = await getScheduleForDate(date);
+    if (!sheetData) return null;
+    
+    const schedule = parseSchedule(sheetData);
+    const status = analyzeSchedule(schedule);
     
     // Get absent users for this date
     const absentUserIds = await getUsersAbsentOnDate(date);
@@ -47,13 +49,24 @@ export async function getScheduleDetails(date: string): Promise<CachedScheduleDe
       .map(discordId => userMappings.find(m => m.discordId === discordId)?.sheetColumnName)
       .filter((name): name is string => name !== undefined);
     
+    // Extract player lists from schedule
+    const availablePlayers = status.schedule.mainPlayers
+      .filter(p => p.available)
+      .map(p => p.name);
+    const unavailablePlayers = status.schedule.mainPlayers
+      .filter(p => !p.available && p.rawValue.toLowerCase() === 'x')
+      .map(p => p.name);
+    const noResponsePlayers = status.schedule.mainPlayers
+      .filter(p => !p.available && p.rawValue === '')
+      .map(p => p.name);
+    
     const details: CachedScheduleDetail = {
       status: status.status,
-      startTime: status.startTime,
-      endTime: status.endTime,
-      availablePlayers: status.availablePlayers || [],
-      unavailablePlayers: status.unavailablePlayers || [],
-      noResponsePlayers: status.noResponsePlayers || [],
+      startTime: status.commonTimeRange?.start,
+      endTime: status.commonTimeRange?.end,
+      availablePlayers,
+      unavailablePlayers,
+      noResponsePlayers,
       absentPlayers: absentPlayerNames,
       timestamp: now,
     };
@@ -88,14 +101,15 @@ export async function getScheduleDetailsBatch(dates: string[]): Promise<{ [date:
   // Fetch missing dates
   if (datesToFetch.length > 0) {
     try {
-      const sheets = await getAuthenticatedClient();
-      
-      // Fetch all dates in parallel
       const userMappings = await getUserMappings();
       
       const fetchPromises = datesToFetch.map(async (date) => {
         try {
-          const status = await getScheduleStatus(date, sheets);
+          const sheetData = await getScheduleForDate(date);
+          if (!sheetData) return;
+          
+          const schedule = parseSchedule(sheetData);
+          const status = analyzeSchedule(schedule);
           
           // Get absent users for this date
           const absentUserIds = await getUsersAbsentOnDate(date);
@@ -103,13 +117,23 @@ export async function getScheduleDetailsBatch(dates: string[]): Promise<{ [date:
             .map(discordId => userMappings.find(m => m.discordId === discordId)?.sheetColumnName)
             .filter((name): name is string => name !== undefined);
           
+          const availablePlayers = status.schedule.mainPlayers
+            .filter(p => p.available)
+            .map(p => p.name);
+          const unavailablePlayers = status.schedule.mainPlayers
+            .filter(p => !p.available && p.rawValue.toLowerCase() === 'x')
+            .map(p => p.name);
+          const noResponsePlayers = status.schedule.mainPlayers
+            .filter(p => !p.available && p.rawValue === '')
+            .map(p => p.name);
+          
           const details: CachedScheduleDetail = {
             status: status.status,
-            startTime: status.startTime,
-            endTime: status.endTime,
-            availablePlayers: status.availablePlayers || [],
-            unavailablePlayers: status.unavailablePlayers || [],
-            noResponsePlayers: status.noResponsePlayers || [],
+            startTime: status.commonTimeRange?.start,
+            endTime: status.commonTimeRange?.end,
+            availablePlayers,
+            unavailablePlayers,
+            noResponsePlayers,
             absentPlayers: absentPlayerNames,
             timestamp: Date.now(),
           };
@@ -150,29 +174,9 @@ export async function preloadCache(): Promise<void> {
   console.log('[ScheduleCache] Preloading cache...');
 
   try {
-    const sheets = await getAuthenticatedClient();
-    
-    // Fetch sheet data
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: config.googleSheets.sheetId,
-      range: 'A:K',
-    });
-
-    const rows = response.data.values;
-    if (!rows || rows.length < 2) {
-      console.log('[ScheduleCache] No data to preload');
-      isPreloading = false;
-      return;
-    }
-
-    // Get dates from next 14 rows (skip header)
-    const dates: string[] = [];
-    for (let i = 1; i < Math.min(rows.length, 15); i++) {
-      const row = rows[i];
-      if (row && row[0]) {
-        dates.push(row[0].trim());
-      }
-    }
+    // Get next 14 dates from PostgreSQL
+    const { getNext14Dates } = await import('./database/schedules.js');
+    const dates = await getNext14Dates();
 
     // Preload in batch
     if (dates.length > 0) {

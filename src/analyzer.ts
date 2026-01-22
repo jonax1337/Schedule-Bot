@@ -219,8 +219,8 @@ export function getOverlapDuration(range: TimeRange): number {
 }
 
 /**
- * Get detailed schedule status for a specific date from Google Sheets
- * Used for change notifications and dashboard details
+ * DEPRECATED: This function was used for Google Sheets integration
+ * Now replaced by getScheduleForDate + parseSchedule + analyzeSchedule from database/schedules.ts
  */
 export async function getScheduleStatus(date: string, sheetsApi: any): Promise<{
   status: string;
@@ -230,135 +230,7 @@ export async function getScheduleStatus(date: string, sheetsApi: any): Promise<{
   unavailablePlayers?: string[];
   noResponsePlayers?: string[];
 }> {
-  try {
-    const { config } = await import('./config.js');
-    
-    // Fetch sheet data
-    const response = await sheetsApi.spreadsheets.values.get({
-      spreadsheetId: config.googleSheets.sheetId,
-      range: 'A:K',
-    });
-
-    const rows = response.data.values;
-    if (!rows || rows.length < 2) {
-      return { status: 'Unknown' };
-    }
-
-    // Find the row for the specified date
-    const normalizedDate = date.trim();
-    const dataRow = rows.slice(1).find((row: any) => {
-      const rowDate = (row[0] || '').trim();
-      return rowDate === normalizedDate;
-    });
-
-    if (!dataRow) {
-      return { status: 'Unknown' };
-    }
-
-    // Get header row to map columns
-    const headerRow = rows[0];
-    
-    // Parse player data
-    const sheetData: SheetData = {
-      date: dataRow[0],
-      players: {
-        player1: dataRow[1] || '',
-        player2: dataRow[2] || '',
-        player3: dataRow[3] || '',
-        player4: dataRow[4] || '',
-        player5: dataRow[5] || '',
-        sub1: dataRow[6] || '',
-        sub2: dataRow[7] || '',
-        coach: dataRow[8] || '',
-      },
-      names: {
-        player1: headerRow[1] || 'Player 1',
-        player2: headerRow[2] || 'Player 2',
-        player3: headerRow[3] || 'Player 3',
-        player4: headerRow[4] || 'Player 4',
-        player5: headerRow[5] || 'Player 5',
-        sub1: headerRow[6] || 'Sub 1',
-        sub2: headerRow[7] || 'Sub 2',
-        coach: headerRow[8] || 'Coach',
-      },
-      reason: dataRow[9] || '',
-      focus: dataRow[10] || '',
-    };
-
-    const schedule = parseSchedule(sheetData);
-    const result = analyzeSchedule(schedule);
-
-    // Check if all players have not responded (no time set, not unavailable)
-    const allPlayersNoResponse = schedule.mainPlayers.every(p => !p.available && p.rawValue !== 'x' && p.rawValue.toLowerCase() !== 'x') &&
-                                  schedule.subs.every(p => !p.available && p.rawValue !== 'x' && p.rawValue.toLowerCase() !== 'x');
-
-    // If nobody has set anything yet, return Unknown
-    if (allPlayersNoResponse) {
-      const noResponsePlayers: string[] = [];
-      schedule.mainPlayers.forEach(p => noResponsePlayers.push(p.name));
-      schedule.subs.forEach(p => noResponsePlayers.push(p.name));
-      
-      return {
-        status: 'Unknown',
-        availablePlayers: [],
-        unavailablePlayers: [],
-        noResponsePlayers,
-      };
-    }
-
-    // Map status to human-readable format
-    let statusText = 'Unknown';
-    if (result.status === 'OFF_DAY') {
-      statusText = 'Off-Day';
-    } else if (result.status === 'FULL_ROSTER') {
-      statusText = 'Training possible';
-    } else if (result.status === 'WITH_SUBS') {
-      statusText = 'Training possible';
-    } else if (result.status === 'NOT_ENOUGH') {
-      if (result.availableMainCount + result.availableSubCount >= 4) {
-        statusText = 'Almost there';
-      } else if (result.availableMainCount + result.availableSubCount >= 2) {
-        statusText = 'More players needed';
-      } else {
-        statusText = 'Insufficient players';
-      }
-    }
-
-    // Collect player lists
-    const availablePlayers: string[] = [];
-    const unavailablePlayers: string[] = [];
-    const noResponsePlayers: string[] = [];
-
-    schedule.mainPlayers.forEach(p => {
-      if (p.available && p.timeRange) {
-        availablePlayers.push(`${p.name} (${p.timeRange.start}-${p.timeRange.end})`);
-      } else if (p.rawValue === 'x' || p.rawValue.toLowerCase() === 'x') {
-        unavailablePlayers.push(p.name);
-      } else {
-        noResponsePlayers.push(p.name);
-      }
-    });
-
-    schedule.subs.forEach(p => {
-      if (p.available && p.timeRange) {
-        availablePlayers.push(`${p.name} (${p.timeRange.start}-${p.timeRange.end})`);
-      } else if (p.rawValue === 'x' || p.rawValue.toLowerCase() === 'x') {
-        unavailablePlayers.push(p.name);
-      } else {
-        noResponsePlayers.push(p.name);
-      }
-    });
-
-    return {
-      status: statusText,
-      startTime: result.commonTimeRange?.start,
-      endTime: result.commonTimeRange?.end,
-      availablePlayers,
-      unavailablePlayers,
-      noResponsePlayers,
-    };
-  } catch (error) {
-    console.error('[Analyzer] Error getting schedule status:', error);
-    return { status: 'Unknown' };
-  }
+  // This function is deprecated and should not be called
+  console.warn('[DEPRECATED] getScheduleStatus called - use PostgreSQL functions instead');
+  return { status: 'Unknown' };
 }
