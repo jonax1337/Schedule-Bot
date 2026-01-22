@@ -9,10 +9,18 @@ export async function getNext14DaysSchedule(): Promise<ScheduleData[]> {
   const schedules: ScheduleData[] = [];
   const today = new Date();
   
+  // Use consistent DD.MM.YYYY format
+  const formatDate = (d: Date): string => {
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}.${month}.${year}`;
+  };
+  
   for (let i = 0; i < 14; i++) {
     const date = new Date(today);
     date.setDate(today.getDate() + i);
-    const dateStr = date.toLocaleDateString('de-DE');
+    const dateStr = formatDate(date);
     
     const schedule = await getScheduleForDate(dateStr);
     if (schedule) {
