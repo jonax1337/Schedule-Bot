@@ -20,7 +20,8 @@
   <img src="https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white" alt="Node.js" />
   <img src="https://img.shields.io/badge/Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord" />
   <img src="https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white" alt="Next.js" />
-  <img src="https://img.shields.io/badge/Google_Sheets-34A853?style=for-the-badge&logo=google-sheets&logoColor=white" alt="Google Sheets" />
+  <img src="https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL" />
+  <img src="https://img.shields.io/badge/Prisma-2D3748?style=for-the-badge&logo=prisma&logoColor=white" alt="Prisma" />
 </div>
 
 ---
@@ -37,7 +38,7 @@
 - [Installation](#installation)
   - [Backend Setup](#backend-setup)
   - [Dashboard Setup](#dashboard-setup)
-  - [Google Sheets Setup](#google-sheets-setup)
+  - [Database Setup](#database-setup)
 - [Configuration](#configuration)
 - [Usage](#usage)
   - [Discord Commands](#discord-commands)
@@ -63,7 +64,7 @@
 - **🔄 Dual Interface**: Discord commands for quick access + Web dashboard for detailed management
 - **🧠 Smart Analysis**: Automatically calculates overlapping time windows for all available players
 - **⏰ Automation**: Daily schedule posts, reminder notifications, and cleanup jobs
-- **📊 Flexible Data**: Google Sheets as database - easily accessible and editable
+- **🗄️ Reliable Storage**: PostgreSQL database with Prisma ORM for structured, queryable data
 - **👥 Role Management**: Support for main roster, substitutes, and coaches
 - **🌍 Timezone-Aware**: Properly handles timezones including DST (Daylight Saving Time)
 
@@ -83,18 +84,20 @@
 - **Training Start Polls**: Vote on preferred training start times
 
 ### Dashboard Features
-- **Admin Panel**: Complete bot configuration and management
-- **User Portal**: Self-service availability management for players
-- **Schedule Editor**: Direct Google Sheets editing interface
-- **Live Logs**: Real-time bot activity monitoring
-- **User Management**: Register/unregister Discord users
-- **Manual Actions**: Trigger posts, reminders, and polls manually
+- **Admin Panel**: Manage configuration stored in PostgreSQL and restart services with one click
+- **User Portal**: Self-service availability management backed by live database updates
+- **Schedule Editor**: Spreadsheet-like editor for schedule entries persisted via Prisma
+- **Scrim Manager**: Record opponents, results, and notes with automatic stats
+- **Live Logs**: Stream bot activity, warnings, and errors from the API server
+- **User Management**: Register/unregister Discord users and sync mappings across schedules
+- **Manual Actions**: Trigger posts, reminders, notifications, and polls manually
 - **Responsive Design**: Works on desktop, tablet, and mobile
 
 ### Automation Features
 - **Daily Schedule Posts**: Automatic posting at configured time
-- **Smart Reminders**: Notifications X hours before post time
-- **Cleanup Jobs**: Removes old entries at midnight
+- **Smart Reminders**: DM notifications X hours before post time
+- **Schedule Seeding**: Ensures the next 14 days exist in the database with all mapped users
+- **Change Notifications**: Optional channel alerts when roster status improves
 - **Training Polls**: Optional automatic training time voting
 
 ---
@@ -105,7 +108,7 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                         SYSTEM ARCHITECTURE                       │
+│                         SYSTEM ARCHITECTURE                     │
 └─────────────────────────────────────────────────────────────────┘
 
 ┌──────────────────┐         ┌──────────────────┐
@@ -137,25 +140,14 @@
                   ▼               ▼               ▼
          ┌────────────┐  ┌────────────┐  ┌────────────┐
          │            │  │            │  │            │
-         │  Google    │  │  Next.js   │  │  Discord   │
-         │  Sheets    │  │  Dashboard │  │  OAuth     │
-         │  API       │  │  :3000     │  │  (optional)│
+         │ PostgreSQL │  │  Next.js   │  │  Discord   │
+         │  Database  │  │  Dashboard │  │  OAuth     │
+         │ (Prisma)   │  │  :3000     │  │  (optional)│
          │            │  │            │  │            │
          └────────────┘  └────────────┘  └────────────┘
-              │                 │
-              │                 │
-              └────────┬────────┘
-                       ▼
-              ┌─────────────────┐
-              │                 │
-              │  Google Sheets  │
-              │  (Database)     │
-              │                 │
-              │  • Schedule     │
-              │  • UserMapping  │
-              │  • Settings     │
-              │                 │
-              └─────────────────┘
+             │                 │
+             │                 │
+             └─────────────────┘
 ```
 
 ### Component Communication
@@ -165,20 +157,23 @@
 // Bot receives slash command
 client.on('interactionCreate', async (interaction) => {
   if (interaction.isCommand()) {
-    // Process command, access sheets, respond
+    // Process command, access database, respond
   }
 });
 ```
 
-#### 2. **Backend ↔ Google Sheets**
+#### 2. **Backend ↔ PostgreSQL Database**
 ```typescript
 // Read schedule data
-const sheetData = await getScheduleForDate(date);
+const schedule = await prisma.schedule.findUnique({
+  where: { date },
+  include: { players: true },
+});
 
 // Update player availability
-await updatePlayerAvailability(date, columnName, timeRange);
+await updatePlayerAvailability(date, discordUserId, timeRange);
 
-// UserMapping system links Discord ID to Sheet columns
+// UserMapping system links Discord ID to schedule entries
 const mapping = await getUserMapping(discordUserId);
 ```
 
@@ -213,13 +208,13 @@ User in Discord
 /set command → Button "Available" → Modal (Time Input)
     │
     ▼
-getUserMapping(discordId) → Returns sheetColumnName
+getUserMapping(discordId) → Returns mapped user entry
     │
     ▼
-updatePlayerAvailability(date, columnName, "14:00-20:00")
+updatePlayerAvailability(date, discordId, "14:00-20:00")
     │
     ▼
-Google Sheets API → Updates cell
+Prisma ORM → Updates PostgreSQL rows
     │
     ▼
 Confirmation message to user
@@ -230,7 +225,7 @@ Confirmation message to user
 /schedule command
     │
     ▼
-getScheduleForDate(date) → Fetches row from Sheets
+getScheduleForDate(date) → Fetches row from PostgreSQL
     │
     ▼
 parseSchedule() → Converts to structured data
@@ -257,7 +252,7 @@ Cron: 09:00 → Send reminders to users without entry
 Cron: 12:00 → Post schedule to channel
     │         → Optional: Send training start poll
     ▼
-Cron: 00:00 → Delete old rows (cleanup)
+Cron: 00:00 → (Optional) Housekeeping tasks
 ```
 
 ---
@@ -269,8 +264,8 @@ Before installation, ensure you have:
 - **Node.js** v18 or higher
 - **npm** or **yarn**
 - **Discord Bot Application** (with bot token)
-- **Google Cloud Project** with Sheets API enabled
-- **Google Service Account** credentials (JSON file)
+- **PostgreSQL** 14+ (local instance or managed service)
+- **Prisma CLI** (installed via dev dependencies)
 - **Git** (for cloning the repository)
 
 ---
@@ -297,12 +292,24 @@ Before installation, ensure you have:
 
 4. **Configure environment variables** (see [Configuration](#configuration))
 
-5. **Build TypeScript**
+5. **Prepare the database schema**
+   ```bash
+   npx prisma migrate deploy   # or prisma db push for dev
+   npx prisma generate
+   ```
+
+6. **Seed from legacy Excel (optional)**
+   ```bash
+   npm run build
+   node dist/importFromExcel.js import-data.xlsx
+   ```
+
+7. **Build TypeScript**
    ```bash
    npm run build
    ```
 
-6. **Start the bot**
+8. **Start the bot**
    ```bash
    npm start
    ```
@@ -337,52 +344,33 @@ Before installation, ensure you have:
    npm start
    ```
 
-### Google Sheets Setup
+### Database Setup
 
-1. **Create Google Cloud Project**
-   - Go to [Google Cloud Console](https://console.cloud.google.com/)
-   - Create new project
-   - Enable Google Sheets API
-
-2. **Create Service Account**
-   - Navigate to "IAM & Admin" → "Service Accounts"
-   - Create service account
-   - Create and download JSON key
-   - Save as `credentials.json` in project root
-
-3. **Create Google Sheet**
-   - Create new spreadsheet
-   - Copy the Sheet ID from URL: `https://docs.google.com/spreadsheets/d/SHEET_ID/edit`
-   - Share sheet with service account email (found in credentials.json)
-
-4. **Sheet Structure**
-   
-   **Main Sheet (Sheet1):**
-   ```
-   | Date       | Player1 | Player2 | Player3 | Player4 | Player5 | Sub1 | Sub2 | Coach | Reason | Focus |
-   |------------|---------|---------|---------|---------|---------|------|------|-------|--------|-------|
-   | 19.01.2026 | 14:00-20| x       | 15:00-22| ...     | ...     | ...  | ...  | ...   | ...    | ...   |
+1. **Create PostgreSQL database**
+   ```bash
+   createdb schedule_bot
    ```
 
-   **UserMapping Sheet:**
-   ```
-   | Discord ID      | Discord Username | Sheet Column Name | Role  |
-   |-----------------|------------------|-------------------|-------|
-   | 123456789012345 | Player1          | Player Name       | main  |
+2. **Create database user (optional)**
+   ```sql
+   CREATE USER schedule_bot_user WITH PASSWORD 'strong_password';
+   GRANT ALL PRIVILEGES ON DATABASE schedule_bot TO schedule_bot_user;
    ```
 
-   **Settings Sheet:**
+3. **Set `DATABASE_URL` in `.env`**
+   ```env
+   DATABASE_URL="postgresql://schedule_bot_user:strong_password@localhost:5432/schedule_bot?schema=public"
    ```
-   | Key                      | Value                |
-   |--------------------------|----------------------|
-   | channelId                | 987654321098765432   |
-   | pingRoleId               | 123456789012345678   |
-   | dailyPostTime            | 12:00                |
-   | timezone                 | Europe/Berlin        |
-   | reminderHoursBefore      | 3                    |
-   | trainingStartPollEnabled | false                |
-   | allowDiscordAuth         | false                |
-   | cleanChannelBeforePost   | false                |
+
+4. **Run migrations**
+   ```bash
+   npx prisma migrate dev
+   ```
+
+5. **(Optional) Import legacy data from Excel**
+   ```bash
+   npm run build
+   node dist/importFromExcel.js import-data.xlsx
    ```
 
 ---
@@ -396,26 +384,29 @@ Before installation, ensure you have:
 DISCORD_TOKEN=your_bot_token_here
 DISCORD_GUILD_ID=your_server_id_here
 
-# Google Sheets
-GOOGLE_SHEET_ID=your_sheet_id_here
-GOOGLE_CREDENTIALS_PATH=./credentials.json
+# PostgreSQL
+DATABASE_URL="postgresql://schedule_bot_user:your_password@localhost:5432/schedule_bot?schema=public"
 
 # Admin Authentication
 ADMIN_USERNAME=admin
-ADMIN_PASSWORD=your_secure_password
+ADMIN_PASSWORD_HASH=your_bcrypt_hash_here
+# Generate with: node dist/generateHash.js YOUR_PASSWORD
 
 # Discord OAuth (Optional)
 DISCORD_CLIENT_ID=your_client_id
 DISCORD_CLIENT_SECRET=your_client_secret
 DISCORD_REDIRECT_URI=http://localhost:3000/api/auth/callback
+
+# Dashboard URL (for CORS)
+DASHBOARD_URL=http://localhost:3000
 ```
 
-### Persistent Settings (Google Sheets)
+### Persistent Settings (PostgreSQL)
 
-Settings are stored in the "Settings" sheet and can be modified via:
+Settings are stored in the `settings` table and can be modified via:
 - Dashboard Settings Panel
-- Direct sheet editing
-- API calls
+- Admin API endpoints
+- Direct database updates (not recommended in production)
 
 **Key Settings:**
 - `channelId`: Discord channel for automated posts
@@ -426,6 +417,7 @@ Settings are stored in the "Settings" sheet and can be modified via:
 - `trainingStartPollEnabled`: Auto-create training time polls
 - `allowDiscordAuth`: Enable Discord OAuth login
 - `cleanChannelBeforePost`: Delete previous bot messages before posting
+- `changeNotificationsEnabled`: Enable roster improvement alerts
 
 ---
 
@@ -448,8 +440,8 @@ Settings are stored in the "Settings" sheet and can be modified via:
 | Command | Description | Example |
 |---------|-------------|---------|
 | `/post-schedule [date]` | Post schedule to channel | `/post-schedule` |
-| `/register` | Register user for system | `/register @user column:PlayerName role:main` |
-| `/unregister` | Remove user from system | `/unregister @user` |
+| `/register` | Register user and create DB mapping | `/register @user column:PlayerName role:main` |
+| `/unregister` | Remove user mapping from DB | `/unregister @user` |
 | `/remind [date]` | Send reminders manually | `/remind 20.01.2026` |
 | `/notify` | Send notification to players | `/notify type:info target:all` |
 | `/poll` | Create quick poll | `/poll question:"Map?" options:"Bind,Haven,Ascent"` |
@@ -460,17 +452,18 @@ Settings are stored in the "Settings" sheet and can be modified via:
 
 #### Admin Dashboard (`/admin`)
 
-1. **Settings Tab**: Configure all bot settings
-2. **Users Tab**: Manage player registrations
-3. **Schedule Tab**: Direct sheet editor with bulk operations
-4. **Actions Tab**: Trigger manual bot actions
-5. **Logs Tab**: View real-time bot logs
+1. **Settings Tab**: Configure all bot settings stored in PostgreSQL
+2. **Users Tab**: Manage player registrations and sync mappings
+3. **Schedule Tab**: Spreadsheet-like editor backed by Prisma transactions
+4. **Actions Tab**: Trigger manual bot actions (post, remind, notify, polls)
+5. **Logs Tab**: View real-time bot logs from the API server
+6. **Scrims Tab**: Track scrim results and statistics
 
 #### User Portal (`/user`)
 
 1. Select your username from dropdown (or login)
-2. View your next 14 days availability
-3. Edit entries with time picker
+2. View your next 14 days availability synced from PostgreSQL
+3. Edit entries with time picker (updates reflect instantly)
 4. Use checkbox + bulk edit for multiple days
 5. Copy time from previous entries
 
@@ -479,7 +472,7 @@ Settings are stored in the "Settings" sheet and can be modified via:
 1. Calendar view of all players
 2. Filter by date
 3. Quick edit your own entries
-4. See team status at a glance
+4. See team status at a glance with live analysis data
 
 ---
 
@@ -506,7 +499,7 @@ Response: { "success": true, "message": "Login successful" }
 #### Settings Management
 
 ```http
-# Get current settings
+# Get current settings (public)
 GET /api/settings
 
 Response: {
@@ -526,7 +519,7 @@ Response: {
 ```
 
 ```http
-# Update settings
+# Update settings (admin)
 POST /api/settings
 Content-Type: application/json
 
@@ -579,7 +572,7 @@ Response: {
 #### User Management
 
 ```http
-# Get all user mappings
+# Get all user mappings (public)
 GET /api/user-mappings
 
 Response: {
@@ -596,22 +589,21 @@ Response: {
 ```
 
 ```http
-# Add user mapping
+# Add user mapping (admin)
 POST /api/user-mappings
 Content-Type: application/json
 
 {
   "discordId": "123...",
   "discordUsername": "player1",
-  "sheetColumnName": "Player Name",
   "role": "main"
 }
 
-Response: { "success": true, "message": "User registered successfully" }
+Response: { "success": true, "message": "User mapping added successfully" }
 ```
 
 ```http
-# Remove user mapping
+# Remove user mapping (admin)
 DELETE /api/user-mappings/:discordId
 
 Response: { "success": true, "message": "User removed" }
@@ -619,42 +611,37 @@ Response: { "success": true, "message": "User removed" }
 
 #### Sheet Operations
 
+#### Schedule Data
+
 ```http
-# Get sheet columns
-GET /api/sheet-columns
+# Get schedule for next 14 days (auth)
+GET /api/schedule/next14
 
 Response: {
-  "columns": [
-    { "name": "Player1", "column": "B", "index": 1 },
-    { "name": "Player2", "column": "C", "index": 2 }
+  "success": true,
+  "schedules": [
+    {
+      "date": "20.01.2026",
+      "players": [ ... ],
+      "reason": "",
+      "focus": "Aim"
+    }
   ]
 }
 ```
 
 ```http
-# Get sheet data range
-GET /api/sheet-data?startRow=1&endRow=50
-
-Response: {
-  "data": [
-    ["Date", "Player1", "Player2", ...],
-    ["19.01.2026", "14:00-20:00", "x", ...]
-  ]
-}
-```
-
-```http
-# Update cell
-POST /api/sheet-data/update
+# Update player availability (auth)
+POST /api/schedule/update-availability
 Content-Type: application/json
 
 {
-  "row": 2,
-  "column": "B",
-  "value": "15:00-21:00"
+  "date": "20.01.2026",
+  "userId": "123...",
+  "availability": "18:00-22:00"
 }
 
-Response: { "success": true, "message": "Cell updated successfully" }
+Response: { "success": true, "message": "Availability updated successfully" }
 ```
 
 #### Bot Actions
@@ -695,6 +682,21 @@ Content-Type: application/json
 }
 
 Response: { "success": true, "messageId": "..." }
+```
+
+```http
+# Send notification
+POST /api/actions/notify
+Content-Type: application/json
+
+{
+  "type": "info",
+  "target": "main",
+  "title": "Schedule Update",
+  "message": "Training confirmed for 20:00"
+}
+
+Response: { "success": true, "message": "Notification sent to 5/6 user(s)" }
 ```
 
 #### Monitoring
@@ -771,20 +773,20 @@ curl -X POST http://localhost:3001/api/admin/login \
 # 2. Dashboard fetches user mappings
 curl http://localhost:3001/api/user-mappings
 
-# 3. Dashboard gets sheet data
-curl "http://localhost:3001/api/sheet-data?startRow=1&endRow=15"
+# 3. Dashboard gets schedule data
+curl http://localhost:3001/api/schedule/next14
 
 # 4. User updates their availability
-curl -X POST http://localhost:3001/api/sheet-data/update \
+curl -X POST http://localhost:3001/api/schedule/update-availability \
   -H "Content-Type: application/json" \
   -d '{
     "row": 2,
-    "column": "B",
-    "value": "14:00-20:00"
+    "userId": "123...",
+    "availability": "14:00-20:00"
   }'
 
 # 5. Dashboard refreshes to show update
-curl "http://localhost:3001/api/sheet-data?startRow=1&endRow=15"
+curl http://localhost:3001/api/schedule/next14
 ```
 
 ---
@@ -812,11 +814,11 @@ cron.schedule('0 9 * * *', async () => {
 }, { timezone: config.scheduling.timezone });
 ```
 
-### Cleanup Job
+### Change Notifications
 ```typescript
-// Every day at midnight
-cron.schedule('0 0 * * *', async () => {
-  await deleteOldRows(); // Removes entries older than today
+// Every 5 minutes (configurable)
+cron.schedule('*/5 * * * *', async () => {
+  await checkAndNotifyStatusChange(targetDate, client);
 }, { timezone: config.scheduling.timezone });
 ```
 
@@ -833,11 +835,10 @@ schedule-bot/
 │   ├── bot.ts               # Discord bot client
 │   ├── scheduler.ts         # Cron jobs
 │   ├── apiServer.ts         # Express REST API
-│   ├── sheets.ts            # Google Sheets operations
 │   ├── analyzer.ts          # Schedule analysis logic
 │   ├── embed.ts             # Discord embed formatting
 │   ├── interactive.ts       # Button/modal interactions
-│   ├── userMapping.ts       # User mapping system
+│   ├── database/            # Prisma clients and repositories
 │   ├── reminder.ts          # Reminder notifications
 │   ├── polls.ts             # Poll system
 │   ├── auth.ts              # Discord OAuth
@@ -924,17 +925,21 @@ npm run lint
    - Commands register on bot startup
    - Check console logs for registration errors
 
-### Google Sheets connection fails
+### Database connection fails
 
-1. **Verify credentials.json** is in project root
+1. **Verify `DATABASE_URL`** in `.env`
 
-2. **Check service account email** has access to sheet
+2. **Test connection manually**
+   ```bash
+   npx prisma db pull
+   ```
 
-3. **Confirm Sheets API** is enabled in Google Cloud Console
+3. **Check database is running**
+   ```bash
+   pg_isready --dbname schedule_bot
+   ```
 
-4. **Test connection**
-   - Bot tests connection on startup
-   - Check console for "Google Sheets connection successful"
+4. **Inspect logs** for connection errors (`ECONNREFUSED`, authentication failed)
 
 ### Dashboard can't connect to bot
 
@@ -1020,7 +1025,8 @@ This project is licensed under the ISC License.
 - [discord.js](https://discord.js.org/) - Powerful Discord API library
 - [Next.js](https://nextjs.org/) - React framework for production
 - [Shadcn UI](https://ui.shadcn.com/) - Beautifully designed components
-- [Google Sheets API](https://developers.google.com/sheets/api) - Flexible data storage
+- [PostgreSQL](https://www.postgresql.org/) - Reliable relational database
+- [Prisma](https://www.prisma.io/) - Type-safe database ORM
 - [node-cron](https://www.npmjs.com/package/node-cron) - Task scheduling
 
 ---
