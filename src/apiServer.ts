@@ -66,28 +66,21 @@ const MEMBERS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 const allowedOrigins = [
   'http://localhost:3000',
   'http://127.0.0.1:3000',
-  'http://localhost:3001',
-  'http://127.0.0.1:3001',
+  'https://schedule-bot-dashboard.up.railway.app',
+  'https://schedule-bot-dashboard-production.up.railway.app',
   process.env.DASHBOARD_URL,
 ].filter(Boolean) as string[];
-
-console.log('[CORS] Allowed origins:', allowedOrigins);
 
 app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (mobile apps, curl, etc.)
     if (!origin) {
-      console.log('[CORS] Request without origin - allowing');
       return callback(null, true);
     }
     
-    console.log('[CORS] Request from origin:', origin);
-    
     if (allowedOrigins.includes(origin)) {
-      console.log('[CORS] Origin allowed');
       callback(null, true);
     } else {
-      console.log('[CORS] Origin BLOCKED:', origin);
       callback(new Error('Not allowed by CORS'));
     }
   },
