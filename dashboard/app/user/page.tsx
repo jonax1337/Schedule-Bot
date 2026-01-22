@@ -245,7 +245,7 @@ export default function UserSchedule() {
               </Button>
               <div>
                 <h1 className="text-4xl font-bold tracking-tight">
-                  Availability - {userName}
+                  Availability
                 </h1>
                 <p className="text-muted-foreground mt-2">
                   Manage your availability for the next 14 days
