@@ -61,8 +61,26 @@ export async function getScheduleDetails(date: string): Promise<CachedScheduleDe
       .filter(p => !p.available && p.rawValue === '')
       .map(p => p.displayName);
     
+    // Convert backend status to frontend-friendly string
+    let statusString = 'Unknown';
+    if (status.status === 'OFF_DAY') {
+      statusString = 'Off-Day';
+    } else if (status.status === 'FULL_ROSTER') {
+      statusString = 'Training possible';
+    } else if (status.status === 'WITH_SUBS') {
+      // Determine if "Almost there" or "More players needed"
+      const totalAvailable = status.availableMainCount + status.availableSubCount;
+      if (totalAvailable >= 5) {
+        statusString = 'Almost there';
+      } else {
+        statusString = 'More players needed';
+      }
+    } else if (status.status === 'NOT_ENOUGH') {
+      statusString = 'Insufficient players';
+    }
+    
     const details: CachedScheduleDetail = {
-      status: status.status,
+      status: statusString,
       startTime: status.commonTimeRange?.start,
       endTime: status.commonTimeRange?.end,
       availablePlayers,
