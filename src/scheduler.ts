@@ -45,26 +45,9 @@ export function startScheduler(): void {
 
   console.log('Scheduler started successfully.');
 
-  // Daily cleanup at 00:00 to delete old rows
-  console.log('Setting up daily cleanup at 00:00 to remove old rows...');
-  
-  cleanupTask = cron.schedule(
-    '0 0 * * *', // Every day at 00:00
-    async () => {
-      console.log(`[${new Date().toISOString()}] Running scheduled cleanup...`);
-      try {
-        const deletedCount = await deleteOldRows();
-        console.log(`Cleanup completed. Deleted ${deletedCount} old row(s).`);
-      } catch (error) {
-        console.error('Error during scheduled cleanup:', error);
-      }
-    },
-    {
-      timezone: config.scheduling.timezone,
-    }
-  );
-
-  console.log('Cleanup scheduler started successfully.');
+  // Daily cleanup DISABLED - keeping all historical data
+  // Old schedules are no longer automatically deleted
+  console.log('Cleanup job disabled - all schedule data will be preserved.');
 
   // Reminder job X hours before daily post
   const reminderTime = calculateReminderTime(hour, minute, config.scheduling.reminderHoursBefore);

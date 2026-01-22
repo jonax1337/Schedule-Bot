@@ -38,16 +38,10 @@ async function main(): Promise<void> {
     logger.error('Settings load failed', error instanceof Error ? error.message : String(error));
   }
 
-  // Run cleanup job on startup
-  console.log('\nRunning table cleanup and maintenance...');
-  try {
-    await deleteOldRows();
-    console.log('Table cleanup completed successfully!');
-  } catch (error) {
-    console.error('Error during table cleanup:', error);
-    // Don't exit, just log the error
-  }
-logger.info('Starting Discord bot');
+  // Cleanup job DISABLED - keeping all historical data
+  console.log('\nSchedule data cleanup disabled - all historical data will be preserved.');
+
+  logger.info('Starting Discord bot');
   await startBot();
 
   // Wait for bot to be ready before starting scheduler

@@ -225,17 +225,13 @@ export async function addMissingDays(): Promise<void> {
 
 /**
  * Delete old schedules (older than 14 days)
+ * DISABLED - All historical data is now preserved
  */
 export async function deleteOldRows(): Promise<void> {
-  const dates = getNext14Dates();
-  
-  await prisma.schedule.deleteMany({
-    where: {
-      date: { notIn: dates },
-    },
-  });
-
-  console.log('✅ Old schedules deleted');
+  // Function disabled - no longer deleting old schedule data
+  // All historical data is preserved in the database
+  console.log('deleteOldRows called but disabled - preserving all historical data');
+  return;
 }
 
 /**
