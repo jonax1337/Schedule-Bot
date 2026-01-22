@@ -676,7 +676,9 @@ export default function HomePage() {
                         {selectedDate.scheduleDetails.status}
                       </Badge>
                     </div>
-                    {selectedDate.scheduleDetails.startTime && selectedDate.scheduleDetails.endTime && (
+                    {selectedDate.scheduleDetails.status === 'Training possible' && 
+                     selectedDate.scheduleDetails.startTime && 
+                     selectedDate.scheduleDetails.endTime && (
                       <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
                         <Clock className="w-4 h-4" />
                         <span>{selectedDate.scheduleDetails.startTime} - {selectedDate.scheduleDetails.endTime}</span>
