@@ -293,6 +293,21 @@ export function ScrimsPanel() {
     }
   };
 
+  const getMatchTypeBadge = (matchType: string) => {
+    switch (matchType) {
+      case 'Premier':
+        return <Badge variant="default" className="bg-yellow-500 text-yellow-900 border-yellow-600">Premier</Badge>;
+      case 'Scrim':
+        return <Badge variant="default" className="bg-blue-500 text-blue-50 border-blue-600">Scrim</Badge>;
+      case 'Tournament':
+        return <Badge variant="default" className="bg-purple-500 text-purple-50 border-purple-600">Tournament</Badge>;
+      case 'Custom':
+        return <Badge variant="default" className="bg-gray-500 text-gray-50 border-gray-600">Custom</Badge>;
+      default:
+        return <Badge variant="outline" className="text-xs">{matchType}</Badge>;
+    }
+  };
+
   // Filter scrims based on selected filters - memoized for performance
   const filteredScrims = useMemo(() => {
     return scrims.filter((scrim) => {
@@ -691,9 +706,7 @@ export function ScrimsPanel() {
                       <TableCell className="font-medium">{scrim.date}</TableCell>
                       <TableCell>
                         {scrim.matchType && (
-                          <Badge variant="outline" className="text-xs">
-                            {scrim.matchType}
-                          </Badge>
+                          getMatchTypeBadge(scrim.matchType)
                         )}
                       </TableCell>
                       <TableCell>{scrim.opponent}</TableCell>
@@ -809,9 +822,7 @@ export function ScrimsPanel() {
                     <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b bg-muted/30 relative z-10">
                       <div className="flex items-center gap-2">
                         {scrim.matchType && (
-                          <Badge variant="outline" className="text-xs font-normal">
-                            {scrim.matchType}
-                          </Badge>
+                          getMatchTypeBadge(scrim.matchType)
                         )}
                         {getResultBadge(scrim.result)}
                         {scrim.vodUrl && (
