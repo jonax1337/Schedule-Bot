@@ -1,4 +1,4 @@
-import { Client, User, EmbedBuilder } from 'discord.js';
+import { Client, EmbedBuilder } from 'discord.js';
 import { getUserMappings } from './database/userMappings.js';
 import { getScheduleForDate } from './database/schedules.js';
 import { createAvailabilityButtons } from './interactive.js';
@@ -19,10 +19,10 @@ export async function sendRemindersToUsersWithoutEntry(client: Client, date?: st
 
   try {
     const userMappings = await getUserMappings();
-    const sheetData = await getScheduleForDate(targetDate);
+    const scheduleData = await getScheduleForDate(targetDate);
 
-    if (!sheetData) {
-      console.log(`No sheet data found for ${targetDate}, skipping reminders.`);
+    if (!scheduleData) {
+      console.log(`No schedule data found for ${targetDate}, skipping reminders.`);
       return;
     }
 
@@ -34,32 +34,9 @@ export async function sendRemindersToUsersWithoutEntry(client: Client, date?: st
         continue;
       }
 
-      // Get the player's availability from the sheet
-      let playerAvailability = '';
-      
-      switch (mapping.sheetColumnName) {
-        case sheetData.names.player1:
-          playerAvailability = sheetData.players.player1;
-          break;
-        case sheetData.names.player2:
-          playerAvailability = sheetData.players.player2;
-          break;
-        case sheetData.names.player3:
-          playerAvailability = sheetData.players.player3;
-          break;
-        case sheetData.names.player4:
-          playerAvailability = sheetData.players.player4;
-          break;
-        case sheetData.names.player5:
-          playerAvailability = sheetData.players.player5;
-          break;
-        case sheetData.names.sub1:
-          playerAvailability = sheetData.players.sub1;
-          break;
-        case sheetData.names.sub2:
-          playerAvailability = sheetData.players.sub2;
-          break;
-      }
+      // Find player's availability in schedule
+      const playerEntry = scheduleData.players.find(p => p.userId === mapping.discordId);
+      const playerAvailability = playerEntry?.availability || '';
 
       // Check if player has no entry (empty or whitespace only)
       if (!playerAvailability || playerAvailability.trim() === '') {
@@ -78,14 +55,15 @@ export async function sendRemindersToUsersWithoutEntry(client: Client, date?: st
           });
 
           remindersSent++;
-          console.log(`Sent reminder to ${mapping.discordUsername} (${mapping.sheetColumnName})`);
+          console.log(`Sent reminder to ${mapping.discordUsername} (${mapping.displayName})`);
         } catch (error) {
           console.error(`Failed to send reminder to ${mapping.discordUsername}:`, error);
         }
       }
     }
 
-    console.log(`Reminders sent: ${remindersSent}/${userMappings.length - userMappings.filter(m => m.role === 'coach').length} players`);
+    const nonCoachCount = userMappings.filter(m => m.role !== 'coach').length;
+    console.log(`Reminders sent: ${remindersSent}/${nonCoachCount} players`);
   } catch (error) {
     console.error('Error sending reminders:', error);
   }

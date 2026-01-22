@@ -1,6 +1,6 @@
 import { getUsersAbsentOnDate } from './database/absences.js';
 import { getUserMappings } from './database/userMappings.js';
-import { getScheduleForDate } from './database/schedules.js';
+import { getScheduleForDate, getNext14Dates } from './database/schedules.js';
 import { parseSchedule, analyzeSchedule } from './analyzer.js';
 
 interface CachedScheduleDetail {
@@ -36,29 +36,30 @@ export async function getScheduleDetails(date: string): Promise<CachedScheduleDe
 
   // Fetch fresh data
   try {
-    const sheetData = await getScheduleForDate(date);
-    if (!sheetData) return null;
+    const scheduleData = await getScheduleForDate(date);
+    if (!scheduleData) return null;
     
-    const schedule = parseSchedule(sheetData);
+    const schedule = parseSchedule(scheduleData);
     const status = analyzeSchedule(schedule);
     
     // Get absent users for this date
     const absentUserIds = await getUsersAbsentOnDate(date);
     const userMappings = await getUserMappings();
     const absentPlayerNames = absentUserIds
-      .map(discordId => userMappings.find(m => m.discordId === discordId)?.sheetColumnName)
+      .map(discordId => userMappings.find(m => m.discordId === discordId)?.displayName)
       .filter((name): name is string => name !== undefined);
     
-    // Extract player lists from schedule
-    const availablePlayers = status.schedule.mainPlayers
+    // Extract player lists from schedule - filter by role
+    const mainPlayers = status.schedule.players.filter(p => p.role === 'MAIN');
+    const availablePlayers = mainPlayers
       .filter(p => p.available)
-      .map(p => p.name);
-    const unavailablePlayers = status.schedule.mainPlayers
+      .map(p => p.displayName);
+    const unavailablePlayers = mainPlayers
       .filter(p => !p.available && p.rawValue.toLowerCase() === 'x')
-      .map(p => p.name);
-    const noResponsePlayers = status.schedule.mainPlayers
+      .map(p => p.displayName);
+    const noResponsePlayers = mainPlayers
       .filter(p => !p.available && p.rawValue === '')
-      .map(p => p.name);
+      .map(p => p.displayName);
     
     const details: CachedScheduleDetail = {
       status: status.status,
@@ -85,88 +86,37 @@ export async function getScheduleDetails(date: string): Promise<CachedScheduleDe
 export async function getScheduleDetailsBatch(dates: string[]): Promise<{ [date: string]: CachedScheduleDetail }> {
   const results: { [date: string]: CachedScheduleDetail } = {};
   
-  // Check cache first
-  const now = Date.now();
-  const datesToFetch: string[] = [];
-  
+  // Fetch all at once
   for (const date of dates) {
-    const cached = cache[date];
-    if (cached && (now - cached.timestamp) < CACHE_DURATION) {
-      results[date] = cached;
-    } else {
-      datesToFetch.push(date);
+    const details = await getScheduleDetails(date);
+    if (details) {
+      results[date] = details;
     }
   }
-
-  // Fetch missing dates
-  if (datesToFetch.length > 0) {
-    try {
-      const userMappings = await getUserMappings();
-      
-      const fetchPromises = datesToFetch.map(async (date) => {
-        try {
-          const sheetData = await getScheduleForDate(date);
-          if (!sheetData) return;
-          
-          const schedule = parseSchedule(sheetData);
-          const status = analyzeSchedule(schedule);
-          
-          // Get absent users for this date
-          const absentUserIds = await getUsersAbsentOnDate(date);
-          const absentPlayerNames = absentUserIds
-            .map(discordId => userMappings.find(m => m.discordId === discordId)?.sheetColumnName)
-            .filter((name): name is string => name !== undefined);
-          
-          const availablePlayers = status.schedule.mainPlayers
-            .filter(p => p.available)
-            .map(p => p.name);
-          const unavailablePlayers = status.schedule.mainPlayers
-            .filter(p => !p.available && p.rawValue.toLowerCase() === 'x')
-            .map(p => p.name);
-          const noResponsePlayers = status.schedule.mainPlayers
-            .filter(p => !p.available && p.rawValue === '')
-            .map(p => p.name);
-          
-          const details: CachedScheduleDetail = {
-            status: status.status,
-            startTime: status.commonTimeRange?.start,
-            endTime: status.commonTimeRange?.end,
-            availablePlayers,
-            unavailablePlayers,
-            noResponsePlayers,
-            absentPlayers: absentPlayerNames,
-            timestamp: Date.now(),
-          };
-          cache[date] = details;
-          results[date] = details;
-        } catch (error) {
-          console.error(`[ScheduleCache] Error fetching ${date}:`, error);
-        }
-      });
-
-      await Promise.all(fetchPromises);
-    } catch (error) {
-      console.error('[ScheduleCache] Error in batch fetch:', error);
-    }
-  }
-
+  
   return results;
 }
 
 /**
- * Invalidate cache for a specific date (call when data changes)
+ * Invalidate cache for a specific date
  */
 export function invalidateCache(date: string): void {
   delete cache[date];
-  console.log(`[ScheduleCache] Cache invalidated for ${date}`);
 }
 
 /**
- * Preload cache with upcoming dates from Google Sheets
+ * Invalidate all cache
+ */
+export function invalidateAllCache(): void {
+  Object.keys(cache).forEach(key => delete cache[key]);
+}
+
+/**
+ * Preload cache for next 14 days
  */
 export async function preloadCache(): Promise<void> {
   if (isPreloading) {
-    console.log('[ScheduleCache] Preload already in progress, skipping...');
+    console.log('[ScheduleCache] Already preloading, skipping...');
     return;
   }
 
@@ -174,15 +124,9 @@ export async function preloadCache(): Promise<void> {
   console.log('[ScheduleCache] Preloading cache...');
 
   try {
-    // Get next 14 dates from PostgreSQL
-    const { getNext14Dates } = await import('./database/schedules.js');
-    const dates = await getNext14Dates();
-
-    // Preload in batch
-    if (dates.length > 0) {
-      await getScheduleDetailsBatch(dates);
-      console.log(`[ScheduleCache] Preloaded ${dates.length} dates`);
-    }
+    const dates = getNext14Dates();
+    await getScheduleDetailsBatch(dates);
+    console.log(`[ScheduleCache] Preloaded ${dates.length} dates`);
   } catch (error) {
     console.error('[ScheduleCache] Error preloading cache:', error);
   } finally {
@@ -191,19 +135,12 @@ export async function preloadCache(): Promise<void> {
 }
 
 /**
- * Clear entire cache
- */
-export function clearCache(): void {
-  Object.keys(cache).forEach(key => delete cache[key]);
-  console.log('[ScheduleCache] Cache cleared');
-}
-
-/**
  * Get cache statistics
  */
-export function getCacheStats(): { size: number; keys: string[] } {
+export function getCacheStats(): { size: number; dates: string[] } {
+  const dates = Object.keys(cache);
   return {
-    size: Object.keys(cache).length,
-    keys: Object.keys(cache),
+    size: dates.length,
+    dates: dates.sort(),
   };
 }
