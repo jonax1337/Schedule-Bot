@@ -46,6 +46,12 @@ self.addEventListener('activate', (event) => {
 
 // Fetch event - serve from cache, fallback to network
 self.addEventListener('fetch', (event) => {
+  // Skip caching for non-http(s) requests (chrome-extension, etc.)
+  const url = new URL(event.request.url);
+  if (!url.protocol.startsWith('http')) {
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
@@ -69,10 +75,17 @@ self.addEventListener('fetch', (event) => {
           caches.open(CACHE_NAME)
             .then((cache) => {
               cache.put(event.request, responseToCache);
+            })
+            .catch(err => {
+              console.warn('[SW] Failed to cache response:', err);
             });
 
           return response;
         });
+      })
+      .catch(err => {
+        console.error('[SW] Fetch failed:', err);
+        return fetch(event.request);
       })
   );
 });
