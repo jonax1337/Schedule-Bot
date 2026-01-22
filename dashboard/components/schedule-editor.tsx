@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { Loader2, Calendar, Save, RefreshCw } from 'lucide-react';
+import { Loader2, Calendar, Save, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
@@ -40,12 +40,15 @@ export function ScheduleEditor() {
   const [saving, setSaving] = useState(false);
   const [editingCell, setEditingCell] = useState<{ date: string; userId: string } | null>(null);
   const [editValue, setEditValue] = useState('');
+  const [currentPage, setCurrentPage] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
     loadData();
   }, []);
 
-  const loadData = async () => {
+  const loadData = async (page: number = 0) => {
     setLoading(true);
     try {
       const { getAuthHeaders } = await import('@/lib/auth');
@@ -53,7 +56,7 @@ export function ScheduleEditor() {
       // Load user mappings and schedules
       const [mappingsRes, schedulesRes] = await Promise.all([
         fetch(`${BOT_API_URL}/api/user-mappings`),
-        fetch(`${BOT_API_URL}/api/schedule/next14`, { headers: getAuthHeaders() }),
+        fetch(`${BOT_API_URL}/api/schedule/paginated?offset=${page}`, { headers: getAuthHeaders() }),
       ]);
 
       if (mappingsRes.ok) {
@@ -65,6 +68,9 @@ export function ScheduleEditor() {
       if (schedulesRes.ok) {
         const data = await schedulesRes.json();
         setSchedules(data.schedules || []);
+        setHasMore(data.hasMore || false);
+        setTotalPages(data.totalPages || 1);
+        setCurrentPage(page);
       }
     } catch (error) {
       console.error('Failed to load data:', error);
@@ -192,7 +198,7 @@ export function ScheduleEditor() {
               }
             </CardDescription>
           </div>
-          <Button onClick={loadData} variant="outline" size="sm">
+          <Button onClick={() => loadData(currentPage)} variant="outline" size="sm">
             <RefreshCw className="w-4 h-4 mr-2" />
             Refresh
           </Button>
