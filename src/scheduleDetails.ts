@@ -43,9 +43,16 @@ export async function getScheduleDetails(date: string): Promise<ScheduleDetail |
       .filter(p => !p.available && p.rawValue === '')
       .map(p => p.displayName);
     
+    // Check if no one has set their availability yet
+    const allPlayersNoResponse = mainPlayers.every(p => !p.available && p.rawValue === '');
+    
     // Convert backend status to frontend-friendly string
     let statusString = 'Unknown';
-    if (status.status === 'OFF_DAY') {
+    
+    if (allPlayersNoResponse) {
+      // If no one has set availability yet, show "Unknown"
+      statusString = 'Unknown';
+    } else if (status.status === 'OFF_DAY') {
       statusString = 'Off-Day';
     } else if (status.status === 'FULL_ROSTER') {
       statusString = 'Training possible';
