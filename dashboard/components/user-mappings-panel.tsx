@@ -22,8 +22,9 @@ interface DiscordMember {
 interface UserMapping {
   discordId: string;
   discordUsername: string;
-  sheetColumnName: string;
+  displayName: string;
   role: 'main' | 'sub' | 'coach';
+  sortOrder: number;
 }
 
 interface SheetColumn {
@@ -273,6 +274,27 @@ export function UserMappingsPanel() {
                 </Command>
               </PopoverContent>
             </Popover>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="displayName">Display Name</Label>
+            <Input
+              id="displayName"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              placeholder="e.g., Alpha, Beta, Coach Delta"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="sortOrder">Sort Order</Label>
+            <Input
+              id="sortOrder"
+              type="number"
+              value={sortOrder}
+              onChange={(e) => setSortOrder(parseInt(e.target.value) || 0)}
+              placeholder="0"
+            />
           </div>
 
           <div className="space-y-2">
