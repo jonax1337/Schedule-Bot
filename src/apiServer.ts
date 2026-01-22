@@ -257,6 +257,18 @@ app.get('/api/discord/roles', verifyToken, requireAdmin, async (req: AuthRequest
   }
 });
 
+// Get next 14 days schedule (protected)
+app.get('/api/schedule/next14', verifyToken, async (req: AuthRequest, res) => {
+  try {
+    const { getNext14DaysSchedule } = await import('./database/schedules.js');
+    const schedules = await getNext14DaysSchedule();
+    res.json({ success: true, schedules });
+  } catch (error) {
+    console.error('Error fetching next 14 days schedule:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch schedule' });
+  }
+});
+
 // Update player availability (protected, users can edit their own availability)
 app.post('/api/schedule/update-availability', verifyToken, async (req: AuthRequest, res) => {
   try {
