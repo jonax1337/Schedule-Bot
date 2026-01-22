@@ -36,22 +36,14 @@ export default function UserSchedule() {
         
         const savedUser = localStorage.getItem('selectedUser');
         if (!savedUser) {
-          router.push('/login');
-          return;
-        }
-        
-        const isValid = await validateToken();
-        if (!isValid) {
-          removeAuthToken();
-          localStorage.removeItem('selectedUser');
-          router.push('/login');
+          router.replace('/login');
           return;
         }
         
         setUserName(savedUser);
-        loadData(savedUser);
-      } catch (e) {
-        console.error('Auth check error:', e);
+        await loadData(savedUser);
+      } catch (error) {
+        console.error('Auth check failed:', error);
         router.push('/login');
       }
     };
@@ -172,10 +164,9 @@ export default function UserSchedule() {
       });
 
       if (response.ok) {
-        setEntries(prev => prev.map(e => 
-          e.date === date ? { ...e, value, timeFrom, timeTo } : e
-        ));
         toast.success('Availability updated!');
+        // Reload data from DB to ensure consistency
+        await loadData(userName);
       } else {
         toast.error('Failed to update availability');
       }
@@ -203,10 +194,9 @@ export default function UserSchedule() {
       });
 
       if (response.ok) {
-        setEntries(prev => prev.map(e => 
-          e.date === date ? { ...e, value: 'x', timeFrom: '', timeTo: '' } : e
-        ));
         toast.success('Marked as not available');
+        // Reload data from DB to ensure consistency
+        await loadData(userName);
       } else {
         toast.error('Failed to update availability');
       }
