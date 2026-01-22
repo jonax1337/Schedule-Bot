@@ -62,11 +62,22 @@ export async function getSchedulesForDates(dates: string[]): Promise<ScheduleDat
         orderBy: { sortOrder: 'asc' },
       },
     },
-    orderBy: { date: 'asc' },
   });
 
-  // Map and maintain chronological order (earliest first for display)
-  return schedules.map(schedule => ({
+  // Convert DD.MM.YYYY to Date for proper sorting
+  const parseGermanDate = (dateStr: string): Date => {
+    const [day, month, year] = dateStr.split('.');
+    return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+  };
+
+  // Sort schedules by actual date (earliest first)
+  const sortedSchedules = schedules.sort((a, b) => {
+    const dateA = parseGermanDate(a.date);
+    const dateB = parseGermanDate(b.date);
+    return dateA.getTime() - dateB.getTime();
+  });
+
+  return sortedSchedules.map(schedule => ({
     date: schedule.date,
     players: schedule.players.map(p => ({
       userId: p.userId,
