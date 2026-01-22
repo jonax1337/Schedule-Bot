@@ -167,10 +167,17 @@ export default function HomePage() {
       
       // Generate next 14 dates
       const today = new Date();
+      const formatDate = (d: Date): string => {
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const year = d.getFullYear();
+        return `${day}.${month}.${year}`;
+      };
+      
       for (let i = 0; i < 14; i++) {
         const date = new Date(today);
         date.setDate(today.getDate() + i);
-        const dateStr = date.toLocaleDateString('de-DE');
+        const dateStr = formatDate(date);
         
         // Find schedule for this date
         const schedule = schedules.find((s: any) => s.date === dateStr);
