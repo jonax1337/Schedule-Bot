@@ -108,9 +108,10 @@ export function UserMappingsPanel() {
 
     setSaving(true);
     try {
+      const { getAuthHeaders } = await import('@/lib/auth');
       const response = await fetch(`${BOT_API_URL}/api/user-mappings`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           discordId: selectedUserId,
           discordUsername: selectedMember.username,
@@ -142,8 +143,10 @@ export function UserMappingsPanel() {
     }
 
     try {
+      const { getAuthHeaders } = await import('@/lib/auth');
       const response = await fetch(`${BOT_API_URL}/api/user-mappings/${discordId}`, {
         method: 'DELETE',
+        headers: getAuthHeaders(),
       });
 
       if (response.ok) {

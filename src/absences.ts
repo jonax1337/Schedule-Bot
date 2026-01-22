@@ -19,6 +19,12 @@ export interface Absence {
 }
 
 let sheetsApi: ReturnType<typeof google.sheets> | null = null;
+let absencesSheetChecked = false; // Cache to avoid repeated checks
+
+// Cache for absences data
+let absencesCache: Absence[] | null = null;
+let absencesCacheTimestamp = 0;
+const ABSENCES_CACHE_DURATION = 2 * 60 * 1000; // 2 minutes
 
 async function getAuthenticatedClient() {
   if (sheetsApi) return sheetsApi;
@@ -51,6 +57,11 @@ async function getSheetId(sheetName: string): Promise<number> {
 }
 
 export async function ensureAbsencesSheetExists(): Promise<void> {
+  // Return early if already checked
+  if (absencesSheetChecked) {
+    return;
+  }
+
   const sheets = await getAuthenticatedClient();
   
   try {
@@ -58,9 +69,10 @@ export async function ensureAbsencesSheetExists(): Promise<void> {
       spreadsheetId: config.googleSheets.sheetId,
       range: 'Absences!A1',
     });
-    console.log('Absences sheet already exists');
+    absencesSheetChecked = true;
+    console.log('[Absences] Sheet verified');
   } catch (error) {
-    console.log('Creating Absences sheet...');
+    console.log('[Absences] Creating sheet...');
     
     await sheets.spreadsheets.batchUpdate({
       spreadsheetId: config.googleSheets.sheetId,
@@ -88,7 +100,8 @@ export async function ensureAbsencesSheetExists(): Promise<void> {
       },
     });
 
-    console.log('Absences sheet created successfully');
+    absencesSheetChecked = true;
+    console.log('[Absences] Sheet created successfully');
   }
 }
 
@@ -96,7 +109,13 @@ function generateId(): string {
   return `abs_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
 
-export async function getAllAbsences(): Promise<Absence[]> {
+export async function getAllAbsences(forceRefresh = false): Promise<Absence[]> {
+  // Return cached data if still valid
+  const now = Date.now();
+  if (!forceRefresh && absencesCache && (now - absencesCacheTimestamp) < ABSENCES_CACHE_DURATION) {
+    return absencesCache;
+  }
+
   await ensureAbsencesSheetExists();
   
   const sheets = await getAuthenticatedClient();
@@ -108,6 +127,8 @@ export async function getAllAbsences(): Promise<Absence[]> {
 
   const rows = response.data.values;
   if (!rows || rows.length < 2) {
+    absencesCache = [];
+    absencesCacheTimestamp = now;
     return [];
   }
 
@@ -126,6 +147,10 @@ export async function getAllAbsences(): Promise<Absence[]> {
       });
     }
   }
+
+  // Update cache
+  absencesCache = absences;
+  absencesCacheTimestamp = now;
 
   return absences;
 }
@@ -168,6 +193,9 @@ export async function addAbsence(absence: Omit<Absence, 'id' | 'createdAt'>): Pr
     },
   });
 
+  // Invalidate cache
+  absencesCache = null;
+  
   console.log(`Absence added: ${newAbsence.username} from ${newAbsence.startDate} to ${newAbsence.endDate}`);
   return newAbsence;
 }
@@ -233,6 +261,9 @@ export async function updateAbsence(id: string, updates: Partial<Omit<Absence, '
     },
   });
 
+  // Invalidate cache
+  absencesCache = null;
+  
   console.log(`Absence updated: ${id}`);
   return updatedAbsence;
 }
@@ -280,6 +311,9 @@ export async function deleteAbsence(id: string): Promise<boolean> {
     },
   });
 
+  // Invalidate cache
+  absencesCache = null;
+  
   console.log(`Absence deleted: ${id}`);
   return true;
 }
