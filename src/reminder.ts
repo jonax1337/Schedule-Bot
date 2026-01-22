@@ -19,10 +19,10 @@ export async function sendRemindersToUsersWithoutEntry(client: Client, date?: st
 
   try {
     const userMappings = await getUserMappings();
-    const scheduleData = await getScheduleForDate(targetDate);
+    const scheduleData = await getScheduleForDate(normalizedDate);
 
     if (!scheduleData) {
-      console.log(`No schedule data found for ${targetDate}, skipping reminders.`);
+      console.log(`No schedule data found for ${normalizedDate}, skipping reminders.`);
       return;
     }
 
@@ -51,7 +51,7 @@ export async function sendRemindersToUsersWithoutEntry(client: Client, date?: st
 
           await user.send({
             embeds: [embed],
-            components: [createAvailabilityButtons(targetDate)],
+            components: [createAvailabilityButtons(normalizedDate)],
           });
 
           remindersSent++;
