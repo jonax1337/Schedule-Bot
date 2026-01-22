@@ -10,8 +10,9 @@ export const updateCellSchema = Joi.object({
 export const addUserMappingSchema = Joi.object({
   discordId: Joi.string().pattern(/^\d{17,19}$/).required(),
   discordUsername: Joi.string().min(1).max(32).required(),
-  sheetColumnName: Joi.string().min(1).max(100).required(),
+  displayName: Joi.string().min(1).max(100).required(),
   role: Joi.string().valid('main', 'sub', 'coach').required(),
+  sortOrder: Joi.number().integer().min(0).required(),
 });
 
 export const addScrimSchema = Joi.object({

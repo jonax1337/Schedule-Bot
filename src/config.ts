@@ -58,21 +58,6 @@ export async function reloadConfig(): Promise<void> {
   console.log('New dailyPostTime:', config.scheduling.dailyPostTime);
 }
 
-// Column name mappings (used for user mapping compatibility)
-export const SHEET_COLUMNS = {
-  DATE: 0,
-  PLAYER_1: 1,
-  PLAYER_2: 2,
-  PLAYER_3: 3,
-  PLAYER_4: 4,
-  PLAYER_5: 5,
-  SUB_1: 6,
-  SUB_2: 7,
-  COACH: 8,
-  REASON: 9,
-  FOCUS: 10,
-};
-
 // Match Sheet Column indices (0-based)
 export const SCRIM_SHEET_COLUMNS = {
   ID: 0,
