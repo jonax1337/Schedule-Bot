@@ -12,23 +12,34 @@ datasource db {
 
 // Main schedule table - replaces Sheet1
 model Schedule {
-  id        Int      @id @default(autoincrement())
-  date      String   @unique // Format: DD.MM.YYYY
-  player1   String   @default("")
-  player2   String   @default("")
-  player3   String   @default("")
-  player4   String   @default("")
-  player5   String   @default("")
-  sub1      String   @default("")
-  sub2      String   @default("")
-  coach     String   @default("")
-  reason    String   @default("")
-  focus     String   @default("")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id        Int              @id @default(autoincrement())
+  date      String           @unique // Format: DD.MM.YYYY
+  reason    String           @default("")
+  focus     String           @default("")
+  players   SchedulePlayer[]
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
 
   @@index([date])
   @@map("schedules")
+}
+
+// Dynamic player entries for each schedule
+model SchedulePlayer {
+  id           Int      @id @default(autoincrement())
+  scheduleId   Int      @map("schedule_id")
+  schedule     Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  userId       String   @map("user_id") // Discord ID
+  displayName  String   @map("display_name") // Custom name for Discord
+  role         UserRole
+  availability String   @default("") // "14:00-20:00", "x", ""
+  sortOrder    Int      @default(0) @map("sort_order") // Order in Discord message
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@index([scheduleId])
+  @@index([userId])
+  @@map("schedule_players")
 }
 
 // User mapping table - replaces UserMapping sheet
@@ -36,12 +47,14 @@ model UserMapping {
   id              Int      @id @default(autoincrement())
   discordId       String   @unique @map("discord_id")
   discordUsername String   @map("discord_username")
-  sheetColumnName String   @map("sheet_column_name") // player1, player2, etc.
+  displayName     String   @map("display_name") // Custom name for Discord messages
   role            UserRole
+  sortOrder       Int      @default(0) @map("sort_order") // Order in lists
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
   @@index([discordId])
+  @@index([role, sortOrder])
   @@map("user_mappings")
 }
 

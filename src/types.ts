@@ -4,26 +4,19 @@ export interface TimeRange {
 }
 
 export interface PlayerAvailability {
-  name: string;
-  isMain: boolean; // true for main roster, false for subs
+  userId: string; // Discord ID
+  displayName: string;
+  role: 'MAIN' | 'SUB' | 'COACH';
   available: boolean;
   timeRange: TimeRange | null;
   rawValue: string;
-}
-
-export interface CoachAvailability {
-  available: boolean;
-  timeRange: TimeRange | null;
-  rawValue: string;
+  sortOrder: number;
 }
 
 export interface DaySchedule {
   date: string;
   dateFormatted: string;
-  mainPlayers: PlayerAvailability[];
-  subs: PlayerAvailability[];
-  coach: CoachAvailability;
-  coachName: string;
+  players: PlayerAvailability[]; // All players (main, subs, coaches)
   reason: string;
   focus: string;
 }
@@ -39,37 +32,25 @@ export interface ScheduleResult {
   status: ScheduleStatus;
   availableMainCount: number;
   availableSubCount: number;
-  unavailableMains: string[];
-  requiredSubs: string[];
+  availableCoachCount: number;
+  unavailableMains: PlayerAvailability[];
+  requiredSubs: PlayerAvailability[];
   commonTimeRange: TimeRange | null;
   canProceed: boolean;
   statusMessage: string;
 }
 
-export interface PlayerNames {
-  player1: string;
-  player2: string;
-  player3: string;
-  player4: string;
-  player5: string;
-  sub1: string;
-  sub2: string;
-  coach: string;
+export interface SchedulePlayerData {
+  userId: string;
+  displayName: string;
+  role: 'MAIN' | 'SUB' | 'COACH';
+  availability: string;
+  sortOrder: number;
 }
 
-export interface SheetData {
+export interface ScheduleData {
   date: string;
-  players: {
-    player1: string;
-    player2: string;
-    player3: string;
-    player4: string;
-    player5: string;
-    sub1: string;
-    sub2: string;
-    coach: string;
-  };
-  names: PlayerNames;
+  players: SchedulePlayerData[];
   reason: string;
   focus: string;
 }
