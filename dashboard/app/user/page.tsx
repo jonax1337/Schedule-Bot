@@ -258,9 +258,6 @@ export default function UserSchedule() {
 
         {/* Availability Table */}
         <Card>
-          <CardHeader>
-            <CardTitle>Your Schedule</CardTitle>
-          </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
