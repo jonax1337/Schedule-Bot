@@ -836,20 +836,20 @@ export default function HomePage() {
                             >
                               <span className="text-sm font-medium">{player.name}</span>
                               <div className="flex items-center gap-2">
-                                {player.time && (
-                                  <Badge variant="outline" className="text-xs">
-                                    {player.time}
-                                  </Badge>
-                                )}
                                 {isCurrentUser && !editingUser && (
                                   <Button 
-                                    size="sm" 
+                                    size="icon" 
                                     variant="ghost" 
-                                    className="h-6 px-2"
+                                    className="h-6 w-6"
                                     onClick={() => setEditingUser(true)}
                                   >
                                     <Edit2 className="w-3 h-3" />
                                   </Button>
+                                )}
+                                {player.time && (
+                                  <Badge variant="outline" className="text-xs">
+                                    {player.time}
+                                  </Badge>
                                 )}
                               </div>
                             </div>
@@ -884,6 +884,16 @@ export default function HomePage() {
                             >
                               <span className="text-sm font-medium">{player.name}</span>
                               <div className="flex items-center gap-2">
+                                {isCurrentUser && !editingUser && (
+                                  <Button 
+                                    size="icon" 
+                                    variant="ghost" 
+                                    className="h-6 w-6"
+                                    onClick={() => setEditingUser(true)}
+                                  >
+                                    <Edit2 className="w-3 h-3" />
+                                  </Button>
+                                )}
                                 <Badge 
                                   variant="outline" 
                                   className="text-xs"
@@ -895,16 +905,6 @@ export default function HomePage() {
                                 >
                                   Not available
                                 </Badge>
-                                {isCurrentUser && !editingUser && (
-                                  <Button 
-                                    size="sm" 
-                                    variant="ghost" 
-                                    className="h-6 px-2"
-                                    onClick={() => setEditingUser(true)}
-                                  >
-                                    <Edit2 className="w-3 h-3" />
-                                  </Button>
-                                )}
                               </div>
                             </div>
                           );
@@ -937,19 +937,19 @@ export default function HomePage() {
                                 {player.name}
                               </span>
                               <div className="flex items-center gap-2">
-                                <Badge variant="outline" className="text-xs text-muted-foreground">
-                                  Pending
-                                </Badge>
                                 {isCurrentUser && !editingUser && (
                                   <Button 
-                                    size="sm" 
+                                    size="icon" 
                                     variant="ghost" 
-                                    className="h-6 px-2"
+                                    className="h-6 w-6"
                                     onClick={() => setEditingUser(true)}
                                   >
                                     <Edit2 className="w-3 h-3" />
                                   </Button>
                                 )}
+                                <Badge variant="outline" className="text-xs text-muted-foreground">
+                                  Pending
+                                </Badge>
                               </div>
                             </div>
                           );
