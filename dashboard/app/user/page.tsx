@@ -289,7 +289,6 @@ export default function UserSchedule() {
                         type="time"
                         value={entry.timeFrom}
                         onChange={(e) => handleTimeChange(entry.date, 'from', e.target.value)}
-                        disabled={entry.value === 'x'}
                         className="w-32"
                       />
                     </TableCell>
@@ -298,7 +297,6 @@ export default function UserSchedule() {
                         type="time"
                         value={entry.timeTo}
                         onChange={(e) => handleTimeChange(entry.date, 'to', e.target.value)}
-                        disabled={entry.value === 'x'}
                         className="w-32"
                       />
                     </TableCell>
@@ -324,7 +322,6 @@ export default function UserSchedule() {
                           onClick={() => saveEntry(entry.date, entry.timeFrom, entry.timeTo)}
                           disabled={
                             saving || 
-                            entry.value === 'x' || 
                             !entry.timeFrom || 
                             !entry.timeTo ||
                             (entry.timeFrom === entry.originalTimeFrom && entry.timeTo === entry.originalTimeTo)
