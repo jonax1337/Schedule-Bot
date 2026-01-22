@@ -130,6 +130,139 @@ export default function HomePage() {
     }
   };
 
+  const reloadSingleDate = async (dateStr: string) => {
+    try {
+      // Load user mappings to get all players
+      const mappingsRes = await fetch(`${BOT_API_URL}/api/user-mappings`);
+      if (!mappingsRes.ok) return;
+      
+      const mappingsData = await mappingsRes.json();
+      const allPlayers = mappingsData.mappings
+        .sort((a: any, b: any) => a.sortOrder - b.sortOrder)
+        .map((m: any) => ({
+          userId: m.discordId,
+          displayName: m.displayName,
+          role: m.role,
+        }));
+
+      // Load schedule for this specific date
+      const { getAuthHeaders } = await import('@/lib/auth');
+      const scheduleRes = await fetch(`${BOT_API_URL}/api/schedule/next14`, {
+        headers: getAuthHeaders(),
+      });
+      
+      if (!scheduleRes.ok) return;
+      
+      const scheduleData = await scheduleRes.json();
+      const schedules = scheduleData.schedules || [];
+      const schedule = schedules.find((s: any) => s.date === dateStr);
+
+      // Fetch fresh schedule details
+      const detailsRes = await fetch(`${BOT_API_URL}/api/schedule-details?date=${dateStr}`, {
+        headers: getAuthHeaders(),
+      });
+      const scheduleDetails = detailsRes.ok ? await detailsRes.json() : null;
+
+      let available = 0;
+      let unavailable = 0;
+      let notSet = 0;
+      const players: PlayerStatus[] = [];
+      
+      const reason = schedule?.reason || '';
+      const isOffDay = reason.toLowerCase().includes('off-day') ||
+                      reason.toLowerCase().includes('off day') ||
+                      reason.toLowerCase() === 'off';
+
+      // Process each player
+      for (const player of allPlayers) {
+        const schedulePlayer = schedule?.players?.find((p: any) => p.userId === player.userId);
+        const availability = schedulePlayer?.availability || '';
+
+        if (availability === 'x') {
+          unavailable++;
+          players.push({
+            name: player.displayName,
+            status: 'unavailable'
+          });
+        } else if (availability && availability.trim() !== '') {
+          available++;
+          players.push({
+            name: player.displayName,
+            status: 'available',
+            time: availability
+          });
+        } else {
+          notSet++;
+          players.push({
+            name: player.displayName,
+            status: 'not-set'
+          });
+        }
+      }
+
+      // Check if logged-in user has set their availability
+      let userHasSet = false;
+      let userStatus: 'available' | 'unavailable' | 'not-set' = 'not-set';
+      if (loggedInUser) {
+        const userPlayer = players.find(p => p.name === loggedInUser);
+        if (userPlayer) {
+          userHasSet = userPlayer.status !== 'not-set';
+          userStatus = userPlayer.status;
+        }
+      }
+
+      // Helper to get weekday
+      const getWeekday = (dateStr: string): string => {
+        const [day, month, year] = dateStr.split('.');
+        const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        return date.toLocaleDateString('en-US', { weekday: 'short' });
+      };
+
+      // Update only this entry in the state
+      setEntries(prev => prev.map(entry => {
+        if (entry.date === dateStr) {
+          return {
+            date: dateStr,
+            weekday: getWeekday(dateStr),
+            availability: {
+              available,
+              unavailable,
+              notSet,
+            },
+            players,
+            reason,
+            isOffDay,
+            userHasSet,
+            userStatus,
+            scheduleDetails,
+          };
+        }
+        return entry;
+      }));
+
+      // Update selectedDate if it's the current one
+      if (selectedDate?.date === dateStr) {
+        setSelectedDate({
+          date: dateStr,
+          weekday: getWeekday(dateStr),
+          availability: {
+            available,
+            unavailable,
+            notSet,
+          },
+          players,
+          reason,
+          isOffDay,
+          userHasSet,
+          userStatus,
+          scheduleDetails,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to reload single date:', error);
+    }
+  };
+
   const loadCalendar = async () => {
     setLoading(true);
     try {
@@ -435,14 +568,8 @@ export default function HomePage() {
         toast.success('Availability updated');
         setEditingUser(false);
         
-        // Reload all data from DB to ensure consistency
-        await loadCalendar();
-        
-        // Re-open dialog with fresh data
-        const freshEntry = entries.find(e => e.date === selectedDate.date);
-        if (freshEntry) {
-          setSelectedDate(freshEntry);
-        }
+        // Reload only the affected date's data (no full reload - prevents animation restart)
+        await reloadSingleDate(selectedDate.date);
       } else {
         const errorData = await response.json();
         console.error('Update failed:', errorData);
