@@ -5,6 +5,24 @@ import type { ScheduleData, SchedulePlayerData } from '../types.js';
 /**
  * Get schedule for a specific date with all players
  */
+export async function getNext14DaysSchedule(): Promise<ScheduleData[]> {
+  const schedules: ScheduleData[] = [];
+  const today = new Date();
+  
+  for (let i = 0; i < 14; i++) {
+    const date = new Date(today);
+    date.setDate(today.getDate() + i);
+    const dateStr = date.toLocaleDateString('de-DE');
+    
+    const schedule = await getScheduleForDate(dateStr);
+    if (schedule) {
+      schedules.push(schedule);
+    }
+  }
+  
+  return schedules;
+}
+
 export async function getScheduleForDate(date: string): Promise<ScheduleData | null> {
   const schedule = await prisma.schedule.findUnique({
     where: { date },
