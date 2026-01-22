@@ -65,6 +65,7 @@ export async function getSchedulesForDates(dates: string[]): Promise<ScheduleDat
     orderBy: { date: 'asc' },
   });
 
+  // Map and maintain chronological order (earliest first for display)
   return schedules.map(schedule => ({
     date: schedule.date,
     players: schedule.players.map(p => ({

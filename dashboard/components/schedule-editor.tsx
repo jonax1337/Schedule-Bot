@@ -279,19 +279,19 @@ export function ScheduleEditor() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => loadData(currentPage - 1)}
-              disabled={currentPage === 0 || loading}
+              onClick={() => loadData(currentPage + 1)}
+              disabled={!hasMore || loading}
             >
               <ChevronLeft className="w-4 h-4 mr-1" />
-              Newer
+              Older
             </Button>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => loadData(currentPage + 1)}
-              disabled={!hasMore || loading}
+              onClick={() => loadData(currentPage - 1)}
+              disabled={currentPage === 0 || loading}
             >
-              Older
+              Newer
               <ChevronRight className="w-4 h-4 ml-1" />
             </Button>
           </div>
