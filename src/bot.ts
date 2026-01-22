@@ -11,9 +11,9 @@ import {
   EmbedBuilder,
 } from 'discord.js';
 import { config } from './config.js';
-import { getScheduleForDate } from './sheets.js';
+import { getScheduleForDate } from './database/schedules.js';
 import { parseSchedule, analyzeSchedule } from './analyzer.js';
-import { buildScheduleEmbed, buildNoDataEmbed, buildErrorEmbed } from './embed.js';
+import { buildScheduleEmbed } from './embed.js';
 import {
   createDateNavigationButtons,
   createDateSelectMenu,
@@ -27,7 +27,7 @@ import {
   sendMySchedule,
   handleSetWeekCommand,
 } from './interactive.js';
-import { getUserMapping, addUserMapping, removeUserMapping, initializeUserMappingSheet } from './userMapping.js';
+import { getUserMapping, addUserMapping, removeUserMapping } from './database/userMappings.js';
 import { sendRemindersToUsersWithoutEntry } from './reminder.js';
 
 export const client = new Client({
@@ -272,14 +272,26 @@ async function handleScheduleCommand(interaction: ChatInputCommandInteraction): 
 
   try {
     const dateOption = interaction.options.getString('date');
-    const targetDate = dateOption || undefined;
-
-    const displayDate = targetDate || new Date().toLocaleDateString('de-DE');
+    
+    // Format date as DD.MM.YYYY
+    const formatDate = (d: Date): string => {
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      return `${day}.${month}.${year}`;
+    };
+    
+    const targetDate = dateOption || formatDate(new Date());
+    const displayDate = targetDate;
 
     const sheetData = await getScheduleForDate(targetDate);
 
     if (!sheetData) {
-      await interaction.editReply({ embeds: [buildNoDataEmbed(displayDate)] });
+      const embed = new EmbedBuilder()
+        .setTitle(displayDate)
+        .setDescription('No schedule data available for this date.')
+        .setColor(0xe74c3c);
+      await interaction.editReply({ embeds: [embed] });
       return;
     }
 
@@ -295,8 +307,12 @@ async function handleScheduleCommand(interaction: ChatInputCommandInteraction): 
     });
   } catch (error) {
     console.error('Error handling schedule command:', error);
+    const embed = new EmbedBuilder()
+      .setTitle('Error')
+      .setDescription('An error occurred. Please try again later.')
+      .setColor(0xe74c3c);
     await interaction.editReply({
-      embeds: [buildErrorEmbed('An error occurred. Please try again later.')],
+      embeds: [embed],
     });
   }
 }
@@ -306,8 +322,17 @@ async function handlePostScheduleCommand(interaction: ChatInputCommandInteractio
 
   try {
     const dateOption = interaction.options.getString('date');
-    const targetDate = dateOption || undefined;
-    const displayDate = targetDate || new Date().toLocaleDateString('de-DE');
+    
+    // Format date as DD.MM.YYYY
+    const formatDate = (d: Date): string => {
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      return `${day}.${month}.${year}`;
+    };
+    
+    const targetDate = dateOption || formatDate(new Date());
+    const displayDate = targetDate;
 
     // Post schedule to channel (like cron job does)
     await postScheduleToChannel(targetDate);
@@ -361,7 +386,7 @@ async function handleRegisterCommand(interaction: ChatInputCommandInteraction): 
     const existingMapping = await getUserMapping(user.id);
     if (existingMapping) {
       await interaction.editReply({
-        content: `❌ ${user.username} is already registered as **${existingMapping.sheetColumnName}**.`,
+        content: `❌ ${user.username} is already registered as **${existingMapping.displayName}**.`,
       });
       return;
     }
@@ -369,8 +394,9 @@ async function handleRegisterCommand(interaction: ChatInputCommandInteraction): 
     await addUserMapping({
       discordId: user.id,
       discordUsername: user.username,
-      sheetColumnName: columnName,
+      displayName: columnName,
       role,
+      sortOrder: 0,
     });
 
     await interaction.editReply({
@@ -571,7 +597,7 @@ async function handleAddScrimCommand(interaction: ChatInputCommandInteraction): 
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   try {
-    const { addScrim, ensureScrimSheetExists } = await import('./scrims.js');
+    const { addScrim } = await import('./database/scrims.js');
     
     const date = interaction.options.getString('date', true);
     const opponent = interaction.options.getString('opponent', true);
@@ -581,9 +607,6 @@ async function handleAddScrimCommand(interaction: ChatInputCommandInteraction): 
     const map = interaction.options.getString('map') || '';
     const matchType = interaction.options.getString('match-type') || 'Scrim';
     const notes = interaction.options.getString('notes') || '';
-    
-    // Ensure scrim sheet exists
-    await ensureScrimSheetExists();
     
     const scrim = await addScrim({
       date,
@@ -621,7 +644,7 @@ async function handleViewScrimsCommand(interaction: ChatInputCommandInteraction)
   await interaction.deferReply();
 
   try {
-    const { getAllScrims } = await import('./scrims.js');
+    const { getAllScrims } = await import('./database/scrims.js');
     const limit = interaction.options.getInteger('limit') || 10;
     
     const scrims = await getAllScrims();
@@ -671,7 +694,7 @@ async function handleScrimStatsCommand(interaction: ChatInputCommandInteraction)
   await interaction.deferReply();
 
   try {
-    const { getScrimStats } = await import('./scrims.js');
+    const { getScrimStats } = await import('./database/scrims.js');
     
     const stats = await getScrimStats();
     
@@ -730,11 +753,24 @@ export async function postScheduleToChannel(date?: string): Promise<void> {
   const channel = await client.channels.fetch(config.discord.channelId);
 
   if (!channel || !(channel instanceof TextChannel)) {
-    console.error('Could not find text channel with ID:', config.discord.channelId);
+    console.error('Channel not found or is not a text channel');
     return;
   }
 
   try {
+    // Format date as DD.MM.YYYY
+    const formatDate = (d: Date): string => {
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      return `${day}.${month}.${year}`;
+    };
+    
+    // If no date provided, use today
+    if (!date) {
+      date = formatDate(new Date());
+    }
+
     // Clean channel if enabled in settings
     const { loadSettings } = await import('./settingsManager.js');
     const settings = loadSettings();
@@ -742,14 +778,10 @@ export async function postScheduleToChannel(date?: string): Promise<void> {
     if (settings.scheduling.cleanChannelBeforePost) {
       console.log('Cleaning channel before posting schedule...');
       try {
-        // Fetch messages (limit 100, Discord API limit per request)
         const messages = await channel.messages.fetch({ limit: 100 });
-        
-        // Filter out pinned messages
         const messagestoDelete = messages.filter(msg => !msg.pinned);
         
         if (messagestoDelete.size > 0) {
-          // Bulk delete messages (only works for messages < 14 days old)
           const recentMessages = messagestoDelete.filter(msg => 
             Date.now() - msg.createdTimestamp < 14 * 24 * 60 * 60 * 1000
           );
@@ -762,7 +794,6 @@ export async function postScheduleToChannel(date?: string): Promise<void> {
             console.log('Deleted 1 message from channel');
           }
           
-          // Delete older messages individually
           const oldMessages = messagestoDelete.filter(msg => 
             Date.now() - msg.createdTimestamp >= 14 * 24 * 60 * 60 * 1000
           );
@@ -777,15 +808,18 @@ export async function postScheduleToChannel(date?: string): Promise<void> {
         }
       } catch (error) {
         console.error('Error cleaning channel:', error);
-        // Continue with posting even if cleanup fails
       }
     }
 
-    const displayDate = date || new Date().toLocaleDateString('de-DE');
+    const displayDate = date;
     const sheetData = await getScheduleForDate(date);
 
     if (!sheetData) {
-      await channel.send({ embeds: [buildNoDataEmbed(displayDate)] });
+      const embed = new EmbedBuilder()
+        .setTitle(displayDate)
+        .setDescription('No schedule data available for this date.')
+        .setColor(0xe74c3c);
+      await channel.send({ embeds: [embed] });
       return;
     }
 
@@ -810,14 +844,19 @@ export async function postScheduleToChannel(date?: string): Promise<void> {
   } catch (error) {
     console.error('Error posting schedule to channel:', error);
     await channel.send({
-      embeds: [buildErrorEmbed('Error fetching schedule.')],
+      embeds: [
+        new EmbedBuilder()
+          .setTitle('Error')
+          .setDescription('Failed to fetch schedule data')
+          .setColor(0xe74c3c)
+      ],
     });
   }
 }
 
 client.once('clientReady', async () => {
   console.log(`Bot is ready! Logged in as ${client.user?.tag}`);
-  await initializeUserMappingSheet();
+      // User mapping table auto-created by Prisma
   await registerCommands();
 });
 

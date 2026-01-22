@@ -1,6 +1,6 @@
 import { EmbedBuilder } from 'discord.js';
-import { getScheduleStatus } from './analyzer.js';
-import { getAuthenticatedClient } from './sheetUpdater.js';
+import { getScheduleForDate } from './database/schedules.js';
+import { parseSchedule, analyzeSchedule } from './analyzer.js';
 import { loadSettings } from './settingsManager.js';
 
 interface CachedStatus {
@@ -27,8 +27,12 @@ export async function checkAndNotifyStatusChange(date: string, client: any): Pro
       return;
     }
 
-    const auth = await getAuthenticatedClient();
-    const currentStatus = await getScheduleStatus(date, auth);
+    const sheetData = await getScheduleForDate(date);
+    if (!sheetData) return;
+    
+    const schedule = parseSchedule(sheetData);
+    const result = analyzeSchedule(schedule);
+    const currentStatus = { status: result.status };
     
     // Check cache
     const cached = statusCache[date];

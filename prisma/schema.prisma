@@ -1,0 +1,95 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Schedule {
+  id        Int              @id @default(autoincrement())
+  date      String           @unique
+  reason    String           @default("")
+  focus     String           @default("")
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+  players   SchedulePlayer[]
+
+  @@index([date])
+  @@map("schedules")
+}
+
+model SchedulePlayer {
+  id           Int      @id @default(autoincrement())
+  scheduleId   Int      @map("schedule_id")
+  userId       String   @map("user_id")
+  displayName  String   @map("display_name")
+  role         UserRole
+  availability String   @default("")
+  sortOrder    Int      @default(0) @map("sort_order")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  schedule     Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  @@index([scheduleId])
+  @@index([userId])
+  @@map("schedule_players")
+}
+
+model UserMapping {
+  id              Int      @id @default(autoincrement())
+  discordId       String   @unique @map("discord_id")
+  discordUsername String   @map("discord_username")
+  displayName     String   @map("display_name")
+  role            UserRole
+  sortOrder       Int      @default(0) @map("sort_order")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@index([discordId])
+  @@index([role, sortOrder])
+  @@map("user_mappings")
+}
+
+model Scrim {
+  id          String      @id
+  date        String
+  opponent    String
+  result      ScrimResult
+  scoreUs     Int         @default(0) @map("score_us")
+  scoreThem   Int         @default(0) @map("score_them")
+  map         String      @default("")
+  matchType   String      @default("") @map("match_type")
+  ourAgents   String      @default("") @map("our_agents")
+  theirAgents String      @default("") @map("their_agents")
+  vodUrl      String      @default("") @map("vod_url")
+  notes       String      @default("")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  @@index([date])
+  @@map("scrims")
+}
+
+model Setting {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
+}
+
+enum UserRole {
+  MAIN
+  SUB
+  COACH
+}
+
+enum ScrimResult {
+  WIN
+  LOSS
+  DRAW
+}

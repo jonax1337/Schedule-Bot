@@ -11,47 +11,29 @@ const COLORS = {
 };
 
 const THUMBNAIL_URL = 'https://cdn-icons-png.flaticon.com/512/3652/3652191.png';
-const SHEET_URL = `https://docs.google.com/spreadsheets/d/${config.googleSheets.sheetId}/edit?usp=sharing`;
 
 function formatPlayer(player: PlayerAvailability): string {
   if (player.available && player.timeRange) {
-    return `✅ ${player.name} \`${player.timeRange.start} - ${player.timeRange.end}\``;
+    return `✅ ${player.displayName} \`${player.timeRange.start} - ${player.timeRange.end}\``;
   }
-  return `❌ ~~${player.name}~~`;
+  return `❌ ~~${player.displayName}~~`;
 }
 
 function convertTimeToUnixTimestamp(date: string, time: string, timezone: string): number {
-  // date format: "DD.MM.YYYY"
-  // time format: "HH:MM"
-  // timezone: IANA timezone string (e.g., "Europe/London", "Europe/Berlin", "America/New_York")
-  
   const [day, month, year] = date.split('.').map(Number);
   const [hours, minutes] = time.split(':').map(Number);
 
-  // Create a date string in ISO format for the given timezone
   const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
-  
-  // Use Intl API to get the timezone offset for the specific date/time
-  // This automatically handles DST (Daylight Saving Time) for any timezone
   const localDate = new Date(dateStr);
-  
-  // Get the offset in minutes for the configured timezone at this specific date/time
   const timezoneOffset = getTimezoneOffset(localDate, timezone);
-  
-  // Convert to UTC by subtracting the timezone offset
   const utcTimestamp = localDate.getTime() - (timezoneOffset * 60 * 1000);
   
   return Math.floor(utcTimestamp / 1000);
 }
 
 function getTimezoneOffset(date: Date, timezone: string): number {
-  // Get the time in the specified timezone
   const tzDate = new Date(date.toLocaleString('en-US', { timeZone: timezone }));
-  
-  // Get the time in UTC
   const utcDate = new Date(date.toLocaleString('en-US', { timeZone: 'UTC' }));
-  
-  // Calculate offset in minutes
   return (tzDate.getTime() - utcDate.getTime()) / (60 * 1000);
 }
 
@@ -62,7 +44,6 @@ export function buildScheduleEmbed(result: ScheduleResult): EmbedBuilder {
   if (status === 'OFF_DAY') {
     return new EmbedBuilder()
       .setTitle(schedule.dateFormatted)
-      .setURL(SHEET_URL)
       .setDescription('**Off-Day** — No practice today.')
       .setColor(COLORS.OFF_DAY)
       .setThumbnail(THUMBNAIL_URL)
@@ -72,7 +53,6 @@ export function buildScheduleEmbed(result: ScheduleResult): EmbedBuilder {
   const embed = new EmbedBuilder()
     .setColor(canProceed ? (status === 'FULL_ROSTER' ? COLORS.SUCCESS : COLORS.WARNING) : COLORS.ERROR)
     .setTitle(schedule.dateFormatted)
-    .setURL(SHEET_URL)
     .setThumbnail(THUMBNAIL_URL)
     .setTimestamp();
 
@@ -85,31 +65,32 @@ export function buildScheduleEmbed(result: ScheduleResult): EmbedBuilder {
   }
 
   // Main Roster
-  const mainLines = schedule.mainPlayers.map(formatPlayer).join('\n');
-  embed.addFields({ name: 'Main Roster', value: mainLines, inline: false });
+  const mainPlayers = schedule.players.filter(p => p.role === 'MAIN');
+  if (mainPlayers.length > 0) {
+    const mainLines = mainPlayers.map(formatPlayer).join('\n');
+    embed.addFields({ name: 'Main Roster', value: mainLines, inline: false });
+  }
 
-  // Subs - only show subs that either have a time or a custom name
-  const visibleSubs = schedule.subs.filter(p =>
-    p.timeRange !== null || (p.name !== 'Sub1' && p.name !== 'Sub2')
-  );
+  // Subs - only show subs that have a time or are marked unavailable
+  const subs = schedule.players.filter(p => p.role === 'SUB');
+  const visibleSubs = subs.filter(p => p.timeRange !== null || p.rawValue.toLowerCase() === 'x');
 
   if (visibleSubs.length > 0) {
     const subLines = visibleSubs.map(p => {
       const line = formatPlayer(p);
-      return result.requiredSubs.includes(p.name) ? line + ' 🔄' : line;
+      const isRequired = result.requiredSubs.some(rs => rs.userId === p.userId);
+      return isRequired ? line + ' 🔄' : line;
     }).join('\n');
     embed.addFields({ name: 'Subs', value: subLines || '—', inline: false });
   }
 
-  // Coach - only show if time is entered or name is customized
-  const shouldShowCoach = schedule.coach.timeRange !== null || schedule.coachName !== 'Coach';
+  // Coaches - only show coaches that have a time or are marked unavailable
+  const coaches = schedule.players.filter(p => p.role === 'COACH');
+  const visibleCoaches = coaches.filter(p => p.timeRange !== null || p.rawValue.toLowerCase() === 'x');
 
-  if (shouldShowCoach) {
-    const coachLine = schedule.coach.available && schedule.coach.timeRange
-      ? `✅ ${schedule.coachName} \`${schedule.coach.timeRange.start} - ${schedule.coach.timeRange.end}\``
-      : `❌ ~~${schedule.coachName}~~`;
-
-    embed.addFields({ name: 'Coach', value: coachLine, inline: false });
+  if (visibleCoaches.length > 0) {
+    const coachLines = visibleCoaches.map(formatPlayer).join('\n');
+    embed.addFields({ name: 'Coaches', value: coachLines, inline: false });
   }
 
   // Status
@@ -122,11 +103,17 @@ export function buildScheduleEmbed(result: ScheduleResult): EmbedBuilder {
     statusText = '❌ Not enough players';
   }
 
-  if (commonTimeRange && canProceed) {
+  // Common time range
+  if (commonTimeRange) {
     const duration = getOverlapDuration(commonTimeRange);
+    const hours = Math.floor(duration / 60);
+    const minutes = duration % 60;
+    const durationStr = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+
     const startTimestamp = convertTimeToUnixTimestamp(schedule.date, commonTimeRange.start, config.scheduling.timezone);
     const endTimestamp = convertTimeToUnixTimestamp(schedule.date, commonTimeRange.end, config.scheduling.timezone);
-    statusText += `\n⏰ <t:${startTimestamp}:t> - <t:${endTimestamp}:t> (${duration}h)`;
+
+    statusText += `\n⏰ <t:${startTimestamp}:t> - <t:${endTimestamp}:t> (${durationStr})`;
   }
 
   embed.addFields({ name: 'Status', value: statusText, inline: false });
@@ -134,20 +121,51 @@ export function buildScheduleEmbed(result: ScheduleResult): EmbedBuilder {
   return embed;
 }
 
-export function buildNoDataEmbed(date: string): EmbedBuilder {
+export function buildReminderEmbed(date: string, dateFormatted: string): EmbedBuilder {
   return new EmbedBuilder()
-    .setTitle('❌ No Data')
-    .setURL(SHEET_URL)
-    .setDescription(`No entries found for **${date}**.`)
-    .setColor(COLORS.ERROR)
+    .setColor(COLORS.WARNING)
+    .setTitle('⏰ Reminder: Update Your Availability')
+    .setDescription(
+      `Please update your availability for **${dateFormatted}**.\n\n` +
+      `Use \`/availability\` or visit the dashboard to set your times.`
+    )
     .setThumbnail(THUMBNAIL_URL)
     .setTimestamp();
 }
 
-export function buildErrorEmbed(error: string): EmbedBuilder {
+export function buildPollEmbed(question: string, options: string[]): EmbedBuilder {
+  const optionsList = options.map((opt, i) => `${i + 1}️⃣ ${opt}`).join('\n');
+
   return new EmbedBuilder()
-    .setTitle('⚠️ Error')
-    .setDescription(error)
-    .setColor(COLORS.ERROR)
+    .setColor(COLORS.SUCCESS)
+    .setTitle('📊 ' + question)
+    .setDescription(optionsList)
+    .setThumbnail(THUMBNAIL_URL)
+    .setTimestamp();
+}
+
+export function buildNotificationEmbed(
+  type: 'info' | 'success' | 'warning' | 'error',
+  title: string,
+  message: string
+): EmbedBuilder {
+  const colorMap = {
+    info: 0x3498db,
+    success: COLORS.SUCCESS,
+    warning: COLORS.WARNING,
+    error: COLORS.ERROR,
+  };
+
+  const emojiMap = {
+    info: 'ℹ️',
+    success: '✅',
+    warning: '⚠️',
+    error: '❌',
+  };
+
+  return new EmbedBuilder()
+    .setColor(colorMap[type])
+    .setTitle(`${emojiMap[type]} ${title}`)
+    .setDescription(message)
     .setTimestamp();
 }
