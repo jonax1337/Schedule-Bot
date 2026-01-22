@@ -1,9 +1,9 @@
 import { getUsersAbsentOnDate } from './database/absences.js';
 import { getUserMappings } from './database/userMappings.js';
-import { getScheduleForDate, getNext14Dates } from './database/schedules.js';
+import { getScheduleForDate } from './database/schedules.js';
 import { parseSchedule, analyzeSchedule } from './analyzer.js';
 
-interface CachedScheduleDetail {
+export interface ScheduleDetail {
   status: string;
   startTime?: string;
   endTime?: string;
@@ -11,30 +11,12 @@ interface CachedScheduleDetail {
   unavailablePlayers: string[];
   noResponsePlayers: string[];
   absentPlayers: string[];
-  timestamp: number;
 }
-
-interface ScheduleCache {
-  [date: string]: CachedScheduleDetail;
-}
-
-const cache: ScheduleCache = {};
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-let isPreloading = false;
 
 /**
- * Get schedule details from cache or fetch if not available
+ * Get schedule details for a specific date (no caching, direct DB query)
  */
-export async function getScheduleDetails(date: string): Promise<CachedScheduleDetail | null> {
-  const cached = cache[date];
-  const now = Date.now();
-
-  // Return cached data if still valid
-  if (cached && (now - cached.timestamp) < CACHE_DURATION) {
-    return cached;
-  }
-
-  // Fetch fresh data
+export async function getScheduleDetails(date: string): Promise<ScheduleDetail | null> {
   try {
     const scheduleData = await getScheduleForDate(date);
     if (!scheduleData) return null;
@@ -79,7 +61,7 @@ export async function getScheduleDetails(date: string): Promise<CachedScheduleDe
       statusString = 'Insufficient players';
     }
     
-    const details: CachedScheduleDetail = {
+    return {
       status: statusString,
       startTime: status.commonTimeRange?.start,
       endTime: status.commonTimeRange?.end,
@@ -87,22 +69,18 @@ export async function getScheduleDetails(date: string): Promise<CachedScheduleDe
       unavailablePlayers,
       noResponsePlayers,
       absentPlayers: absentPlayerNames,
-      timestamp: now,
     };
-
-    cache[date] = details;
-    return details;
   } catch (error) {
-    console.error(`[ScheduleCache] Error fetching details for ${date}:`, error);
+    console.error(`[ScheduleDetails] Error fetching details for ${date}:`, error);
     return null;
   }
 }
 
 /**
- * Get multiple schedule details at once (batch operation)
+ * Get schedule details for multiple dates at once (batch operation)
  */
-export async function getScheduleDetailsBatch(dates: string[]): Promise<{ [date: string]: CachedScheduleDetail }> {
-  const results: { [date: string]: CachedScheduleDetail } = {};
+export async function getScheduleDetailsBatch(dates: string[]): Promise<{ [date: string]: ScheduleDetail }> {
+  const results: { [date: string]: ScheduleDetail } = {};
   
   // Fetch all at once
   for (const date of dates) {
@@ -113,52 +91,4 @@ export async function getScheduleDetailsBatch(dates: string[]): Promise<{ [date:
   }
   
   return results;
-}
-
-/**
- * Invalidate cache for a specific date
- */
-export function invalidateCache(date: string): void {
-  delete cache[date];
-}
-
-/**
- * Invalidate all cache
- */
-export function invalidateAllCache(): void {
-  Object.keys(cache).forEach(key => delete cache[key]);
-}
-
-/**
- * Preload cache for next 14 days
- */
-export async function preloadCache(): Promise<void> {
-  if (isPreloading) {
-    console.log('[ScheduleCache] Already preloading, skipping...');
-    return;
-  }
-
-  isPreloading = true;
-  console.log('[ScheduleCache] Preloading cache...');
-
-  try {
-    const dates = getNext14Dates();
-    await getScheduleDetailsBatch(dates);
-    console.log(`[ScheduleCache] Preloaded ${dates.length} dates`);
-  } catch (error) {
-    console.error('[ScheduleCache] Error preloading cache:', error);
-  } finally {
-    isPreloading = false;
-  }
-}
-
-/**
- * Get cache statistics
- */
-export function getCacheStats(): { size: number; dates: string[] } {
-  const dates = Object.keys(cache);
-  return {
-    size: dates.length,
-    dates: dates.sort(),
-  };
 }

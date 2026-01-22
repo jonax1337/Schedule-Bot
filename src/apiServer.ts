@@ -26,7 +26,7 @@ import { getUserMappings, addUserMapping, removeUserMapping, getUserMapping } fr
 import { getScheduleForDate, updatePlayerAvailability, syncUserMappingsToSchedules } from './database/schedules.js';
 import { loadSettingsAsync, saveSettings } from './settingsManager.js';
 import { initiateDiscordAuth, handleDiscordCallback, getUserFromSession, logout } from './auth.js';
-import { preloadCache, getScheduleDetails, getScheduleDetailsBatch, getCacheStats } from './scheduleCache.js';
+import { getScheduleDetails, getScheduleDetailsBatch } from './scheduleDetails.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -50,10 +50,7 @@ app.use(helmet({
   },
 }));
 
-// Preload schedule cache on startup
-setTimeout(() => {
-  preloadCache().catch(err => console.error('[Server] Cache preload failed:', err));
-}, 2000); // Wait 2 seconds after server start
+// No caching needed with PostgreSQL - direct queries are fast enough
 
 // Cache for Discord members to avoid rate limiting
 let membersCache: Array<{
@@ -385,7 +382,7 @@ app.get('/api/schedule-details', optionalAuth, async (req: AuthRequest, res) => 
   }
 });
 
-// Get schedule details for multiple dates at once (batch, cached, optional auth)
+// Get schedule details for multiple dates at once (batch, optional auth)
 app.get('/api/schedule-details-batch', optionalAuth, async (req: AuthRequest, res) => {
   try {
     const datesParam = req.query.dates as string;
@@ -403,11 +400,7 @@ app.get('/api/schedule-details-batch', optionalAuth, async (req: AuthRequest, re
   }
 });
 
-// Get cache statistics (for debugging)
-app.get('/api/cache-stats', (req, res) => {
-  const stats = getCacheStats();
-  res.json(stats);
-});
+// Cache stats endpoint removed - no caching with PostgreSQL
 
 // Get bot logs (protected)
 app.get('/api/logs', verifyToken, requireAdmin, (req: AuthRequest, res) => {
