@@ -10,7 +10,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Loader2, ArrowLeft, XCircle, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { AbsenceManager } from '@/components/absence-manager';
 
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
 
@@ -257,14 +256,7 @@ export default function UserSchedule() {
           </div>
         </div>
 
-        {/* Absence Manager */}
-        {userDiscordId && (
-          <div className="mb-6">
-            <AbsenceManager discordId={userDiscordId} username={userName} />
-          </div>
-        )}
-
-        {/* Schedule Table */}
+        {/* Availability Table */}
         <Card>
           <CardHeader>
             <CardTitle>Your Schedule</CardTitle>

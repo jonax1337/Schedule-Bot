@@ -72,21 +72,6 @@ export const settingsSchema = Joi.object({
   }).required(),
 });
 
-export const addAbsenceSchema = Joi.object({
-  discordId: Joi.string().pattern(/^\d{17,19}$/).required(),
-  username: Joi.string().min(1).max(100).required(),
-  startDate: Joi.string().pattern(/^\d{2}\.\d{2}\.\d{4}$/).required(),
-  endDate: Joi.string().pattern(/^\d{2}\.\d{2}\.\d{4}$/).required(),
-  reason: Joi.string().max(500).allow(''),
-});
-
-export const updateAbsenceSchema = Joi.object({
-  username: Joi.string().min(1).max(100),
-  startDate: Joi.string().pattern(/^\d{2}\.\d{2}\.\d{4}$/),
-  endDate: Joi.string().pattern(/^\d{2}\.\d{2}\.\d{4}$/),
-  reason: Joi.string().max(500).allow(''),
-});
-
 export function validate(schema: Joi.ObjectSchema) {
   return (req: Request, res: Response, next: NextFunction): void => {
     const { error, value } = schema.validate(req.body, {

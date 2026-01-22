@@ -52,22 +52,6 @@ model UserMapping {
   @@map("user_mappings")
 }
 
-model Absence {
-  id        String   @id
-  userId    String   @map("discord_id")
-  username  String
-  startDate String   @map("start_date")
-  endDate   String   @map("end_date")
-  reason    String?
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  @@index([userId])
-  @@index([startDate])
-  @@index([endDate])
-  @@map("absences")
-}
-
 model Scrim {
   id          String      @id
   date        String

@@ -1,4 +1,3 @@
-import { getUsersAbsentOnDate } from './database/absences.js';
 import { getUserMappings } from './database/userMappings.js';
 import { getScheduleForDate } from './database/schedules.js';
 import { parseSchedule, analyzeSchedule } from './analyzer.js';
@@ -10,7 +9,6 @@ export interface ScheduleDetail {
   availablePlayers: string[];
   unavailablePlayers: string[];
   noResponsePlayers: string[];
-  absentPlayers: string[];
 }
 
 /**
@@ -23,13 +21,6 @@ export async function getScheduleDetails(date: string): Promise<ScheduleDetail |
     
     const schedule = parseSchedule(scheduleData);
     const status = analyzeSchedule(schedule);
-    
-    // Get absent users for this date
-    const absentUserIds = await getUsersAbsentOnDate(date);
-    const userMappings = await getUserMappings();
-    const absentPlayerNames = absentUserIds
-      .map(discordId => userMappings.find(m => m.discordId === discordId)?.displayName)
-      .filter((name): name is string => name !== undefined);
     
     // Extract player lists from schedule - filter by role
     const mainPlayers = status.schedule.players.filter(p => p.role === 'MAIN');
@@ -75,7 +66,6 @@ export async function getScheduleDetails(date: string): Promise<ScheduleDetail |
       availablePlayers,
       unavailablePlayers,
       noResponsePlayers,
-      absentPlayers: absentPlayerNames,
     };
   } catch (error) {
     console.error(`[ScheduleDetails] Error fetching details for ${date}:`, error);

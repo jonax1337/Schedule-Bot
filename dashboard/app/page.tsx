@@ -893,7 +893,7 @@ export default function HomePage() {
                                     color: 'rgb(202 138 4)'
                                   } : undefined}
                                 >
-                                  {isAbsent ? 'Absence' : 'Not available'}
+                                  Not available
                                 </Badge>
                                 {isCurrentUser && !editingUser && (
                                   <Button 
