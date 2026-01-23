@@ -483,14 +483,13 @@ app.get('/api/user-mappings', async (req, res) => {
 // Add new user mapping (protected with validation)
 app.post('/api/user-mappings', verifyToken, requireAdmin, validate(addUserMappingSchema), async (req: AuthRequest, res) => {
   try {
-    const { discordId, discordUsername, displayName, role, sortOrder } = req.body;
+    const { discordId, discordUsername, displayName, role } = req.body;
     
     await addUserMapping({
       discordId,
       discordUsername,
       displayName: displayName || discordUsername,
       role,
-      sortOrder: sortOrder || 0,
     });
     
     // Sync to all schedules

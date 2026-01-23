@@ -25,7 +25,6 @@ export async function handleRegisterCommand(interaction: ChatInputCommandInterac
       discordUsername: user.username,
       displayName: columnName,
       role,
-      sortOrder: 0,
     });
 
     await interaction.editReply({
