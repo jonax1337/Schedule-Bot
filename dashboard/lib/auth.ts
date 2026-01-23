@@ -24,6 +24,7 @@ export function removeAuthToken(): void {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
     localStorage.removeItem('adminAuth'); // Remove old auth flag
+    // Note: selectedUser is NOT removed to keep user session intact
   }
 }
 
@@ -68,6 +69,16 @@ export async function logout(): Promise<void> {
   removeAuthToken();
   if (typeof window !== 'undefined') {
     window.location.href = '/admin/login';
+  }
+}
+
+export function logoutCompletely(): void {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
+    localStorage.removeItem('adminAuth');
+    localStorage.removeItem('selectedUser');
+    localStorage.removeItem('sessionToken');
   }
 }
 

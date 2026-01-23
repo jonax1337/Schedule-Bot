@@ -87,8 +87,7 @@ export default function HomePage() {
         if (!isValid) {
           // Token is invalid, clean up and redirect to login
           removeAuthToken();
-          localStorage.removeItem('selectedUser');
-          localStorage.removeItem('sessionToken');
+          // Note: selectedUser is kept intact, only auth token is removed
           router.replace('/login');
           return;
         }
@@ -519,9 +518,9 @@ export default function HomePage() {
       }
     }
 
-    // Clear all auth data
-    localStorage.removeItem('selectedUser');
-    localStorage.removeItem('sessionToken');
+    // Clear all auth data completely
+    const { logoutCompletely } = await import('@/lib/auth');
+    logoutCompletely();
     setLoggedInUser(null);
     // Redirect immediately to login
     router.replace('/login');

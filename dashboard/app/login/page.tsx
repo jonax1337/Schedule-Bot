@@ -28,10 +28,9 @@ function LoginContent() {
             router.push('/');
             return;
           } else {
-            // Token is invalid, clean up and stay on login page
-            removeAuthToken();
-            localStorage.removeItem('selectedUser');
-            localStorage.removeItem('sessionToken');
+            // Token is invalid, clean up completely and stay on login page
+            const { logoutCompletely } = await import('@/lib/auth');
+            logoutCompletely();
             toast.error('Session expired. Please login again.');
           }
         }
