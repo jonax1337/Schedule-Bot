@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -27,6 +28,7 @@ export default function ActionsPanel() {
   const [loading, setLoading] = useState<string | null>(null);
   const [members, setMembers] = useState<DiscordMember[]>([]);
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
+  const [includePinned, setIncludePinned] = useState(false);
 
   // Poll state
   const [pollQuestion, setPollQuestion] = useState("");
@@ -133,8 +135,9 @@ export default function ActionsPanel() {
   };
 
   const clearChannel = () => {
-    handleAction('clear', '/api/actions/clear-channel', {});
+    handleAction('clear', '/api/actions/clear-channel', { includePinned });
     setClearDialogOpen(false);
+    setIncludePinned(false);
   };
 
   return (
@@ -469,7 +472,17 @@ export default function ActionsPanel() {
             Delete all messages in the schedule channel (keeps pinned messages)
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="includePinned"
+              checked={includePinned}
+              onCheckedChange={setIncludePinned}
+            />
+            <Label htmlFor="includePinned" className="cursor-pointer">
+              Also delete pinned messages
+            </Label>
+          </div>
           <AlertDialog open={clearDialogOpen} onOpenChange={setClearDialogOpen}>
             <AlertDialogTrigger asChild>
               <Button 
@@ -494,7 +507,7 @@ export default function ActionsPanel() {
               <AlertDialogHeader>
                 <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This will delete all messages in the schedule channel except pinned messages. This action cannot be undone.
+                  This will delete all messages in the schedule channel{includePinned ? ' including pinned messages' : ' except pinned messages'}. This action cannot be undone.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -505,8 +518,8 @@ export default function ActionsPanel() {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
-          <p className="text-sm text-muted-foreground mt-2">
-            ⚠️ This will permanently delete all non-pinned messages
+          <p className="text-sm text-muted-foreground">
+            ⚠️ This will permanently delete all {includePinned ? 'messages (including pinned)' : 'non-pinned messages'}
           </p>
         </CardContent>
       </Card>

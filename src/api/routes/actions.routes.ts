@@ -188,6 +188,7 @@ router.post('/notify', verifyToken, requireAdmin, async (req: AuthRequest, res) 
 // Clear channel (delete all messages except pinned)
 router.post('/clear-channel', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
   try {
+    const { includePinned } = req.body;
     const { loadSettings } = await import('../../shared/utils/settingsManager.js');
     const settings = loadSettings();
     
@@ -200,7 +201,7 @@ router.post('/clear-channel', verifyToken, requireAdmin, async (req: AuthRequest
     
     // Fetch and delete messages in batches
     const messages = await channel.messages.fetch({ limit: 100 });
-    const messagesToDelete = messages.filter(msg => !msg.pinned);
+    const messagesToDelete = includePinned ? messages : messages.filter(msg => !msg.pinned);
     
     if (messagesToDelete.size > 0) {
       // Separate recent messages (< 14 days) from old messages
@@ -232,10 +233,11 @@ router.post('/clear-channel', verifyToken, requireAdmin, async (req: AuthRequest
       }
     }
     
-    logger.success('Channel cleared', `Deleted ${totalDeleted} messages (kept pinned) by ${req.user?.username}`);
+    const pinnedInfo = includePinned ? 'including pinned' : 'kept pinned';
+    logger.success('Channel cleared', `Deleted ${totalDeleted} messages (${pinnedInfo}) by ${req.user?.username}`);
     res.json({ 
       success: true, 
-      message: `Channel cleared successfully. Deleted ${totalDeleted} message(s), kept pinned messages.`,
+      message: `Channel cleared successfully. Deleted ${totalDeleted} message(s)${includePinned ? ' (including pinned)' : ', kept pinned messages'}.`,
       deletedCount: totalDeleted
     });
   } catch (error) {
