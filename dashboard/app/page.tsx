@@ -23,6 +23,7 @@ interface PlayerStatus {
   name: string;
   status: 'available' | 'unavailable' | 'not-set';
   time?: string;
+  role?: 'MAIN' | 'SUB' | 'COACH';
 }
 
 interface ScheduleDetails {
@@ -182,20 +183,23 @@ export default function HomePage() {
           unavailable++;
           players.push({
             name: player.displayName,
-            status: 'unavailable'
+            status: 'unavailable',
+            role: player.role
           });
         } else if (availability && availability.trim() !== '') {
           available++;
           players.push({
             name: player.displayName,
             status: 'available',
-            time: availability
+            time: availability,
+            role: player.role
           });
         } else {
           notSet++;
           players.push({
             name: player.displayName,
-            status: 'not-set'
+            status: 'not-set',
+            role: player.role
           });
         }
       }
@@ -334,20 +338,23 @@ export default function HomePage() {
             unavailable++;
             players.push({
               name: player.displayName,
-              status: 'unavailable'
+              status: 'unavailable',
+              role: player.role
             });
           } else if (availability && availability.trim() !== '') {
             available++;
             players.push({
               name: player.displayName,
               status: 'available',
-              time: availability
+              time: availability,
+              role: player.role
             });
           } else {
             notSet++;
             players.push({
               name: player.displayName,
-              status: 'not-set'
+              status: 'not-set',
+              role: player.role
             });
           }
         }
