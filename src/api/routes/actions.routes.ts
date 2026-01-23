@@ -247,4 +247,40 @@ router.post('/clear-channel', verifyToken, requireAdmin, async (req: AuthRequest
   }
 });
 
+// Pin message to channel
+router.post('/pin-message', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
+  try {
+    const { message } = req.body;
+    
+    if (!message || !message.trim()) {
+      return res.status(400).json({ error: 'Message is required' });
+    }
+    
+    const { loadSettings } = await import('../../shared/utils/settingsManager.js');
+    const settings = loadSettings();
+    
+    const channel = await client.channels.fetch(settings.discord.channelId);
+    if (!channel || !(channel instanceof TextChannel)) {
+      return res.status(404).json({ error: 'Channel not found or not a text channel' });
+    }
+
+    // Send message
+    const sentMessage = await channel.send(message);
+    
+    // Pin the message
+    await sentMessage.pin();
+    
+    logger.success('Message pinned', `By ${req.user?.username}`);
+    res.json({ 
+      success: true, 
+      message: 'Message sent and pinned successfully',
+      messageId: sentMessage.id
+    });
+  } catch (error) {
+    console.error('Error pinning message:', error);
+    logger.error('Failed to pin message', error instanceof Error ? error.message : String(error));
+    res.status(500).json({ error: 'Failed to pin message' });
+  }
+});
+
 export default router;

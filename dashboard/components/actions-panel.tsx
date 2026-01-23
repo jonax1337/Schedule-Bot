@@ -50,6 +50,9 @@ export default function ActionsPanel() {
   const [userOpen, setUserOpen] = useState(false);
   const [userSearch, setUserSearch] = useState("");
 
+  // Pin message state
+  const [pinMessage, setPinMessage] = useState("");
+
   const filteredMembers = userSearch
     ? members.filter(m => 
         m.displayName.toLowerCase().includes(userSearch.toLowerCase()) ||
@@ -138,6 +141,15 @@ export default function ActionsPanel() {
     handleAction('clear', '/api/actions/clear-channel', { includePinned });
     setClearDialogOpen(false);
     setIncludePinned(false);
+  };
+
+  const sendPinMessage = () => {
+    if (!pinMessage.trim()) {
+      toast.error('Please provide a message to pin');
+      return;
+    }
+    handleAction('pin', '/api/actions/pin-message', { message: pinMessage });
+    setPinMessage('');
   };
 
   return (
@@ -521,6 +533,51 @@ export default function ActionsPanel() {
           <p className="text-sm text-muted-foreground">
             ⚠️ This will permanently delete all {includePinned ? 'messages (including pinned)' : 'non-pinned messages'}
           </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <MessageSquare className="mr-2 h-5 w-5" />
+            Pin Message
+          </CardTitle>
+          <CardDescription>
+            Send a message to the schedule channel and pin it (e.g., Dashboard URLs)
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="pinMessage">Message</Label>
+            <Textarea
+              id="pinMessage"
+              value={pinMessage}
+              onChange={(e) => setPinMessage(e.target.value)}
+              placeholder="Dashboard: https://your-dashboard.com\nAdmin: https://your-dashboard.com/admin"
+              rows={5}
+              maxLength={2000}
+            />
+            <p className="text-sm text-muted-foreground">
+              {pinMessage.length}/2000 characters
+            </p>
+          </div>
+          <Button 
+            onClick={sendPinMessage} 
+            disabled={loading === 'pin'}
+            className="w-full"
+          >
+            {loading === 'pin' ? (
+              <>
+                <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                Sending...
+              </>
+            ) : (
+              <>
+                <MessageSquare className="mr-1 h-4 w-4" />
+                Send & Pin Message
+              </>
+            )}
+          </Button>
         </CardContent>
       </Card>
     </div>
