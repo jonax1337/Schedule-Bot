@@ -19,6 +19,14 @@ function LoginContent() {
         const savedUser = localStorage.getItem('selectedUser');
         const sessionToken = localStorage.getItem('sessionToken');
         
+        // Check if this is a manual logout
+        const manualLogout = sessionStorage.getItem('manualLogout');
+        if (manualLogout) {
+          sessionStorage.removeItem('manualLogout');
+          // Don't show error toast for manual logout
+          return;
+        }
+
         if (savedUser || sessionToken) {
           // Validate the token with the server
           const isValid = await validateToken();

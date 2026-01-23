@@ -522,6 +522,8 @@ export default function HomePage() {
     const { logoutCompletely } = await import('@/lib/auth');
     logoutCompletely();
     setLoggedInUser(null);
+    // Set flag to indicate manual logout (not expired session)
+    sessionStorage.setItem('manualLogout', 'true');
     // Redirect immediately to login
     router.replace('/login');
   };
