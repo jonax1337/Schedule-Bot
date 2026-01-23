@@ -44,6 +44,7 @@ export function ScheduleEditor() {
   const [editValue, setEditValue] = useState('');
   const [currentPage, setCurrentPage] = useState(0);
   const [hasMore, setHasMore] = useState(false);
+  const [hasNewer, setHasNewer] = useState(false);
   const [totalPages, setTotalPages] = useState(1);
   const [reasonDialogOpen, setReasonDialogOpen] = useState(false);
   const [selectedDateForReason, setSelectedDateForReason] = useState<string | null>(null);
@@ -83,6 +84,7 @@ export function ScheduleEditor() {
         const data = await schedulesRes.json();
         setSchedules(data.schedules || []);
         setHasMore(data.hasMore || false);
+        setHasNewer(data.hasNewer || false);
         setTotalPages(data.totalPages || 1);
         setCurrentPage(page);
       }
@@ -377,25 +379,36 @@ export function ScheduleEditor() {
           <div className="text-sm text-muted-foreground">
             {currentPage === 0 ? (
               <span className="font-medium">Next 14 days</span>
+            ) : currentPage < 0 ? (
+              <span className="font-medium">Previous {Math.abs(currentPage) * 14} days</span>
             ) : (
-              <span>Page {currentPage + 1} of {totalPages}</span>
+              <span className="font-medium">Days {currentPage * 14 + 1}-{currentPage * 14 + 14} ahead</span>
             )}
           </div>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => loadData(currentPage + 1)}
-              disabled={!hasMore || loading}
+              onClick={() => loadData(currentPage - 1)}
+              disabled={loading}
             >
               <ChevronLeft className="w-4 h-4 mr-1" />
               Older
             </Button>
             <Button
+              variant="default"
+              size="sm"
+              onClick={() => loadData(0)}
+              disabled={currentPage === 0 || loading}
+            >
+              <Calendar className="w-4 h-4 mr-1" />
+              Today
+            </Button>
+            <Button
               variant="outline"
               size="sm"
-              onClick={() => loadData(currentPage - 1)}
-              disabled={currentPage === 0 || loading}
+              onClick={() => loadData(currentPage + 1)}
+              disabled={loading}
             >
               Newer
               <ChevronRight className="w-4 h-4 ml-1" />

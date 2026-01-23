@@ -368,11 +368,12 @@ export async function updateScheduleReason(
 
 /**
  * Get schedules with pagination (14 days per page)
- * offset: 0 = next 14 days, 1 = previous 14 days, etc.
+ * offset: 0 = next 14 days, -1 = previous 14 days (older), 1 = days 14-27 (newer future), etc.
  */
 export async function getSchedulesPaginated(offset: number = 0): Promise<{
   schedules: ScheduleData[];
   hasMore: boolean;
+  hasNewer: boolean;
   totalPages: number;
 }> {
   const pageSize = 14;
@@ -393,24 +394,60 @@ export async function getSchedulesPaginated(offset: number = 0): Promise<{
     dates.push(`${day}.${month}.${year}`);
   }
   
-  // Get schedules for these dates
-  const schedules = await getSchedulesForDates(dates);
-  
-  // Check if there are older schedules (for hasMore)
-  const oldestDate = dates[dates.length - 1];
-  const olderSchedules = await prisma.schedule.findFirst({
+  // Get schedules from DB for these dates
+  const dbSchedules = await prisma.schedule.findMany({
     where: {
-      date: { lt: oldestDate },
+      date: { in: dates },
+    },
+    include: {
+      players: {
+        orderBy: { sortOrder: 'asc' },
+      },
     },
   });
   
-  // Calculate total pages based on all schedules
-  const totalScheduleCount = await prisma.schedule.count();
-  const totalPages = Math.ceil(totalScheduleCount / pageSize);
+  // Create a map of existing schedules
+  const scheduleMap = new Map(dbSchedules.map(s => [s.date, s]));
+  
+  // Always return 14 entries, even if no DB data exists
+  const schedules: ScheduleData[] = dates.map(date => {
+    const dbSchedule = scheduleMap.get(date);
+    if (dbSchedule) {
+      return {
+        date: dbSchedule.date,
+        players: dbSchedule.players.map(p => ({
+          userId: p.userId,
+          displayName: p.displayName,
+          role: p.role as 'MAIN' | 'SUB' | 'COACH',
+          availability: p.availability,
+          sortOrder: p.sortOrder,
+        })),
+        reason: dbSchedule.reason,
+        focus: dbSchedule.focus,
+      };
+    } else {
+      // Return empty schedule for dates without DB entries
+      return {
+        date,
+        players: [],
+        reason: '',
+        focus: '',
+      };
+    }
+  });
+  
+  // Always allow navigation - hasMore/hasNewer based on offset, not DB entries
+  // This allows users to navigate to any time period and add entries
+  const hasMore = true; // Can always go to older dates
+  const hasNewer = offset !== 0; // Can go to newer dates if not viewing current period (offset 0)
+  
+  // Calculate total pages (arbitrary large number since we allow infinite navigation)
+  const totalPages = 999;
   
   return {
     schedules,
-    hasMore: !!olderSchedules,
+    hasMore,
+    hasNewer,
     totalPages,
   };
 }
