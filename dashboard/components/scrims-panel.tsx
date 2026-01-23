@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { AgentSelector } from "./agent-picker";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
 
@@ -884,6 +885,27 @@ export function ScrimsPanel() {
                     key={scrim.id}
                     className="border rounded-lg hover:bg-accent/50 transition-colors overflow-hidden relative"
                   >
+                    {/* Map Background Image - Full Card Coverage */}
+                    {scrim.map && (
+                      <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-lg z-0">
+                        <div 
+                          className="absolute inset-0 w-full h-full"
+                          style={{
+                            backgroundImage: `url(/assets/maps/Loading_Screen_${scrim.map}.webp)`,
+                            backgroundPosition: 'center',
+                            backgroundSize: 'cover',
+                            backgroundRepeat: 'no-repeat',
+                            opacity: 0.15,
+                          }}
+                        />
+                        <div 
+                          className="absolute inset-0 w-full h-full"
+                          style={{
+                            background: 'linear-gradient(to right, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 50%, rgba(0,0,0,0.7) 100%)',
+                          }}
+                        />
+                      </div>
+                    )}
                     {/* Header with Match Type and Actions */}
                     <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b bg-muted/30 relative z-10">
                       <div className="flex items-center gap-2">
@@ -993,38 +1015,34 @@ export function ScrimsPanel() {
                       )}
                     </div>
                     
-                    {/* Map Background Image with Gradient - Cards View */}
-                    {scrim.map && (
-                      <div className="absolute right-0 top-0 bottom-0 w-56 pointer-events-none overflow-hidden rounded-r-lg">
-                        <div 
-                          className="absolute right-0 top-0 bottom-0 w-full"
-                          style={{
-                            backgroundImage: `linear-gradient(to right, transparent 0%, rgba(0,0,0,0.05) 20%, rgba(0,0,0,0.08) 100%), url(/assets/maps/Loading_Screen_${scrim.map}.webp)`,
-                            backgroundPosition: 'center',
-                            backgroundSize: 'cover',
-                            backgroundRepeat: 'no-repeat',
-                            maskImage: 'linear-gradient(to left, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.35) 50%, transparent 100%)',
-                            WebkitMaskImage: 'linear-gradient(to left, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.35) 50%, transparent 100%)',
-                          }}
-                        />
-                      </div>
-                    )}
-                    
-                    {/* VOD Embed */}
+                    {/* VOD Accordion */}
                     {vodId && (
-                      <div className="px-4 pb-4">
-                        <div className="aspect-video rounded-lg overflow-hidden border">
-                          <iframe
-                            width="100%"
-                            height="100%"
-                            src={`https://www.youtube.com/embed/${vodId}`}
-                            title="VOD Review"
-                            frameBorder="0"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                            allowFullScreen
-                            className="w-full h-full"
-                          />
-                        </div>
+                      <div className="relative z-10">
+                        <Accordion type="single" collapsible className="border-t">
+                          <AccordionItem value="vod" className="border-0">
+                            <AccordionTrigger className="px-4 py-3 hover:bg-accent/30">
+                              <div className="flex items-center gap-2">
+                                <Video className="h-4 w-4" />
+                                <span className="font-medium">Watch VOD Review</span>
+                              </div>
+                            </AccordionTrigger>
+                            <AccordionContent className="px-4 pb-4">
+                              <div className="aspect-video rounded-lg overflow-hidden border relative z-20">
+                                <iframe
+                                  width="100%"
+                                  height="100%"
+                                  src={`https://www.youtube.com/embed/${vodId}`}
+                                  title="VOD Review"
+                                  frameBorder="0"
+                                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                  allowFullScreen
+                                  className="w-full h-full relative z-20"
+                                  style={{ position: 'relative', zIndex: 20 }}
+                                />
+                              </div>
+                            </AccordionContent>
+                          </AccordionItem>
+                        </Accordion>
                       </div>
                     )}
                   </div>
