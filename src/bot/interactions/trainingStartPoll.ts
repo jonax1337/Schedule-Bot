@@ -20,6 +20,10 @@ export async function createTrainingStartPoll(
     return;
   }
 
+  // Get poll duration from settings (in minutes)
+  const pollDurationMinutes = getSetting('scheduling', 'pollDurationMinutes') || 60;
+  const pollDurationHours = pollDurationMinutes / 60;
+
   const channel = await client.channels.fetch(config.discord.channelId);
   if (!channel || !(channel instanceof TextChannel)) {
     console.error('Could not find text channel for training start poll');
@@ -69,12 +73,12 @@ export async function createTrainingStartPoll(
           text: opt.text,
           emoji: opt.emoji,
         })),
-        duration: 2, // 2 hours
+        duration: pollDurationHours,
         allowMultiselect: false,
       },
     });
 
-    console.log(`Training start poll created for ${date}`);
+    console.log(`Training start poll created for ${date} (duration: ${pollDurationMinutes} minutes)`);
   } catch (error) {
     console.error('Error creating training start poll:', error);
   }
