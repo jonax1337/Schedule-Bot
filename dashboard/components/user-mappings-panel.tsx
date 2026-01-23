@@ -7,10 +7,11 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Loader2, Trash2, UserPlus, Search, Users } from 'lucide-react';
+import { Loader2, Trash2, UserPlus, Search, Users, Edit3 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface DiscordMember {
   id: string;
@@ -35,8 +36,11 @@ export function UserMappingsPanel() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [open, setOpen] = useState(false);
+  const [inputMode, setInputMode] = useState<'search' | 'manual'>('search');
   
   const [selectedUserId, setSelectedUserId] = useState('');
+  const [manualUserId, setManualUserId] = useState('');
+  const [manualUsername, setManualUsername] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [sortOrder, setSortOrder] = useState(0);
   const [role, setRole] = useState<'main' | 'sub' | 'coach'>('main');
@@ -72,20 +76,37 @@ export function UserMappingsPanel() {
   };
 
   const addMapping = async () => {
-    if (!selectedUserId || !displayName || !role) {
-      toast.error('Please fill all fields');
-      return;
+    let discordId = '';
+    let discordUsername = '';
+
+    if (inputMode === 'search') {
+      if (!selectedUserId || !displayName || !role) {
+        toast.error('Please fill all fields');
+        return;
+      }
+
+      const selectedMember = members.find(m => m.id === selectedUserId);
+      if (!selectedMember) {
+        toast.error('Selected user not found');
+        return;
+      }
+
+      discordId = selectedUserId;
+      discordUsername = selectedMember.username;
+    } else {
+      // Manual mode
+      if (!manualUserId || !manualUsername || !displayName || !role) {
+        toast.error('Please fill all fields');
+        return;
+      }
+
+      discordId = manualUserId;
+      discordUsername = manualUsername;
     }
 
     // Check if user already has a mapping
-    if (mappings.some(m => m.discordId === selectedUserId)) {
+    if (mappings.some(m => m.discordId === discordId)) {
       toast.error('This user already has a mapping');
-      return;
-    }
-
-    const selectedMember = members.find(m => m.id === selectedUserId);
-    if (!selectedMember) {
-      toast.error('Selected user not found');
       return;
     }
 
@@ -96,8 +117,8 @@ export function UserMappingsPanel() {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({
-          discordId: selectedUserId,
-          discordUsername: selectedMember.username,
+          discordId,
+          discordUsername,
           displayName: displayName,
           role,
           sortOrder: sortOrder,
@@ -107,6 +128,8 @@ export function UserMappingsPanel() {
       if (response.ok) {
         toast.success('User mapping added successfully!');
         setSelectedUserId('');
+        setManualUserId('');
+        setManualUsername('');
         setDisplayName('');
         setSortOrder(0);
         setRole('main');
