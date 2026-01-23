@@ -1,9 +1,33 @@
 import { Router } from 'express';
 import { verifyToken, optionalAuth, AuthRequest } from '../../shared/middleware/auth.js';
-import { getAllScrims, addScrim, updateScrim, deleteScrim } from '../../repositories/scrim.repository.js';
+import { getAllScrims, addScrim, updateScrim, deleteScrim, getScrimById, getScrimStats, getScrimsByDateRange } from '../../repositories/scrim.repository.js';
 import { logger } from '../../shared/utils/logger.js';
 
 const router = Router();
+
+// Get scrim statistics (must be before /:id route)
+router.get('/stats/summary', optionalAuth, async (req: AuthRequest, res) => {
+  try {
+    const stats = await getScrimStats();
+    res.json({ success: true, stats });
+  } catch (error) {
+    console.error('Error fetching scrim stats:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch scrim stats' });
+  }
+});
+
+// Get scrims by date range (must be before /:id route)
+router.get('/range/:startDate/:endDate', optionalAuth, async (req: AuthRequest, res) => {
+  try {
+    const startDate = req.params.startDate as string;
+    const endDate = req.params.endDate as string;
+    const scrims = await getScrimsByDateRange(startDate, endDate);
+    res.json({ success: true, scrims });
+  } catch (error) {
+    console.error('Error fetching scrims by range:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch scrims' });
+  }
+});
 
 // Get all scrims
 router.get('/', optionalAuth, async (req, res) => {
@@ -13,6 +37,22 @@ router.get('/', optionalAuth, async (req, res) => {
   } catch (error) {
     console.error('Error fetching scrims:', error);
     res.status(500).json({ success: false, error: 'Failed to fetch scrims' });
+  }
+});
+
+// Get scrim by ID (must be after specific routes)
+router.get('/:id', optionalAuth, async (req: AuthRequest, res) => {
+  try {
+    const scrim = await getScrimById(req.params.id as string);
+    
+    if (scrim) {
+      res.json({ success: true, scrim });
+    } else {
+      res.status(404).json({ success: false, error: 'Scrim not found' });
+    }
+  } catch (error) {
+    console.error('Error fetching scrim:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch scrim' });
   }
 });
 

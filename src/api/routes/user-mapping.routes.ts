@@ -10,10 +10,11 @@ const router = Router();
 router.get('/', async (req, res) => {
   try {
     const mappings = await getUserMappings();
-    res.json(mappings);
+    res.json({ success: true, mappings });
   } catch (error) {
     console.error('Error fetching user mappings:', error);
-    res.status(500).json({ error: 'Failed to fetch user mappings' });
+    logger.error('Failed to fetch user mappings', error instanceof Error ? error.message : String(error));
+    res.status(500).json({ success: false, error: 'Failed to fetch user mappings' });
   }
 });
 
