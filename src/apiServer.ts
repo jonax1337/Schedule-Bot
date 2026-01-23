@@ -22,7 +22,7 @@ import { ChannelType, EmbedBuilder } from 'discord.js';
 import { config, reloadConfig } from './shared/config/config.js';
 import { logger } from './shared/utils/logger.js';
 import { restartScheduler } from './jobs/scheduler.js';
-import { getUserMappings, addUserMapping, removeUserMapping, getUserMapping } from './repositories/user-mapping.repository.js';
+import { getUserMappings, addUserMapping, updateUserMapping, removeUserMapping, getUserMapping } from './repositories/user-mapping.repository.js';
 import { getScheduleForDate, updatePlayerAvailability, syncUserMappingsToSchedules } from './repositories/schedule.repository.js';
 import { loadSettingsAsync, saveSettings } from './shared/utils/settingsManager.js';
 import { initiateDiscordAuth, handleDiscordCallback, getUserFromSession, logout } from './api/controllers/auth.controller.js';
@@ -501,6 +501,33 @@ app.post('/api/user-mappings', verifyToken, requireAdmin, validate(addUserMappin
     console.error('Error adding user mapping:', error);
     logger.error('User mapping add failed', error instanceof Error ? error.message : 'Unknown error');
     res.status(500).json({ success: false, error: 'Failed to add user mapping' });
+  }
+});
+
+// Update user mapping (protected)
+app.put('/api/user-mappings/:discordId', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
+  try {
+    const oldDiscordId = req.params.discordId as string;
+    const { discordId, discordUsername, displayName, role, sortOrder } = req.body;
+    
+    // Update the mapping
+    await updateUserMapping(oldDiscordId, {
+      discordId,
+      discordUsername,
+      displayName,
+      role,
+      sortOrder,
+    });
+    
+    // Sync to all schedules to update player info everywhere
+    await syncUserMappingsToSchedules();
+    
+    logger.success('User mapping updated', `${discordUsername} → ${displayName}`);
+    res.json({ success: true, message: 'User mapping updated successfully' });
+  } catch (error) {
+    console.error('Error updating user mapping:', error);
+    logger.error('User mapping update failed', error instanceof Error ? error.message : String(error));
+    res.status(500).json({ success: false, error: 'Failed to update user mapping' });
   }
 });
 
