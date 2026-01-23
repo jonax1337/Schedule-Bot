@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { verifyToken, requireAdmin, AuthRequest } from '../../shared/middleware/auth.js';
-import { getUserMappings, addUserMapping, removeUserMapping } from '../../repositories/user-mapping.repository.js';
+import { getUserMappings, addUserMapping, updateUserMapping, removeUserMapping } from '../../repositories/user-mapping.repository.js';
 import { syncUserMappingsToSchedules } from '../../repositories/schedule.repository.js';
 import { logger } from '../../shared/utils/logger.js';
 
