@@ -213,16 +213,6 @@ export default function SecurityPanel() {
               <code className="block p-3 bg-background rounded border text-xs break-all">
                 {generatedHash}
               </code>
-              <div className="text-sm text-muted-foreground space-y-1 mt-3">
-                <p className="font-semibold">📝 Next Steps:</p>
-                <ol className="list-decimal list-inside space-y-1 ml-2">
-                  <li>Copy the hash above</li>
-                  <li>Open your <code className="px-1 py-0.5 bg-background rounded">.env</code> file</li>
-                  <li>Update <code className="px-1 py-0.5 bg-background rounded">ADMIN_PASSWORD_HASH</code> with the new hash</li>
-                  <li>Restart the backend server</li>
-                  <li>Log in with your new password</li>
-                </ol>
-              </div>
             </div>
           )}
         </CardContent>
@@ -283,35 +273,8 @@ export default function SecurityPanel() {
             <code className="block p-3 bg-background rounded border text-xs break-all">
               {generatedJwtSecret}
             </code>
-            <div className="text-sm text-muted-foreground space-y-1 mt-3">
-              <p className="font-semibold">📝 Next Steps:</p>
-              <ol className="list-decimal list-inside space-y-1 ml-2">
-                <li>Copy the secret above</li>
-                <li>Open your <code className="px-1 py-0.5 bg-background rounded">.env</code> file</li>
-                <li>Update <code className="px-1 py-0.5 bg-background rounded">JWT_SECRET</code> with the new secret</li>
-                <li>Restart the backend server</li>
-                <li>All existing JWT tokens will be invalidated</li>
-              </ol>
-            </div>
           </div>
         )}
-      </CardContent>
-    </Card>
-
-    <Card className="border-yellow-500/50 bg-yellow-500/5">
-      <CardHeader>
-        <CardTitle className="text-yellow-600 dark:text-yellow-500 text-base">⚠️ Important Security Notes</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-2 text-sm text-muted-foreground">
-        <ul className="list-disc list-inside space-y-1">
-          <li>The password hash uses bcrypt with 12 salt rounds for maximum security</li>
-          <li>The JWT secret uses cryptographically secure random bytes (32 bytes = 64 hex characters)</li>
-          <li>Never share your password hash or JWT secret publicly</li>
-          <li>Store both securely in your .env file (not in version control)</li>
-          <li>Use a strong password with at least 8 characters</li>
-          <li>After updating either value, restart your backend server for changes to take effect</li>
-          <li>Changing the JWT secret will invalidate all existing login sessions</li>
-        </ul>
       </CardContent>
     </Card>
   </div>
