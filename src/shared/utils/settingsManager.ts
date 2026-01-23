@@ -10,6 +10,7 @@ function flattenSettings(settings: Settings): Record<string, string | number | b
     'scheduling.timezone': settings.scheduling.timezone,
     'scheduling.cleanChannelBeforePost': settings.scheduling.cleanChannelBeforePost,
     'scheduling.trainingStartPollEnabled': settings.scheduling.trainingStartPollEnabled,
+    'scheduling.pollDurationMinutes': settings.scheduling.pollDurationMinutes,
   };
 }
 
@@ -23,6 +24,7 @@ export interface Settings {
     dailyPostTime: string;
     reminderHoursBefore: number;
     trainingStartPollEnabled: boolean;
+    pollDurationMinutes: number;
     timezone: string;
     cleanChannelBeforePost: boolean;
     changeNotificationsEnabled: boolean;
@@ -39,6 +41,7 @@ const DEFAULT_SETTINGS: Settings = {
     dailyPostTime: '12:00',
     reminderHoursBefore: 3,
     trainingStartPollEnabled: false,
+    pollDurationMinutes: 60,
     timezone: 'Europe/Berlin',
     cleanChannelBeforePost: false,
     changeNotificationsEnabled: true,
@@ -113,6 +116,7 @@ export async function loadSettingsAsync(): Promise<Settings> {
         dailyPostTime: settingsMap['scheduling.dailyPostTime'] || DEFAULT_SETTINGS.scheduling.dailyPostTime,
         reminderHoursBefore: parseInt(settingsMap['scheduling.reminderHoursBefore']) || DEFAULT_SETTINGS.scheduling.reminderHoursBefore,
         trainingStartPollEnabled: settingsMap['scheduling.trainingStartPollEnabled'] === 'true',
+        pollDurationMinutes: parseInt(settingsMap['scheduling.pollDurationMinutes']) || DEFAULT_SETTINGS.scheduling.pollDurationMinutes,
         timezone: settingsMap['scheduling.timezone'] || DEFAULT_SETTINGS.scheduling.timezone,
         cleanChannelBeforePost: settingsMap['scheduling.cleanChannelBeforePost'] === 'true',
         changeNotificationsEnabled: settingsMap['scheduling.changeNotificationsEnabled'] !== 'false',
