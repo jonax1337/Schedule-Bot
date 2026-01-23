@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { verifyToken, requireAdmin, AuthRequest } from '../../shared/middleware/auth.js';
-import { config, reloadConfig } from '../../shared/config/config.js';
-import { saveSettings } from '../../shared/utils/settingsManager.js';
+import { reloadConfig } from '../../shared/config/config.js';
+import { saveSettings, loadSettingsAsync } from '../../shared/utils/settingsManager.js';
 import { restartScheduler } from '../../jobs/scheduler.js';
 import { logger } from '../../shared/utils/logger.js';
 
@@ -10,20 +10,11 @@ const router = Router();
 // Get settings
 router.get('/', async (req, res) => {
   try {
-    res.json({
-      discord: {
-        channelId: config.discord.channelId,
-        pingRoleId: config.discord.pingRoleId,
-      },
-      scheduling: {
-        dailyPostTime: config.scheduling.dailyPostTime,
-        reminderHoursBefore: config.scheduling.reminderHoursBefore,
-        timezone: config.scheduling.timezone,
-        trainingStartPollEnabled: config.scheduling.trainingStartPollEnabled,
-      },
-    });
+    const settings = await loadSettingsAsync();
+    res.json(settings);
   } catch (error) {
     console.error('Error fetching settings:', error);
+    logger.error('Failed to load settings', error instanceof Error ? error.message : String(error));
     res.status(500).json({ error: 'Failed to fetch settings' });
   }
 });
