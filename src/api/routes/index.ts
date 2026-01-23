@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { client } from '../../bot/client.js';
-import { optionalAuth, AuthRequest } from '../../shared/middleware/auth.js';
+import { optionalAuth, verifyToken, requireAdmin, AuthRequest } from '../../shared/middleware/auth.js';
 import { getScheduleDetails, getScheduleDetailsBatch } from '../../shared/utils/scheduleDetails.js';
+import { logger } from '../../shared/utils/logger.js';
 import authRoutes from './auth.routes.js';
 import scheduleRoutes from './schedule.routes.js';
 import userMappingRoutes from './user-mapping.routes.js';
@@ -75,6 +76,20 @@ router.get('/bot-status', (req, res) => {
     botReady: client.isReady(),
     uptime: process.uptime()
   });
+});
+
+// Get bot logs (protected, admin only)
+router.get('/logs', verifyToken, requireAdmin, (req: AuthRequest, res) => {
+  try {
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : 100;
+    const level = req.query.level as 'info' | 'warn' | 'error' | 'success' | undefined;
+    
+    const logs = logger.getLogs(limit, level);
+    res.json(logs);
+  } catch (error) {
+    console.error('Error fetching logs:', error);
+    res.status(500).json({ error: 'Failed to fetch logs' });
+  }
 });
 
 export default router;
