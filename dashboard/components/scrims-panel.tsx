@@ -296,13 +296,61 @@ export function ScrimsPanel() {
   const getMatchTypeBadge = (matchType: string) => {
     switch (matchType) {
       case 'Premier':
-        return <Badge variant="default" className="bg-yellow-500 text-yellow-900 border-yellow-600">Premier</Badge>;
+        return (
+          <Badge 
+            variant="outline" 
+            className="text-xs"
+            style={{
+              backgroundColor: 'rgb(234 179 8 / 0.2)',
+              borderColor: 'rgb(234 179 8)',
+              color: 'rgb(202 138 4)'
+            }}
+          >
+            Premier
+          </Badge>
+        );
       case 'Scrim':
-        return <Badge variant="default" className="bg-blue-500 text-blue-50 border-blue-600">Scrim</Badge>;
+        return (
+          <Badge 
+            variant="outline" 
+            className="text-xs"
+            style={{
+              backgroundColor: 'rgb(34 211 238 / 0.25)',
+              borderColor: 'rgb(34 211 238)',
+              color: 'rgb(6 182 212)'
+            }}
+          >
+            Scrim
+          </Badge>
+        );
       case 'Tournament':
-        return <Badge variant="default" className="bg-purple-500 text-purple-50 border-purple-600">Tournament</Badge>;
+        return (
+          <Badge 
+            variant="outline" 
+            className="text-xs"
+            style={{
+              backgroundColor: 'rgb(168 85 247 / 0.2)',
+              borderColor: 'rgb(168 85 247)',
+              color: 'rgb(147 51 234)'
+            }}
+          >
+            Tournament
+          </Badge>
+        );
       case 'Custom':
-        return <Badge variant="default" className="bg-gray-500 text-gray-50 border-gray-600">Custom</Badge>;
+        return (
+          <Badge 
+            variant="outline" 
+            className="text-xs"
+            style={{
+              backgroundColor: 'rgb(156 163 175 / 0.2)',
+              borderColor: 'rgb(156 163 175)',
+              color: 'rgb(107 114 128)'
+            }}
+          >
+            Custom
+          </Badge>
+        );
       default:
         return <Badge variant="outline" className="text-xs">{matchType}</Badge>;
     }
@@ -720,7 +768,7 @@ export function ScrimsPanel() {
                       <TableCell>
                         {scrim.ourAgents?.length > 0 && (
                           <div className="flex gap-1">
-                            {scrim.ourAgents.map((agent, idx) => (
+                            {[...scrim.ourAgents].sort().map((agent, idx) => (
                               <img
                                 key={`our-${idx}`}
                                 src={`/assets/agents/${agent}_icon.webp`}
@@ -735,7 +783,7 @@ export function ScrimsPanel() {
                       <TableCell>
                         {scrim.theirAgents?.length > 0 && (
                           <div className="flex gap-1">
-                            {scrim.theirAgents.map((agent, idx) => (
+                            {[...scrim.theirAgents].sort().map((agent, idx) => (
                               <img
                                 key={`their-${idx}`}
                                 src={`/assets/agents/${agent}_icon.webp`}
@@ -867,7 +915,7 @@ export function ScrimsPanel() {
                           <span className="text-lg font-semibold mb-2">Our Team</span>
                           {scrim.ourAgents?.length > 0 && (
                             <div className="flex gap-1.5 justify-end">
-                              {scrim.ourAgents.map((agent, idx) => (
+                              {[...scrim.ourAgents].sort().map((agent, idx) => (
                                 <img
                                   key={`our-${idx}`}
                                   src={`/assets/agents/${agent}_icon.webp`}
@@ -906,7 +954,7 @@ export function ScrimsPanel() {
                           <span className="text-lg font-semibold mb-2">{scrim.opponent}</span>
                           {scrim.theirAgents?.length > 0 && (
                             <div className="flex gap-1.5">
-                              {scrim.theirAgents.map((agent, idx) => (
+                              {[...scrim.theirAgents].sort().map((agent, idx) => (
                                 <img
                                   key={`their-${idx}`}
                                   src={`/assets/agents/${agent}_icon.webp`}

@@ -840,10 +840,10 @@ export default function HomePage() {
                                   <Button 
                                     size="icon" 
                                     variant="ghost" 
-                                    className="h-6 w-6"
+                                    className="h-8 w-8"
                                     onClick={() => setEditingUser(true)}
                                   >
-                                    <Edit2 className="w-3 h-3" />
+                                    <Edit2 className="h-3.5 w-3.5" />
                                   </Button>
                                 )}
                                 {player.time && (
@@ -888,10 +888,10 @@ export default function HomePage() {
                                   <Button 
                                     size="icon" 
                                     variant="ghost" 
-                                    className="h-6 w-6"
+                                    className="h-8 w-8"
                                     onClick={() => setEditingUser(true)}
                                   >
-                                    <Edit2 className="w-3 h-3" />
+                                    <Edit2 className="h-3.5 w-3.5" />
                                   </Button>
                                 )}
                                 <Badge 
@@ -941,10 +941,10 @@ export default function HomePage() {
                                   <Button 
                                     size="icon" 
                                     variant="ghost" 
-                                    className="h-6 w-6"
+                                    className="h-8 w-8"
                                     onClick={() => setEditingUser(true)}
                                   >
-                                    <Edit2 className="w-3 h-3" />
+                                    <Edit2 className="h-3.5 w-3.5" />
                                   </Button>
                                 )}
                                 <Badge variant="outline" className="text-xs text-muted-foreground">
