@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { ThemeToggle } from '@/components/theme-toggle';
 import { LogIn, Shield, CheckCircle2, XCircle, Clock, Loader2, User, LogOut, Edit2, Save, CalendarCheck, Trophy, X, Palmtree } from 'lucide-react';
 import Image from 'next/image';
@@ -814,7 +815,8 @@ export default function HomePage() {
 
         {/* Details Dialog */}
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto animate-scaleIn">
+          <DialogContent className="max-w-md max-h-[80vh] animate-scaleIn">
+            <ScrollArea className="max-h-[75vh] pr-4">
             <DialogHeader>
               <div className="flex items-center gap-2">
                 <DialogTitle>{selectedDate?.date} - {selectedDate?.weekday}</DialogTitle>
@@ -1166,6 +1168,7 @@ export default function HomePage() {
                 )}
               </div>
             )}
+            </ScrollArea>
           </DialogContent>
         </Dialog>
       </div>

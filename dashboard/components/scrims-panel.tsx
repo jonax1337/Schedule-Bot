@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -458,7 +459,8 @@ export function ScrimsPanel() {
                     Add Match
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+                <DialogContent className="sm:max-w-[600px] max-h-[90vh]">
+                  <ScrollArea className="max-h-[85vh] pr-4">
                 <form onSubmit={handleSubmit}>
                   <DialogHeader>
                     <DialogTitle>{editingScrim ? 'Edit Match' : 'Add New Match'}</DialogTitle>
@@ -638,6 +640,7 @@ export function ScrimsPanel() {
                     </Button>
                   </DialogFooter>
                 </form>
+                  </ScrollArea>
               </DialogContent>
             </Dialog>
             </div>

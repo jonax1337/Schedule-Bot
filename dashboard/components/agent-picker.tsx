@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 
@@ -31,7 +32,8 @@ export function AgentPicker({
 }: AgentPickerProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] max-h-[70vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[500px] max-h-[70vh]">
+        <ScrollArea className="max-h-[65vh]">
         <DialogHeader>
           <DialogTitle className="text-base">{title} ({selectedAgents.length}/{maxAgents})</DialogTitle>
         </DialogHeader>
@@ -64,6 +66,7 @@ export function AgentPicker({
             );
           })}
         </div>
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   );
