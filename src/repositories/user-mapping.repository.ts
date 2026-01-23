@@ -25,8 +25,60 @@ export async function getUserMappings(): Promise<UserMapping[]> {
   }));
 }
 
-export async function addUserMapping(mapping: UserMapping): Promise<void> {
+async function calculateSortOrder(role: 'main' | 'sub' | 'coach'): Promise<number> {
+  const mappings = await getUserMappings();
+  
+  // Count existing mappings by role
+  const mainCount = mappings.filter(m => m.role === 'main').length;
+  const subCount = mappings.filter(m => m.role === 'sub').length;
+  
+  // Main players: 0, 1, 2, 3, 4...
+  if (role === 'main') {
+    return mainCount;
+  }
+  
+  // Subs: after last main player
+  if (role === 'sub') {
+    return mainCount + subCount;
+  }
+  
+  // Coach: after last sub
+  return mainCount + subCount;
+}
+
+async function reorderMappings(): Promise<void> {
+  const mappings = await getUserMappings();
+  
+  let mainIndex = 0;
+  let subIndex = 0;
+  let coachIndex = 0;
+  
+  for (const mapping of mappings) {
+    let newSortOrder = 0;
+    
+    if (mapping.role === 'main') {
+      newSortOrder = mainIndex++;
+    } else if (mapping.role === 'sub') {
+      const mainCount = mappings.filter(m => m.role === 'main').length;
+      newSortOrder = mainCount + subIndex++;
+    } else if (mapping.role === 'coach') {
+      const mainCount = mappings.filter(m => m.role === 'main').length;
+      const subCount = mappings.filter(m => m.role === 'sub').length;
+      newSortOrder = mainCount + subCount + coachIndex++;
+    }
+    
+    if (mapping.sortOrder !== newSortOrder) {
+      await prisma.userMapping.update({
+        where: { discordId: mapping.discordId },
+        data: { sortOrder: newSortOrder },
+      });
+    }
+  }
+}
+
+export async function addUserMapping(mapping: Omit<UserMapping, 'sortOrder'>): Promise<void> {
   const roleEnum = mapping.role.toUpperCase() as 'MAIN' | 'SUB' | 'COACH';
+  const sortOrder = await calculateSortOrder(mapping.role);
   
   await prisma.userMapping.create({
     data: {
@@ -34,9 +86,12 @@ export async function addUserMapping(mapping: UserMapping): Promise<void> {
       discordUsername: mapping.discordUsername,
       displayName: mapping.displayName,
       role: roleEnum,
-      sortOrder: mapping.sortOrder,
+      sortOrder,
     },
   });
+  
+  // Reorder all mappings to ensure correct order
+  await reorderMappings();
 }
 
 export async function getUserMapping(discordId: string): Promise<UserMapping | null> {
@@ -67,6 +122,11 @@ export async function updateUserMapping(discordId: string, updates: Partial<User
     where: { discordId },
     data,
   });
+  
+  // If role changed, reorder all mappings
+  if (updates.role) {
+    await reorderMappings();
+  }
 }
 
 export async function removeUserMapping(discordId: string): Promise<boolean> {
@@ -74,6 +134,10 @@ export async function removeUserMapping(discordId: string): Promise<boolean> {
     await prisma.userMapping.delete({
       where: { discordId },
     });
+    
+    // Reorder remaining mappings
+    await reorderMappings();
+    
     return true;
   } catch (error) {
     return false;

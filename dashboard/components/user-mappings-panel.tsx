@@ -42,7 +42,6 @@ export function UserMappingsPanel() {
   const [manualUserId, setManualUserId] = useState('');
   const [manualUsername, setManualUsername] = useState('');
   const [displayName, setDisplayName] = useState('');
-  const [sortOrder, setSortOrder] = useState(0);
   const [role, setRole] = useState<'main' | 'sub' | 'coach'>('main');
 
   useEffect(() => {
@@ -121,7 +120,6 @@ export function UserMappingsPanel() {
           discordUsername,
           displayName: displayName,
           role,
-          sortOrder: sortOrder,
         }),
       });
 
@@ -131,7 +129,6 @@ export function UserMappingsPanel() {
         setManualUserId('');
         setManualUsername('');
         setDisplayName('');
-        setSortOrder(0);
         setRole('main');
         loadData();
       } else {
@@ -231,51 +228,85 @@ export function UserMappingsPanel() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="user-select">Discord User</Label>
-            <Popover open={open} onOpenChange={setOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  role="combobox"
-                  aria-expanded={open}
-                  className="w-full justify-between h-9 font-normal text-left px-3"
-                >
-                  {selectedMember ? (
-                    <span className="truncate">{selectedMember.displayName} (@{selectedMember.username})</span>
-                  ) : (
-                    <span className="text-muted-foreground">Select user...</span>
-                  )}
-                  <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                <Command>
-                  <CommandInput placeholder="Search users..." />
-                  <CommandList>
-                    <CommandEmpty>No user found.</CommandEmpty>
-                    <CommandGroup>
-                      {members.map((member) => (
-                        <CommandItem
-                          key={member.id}
-                          value={`${member.username} ${member.displayName}`}
-                          onSelect={() => {
-                            setSelectedUserId(member.id);
-                            setOpen(false);
-                          }}
-                        >
-                          <div className="flex flex-col">
-                            <span className="font-medium">{member.displayName}</span>
-                            <span className="text-sm text-muted-foreground">@{member.username}</span>
-                          </div>
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
-          </div>
+          <Tabs value={inputMode} onValueChange={(value) => setInputMode(value as 'search' | 'manual')} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="search" className="flex items-center gap-2">
+                <Search className="h-4 w-4" />
+                Search User
+              </TabsTrigger>
+              <TabsTrigger value="manual" className="flex items-center gap-2">
+                <Edit3 className="h-4 w-4" />
+                Manual Input
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="search" className="space-y-2 mt-4">
+              <Label htmlFor="user-select">Discord User</Label>
+              <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={open}
+                    className="w-full justify-between h-9 font-normal text-left px-3"
+                  >
+                    {selectedMember ? (
+                      <span className="truncate">{selectedMember.displayName} (@{selectedMember.username})</span>
+                    ) : (
+                      <span className="text-muted-foreground">Select user...</span>
+                    )}
+                    <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search users..." />
+                    <CommandList>
+                      <CommandEmpty>No user found.</CommandEmpty>
+                      <CommandGroup>
+                        {members.map((member) => (
+                          <CommandItem
+                            key={member.id}
+                            value={`${member.username} ${member.displayName}`}
+                            onSelect={() => {
+                              setSelectedUserId(member.id);
+                              setOpen(false);
+                            }}
+                          >
+                            <div className="flex flex-col">
+                              <span className="font-medium">{member.displayName}</span>
+                              <span className="text-sm text-muted-foreground">@{member.username}</span>
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </TabsContent>
+            
+            <TabsContent value="manual" className="space-y-4 mt-4">
+              <div className="space-y-2">
+                <Label htmlFor="manualUserId">Discord User ID</Label>
+                <Input
+                  id="manualUserId"
+                  value={manualUserId}
+                  onChange={(e) => setManualUserId(e.target.value)}
+                  placeholder="e.g., 123456789012345678"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="manualUsername">Discord Username</Label>
+                <Input
+                  id="manualUsername"
+                  value={manualUsername}
+                  onChange={(e) => setManualUsername(e.target.value)}
+                  placeholder="e.g., username"
+                />
+              </div>
+            </TabsContent>
+          </Tabs>
 
           <div className="space-y-2">
             <Label htmlFor="displayName">Display Name</Label>
@@ -284,17 +315,6 @@ export function UserMappingsPanel() {
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               placeholder="e.g., Alpha, Beta, Coach Delta"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="sortOrder">Sort Order</Label>
-            <Input
-              id="sortOrder"
-              type="number"
-              value={sortOrder}
-              onChange={(e) => setSortOrder(parseInt(e.target.value) || 0)}
-              placeholder="0"
             />
           </div>
 
