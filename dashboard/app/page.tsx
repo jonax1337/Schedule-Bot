@@ -23,7 +23,7 @@ interface PlayerStatus {
   name: string;
   status: 'available' | 'unavailable' | 'not-set';
   time?: string;
-  role?: 'MAIN' | 'SUB' | 'COACH';
+  role?: 'main' | 'sub' | 'coach';
 }
 
 interface ScheduleDetails {
@@ -841,7 +841,19 @@ export default function HomePage() {
                             }`}
                             style={{ animationDelay: `${idx * 0.12}s` }}
                             >
-                              <span className="text-sm font-medium">{player.name}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium">{player.name}</span>
+                                {player.role === 'sub' && (
+                                  <Badge variant="outline" className="text-xs bg-cyan-50 dark:bg-cyan-950/30 border-cyan-300 dark:border-cyan-700 text-cyan-700 dark:text-cyan-300">
+                                    Sub
+                                  </Badge>
+                                )}
+                                {player.role === 'coach' && (
+                                  <Badge variant="outline" className="text-xs bg-purple-50 dark:bg-purple-950/30 border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300">
+                                    Coach
+                                  </Badge>
+                                )}
+                              </div>
                               <div className="flex items-center gap-2">
                                 {isCurrentUser && !editingUser && (
                                   <Button 
@@ -889,7 +901,19 @@ export default function HomePage() {
                             }`}
                             style={{ animationDelay: `${idx * 0.12}s` }}
                             >
-                              <span className="text-sm font-medium">{player.name}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium">{player.name}</span>
+                                {player.role === 'sub' && (
+                                  <Badge variant="outline" className="text-xs bg-cyan-50 dark:bg-cyan-950/30 border-cyan-300 dark:border-cyan-700 text-cyan-700 dark:text-cyan-300">
+                                    Sub
+                                  </Badge>
+                                )}
+                                {player.role === 'coach' && (
+                                  <Badge variant="outline" className="text-xs bg-purple-50 dark:bg-purple-950/30 border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300">
+                                    Coach
+                                  </Badge>
+                                )}
+                              </div>
                               <div className="flex items-center gap-2">
                                 {isCurrentUser && !editingUser && (
                                   <Button 
@@ -940,9 +964,21 @@ export default function HomePage() {
                             }`}
                             style={{ animationDelay: `${idx * 0.12}s` }}
                             >
-                              <span className={`text-sm font-medium ${!isCurrentUser ? 'text-muted-foreground' : ''}`}>
-                                {player.name}
-                              </span>
+                              <div className="flex items-center gap-2">
+                                <span className={`text-sm font-medium ${!isCurrentUser ? 'text-muted-foreground' : ''}`}>
+                                  {player.name}
+                                </span>
+                                {player.role === 'sub' && (
+                                  <Badge variant="outline" className="text-xs bg-cyan-50 dark:bg-cyan-950/30 border-cyan-300 dark:border-cyan-700 text-cyan-700 dark:text-cyan-300">
+                                    Sub
+                                  </Badge>
+                                )}
+                                {player.role === 'coach' && (
+                                  <Badge variant="outline" className="text-xs bg-purple-50 dark:bg-purple-950/30 border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300">
+                                    Coach
+                                  </Badge>
+                                )}
+                              </div>
                               <div className="flex items-center gap-2">
                                 {isCurrentUser && !editingUser && (
                                   <Button 
