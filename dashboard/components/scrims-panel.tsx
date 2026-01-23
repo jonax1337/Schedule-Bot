@@ -96,6 +96,9 @@ export function ScrimsPanel() {
   const [filterResult, setFilterResult] = useState<string>('all');
   const [filterMatchType, setFilterMatchType] = useState<string>('all');
   
+  // Sort state
+  const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc'>('date-desc');
+  
   // Form state
   const [formData, setFormData] = useState({
     date: getTodayDate(),
@@ -356,9 +359,9 @@ export function ScrimsPanel() {
     }
   };
 
-  // Filter scrims based on selected filters - memoized for performance
+  // Filter and sort scrims - memoized for performance
   const filteredScrims = useMemo(() => {
-    return scrims.filter((scrim) => {
+    const filtered = scrims.filter((scrim) => {
       // Filter by map
       if (filterMap !== 'all' && scrim.map !== filterMap) {
         return false;
@@ -373,7 +376,25 @@ export function ScrimsPanel() {
       }
       return true;
     });
-  }, [scrims, filterMap, filterResult, filterMatchType]);
+
+    // Sort by date
+    return filtered.sort((a, b) => {
+      // Parse DD.MM.YYYY format to Date objects
+      const parseDate = (dateStr: string) => {
+        const [day, month, year] = dateStr.split('.');
+        return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+      };
+
+      const dateA = parseDate(a.date);
+      const dateB = parseDate(b.date);
+
+      if (sortBy === 'date-desc') {
+        return dateB.getTime() - dateA.getTime(); // Newest first
+      } else {
+        return dateA.getTime() - dateB.getTime(); // Oldest first
+      }
+    });
+  }, [scrims, filterMap, filterResult, filterMatchType, sortBy]);
 
   if (loading) {
     return (
