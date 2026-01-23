@@ -48,9 +48,11 @@ export async function getScheduleDetails(date: string): Promise<ScheduleDetail |
     } else if (status.status === 'FULL_ROSTER') {
       statusString = 'Training possible';
     } else if (status.status === 'WITH_SUBS') {
-      // Determine if "Almost there" or "More players needed"
+      // If we have 5+ players (Main + Sub, without Coach), training is possible
       const totalAvailable = status.availableMainCount + status.availableSubCount;
       if (totalAvailable >= 5) {
+        statusString = 'Training possible';
+      } else if (totalAvailable === 4) {
         statusString = 'Almost there';
       } else {
         statusString = 'More players needed';
