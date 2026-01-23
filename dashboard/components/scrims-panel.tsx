@@ -913,18 +913,6 @@ export function ScrimsPanel() {
                           getMatchTypeBadge(scrim.matchType)
                         )}
                         {getResultBadge(scrim.result)}
-                        {scrim.vodUrl && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-7 text-xs"
-                            asChild
-                          >
-                            <a href={scrim.vodUrl} target="_blank" rel="noopener noreferrer">
-                              VOD
-                            </a>
-                          </Button>
-                        )}
                       </div>
                       <div className="flex gap-1">
                         <Button
@@ -987,6 +975,18 @@ export function ScrimsPanel() {
                           <div className="text-xs text-muted-foreground mt-2">
                             {scrim.date}
                           </div>
+                          {/* VOD Link (nur für Nicht-YouTube Links) */}
+                          {scrim.vodUrl && !vodId && (
+                            <a 
+                              href={scrim.vodUrl} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-xs text-primary hover:underline mt-1 inline-flex items-center gap-1"
+                            >
+                              <Video className="h-3 w-3" />
+                              VOD Link
+                            </a>
+                          )}
                         </div>
 
                         {/* Opponent Team - Right Side */}
