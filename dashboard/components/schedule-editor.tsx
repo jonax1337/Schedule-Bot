@@ -285,10 +285,21 @@ export function ScheduleEditor() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {schedules.map((schedule) => (
+              {schedules.map((schedule) => {
+                // Parse date and get weekday
+                const getWeekday = (dateStr: string) => {
+                  const [day, month, year] = dateStr.split('.');
+                  const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+                  return date.toLocaleDateString('en-US', { weekday: 'long' });
+                };
+                
+                return (
                 <TableRow key={schedule.date}>
-                  <TableCell className="sticky left-0 bg-background z-10 font-medium">
-                    {schedule.date}
+                  <TableCell className="sticky left-0 bg-background z-10">
+                    <div className="flex flex-col">
+                      <span className="font-medium">{schedule.date}</span>
+                      <span className="text-xs text-muted-foreground">{getWeekday(schedule.date)}</span>
+                    </div>
                   </TableCell>
                   <TableCell className="p-1">
                     <Button
@@ -349,7 +360,8 @@ export function ScheduleEditor() {
                     );
                   })}
                 </TableRow>
-              ))}
+                );
+              })}
             </TableBody>
           </Table>
         </div>
