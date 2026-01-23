@@ -39,6 +39,35 @@ router.post('/', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
   }
 });
 
+// Update user mapping
+router.put('/:discordId', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
+  try {
+    const oldDiscordId = req.params.discordId as string;
+    const { discordId, discordUsername, displayName, role, sortOrder } = req.body;
+    
+    if (!displayName || !role) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+    
+    await updateUserMapping(oldDiscordId, {
+      discordId,
+      discordUsername,
+      displayName,
+      role,
+      sortOrder,
+    });
+    
+    await syncUserMappingsToSchedules();
+    
+    logger.success('User mapping updated', `${discordUsername} → ${displayName} by ${req.user?.username}`);
+    res.json({ success: true, message: 'User mapping updated successfully' });
+  } catch (error) {
+    console.error('Error updating user mapping:', error);
+    logger.error('Failed to update user mapping', error instanceof Error ? error.message : String(error));
+    res.status(500).json({ error: 'Failed to update user mapping' });
+  }
+});
+
 // Delete user mapping
 router.delete('/:discordId', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
   try {
