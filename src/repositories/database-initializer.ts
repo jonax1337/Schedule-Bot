@@ -115,7 +115,6 @@ async function initializeScheduleEntries(): Promise<void> {
     
     entries.push({
       date: dateStr,
-      players: [],
       reason: '',
       focus: '',
     });
