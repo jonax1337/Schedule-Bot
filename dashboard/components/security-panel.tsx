@@ -227,6 +227,94 @@ export default function SecurityPanel() {
           )}
         </CardContent>
       </Card>
-    </div>
-  );
+
+      <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Key className="h-5 w-5" />
+          JWT Secret Generator
+        </CardTitle>
+        <CardDescription>
+          Generate a secure random JWT secret for token signing. This secret should be added to your .env file as JWT_SECRET.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <Button
+          onClick={handleGenerateJwtSecret}
+          disabled={generatingJwt}
+          className="w-full"
+        >
+          {generatingJwt ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Generating Secret...
+            </>
+          ) : (
+            <>
+              <Key className="mr-2 h-4 w-4" />
+              Generate JWT Secret
+            </>
+          )}
+        </Button>
+
+        {generatedJwtSecret && (
+          <div className="space-y-2 p-4 bg-muted rounded-lg">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-semibold">Generated Secret:</Label>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleCopyJwtSecret}
+                className="h-8"
+              >
+                {copiedJwt ? (
+                  <>
+                    <Check className="h-4 w-4 mr-1" />
+                    Copied!
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-4 w-4 mr-1" />
+                    Copy
+                  </>
+                )}
+              </Button>
+            </div>
+            <code className="block p-3 bg-background rounded border text-xs break-all">
+              {generatedJwtSecret}
+            </code>
+            <div className="text-sm text-muted-foreground space-y-1 mt-3">
+              <p className="font-semibold">📝 Next Steps:</p>
+              <ol className="list-decimal list-inside space-y-1 ml-2">
+                <li>Copy the secret above</li>
+                <li>Open your <code className="px-1 py-0.5 bg-background rounded">.env</code> file</li>
+                <li>Update <code className="px-1 py-0.5 bg-background rounded">JWT_SECRET</code> with the new secret</li>
+                <li>Restart the backend server</li>
+                <li>All existing JWT tokens will be invalidated</li>
+              </ol>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+
+    <Card className="border-yellow-500/50 bg-yellow-500/5">
+      <CardHeader>
+        <CardTitle className="text-yellow-600 dark:text-yellow-500 text-base">⚠️ Important Security Notes</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2 text-sm text-muted-foreground">
+        <ul className="list-disc list-inside space-y-1">
+          <li>The password hash uses bcrypt with 12 salt rounds for maximum security</li>
+          <li>The JWT secret uses cryptographically secure random bytes (32 bytes = 64 hex characters)</li>
+          <li>Never share your password hash or JWT secret publicly</li>
+          <li>Store both securely in your .env file (not in version control)</li>
+          <li>Use a strong password with at least 8 characters</li>
+          <li>After updating either value, restart your backend server for changes to take effect</li>
+          <li>Changing the JWT secret will invalidate all existing login sessions</li>
+        </ul>
+      </CardContent>
+    </Card>
+  </div>
+);
+    
 }
