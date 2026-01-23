@@ -560,6 +560,7 @@ export function ScrimsPanel() {
                             min="0"
                             value={formData.scoreUs}
                             onChange={(e) => setFormData({ ...formData, scoreUs: parseInt(e.target.value) || 0 })}
+                            onFocus={(e) => e.target.select()}
                             required
                           />
                         </div>
@@ -571,6 +572,7 @@ export function ScrimsPanel() {
                             min="0"
                             value={formData.scoreThem}
                             onChange={(e) => setFormData({ ...formData, scoreThem: parseInt(e.target.value) || 0 })}
+                            onFocus={(e) => e.target.select()}
                             required
                           />
                         </div>
