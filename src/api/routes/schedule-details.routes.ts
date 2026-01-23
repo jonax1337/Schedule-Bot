@@ -4,6 +4,24 @@ import { getScheduleDetails, getScheduleDetailsBatch } from '../../shared/utils/
 
 const router = Router();
 
+// Get schedule details for multiple dates (batch) - must be before single route
+router.get('-batch', optionalAuth, async (req: AuthRequest, res) => {
+  try {
+    const datesParam = req.query.dates as string;
+    if (!datesParam) {
+      return res.status(400).json({ error: 'Dates parameter required' });
+    }
+
+    const dates = datesParam.split(',').map(d => d.trim());
+    const details = await getScheduleDetailsBatch(dates);
+    
+    res.json(details);
+  } catch (error) {
+    console.error('Error fetching schedule details batch:', error);
+    res.status(500).json({ error: 'Failed to fetch schedule details' });
+  }
+});
+
 // Get schedule details for single date
 router.get('/', optionalAuth, async (req: AuthRequest, res) => {
   try {
@@ -21,24 +39,6 @@ router.get('/', optionalAuth, async (req: AuthRequest, res) => {
     res.json(details);
   } catch (error) {
     console.error('Error fetching schedule details:', error);
-    res.status(500).json({ error: 'Failed to fetch schedule details' });
-  }
-});
-
-// Get schedule details for multiple dates (batch)
-router.get('-batch', optionalAuth, async (req: AuthRequest, res) => {
-  try {
-    const datesParam = req.query.dates as string;
-    if (!datesParam) {
-      return res.status(400).json({ error: 'Dates parameter required' });
-    }
-
-    const dates = datesParam.split(',').map(d => d.trim());
-    const details = await getScheduleDetailsBatch(dates);
-    
-    res.json(details);
-  } catch (error) {
-    console.error('Error fetching schedule details batch:', error);
     res.status(500).json({ error: 'Failed to fetch schedule details' });
   }
 });
