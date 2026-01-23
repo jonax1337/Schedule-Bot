@@ -123,7 +123,7 @@ export async function handleScrimStatsCommand(interaction: ChatInputCommandInter
       .addFields(
         {
           name: '📈 Overall Record',
-          value: `Total Scrims: **${stats.totalScrims}**\n` +
+          value: `Total Games: **${stats.totalScrims}**\n` +
                  `Wins: **${stats.wins}** ✅\n` +
                  `Losses: **${stats.losses}** ❌\n` +
                  `Draws: **${stats.draws}** ➖\n` +

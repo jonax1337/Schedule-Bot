@@ -423,7 +423,7 @@ export function ScrimsPanel() {
                 {stats.wins}-{stats.losses}-{stats.draws}
               </div>
               <p className="text-xs text-muted-foreground">
-                {stats.totalScrims} total scrims
+                {stats.totalScrims} total games
               </p>
             </CardContent>
           </Card>
