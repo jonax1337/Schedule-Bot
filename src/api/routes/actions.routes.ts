@@ -5,15 +5,16 @@ import { sendRemindersToUsersWithoutEntry } from '../../bot/interactions/reminde
 import { createQuickPoll } from '../../bot/interactions/polls.js';
 import { client } from '../../bot/client.js';
 import { logger } from '../../shared/utils/logger.js';
-import { formatDateToDDMMYYYY } from '../../shared/utils/dateFormatter.js';
+import { formatDateToDDMMYYYY, getTodayFormatted } from '../../shared/utils/dateFormatter.js';
 
 const router = Router();
 
 /**
  * Convert date from frontend format (YYYY-MM-DD or DD.MM.YYYY) to bot format (DD.MM.YYYY)
+ * Returns today's date if no date is provided
  */
-function convertToDD_MM_YYYY(dateStr: string | undefined): string | undefined {
-  if (!dateStr) return undefined;
+function convertToDD_MM_YYYY(dateStr: string | undefined): string {
+  if (!dateStr) return getTodayFormatted();
   
   // Check if already in DD.MM.YYYY format
   if (/^\d{2}\.\d{2}\.\d{4}$/.test(dateStr)) {
