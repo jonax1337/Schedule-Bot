@@ -7,7 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Loader2, Trash2, UserPlus, Search, Users, Edit3 } from 'lucide-react';
+import { Loader2, Trash2, UserPlus, Search, Users, Edit3, Edit } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -43,6 +44,15 @@ export function UserMappingsPanel() {
   const [manualUsername, setManualUsername] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [role, setRole] = useState<'main' | 'sub' | 'coach'>('main');
+  
+  // Edit mode state
+  const [editingMapping, setEditingMapping] = useState<UserMapping | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editDiscordId, setEditDiscordId] = useState('');
+  const [editUsername, setEditUsername] = useState('');
+  const [editDisplayName, setEditDisplayName] = useState('');
+  const [editRole, setEditRole] = useState<'main' | 'sub' | 'coach'>('main');
+  const [editSortOrder, setEditSortOrder] = useState(0);
 
   useEffect(() => {
     loadData();
@@ -163,6 +173,53 @@ export function UserMappingsPanel() {
     } catch (error) {
       console.error('Failed to remove mapping:', error);
       toast.error('Failed to remove user mapping');
+    }
+  };
+
+  const handleEdit = (mapping: UserMapping) => {
+    setEditingMapping(mapping);
+    setEditDiscordId(mapping.discordId);
+    setEditUsername(mapping.discordUsername);
+    setEditDisplayName(mapping.displayName);
+    setEditRole(mapping.role);
+    setEditSortOrder(mapping.sortOrder);
+    setEditDialogOpen(true);
+  };
+
+  const handleUpdate = async () => {
+    if (!editingMapping || !editDisplayName || !editRole) {
+      toast.error('Please fill all required fields');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const { getAuthHeaders } = await import('@/lib/auth');
+      const response = await fetch(`${BOT_API_URL}/api/user-mappings/${editingMapping.discordId}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          discordId: editDiscordId,
+          discordUsername: editUsername,
+          displayName: editDisplayName,
+          role: editRole,
+          sortOrder: editSortOrder,
+        }),
+      });
+
+      if (response.ok) {
+        toast.success('User mapping updated successfully!');
+        setEditDialogOpen(false);
+        setEditingMapping(null);
+        loadData();
+      } else {
+        toast.error('Failed to update user mapping');
+      }
+    } catch (error) {
+      console.error('Failed to update mapping:', error);
+      toast.error('Failed to update user mapping');
+    } finally {
+      setSaving(false);
     }
   };
 
