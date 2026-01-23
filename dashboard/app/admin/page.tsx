@@ -74,16 +74,15 @@ export default function Home() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <ThemeToggle />
               <Button 
                 variant="outline" 
-                size="sm"
+                size="icon"
                 onClick={handleLogout}
-                className="flex items-center gap-2"
+                title="Logout"
               >
-                <LogOut className="h-4 w-4" />
-                Logout
+                <LogOut className="h-[1.2rem] w-[1.2rem]" />
               </Button>
+              <ThemeToggle />
             </div>
           </div>
         </div>
