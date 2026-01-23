@@ -61,8 +61,8 @@ export async function postScheduleToChannel(date?: string, clientInstance?: Clie
       }
     }
 
-    const displayDate = date;
-    const sheetData = await getScheduleForDate(date);
+    const displayDate = targetDate;
+    const sheetData = await getScheduleForDate(targetDate);
 
     if (!sheetData) {
       const embed = new EmbedBuilder()
