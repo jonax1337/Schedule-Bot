@@ -104,8 +104,8 @@ export function ScrimsPanel() {
     date: getTodayDate(),
     opponent: '',
     result: 'loss' as 'win' | 'loss' | 'draw',
-    scoreUs: 0,
-    scoreThem: 0,
+    scoreUs: 0 as number | string,
+    scoreThem: 0 as number | string,
     map: '',
     matchType: 'Scrim',
     ourAgents: [] as string[],
@@ -162,8 +162,8 @@ export function ScrimsPanel() {
         date: formData.date,
         opponent: formData.opponent,
         result: formData.result,
-        scoreUs: formData.scoreUs,
-        scoreThem: formData.scoreThem,
+        scoreUs: typeof formData.scoreUs === 'string' ? 0 : formData.scoreUs,
+        scoreThem: typeof formData.scoreThem === 'string' ? 0 : formData.scoreThem,
         map: formData.map,
         matchType: formData.matchType,
         ourAgents: formData.ourAgents,
@@ -559,7 +559,7 @@ export function ScrimsPanel() {
                             type="number"
                             min="0"
                             value={formData.scoreUs}
-                            onChange={(e) => setFormData({ ...formData, scoreUs: parseInt(e.target.value) || 0 })}
+                            onChange={(e) => setFormData({ ...formData, scoreUs: e.target.value === '' ? '' : parseInt(e.target.value) })}
                             onFocus={(e) => e.target.select()}
                             required
                           />
@@ -571,7 +571,7 @@ export function ScrimsPanel() {
                             type="number"
                             min="0"
                             value={formData.scoreThem}
-                            onChange={(e) => setFormData({ ...formData, scoreThem: parseInt(e.target.value) || 0 })}
+                            onChange={(e) => setFormData({ ...formData, scoreThem: e.target.value === '' ? '' : parseInt(e.target.value) })}
                             onFocus={(e) => e.target.select()}
                             required
                           />
