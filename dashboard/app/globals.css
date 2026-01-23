@@ -338,17 +338,18 @@
 }
 
 *::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
 
 *::-webkit-scrollbar-track {
   background: transparent;
+  margin: 4px;
 }
 
 *::-webkit-scrollbar-thumb {
   background: hsl(var(--border));
-  border-radius: 5px;
+  border-radius: 4px;
   border: 2px solid transparent;
   background-clip: padding-box;
 }
@@ -360,6 +361,15 @@
 
 *::-webkit-scrollbar-corner {
   background: transparent;
+}
+
+/* Scrollbar in rounded containers (dialogs, cards, etc.) */
+[class*="rounded"] {
+  overflow: auto;
+}
+
+[class*="rounded"]::-webkit-scrollbar-track {
+  margin: 8px;
 }
 
 .dark {
