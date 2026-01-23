@@ -12,13 +12,8 @@ export interface AuthRequest extends Request {
   };
 }
 
-export function generateToken(username: string, role: 'admin' | 'user' = 'admin', passwordHash?: string): string {
-  const payload: any = { username, role };
-  if (passwordHash) {
-    // Store a hash of the password hash to detect password changes
-    payload.pwdHash = crypto.createHash('sha256').update(passwordHash).digest('hex').substring(0, 16);
-  }
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+export function generateToken(username: string, role: 'admin' | 'user' = 'admin'): string {
+  return jwt.sign({ username, role }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 }
 
 export function verifyTokenSync(token: string): { username: string; role: 'admin' | 'user' } | null {
@@ -41,20 +36,7 @@ export function verifyToken(req: AuthRequest, res: Response, next: NextFunction)
   const token = authHeader.substring(7);
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { username: string; role: string; pwdHash?: string };
-    
-    // If token contains password hash, verify it hasn't changed (for admin only)
-    if (decoded.role === 'admin' && decoded.pwdHash) {
-      const currentPasswordHash = process.env.ADMIN_PASSWORD_HASH;
-      if (currentPasswordHash) {
-        const currentPwdHash = crypto.createHash('sha256').update(currentPasswordHash).digest('hex').substring(0, 16);
-        if (decoded.pwdHash !== currentPwdHash) {
-          res.status(401).json({ error: 'Password changed - please login again' });
-          return;
-        }
-      }
-    }
-    
+    const decoded = jwt.verify(token, JWT_SECRET) as { username: string; role: string };
     req.user = decoded as { username: string; role: 'admin' | 'user' };
     next();
   } catch (error) {

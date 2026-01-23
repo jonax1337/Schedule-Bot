@@ -19,14 +19,6 @@ function LoginContent() {
         const savedUser = localStorage.getItem('selectedUser');
         const sessionToken = localStorage.getItem('sessionToken');
         
-        // Check if this is a manual logout
-        const manualLogout = sessionStorage.getItem('manualLogout');
-        if (manualLogout) {
-          sessionStorage.removeItem('manualLogout');
-          // Don't show error toast for manual logout
-          return;
-        }
-
         if (savedUser || sessionToken) {
           // Validate the token with the server
           const isValid = await validateToken();
@@ -36,9 +28,10 @@ function LoginContent() {
             router.push('/');
             return;
           } else {
-            // Token is invalid, clean up completely and stay on login page
-            const { logoutCompletely } = await import('@/lib/auth');
-            logoutCompletely();
+            // Token is invalid, clean up and stay on login page
+            removeAuthToken();
+            localStorage.removeItem('selectedUser');
+            localStorage.removeItem('sessionToken');
             toast.error('Session expired. Please login again.');
           }
         }

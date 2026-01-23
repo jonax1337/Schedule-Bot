@@ -87,7 +87,8 @@ export default function HomePage() {
         if (!isValid) {
           // Token is invalid, clean up and redirect to login
           removeAuthToken();
-          // Note: selectedUser is kept intact, only auth token is removed
+          localStorage.removeItem('selectedUser');
+          localStorage.removeItem('sessionToken');
           router.replace('/login');
           return;
         }
@@ -518,12 +519,10 @@ export default function HomePage() {
       }
     }
 
-    // Clear all auth data completely
-    const { logoutCompletely } = await import('@/lib/auth');
-    logoutCompletely();
+    // Clear all auth data
+    localStorage.removeItem('selectedUser');
+    localStorage.removeItem('sessionToken');
     setLoggedInUser(null);
-    // Set flag to indicate manual logout (not expired session)
-    sessionStorage.setItem('manualLogout', 'true');
     // Redirect immediately to login
     router.replace('/login');
   };

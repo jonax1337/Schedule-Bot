@@ -45,10 +45,9 @@ export default function Home() {
   }, [router]);
 
   const handleLogout = async () => {
-    const { removeAuthToken } = await import('@/lib/auth');
-    // Only remove admin token, keep user session (selectedUser) intact
-    removeAuthToken();
-    router.push('/admin/login');
+    const { logout } = await import('@/lib/auth');
+    await logout();
+    router.push('/');
   };
   return (
     <div className="min-h-screen bg-background">
@@ -75,14 +74,6 @@ export default function Home() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Button 
-                variant="outline" 
-                size="icon"
-                onClick={handleLogout}
-                title="Logout"
-              >
-                <LogOut className="h-[1.2rem] w-[1.2rem]" />
-              </Button>
               <ThemeToggle />
             </div>
           </div>
