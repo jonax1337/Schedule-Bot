@@ -33,6 +33,33 @@ router.get('/paginated', verifyToken, requireAdmin, async (req: AuthRequest, res
   }
 });
 
+// Update schedule reason and focus
+router.post('/update-reason', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
+  try {
+    const { date, reason, focus } = req.body;
+    
+    if (!date) {
+      return res.status(400).json({ error: 'Date is required' });
+    }
+    
+    const { updateScheduleReason } = await import('../../repositories/schedule.repository.js');
+    const sanitizedReason = sanitizeString(reason || '');
+    const sanitizedFocus = sanitizeString(focus || '');
+    const success = await updateScheduleReason(date, sanitizedReason, sanitizedFocus);
+    
+    if (success) {
+      logger.success('Schedule reason updated', `${date} = ${reason}`);
+      res.json({ success: true, message: 'Schedule reason updated successfully' });
+    } else {
+      res.status(500).json({ error: 'Failed to update schedule reason' });
+    }
+  } catch (error) {
+    console.error('Error updating schedule reason:', error);
+    logger.error('Failed to update schedule reason', error instanceof Error ? error.message : String(error));
+    res.status(500).json({ error: 'Failed to update schedule reason' });
+  }
+});
+
 // Update player availability
 router.post('/update-availability', verifyToken, async (req: AuthRequest, res) => {
   try {

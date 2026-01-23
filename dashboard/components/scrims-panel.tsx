@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Loader2, Plus, Edit, Trash2, TrendingUp, Trophy, Target, X, LayoutGrid, Table as TableIcon, Video, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import Image from 'next/image';
 import { toast } from "sonner";
 import { AgentSelector } from "./agent-picker";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -297,66 +298,35 @@ export function ScrimsPanel() {
   };
 
   const getMatchTypeBadge = (matchType: string) => {
-    switch (matchType) {
-      case 'Premier':
-        return (
-          <Badge 
-            variant="outline" 
-            className="text-xs"
-            style={{
-              backgroundColor: 'rgb(234 179 8 / 0.2)',
-              borderColor: 'rgb(234 179 8)',
-              color: 'rgb(202 138 4)'
-            }}
-          >
-            Premier
-          </Badge>
-        );
-      case 'Scrim':
-        return (
-          <Badge 
-            variant="outline" 
-            className="text-xs"
-            style={{
-              backgroundColor: 'rgb(34 211 238 / 0.25)',
-              borderColor: 'rgb(34 211 238)',
-              color: 'rgb(6 182 212)'
-            }}
-          >
-            Scrim
-          </Badge>
-        );
-      case 'Tournament':
-        return (
-          <Badge 
-            variant="outline" 
-            className="text-xs"
-            style={{
-              backgroundColor: 'rgb(168 85 247 / 0.2)',
-              borderColor: 'rgb(168 85 247)',
-              color: 'rgb(147 51 234)'
-            }}
-          >
-            Tournament
-          </Badge>
-        );
-      case 'Custom':
-        return (
-          <Badge 
-            variant="outline" 
-            className="text-xs"
-            style={{
-              backgroundColor: 'rgb(156 163 175 / 0.2)',
-              borderColor: 'rgb(156 163 175)',
-              color: 'rgb(107 114 128)'
-            }}
-          >
-            Custom
-          </Badge>
-        );
-      default:
-        return <Badge variant="outline" className="text-xs">{matchType}</Badge>;
-    }
+    const getClassName = () => {
+      switch (matchType) {
+        case 'Premier':
+          return 'bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300';
+        case 'Scrim':
+          return 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300';
+        case 'Tournament':
+          return 'bg-yellow-100 dark:bg-yellow-950 text-yellow-700 dark:text-yellow-300';
+        case 'Custom':
+          return 'bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300';
+        default:
+          return 'bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300';
+      }
+    };
+
+    return (
+      <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${getClassName()}`}>
+        {matchType === 'Premier' && (
+          <Image
+            src="/assets/Premier_logo.png"
+            alt="Premier"
+            width={12}
+            height={12}
+            className="mr-1"
+          />
+        )}
+        {matchType}
+      </span>
+    );
   };
 
   // Filter and sort scrims - memoized for performance

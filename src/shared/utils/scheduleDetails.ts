@@ -46,12 +46,12 @@ export async function getScheduleDetails(date: string): Promise<ScheduleDetail |
     } else if (status.status === 'OFF_DAY') {
       statusString = 'Off-Day';
     } else if (status.status === 'FULL_ROSTER') {
-      statusString = 'Training possible';
+      statusString = 'Able to play';
     } else if (status.status === 'WITH_SUBS') {
       // If we have 5+ players (Main + Sub, without Coach), training is possible
       const totalAvailable = status.availableMainCount + status.availableSubCount;
       if (totalAvailable >= 5) {
-        statusString = 'Training possible';
+        statusString = 'Able to play';
       } else if (totalAvailable === 4) {
         statusString = 'Almost there';
       } else {

@@ -339,6 +339,34 @@ export async function getAllSchedules(): Promise<ScheduleData[]> {
 }
 
 /**
+ * Update schedule reason and focus
+ */
+export async function updateScheduleReason(
+  date: string,
+  reason: string = '',
+  focus: string = ''
+): Promise<boolean> {
+  try {
+    await prisma.schedule.upsert({
+      where: { date },
+      create: {
+        date,
+        reason,
+        focus,
+      },
+      update: {
+        reason,
+        focus,
+      },
+    });
+    return true;
+  } catch (error) {
+    console.error('Error updating schedule reason:', error);
+    return false;
+  }
+}
+
+/**
  * Get schedules with pagination (14 days per page)
  * offset: 0 = next 14 days, 1 = previous 14 days, etc.
  */

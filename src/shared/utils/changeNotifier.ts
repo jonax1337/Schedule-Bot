@@ -64,7 +64,7 @@ export async function checkAndNotifyStatusChange(date: string, client: any): Pro
  */
 function hasStatusImproved(oldStatus: string, newStatus: string): boolean {
   const statusHierarchy = {
-    'Training possible': 4,
+    'Able to play': 4,
     'Almost there': 3,
     'More players needed': 2,
     'Insufficient players': 1,
@@ -105,7 +105,7 @@ async function sendStatusChangeNotification(
       .setTimestamp();
 
     // Add time window if training is possible
-    if (currentStatus.status === 'Training possible' && currentStatus.startTime && currentStatus.endTime) {
+    if (currentStatus.status === 'Able to play' && currentStatus.startTime && currentStatus.endTime) {
       embed.addFields({
         name: '⏰ Available Time Window',
         value: `${currentStatus.startTime} - ${currentStatus.endTime}`,
@@ -151,7 +151,7 @@ async function sendStatusChangeNotification(
  */
 function getStatusColor(status: string): number {
   const colors = {
-    'Training possible': 0x00ff00,    // Green
+    'Able to play': 0x00ff00,    // Green
     'Almost there': 0xffff00,         // Yellow
     'More players needed': 0xffa500,  // Orange
     'Insufficient players': 0xff0000, // Red
