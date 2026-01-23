@@ -45,9 +45,10 @@ export default function Home() {
   }, [router]);
 
   const handleLogout = async () => {
-    const { logout } = await import('@/lib/auth');
-    await logout();
-    router.push('/');
+    const { removeAuthToken } = await import('@/lib/auth');
+    // Only remove admin token, keep user session (selectedUser) intact
+    removeAuthToken();
+    router.push('/admin/login');
   };
   return (
     <div className="min-h-screen bg-background">
