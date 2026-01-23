@@ -6,6 +6,7 @@ import { createQuickPoll } from '../../bot/interactions/polls.js';
 import { client } from '../../bot/client.js';
 import { logger } from '../../shared/utils/logger.js';
 import { formatDateToDDMMYYYY, getTodayFormatted } from '../../shared/utils/dateFormatter.js';
+import { TextChannel } from 'discord.js';
 
 const router = Router();
 
@@ -181,6 +182,66 @@ router.post('/notify', verifyToken, requireAdmin, async (req: AuthRequest, res) 
     console.error('Error sending notification:', error);
     logger.error('Failed to send notification', error instanceof Error ? error.message : String(error));
     res.status(500).json({ error: 'Failed to send notification' });
+  }
+});
+
+// Clear channel (delete all messages except pinned)
+router.post('/clear-channel', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
+  try {
+    const { loadSettings } = await import('../../shared/utils/settingsManager.js');
+    const settings = loadSettings();
+    
+    const channel = await client.channels.fetch(settings.discord.channelId);
+    if (!channel || !(channel instanceof TextChannel)) {
+      return res.status(404).json({ error: 'Channel not found or not a text channel' });
+    }
+
+    let totalDeleted = 0;
+    
+    // Fetch and delete messages in batches
+    const messages = await channel.messages.fetch({ limit: 100 });
+    const messagesToDelete = messages.filter(msg => !msg.pinned);
+    
+    if (messagesToDelete.size > 0) {
+      // Separate recent messages (< 14 days) from old messages
+      const recentMessages = messagesToDelete.filter(msg => 
+        Date.now() - msg.createdTimestamp < 14 * 24 * 60 * 60 * 1000
+      );
+      
+      // Bulk delete recent messages (Discord API limitation)
+      if (recentMessages.size > 1) {
+        await channel.bulkDelete(recentMessages);
+        totalDeleted += recentMessages.size;
+      } else if (recentMessages.size === 1) {
+        await recentMessages.first()?.delete();
+        totalDeleted += 1;
+      }
+      
+      // Delete old messages individually (> 14 days)
+      const oldMessages = messagesToDelete.filter(msg => 
+        Date.now() - msg.createdTimestamp >= 14 * 24 * 60 * 60 * 1000
+      );
+      
+      for (const msg of oldMessages.values()) {
+        try {
+          await msg.delete();
+          totalDeleted++;
+        } catch (err) {
+          console.error('Failed to delete old message:', err);
+        }
+      }
+    }
+    
+    logger.success('Channel cleared', `Deleted ${totalDeleted} messages (kept pinned) by ${req.user?.username}`);
+    res.json({ 
+      success: true, 
+      message: `Channel cleared successfully. Deleted ${totalDeleted} message(s), kept pinned messages.`,
+      deletedCount: totalDeleted
+    });
+  } catch (error) {
+    console.error('Error clearing channel:', error);
+    logger.error('Failed to clear channel', error instanceof Error ? error.message : String(error));
+    res.status(500).json({ error: 'Failed to clear channel' });
   }
 });
 
