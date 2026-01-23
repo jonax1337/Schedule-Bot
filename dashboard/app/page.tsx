@@ -219,7 +219,7 @@ export default function HomePage() {
       const getWeekday = (dateStr: string): string => {
         const [day, month, year] = dateStr.split('.');
         const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-        return date.toLocaleDateString('en-US', { weekday: 'short' });
+        return date.toLocaleDateString('en-US', { weekday: 'long' });
       };
 
       // Update only this entry in the state
