@@ -25,6 +25,15 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
+  // Initialize database if empty
+  try {
+    const { initializeDatabaseIfEmpty } = await import('./repositories/database-initializer.js');
+    await initializeDatabaseIfEmpty();
+  } catch (error) {
+    console.error('Error during database initialization:', error);
+    logger.error('Database initialization failed', error instanceof Error ? error.message : String(error));
+  }
+
   // Load/migrate settings
   console.log('\nLoading settings...');
   try {
