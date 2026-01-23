@@ -10,6 +10,7 @@ import scrimRoutes from './scrim.routes.js';
 import discordRoutes from './discord.routes.js';
 import settingsRoutes from './settings.routes.js';
 import actionsRoutes from './actions.routes.js';
+import securityRoutes from './security.routes.js';
 
 const router = Router();
 
@@ -21,6 +22,7 @@ router.use('/scrims', scrimRoutes);
 router.use('/discord', discordRoutes);
 router.use('/settings', settingsRoutes);
 router.use('/actions', actionsRoutes);
+router.use('/admin/security', securityRoutes);
 
 // Schedule details routes (defined directly to avoid path issues)
 router.get('/schedule-details-batch', optionalAuth, async (req: AuthRequest, res) => {
