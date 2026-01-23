@@ -7,17 +7,17 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Copy, RefreshCw, Key, Lock } from 'lucide-react';
-import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
 
 export function SecurityPanel() {
-  const [newPassword, setNewPassword] = useState('');
+  const [password, setPassword] = useState('');
   const [generatedSalt, setGeneratedSalt] = useState('');
   const [generatedHash, setGeneratedHash] = useState('');
   const [customSalt, setCustomSalt] = useState('');
-  const [passwordForCustomSalt, setPasswordForCustomSalt] = useState('');
   const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<'current' | 'custom'>('current');
 
   const generateSalt = async () => {
     setLoading(true);
@@ -31,7 +31,9 @@ export function SecurityPanel() {
       if (response.ok) {
         const data = await response.json();
         setGeneratedSalt(data.salt);
-        toast.success('New salt generated!');
+        setCustomSalt(data.salt); // Auto-fill custom salt
+        setActiveTab('custom'); // Auto-switch to custom tab
+        toast.success('New salt generated and filled in Custom Salt tab!');
       } else {
         toast.error('Failed to generate salt');
       }
@@ -44,7 +46,7 @@ export function SecurityPanel() {
   };
 
   const generateHashWithCurrentSalt = async () => {
-    if (!newPassword) {
+    if (!password) {
       toast.error('Please enter a password');
       return;
     }
@@ -58,7 +60,7 @@ export function SecurityPanel() {
           'Content-Type': 'application/json',
           ...getAuthHeaders(),
         },
-        body: JSON.stringify({ password: newPassword }),
+        body: JSON.stringify({ password }),
       });
 
       if (response.ok) {
@@ -66,7 +68,8 @@ export function SecurityPanel() {
         setGeneratedHash(data.hash);
         toast.success('Password hash generated with current salt!');
       } else {
-        toast.error('Failed to generate hash');
+        const errorData = await response.json();
+        toast.error(errorData.error || 'Failed to generate hash');
       }
     } catch (error) {
       console.error('Error generating hash:', error);
@@ -77,7 +80,7 @@ export function SecurityPanel() {
   };
 
   const generateHashWithCustomSalt = async () => {
-    if (!passwordForCustomSalt || !customSalt) {
+    if (!password || !customSalt) {
       toast.error('Please enter both password and salt');
       return;
     }
@@ -92,7 +95,7 @@ export function SecurityPanel() {
           ...getAuthHeaders(),
         },
         body: JSON.stringify({ 
-          password: passwordForCustomSalt,
+          password,
           salt: customSalt 
         }),
       });
@@ -161,8 +164,6 @@ export function SecurityPanel() {
         </CardContent>
       </Card>
 
-      <Separator />
-
       {/* Hash Password with Current Salt */}
       <Card>
         <CardHeader>
@@ -215,8 +216,6 @@ export function SecurityPanel() {
           )}
         </CardContent>
       </Card>
-
-      <Separator />
 
       {/* Hash Password with Custom Salt */}
       <Card>
