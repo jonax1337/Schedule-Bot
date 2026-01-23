@@ -1,5 +1,9 @@
 import { prisma } from './database.repository.js';
 import { logger } from '../shared/utils/logger.js';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
 
 /**
  * Default settings for a fresh database
@@ -14,6 +18,44 @@ const DEFAULT_SETTINGS = {
   'scheduling.cleanChannelBeforePost': false,
   'scheduling.trainingStartPollEnabled': false,
 };
+
+/**
+ * Check if database tables exist
+ */
+async function checkTablesExist(): Promise<boolean> {
+  try {
+    // Try to query the settings table
+    await prisma.setting.count();
+    return true;
+  } catch (error: any) {
+    // P2021 = table does not exist
+    if (error.code === 'P2021') {
+      return false;
+    }
+    throw error;
+  }
+}
+
+/**
+ * Create database tables using Prisma
+ */
+async function createDatabaseTables(): Promise<void> {
+  console.log('📦 Creating database tables with Prisma...');
+  
+  try {
+    // Use Prisma's db push to create tables
+    console.log('   Running: prisma db push --skip-generate');
+    const { stdout, stderr } = await execAsync('npx prisma db push --skip-generate --accept-data-loss');
+    
+    if (stdout) console.log(stdout);
+    if (stderr && !stderr.includes('warn')) console.error(stderr);
+    
+    console.log('✅ Database tables created successfully!');
+  } catch (error: any) {
+    console.error('❌ Failed to create database tables:', error.message);
+    throw new Error('Database table creation failed. Please run "npx prisma db push" manually.');
+  }
+}
 
 /**
  * Check if the database is empty (no settings exist)
@@ -101,6 +143,22 @@ export async function initializeDatabaseIfEmpty(): Promise<void> {
   console.log('🔍 Checking database status...');
   console.log('='.repeat(50));
   
+  // First, check if tables exist
+  const tablesExist = await checkTablesExist();
+  
+  if (!tablesExist) {
+    console.log('⚠️  Database tables do not exist!');
+    console.log('🚀 Creating database schema with Prisma...\n');
+    
+    try {
+      await createDatabaseTables();
+    } catch (error) {
+      console.error('Failed to create database tables:', error);
+      throw error;
+    }
+  }
+  
+  // Now check if database is empty
   const isEmpty = await isDatabaseEmpty();
   
   if (!isEmpty) {
