@@ -94,12 +94,88 @@ router.post('/poll', verifyToken, requireAdmin, async (req: AuthRequest, res) =>
 // Send notification
 router.post('/notify', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
   try {
-    const { type, target, message, specificUserId } = req.body;
+    const { type, target, title, message, specificUserId } = req.body;
     
-    // This would need the notification logic from interactive.ts
-    // For now, return success
-    logger.success('Notification sent', `Type: ${type}, Target: ${target} by ${req.user?.username}`);
-    res.json({ success: true, message: 'Notification sent successfully' });
+    if (!type || !target || !title || !message) {
+      return res.status(400).json({ error: 'Type, target, title, and message are required' });
+    }
+    
+    // Get color and emoji based on type
+    const typeConfig = {
+      info: { color: 0x3498db, emoji: '📢' },
+      success: { color: 0x2ecc71, emoji: '✅' },
+      warning: { color: 0xf39c12, emoji: '⚠️' },
+      error: { color: 0xe74c3c, emoji: '❌' },
+    };
+    
+    const config = typeConfig[type as keyof typeof typeConfig];
+    if (!config) {
+      return res.status(400).json({ error: 'Invalid notification type' });
+    }
+    
+    let recipients: string[] = [];
+    let recipientNames: string[] = [];
+    
+    // If specific user is provided, only send to them
+    if (specificUserId) {
+      const { getUserMapping } = await import('../../repositories/user-mapping.repository.js');
+      const userMapping = await getUserMapping(specificUserId);
+      if (!userMapping) {
+        return res.status(404).json({ error: 'User not found in system' });
+      }
+      recipients.push(specificUserId);
+      recipientNames.push(userMapping.discordUsername);
+    } else {
+      // Get all user mappings and filter by target
+      const { getUserMappings } = await import('../../repositories/user-mapping.repository.js');
+      const allMappings = await getUserMappings();
+      
+      const filteredMappings = allMappings.filter(mapping => {
+        if (target === 'all') return true;
+        return mapping.role === target;
+      });
+      
+      if (filteredMappings.length === 0) {
+        return res.status(404).json({ error: `No users found for target: ${target}` });
+      }
+      
+      recipients = filteredMappings.map(m => m.discordId);
+      recipientNames = filteredMappings.map(m => m.discordUsername);
+    }
+    
+    // Create notification embed
+    const { EmbedBuilder } = await import('discord.js');
+    const notificationEmbed = new EmbedBuilder()
+      .setColor(config.color)
+      .setTitle(`${config.emoji} ${title}`)
+      .setDescription(message)
+      .setFooter({ text: `Sent by ${req.user?.username || 'Admin'}` })
+      .setTimestamp();
+    
+    // Send to all recipients
+    let successCount = 0;
+    let failedUsers: string[] = [];
+    
+    for (let i = 0; i < recipients.length; i++) {
+      try {
+        const user = await client.users.fetch(recipients[i]);
+        await user.send({ embeds: [notificationEmbed] });
+        successCount++;
+      } catch (error) {
+        console.error(`Failed to send notification to ${recipientNames[i]}:`, error);
+        failedUsers.push(recipientNames[i]);
+      }
+    }
+    
+    logger.success('Notification sent', `${successCount}/${recipients.length} users, Type: ${type}, Target: ${target} by ${req.user?.username}`);
+    
+    res.json({ 
+      success: true, 
+      message: `Notification sent to ${successCount}/${recipients.length} user(s)`,
+      successCount,
+      totalCount: recipients.length,
+      failedUsers
+    });
   } catch (error) {
     console.error('Error sending notification:', error);
     logger.error('Failed to send notification', error instanceof Error ? error.message : String(error));
