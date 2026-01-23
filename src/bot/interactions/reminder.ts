@@ -1,18 +1,11 @@
 import { Client, EmbedBuilder } from 'discord.js';
-import { getUserMappings } from '../../repositories/user-mapping.repository.js';
 import { getScheduleForDate } from '../../repositories/schedule.repository.js';
+import { getUserMappings } from '../../repositories/user-mapping.repository.js';
+import { getTodayFormatted, normalizeDateFormat } from '../../shared/utils/dateFormatter.js';
 import { createAvailabilityButtons } from './interactive.js';
 
-function normalizeDateFormat(dateStr: string): string {
-  const match = dateStr.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
-  if (!match) return dateStr;
-
-  const [, day, month, year] = match;
-  return `${day.padStart(2, '0')}.${month.padStart(2, '0')}.${year}`;
-}
-
 export async function sendRemindersToUsersWithoutEntry(client: Client, date?: string): Promise<void> {
-  const targetDate = date || new Date().toLocaleDateString('de-DE');
+  const targetDate = date || getTodayFormatted();
   const normalizedDate = normalizeDateFormat(targetDate);
   
   console.log(`Checking for users without availability entry for ${normalizedDate}...`);

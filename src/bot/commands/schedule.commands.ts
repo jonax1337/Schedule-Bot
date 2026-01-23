@@ -4,6 +4,7 @@ import { parseSchedule, analyzeSchedule } from '../../shared/utils/analyzer.js';
 import { buildScheduleEmbed } from '../embeds/embed.js';
 import { createDateNavigationButtons } from '../interactions/interactive.js';
 import { postScheduleToChannel } from '../utils/schedule-poster.js';
+import { formatDateToDDMMYYYY, getTodayFormatted } from '../../shared/utils/dateFormatter.js';
 
 /**
  * Handle /schedule command - Check team availability for a specific date

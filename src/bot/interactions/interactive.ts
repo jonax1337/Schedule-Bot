@@ -17,13 +17,14 @@ import { getUserMapping } from '../../repositories/user-mapping.repository.js';
 import { updatePlayerAvailability, getScheduleForDate, getNext14Dates } from '../../repositories/schedule.repository.js';
 import { parseSchedule, analyzeSchedule } from '../../shared/utils/analyzer.js';
 import { buildScheduleEmbed } from '../embeds/embed.js';
+import { getTodayFormatted, addDays, normalizeDateFormat, isDateAfterOrEqual } from '../../shared/utils/dateFormatter.js';
 // Week operations removed - use individual updatePlayerAvailability calls
 import { client } from '../client.js';
 
 export async function createDateNavigationButtons(currentDate: string): Promise<ActionRowBuilder<ButtonBuilder>> {
-  const prevDate = getAdjacentDate(currentDate, -1);
-  const nextDate = getAdjacentDate(currentDate, 1);
-  const today = new Date().toLocaleDateString('de-DE');
+  const prevDate = addDays(currentDate, -1);
+  const nextDate = addDays(currentDate, 1);
+  const today = getTodayFormatted();
 
   // Get available dates from sheet
   const availableDates = getNext14Dates();
@@ -123,7 +124,7 @@ export async function handleDateNavigation(
   let targetDate: string;
   
   if (interaction.customId === 'schedule_today') {
-    targetDate = new Date().toLocaleDateString('de-DE');
+    targetDate = getTodayFormatted();
   } else if (interaction.customId.startsWith('schedule_prev_')) {
     targetDate = interaction.customId.replace('schedule_prev_', '');
   } else if (interaction.customId.startsWith('schedule_next_')) {
@@ -260,14 +261,7 @@ export async function sendWeekOverview(
 ): Promise<void> {
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-  const today = new Date();
-  const dates: string[] = [];
-  
-  for (let i = 0; i < 7; i++) {
-    const date = new Date(today);
-    date.setDate(date.getDate() + i);
-    dates.push(date.toLocaleDateString('de-DE'));
-  }
+  const dates = getNext14Dates().slice(0, 7);
 
   const embed = new EmbedBuilder()
     .setTitle('📅 Week Overview')
@@ -666,39 +660,8 @@ export async function handleInfoModal(
   }
 }
 
-function getAdjacentDate(dateStr: string, offset: number): string {
-  const [day, month, year] = dateStr.split('.').map(Number);
-  const date = new Date(year, month - 1, day);
-  date.setDate(date.getDate() + offset);
-  return date.toLocaleDateString('de-DE');
-}
 
 function validateTimeFormat(time: string): boolean {
   const regex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
   return regex.test(time);
-}
-
-function isDateAfterOrEqual(dateStr1: string, dateStr2: string): boolean {
-  const date1 = parseDateString(dateStr1);
-  const date2 = parseDateString(dateStr2);
-  
-  if (!date1 || !date2) return false;
-  
-  return date1 >= date2;
-}
-
-function parseDateString(dateStr: string): Date | null {
-  const match = dateStr.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
-  if (!match) return null;
-
-  const [, day, month, year] = match;
-  return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-}
-
-function normalizeDateFormat(dateStr: string): string {
-  const match = dateStr.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
-  if (!match) return dateStr;
-
-  const [, day, month, year] = match;
-  return `${day.padStart(2, '0')}.${month.padStart(2, '0')}.${year}`;
 }

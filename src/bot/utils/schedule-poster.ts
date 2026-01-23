@@ -3,6 +3,7 @@ import { config } from '../../shared/config/config.js';
 import { getScheduleForDate } from '../../repositories/schedule.repository.js';
 import { parseSchedule, analyzeSchedule } from '../../shared/utils/analyzer.js';
 import { buildScheduleEmbed } from '../embeds/embed.js';
+import { formatDateToDDMMYYYY, getTodayFormatted } from '../../shared/utils/dateFormatter.js';
 
 /**
  * Post schedule to configured Discord channel
@@ -18,18 +19,7 @@ export async function postScheduleToChannel(date?: string, clientInstance?: Clie
   }
 
   try {
-    // Format date as DD.MM.YYYY
-    const formatDate = (d: Date): string => {
-      const day = String(d.getDate()).padStart(2, '0');
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const year = d.getFullYear();
-      return `${day}.${month}.${year}`;
-    };
-    
-    // If no date provided, use today
-    if (!date) {
-      date = formatDate(new Date());
-    }
+    const targetDate = date || getTodayFormatted();
 
     // Clean channel if enabled in settings
     const { loadSettings } = await import('../../shared/utils/settingsManager.js');

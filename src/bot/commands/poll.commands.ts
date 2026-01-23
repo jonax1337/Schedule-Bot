@@ -1,6 +1,7 @@
 import { ChatInputCommandInteraction, MessageFlags, EmbedBuilder } from 'discord.js';
 import { getScheduleForDate } from '../../repositories/schedule.repository.js';
 import { parseSchedule, analyzeSchedule } from '../../shared/utils/analyzer.js';
+import { getTodayFormatted } from '../../shared/utils/dateFormatter.js';
 
 /**
  * Handle /poll command - Create a quick poll (Admin)
@@ -69,7 +70,7 @@ export async function handleSendTrainingPollCommand(interaction: ChatInputComman
   try {
     const dateOption = interaction.options.getString('date');
     const targetDate = dateOption || undefined;
-    const displayDate = targetDate || new Date().toLocaleDateString('de-DE');
+    const displayDate = targetDate || getTodayFormatted();
 
     // Fetch schedule data for the date
     const sheetData = await getScheduleForDate(targetDate);
