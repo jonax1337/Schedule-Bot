@@ -474,112 +474,114 @@ export default function ActionsPanel() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Trash2 className="mr-2 h-5 w-5" />
-            Clear Channel
-          </CardTitle>
-          <CardDescription>
-            Delete all messages in the schedule channel (keeps pinned messages)
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center space-x-2">
-            <Switch
-              id="includePinned"
-              checked={includePinned}
-              onCheckedChange={setIncludePinned}
-            />
-            <Label htmlFor="includePinned" className="cursor-pointer">
-              Also delete pinned messages
-            </Label>
-          </div>
-          <AlertDialog open={clearDialogOpen} onOpenChange={setClearDialogOpen}>
-            <AlertDialogTrigger asChild>
-              <Button 
-                variant="destructive"
-                disabled={loading === 'clear'}
-                className="w-full"
-              >
-                {loading === 'clear' ? (
-                  <>
-                    <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                    Clearing...
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="mr-1 h-4 w-4" />
-                    Clear Channel
-                  </>
-                )}
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This will delete all messages in the schedule channel{includePinned ? ' including pinned messages' : ' except pinned messages'}. This action cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={clearChannel} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                  Clear Channel
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-          <p className="text-sm text-muted-foreground">
-            ⚠️ This will permanently delete all {includePinned ? 'messages (including pinned)' : 'non-pinned messages'}
-          </p>
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <MessageSquare className="mr-2 h-5 w-5" />
+              Pin Message
+            </CardTitle>
+            <CardDescription>
+              Send a message to the schedule channel and pin it (e.g., Dashboard URLs)
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="pinMessage">Message</Label>
+              <Textarea
+                id="pinMessage"
+                value={pinMessage}
+                onChange={(e) => setPinMessage(e.target.value)}
+                placeholder="Dashboard: https://your-dashboard.com\nAdmin: https://your-dashboard.com/admin"
+                rows={5}
+                maxLength={2000}
+              />
+              <p className="text-sm text-muted-foreground">
+                {pinMessage.length}/2000 characters
+              </p>
+            </div>
+            <Button 
+              onClick={sendPinMessage} 
+              disabled={loading === 'pin'}
+              className="w-full"
+            >
+              {loading === 'pin' ? (
+                <>
+                  <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <MessageSquare className="mr-1 h-4 w-4" />
+                  Send & Pin Message
+                </>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <MessageSquare className="mr-2 h-5 w-5" />
-            Pin Message
-          </CardTitle>
-          <CardDescription>
-            Send a message to the schedule channel and pin it (e.g., Dashboard URLs)
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="pinMessage">Message</Label>
-            <Textarea
-              id="pinMessage"
-              value={pinMessage}
-              onChange={(e) => setPinMessage(e.target.value)}
-              placeholder="Dashboard: https://your-dashboard.com\nAdmin: https://your-dashboard.com/admin"
-              rows={5}
-              maxLength={2000}
-            />
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Trash2 className="mr-2 h-5 w-5" />
+              Clear Channel
+            </CardTitle>
+            <CardDescription>
+              Delete all messages in the schedule channel (keeps pinned messages)
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="includePinned"
+                checked={includePinned}
+                onCheckedChange={setIncludePinned}
+              />
+              <Label htmlFor="includePinned" className="cursor-pointer">
+                Also delete pinned messages
+              </Label>
+            </div>
+            <AlertDialog open={clearDialogOpen} onOpenChange={setClearDialogOpen}>
+              <AlertDialogTrigger asChild>
+                <Button 
+                  variant="destructive"
+                  disabled={loading === 'clear'}
+                  className="w-full"
+                >
+                  {loading === 'clear' ? (
+                    <>
+                      <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                      Clearing...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="mr-1 h-4 w-4" />
+                      Clear Channel
+                    </>
+                  )}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will delete all messages in the schedule channel{includePinned ? ' including pinned messages' : ' except pinned messages'}. This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={clearChannel} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                    Clear Channel
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
             <p className="text-sm text-muted-foreground">
-              {pinMessage.length}/2000 characters
+              ⚠️ This will permanently delete all {includePinned ? 'messages (including pinned)' : 'non-pinned messages'}
             </p>
-          </div>
-          <Button 
-            onClick={sendPinMessage} 
-            disabled={loading === 'pin'}
-            className="w-full"
-          >
-            {loading === 'pin' ? (
-              <>
-                <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                Sending...
-              </>
-            ) : (
-              <>
-                <MessageSquare className="mr-1 h-4 w-4" />
-                Send & Pin Message
-              </>
-            )}
-          </Button>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
