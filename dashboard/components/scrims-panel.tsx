@@ -388,7 +388,7 @@ export function ScrimsPanel() {
       {/* Stats Cards */}
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
+          <Card className="animate-scaleIn stagger-1">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Overall Record</CardTitle>
               <Trophy className="h-4 w-4 text-muted-foreground" />
@@ -403,7 +403,7 @@ export function ScrimsPanel() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="animate-scaleIn stagger-2">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Win Rate</CardTitle>
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
@@ -416,7 +416,7 @@ export function ScrimsPanel() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="animate-scaleIn stagger-3">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Maps Played</CardTitle>
               <Target className="h-4 w-4 text-muted-foreground" />
@@ -434,7 +434,7 @@ export function ScrimsPanel() {
       )}
 
       {/* Scrims List */}
-      <Card>
+      <Card className="animate-fadeIn stagger-4">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
