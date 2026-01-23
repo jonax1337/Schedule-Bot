@@ -31,6 +31,7 @@ export async function apiGet<T>(endpoint: string): Promise<T> {
   const response = await fetch(`${BOT_API_URL}${endpoint}`, {
     method: 'GET',
     headers: getAuthHeaders(),
+    cache: 'no-store',
   });
   return handleResponse<T>(response);
 }
@@ -40,6 +41,7 @@ export async function apiPost<T>(endpoint: string, data?: any): Promise<T> {
     method: 'POST',
     headers: getAuthHeaders(),
     body: data ? JSON.stringify(data) : undefined,
+    cache: 'no-store',
   });
   return handleResponse<T>(response);
 }
@@ -49,6 +51,7 @@ export async function apiPut<T>(endpoint: string, data?: any): Promise<T> {
     method: 'PUT',
     headers: getAuthHeaders(),
     body: data ? JSON.stringify(data) : undefined,
+    cache: 'no-store',
   });
   return handleResponse<T>(response);
 }
@@ -57,6 +60,7 @@ export async function apiDelete<T>(endpoint: string): Promise<T> {
   const response = await fetch(`${BOT_API_URL}${endpoint}`, {
     method: 'DELETE',
     headers: getAuthHeaders(),
+    cache: 'no-store',
   });
   return handleResponse<T>(response);
 }

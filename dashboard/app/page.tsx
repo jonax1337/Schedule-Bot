@@ -137,7 +137,7 @@ export default function HomePage() {
 
   const loadUserMappings = async () => {
     try {
-      const response = await fetch(`${BOT_API_URL}/api/user-mappings`);
+      const response = await fetch(`${BOT_API_URL}/api/user-mappings`, { cache: 'no-store' });
       if (response.ok) {
         const data = await response.json();
         const mappedDisplayNames = data.mappings.map((m: any) => m.displayName);
@@ -167,6 +167,7 @@ export default function HomePage() {
       const { getAuthHeaders } = await import('@/lib/auth');
       const scheduleRes = await fetch(`${BOT_API_URL}/api/schedule/next14`, {
         headers: getAuthHeaders(),
+        cache: 'no-store',
       });
       
       if (!scheduleRes.ok) return;
@@ -178,6 +179,7 @@ export default function HomePage() {
       // Fetch fresh schedule details
       const detailsRes = await fetch(`${BOT_API_URL}/api/schedule-details?date=${dateStr}`, {
         headers: getAuthHeaders(),
+        cache: 'no-store',
       });
       const scheduleDetails = detailsRes.ok ? await detailsRes.json() : null;
 
@@ -307,6 +309,7 @@ export default function HomePage() {
       const { getAuthHeaders } = await import('@/lib/auth');
       const scheduleRes = await fetch(`${BOT_API_URL}/api/schedule/next14`, {
         headers: getAuthHeaders(),
+        cache: 'no-store',
       });
       
       if (!scheduleRes.ok) {
@@ -407,7 +410,7 @@ export default function HomePage() {
       if (calendarEntries.length > 0) {
         try {
           const dates = calendarEntries.map(e => e.date).join(',');
-          const detailsRes = await fetch(`${BOT_API_URL}/api/schedule-details-batch?dates=${encodeURIComponent(dates)}`);
+          const detailsRes = await fetch(`${BOT_API_URL}/api/schedule-details-batch?dates=${encodeURIComponent(dates)}`, { cache: 'no-store' });
           if (detailsRes.ok) {
             const detailsBatch = await detailsRes.json();
             // Merge schedule details into entries
@@ -536,18 +539,17 @@ export default function HomePage() {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${sessionToken}`,
+            'Content-Type': 'application/json',
           },
+          cache: 'no-store',
         });
       } catch (error) {
         console.error('Logout error:', error);
       }
     }
-
-    // Clear all auth data
     localStorage.removeItem('selectedUser');
     localStorage.removeItem('sessionToken');
     setLoggedInUser(null);
-    // Redirect immediately to login
     router.replace('/login');
   };
 
@@ -581,6 +583,7 @@ export default function HomePage() {
       const response = await fetch(`${BOT_API_URL}/api/schedule/update-availability`, {
         method: 'POST',
         headers: getAuthHeaders(),
+        cache: 'no-store',
         body: JSON.stringify({
           date: selectedDate.date,
           userId: userMapping.discordId,
@@ -622,6 +625,7 @@ export default function HomePage() {
       const response = await fetch(`${BOT_API_URL}/api/schedule/update-reason`, {
         method: 'POST',
         headers: getAuthHeaders(),
+        cache: 'no-store',
         body: JSON.stringify({
           date: selectedDate.date,
           reason: reasonValue.trim(),
