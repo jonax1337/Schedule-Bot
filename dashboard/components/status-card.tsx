@@ -38,9 +38,14 @@ export default function StatusCard() {
     const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
     try {
       const url = new URL(BOT_API_URL);
-      return url.host; // Returns hostname:port
+      // For localhost, show with port
+      if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
+        return url.host;
+      }
+      // For production URLs, just show hostname (cleaner)
+      return url.hostname;
     } catch {
-      return BOT_API_URL;
+      return 'API';
     }
   };
 
@@ -124,9 +129,14 @@ export default function StatusCard() {
             API Server
           </CardTitle>
         </CardHeader>
-        <CardContent className="flex justify-center pt-0 pb-4">
+        <CardContent className="flex flex-col items-center justify-center pt-0 pb-4">
           {isOnline ? (
-            <div className="text-xl font-bold text-green-600 dark:text-green-400">{getApiServerUrl()}</div>
+            <>
+              <div className="text-2xl font-bold text-green-600 dark:text-green-400">Online</div>
+              <div className="text-xs text-muted-foreground mt-1 truncate max-w-full px-2" title={process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001'}>
+                {getApiServerUrl()}
+              </div>
+            </>
           ) : (
             <div className="text-2xl font-bold text-red-600 dark:text-red-400">Offline</div>
           )}
