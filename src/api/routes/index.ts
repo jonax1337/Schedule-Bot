@@ -1,8 +1,9 @@
 import { Router } from 'express';
 import { client } from '../../bot/client.js';
+import { optionalAuth, AuthRequest } from '../../shared/middleware/auth.js';
+import { getScheduleDetails, getScheduleDetailsBatch } from '../../shared/utils/scheduleDetails.js';
 import authRoutes from './auth.routes.js';
 import scheduleRoutes from './schedule.routes.js';
-import scheduleDetailsRoutes from './schedule-details.routes.js';
 import userMappingRoutes from './user-mapping.routes.js';
 import scrimRoutes from './scrim.routes.js';
 import discordRoutes from './discord.routes.js';
@@ -14,12 +15,49 @@ const router = Router();
 // Mount all route modules
 router.use('/', authRoutes);
 router.use('/schedule', scheduleRoutes);
-router.use('/schedule-details', scheduleDetailsRoutes);
 router.use('/user-mappings', userMappingRoutes);
 router.use('/scrims', scrimRoutes);
 router.use('/discord', discordRoutes);
 router.use('/settings', settingsRoutes);
 router.use('/actions', actionsRoutes);
+
+// Schedule details routes (defined directly to avoid path issues)
+router.get('/schedule-details-batch', optionalAuth, async (req: AuthRequest, res) => {
+  try {
+    const datesParam = req.query.dates as string;
+    if (!datesParam) {
+      return res.status(400).json({ error: 'Dates parameter required' });
+    }
+
+    const dates = datesParam.split(',').map(d => d.trim());
+    const details = await getScheduleDetailsBatch(dates);
+    
+    res.json(details);
+  } catch (error) {
+    console.error('Error fetching schedule details batch:', error);
+    res.status(500).json({ error: 'Failed to fetch schedule details' });
+  }
+});
+
+router.get('/schedule-details', optionalAuth, async (req: AuthRequest, res) => {
+  try {
+    const date = req.query.date as string;
+    if (!date) {
+      return res.status(400).json({ error: 'Date parameter required' });
+    }
+
+    const details = await getScheduleDetails(date);
+    
+    if (!details) {
+      return res.status(404).json({ error: 'Schedule details not found' });
+    }
+    
+    res.json(details);
+  } catch (error) {
+    console.error('Error fetching schedule details:', error);
+    res.status(500).json({ error: 'Failed to fetch schedule details' });
+  }
+});
 
 // Health check
 router.get('/health', (req, res) => {
