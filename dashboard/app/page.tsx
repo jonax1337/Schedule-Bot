@@ -844,12 +844,12 @@ export default function HomePage() {
                               <div className="flex items-center gap-2">
                                 <span className="text-sm font-medium">{player.name}</span>
                                 {player.role === 'sub' && (
-                                  <Badge variant="outline" className="text-xs bg-cyan-50 dark:bg-cyan-950/30 border-cyan-300 dark:border-cyan-700 text-cyan-700 dark:text-cyan-300">
+                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-cyan-50 dark:bg-cyan-950/30 border-cyan-300 dark:border-cyan-700 text-cyan-700 dark:text-cyan-300">
                                     Sub
                                   </Badge>
                                 )}
                                 {player.role === 'coach' && (
-                                  <Badge variant="outline" className="text-xs bg-purple-50 dark:bg-purple-950/30 border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300">
+                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-purple-50 dark:bg-purple-950/30 border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300">
                                     Coach
                                   </Badge>
                                 )}
@@ -904,12 +904,12 @@ export default function HomePage() {
                               <div className="flex items-center gap-2">
                                 <span className="text-sm font-medium">{player.name}</span>
                                 {player.role === 'sub' && (
-                                  <Badge variant="outline" className="text-xs bg-cyan-50 dark:bg-cyan-950/30 border-cyan-300 dark:border-cyan-700 text-cyan-700 dark:text-cyan-300">
+                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-cyan-50 dark:bg-cyan-950/30 border-cyan-300 dark:border-cyan-700 text-cyan-700 dark:text-cyan-300">
                                     Sub
                                   </Badge>
                                 )}
                                 {player.role === 'coach' && (
-                                  <Badge variant="outline" className="text-xs bg-purple-50 dark:bg-purple-950/30 border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300">
+                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-purple-50 dark:bg-purple-950/30 border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300">
                                     Coach
                                   </Badge>
                                 )}
@@ -969,12 +969,12 @@ export default function HomePage() {
                                   {player.name}
                                 </span>
                                 {player.role === 'sub' && (
-                                  <Badge variant="outline" className="text-xs bg-cyan-50 dark:bg-cyan-950/30 border-cyan-300 dark:border-cyan-700 text-cyan-700 dark:text-cyan-300">
+                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-cyan-50 dark:bg-cyan-950/30 border-cyan-300 dark:border-cyan-700 text-cyan-700 dark:text-cyan-300">
                                     Sub
                                   </Badge>
                                 )}
                                 {player.role === 'coach' && (
-                                  <Badge variant="outline" className="text-xs bg-purple-50 dark:bg-purple-950/30 border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300">
+                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-purple-50 dark:bg-purple-950/30 border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300">
                                     Coach
                                   </Badge>
                                 )}
