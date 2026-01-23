@@ -26,7 +26,7 @@ router.post('/admin/login', loginLimiter, async (req, res) => {
     }
     
     if (username === config.admin.username && await verifyPassword(password, storedPasswordHash)) {
-      const token = generateToken(username, 'admin');
+      const token = generateToken(username, 'admin', storedPasswordHash);
       
       logger.success('Admin login successful', `User: ${username}`);
       
