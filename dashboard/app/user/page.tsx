@@ -233,7 +233,7 @@ export default function UserSchedule() {
     <div className="min-h-screen bg-background">
       <div className="container mx-auto p-6 max-w-7xl">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-8 animate-slideDown">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Button 
@@ -257,7 +257,7 @@ export default function UserSchedule() {
         </div>
 
         {/* Availability Table */}
-        <Card>
+        <Card className="animate-fadeIn">
           <CardContent>
             <Table>
               <TableHeader>
