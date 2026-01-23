@@ -6,10 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Bell, Send, Vote, Calendar, Loader2, MessageSquare, ChevronsUpDown, Check } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Bell, Send, Vote, Calendar, Loader2, MessageSquare, ChevronsUpDown, Check, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -25,6 +27,8 @@ interface DiscordMember {
 export default function ActionsPanel() {
   const [loading, setLoading] = useState<string | null>(null);
   const [members, setMembers] = useState<DiscordMember[]>([]);
+  const [clearDialogOpen, setClearDialogOpen] = useState(false);
+  const [includePinned, setIncludePinned] = useState(false);
 
   // Poll state
   const [pollQuestion, setPollQuestion] = useState("");
@@ -45,6 +49,9 @@ export default function ActionsPanel() {
   const [notifyMessage, setNotifyMessage] = useState("");
   const [userOpen, setUserOpen] = useState(false);
   const [userSearch, setUserSearch] = useState("");
+
+  // Pin message state
+  const [pinMessage, setPinMessage] = useState("");
 
   const filteredMembers = userSearch
     ? members.filter(m => 
@@ -128,6 +135,21 @@ export default function ActionsPanel() {
       title: notifyTitle,
       message: notifyMessage,
     });
+  };
+
+  const clearChannel = () => {
+    handleAction('clear', '/api/actions/clear-channel', { includePinned });
+    setClearDialogOpen(false);
+    setIncludePinned(false);
+  };
+
+  const sendPinMessage = () => {
+    if (!pinMessage.trim()) {
+      toast.error('Please provide a message to pin');
+      return;
+    }
+    handleAction('pin', '/api/actions/pin-message', { message: pinMessage });
+    setPinMessage('');
   };
 
   return (
@@ -451,6 +473,115 @@ export default function ActionsPanel() {
           </Button>
         </CardContent>
       </Card>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <MessageSquare className="mr-2 h-5 w-5" />
+              Pin Message
+            </CardTitle>
+            <CardDescription>
+              Send a message to the schedule channel and pin it (e.g., Dashboard URLs)
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="pinMessage">Message</Label>
+              <Textarea
+                id="pinMessage"
+                value={pinMessage}
+                onChange={(e) => setPinMessage(e.target.value)}
+                placeholder="Dashboard: https://your-dashboard.com"
+                rows={5}
+                maxLength={2000}
+              />
+              <p className="text-sm text-muted-foreground">
+                {pinMessage.length}/2000 characters
+              </p>
+            </div>
+            <Button 
+              onClick={sendPinMessage} 
+              disabled={loading === 'pin'}
+              className="w-full"
+            >
+              {loading === 'pin' ? (
+                <>
+                  <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <MessageSquare className="mr-1 h-4 w-4" />
+                  Send & Pin Message
+                </>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Trash2 className="mr-2 h-5 w-5" />
+              Clear Channel
+            </CardTitle>
+            <CardDescription>
+              Delete all messages in the schedule channel (keeps pinned messages)
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="includePinned"
+                checked={includePinned}
+                onCheckedChange={setIncludePinned}
+              />
+              <Label htmlFor="includePinned" className="cursor-pointer">
+                Also delete pinned messages
+              </Label>
+            </div>
+            <AlertDialog open={clearDialogOpen} onOpenChange={setClearDialogOpen}>
+              <AlertDialogTrigger asChild>
+                <Button 
+                  variant="destructive"
+                  disabled={loading === 'clear'}
+                  className="w-full"
+                >
+                  {loading === 'clear' ? (
+                    <>
+                      <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                      Clearing...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="mr-1 h-4 w-4" />
+                      Clear Channel
+                    </>
+                  )}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will delete all messages in the schedule channel{includePinned ? ' including pinned messages' : ' except pinned messages'}. This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={clearChannel} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                    Clear Channel
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            <p className="text-sm text-muted-foreground">
+              ⚠️ This will permanently delete all {includePinned ? 'messages (including pinned)' : 'non-pinned messages'}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

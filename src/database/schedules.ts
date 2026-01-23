@@ -1,6 +1,6 @@
 import { prisma } from './client.js';
 import { getUserMappings } from './userMappings.js';
-import type { ScheduleData, SchedulePlayerData } from '../types.js';
+import type { ScheduleData, SchedulePlayerData } from '../shared/types/types.js';
 
 /**
  * Get schedule for a specific date with all players

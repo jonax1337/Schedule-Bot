@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { LogIn, Shield, CheckCircle2, XCircle, Clock, Loader2, User, LogOut, Edit2, Save, CalendarCheck, Trophy } from 'lucide-react';
+import { LogIn, Shield, CheckCircle2, XCircle, Clock, Loader2, User, LogOut, Edit2, Save, CalendarCheck, Trophy, X, Palmtree } from 'lucide-react';
+import Image from 'next/image';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,6 +24,7 @@ interface PlayerStatus {
   name: string;
   status: 'available' | 'unavailable' | 'not-set';
   time?: string;
+  role?: 'main' | 'sub' | 'coach';
 }
 
 interface ScheduleDetails {
@@ -66,13 +68,25 @@ export default function HomePage() {
   const [editStatus, setEditStatus] = useState<'available' | 'unavailable'>('available');
   const [saving, setSaving] = useState(false);
   const [userMappings, setUserMappings] = useState<string[] | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [editingReason, setEditingReason] = useState(false);
+  const [reasonValue, setReasonValue] = useState('');
+
+  const PREDEFINED_SUGGESTIONS = [
+    'Training',
+    'Off-Day',
+    'VOD-Review',
+    'Scrims',
+    'Premier',
+    'Tournament',
+  ];
 
   // Load user from localStorage after mount to avoid hydration mismatch
   useEffect(() => {
     const checkAuth = async () => {
       try {
         // Check for JWT token and validate it
-        const { validateToken, removeAuthToken } = await import('@/lib/auth');
+        const { validateToken, removeAuthToken, getUser } = await import('@/lib/auth');
         
         const user = localStorage.getItem('selectedUser');
         
@@ -92,6 +106,10 @@ export default function HomePage() {
           router.replace('/login');
           return;
         }
+        
+        // Check if user is admin
+        const authUser = getUser();
+        setIsAdmin(authUser?.role === 'admin');
         
         setLoggedInUser(user);
       } catch (e) {
@@ -182,20 +200,23 @@ export default function HomePage() {
           unavailable++;
           players.push({
             name: player.displayName,
-            status: 'unavailable'
+            status: 'unavailable',
+            role: player.role
           });
         } else if (availability && availability.trim() !== '') {
           available++;
           players.push({
             name: player.displayName,
             status: 'available',
-            time: availability
+            time: availability,
+            role: player.role
           });
         } else {
           notSet++;
           players.push({
             name: player.displayName,
-            status: 'not-set'
+            status: 'not-set',
+            role: player.role
           });
         }
       }
@@ -215,7 +236,7 @@ export default function HomePage() {
       const getWeekday = (dateStr: string): string => {
         const [day, month, year] = dateStr.split('.');
         const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-        return date.toLocaleDateString('en-US', { weekday: 'short' });
+        return date.toLocaleDateString('en-US', { weekday: 'long' });
       };
 
       // Update only this entry in the state
@@ -334,20 +355,23 @@ export default function HomePage() {
             unavailable++;
             players.push({
               name: player.displayName,
-              status: 'unavailable'
+              status: 'unavailable',
+              role: player.role
             });
           } else if (availability && availability.trim() !== '') {
             available++;
             players.push({
               name: player.displayName,
               status: 'available',
-              time: availability
+              time: availability,
+              role: player.role
             });
           } else {
             notSet++;
             players.push({
               name: player.displayName,
-              status: 'not-set'
+              status: 'not-set',
+              role: player.role
             });
           }
         }
@@ -427,7 +451,7 @@ export default function HomePage() {
     // Use schedule status if available
     if (entry.scheduleDetails?.status) {
       const status = entry.scheduleDetails.status;
-      if (status === 'Training possible') {
+      if (status === 'Able to play') {
         return <div className="w-3 h-3 rounded-full bg-green-500" />;
       } else if (status === 'Almost there') {
         return <div className="w-3 h-3 rounded-full bg-cyan-400" />;
@@ -583,6 +607,43 @@ export default function HomePage() {
     }
   };
 
+  const handleEditReason = () => {
+    if (!selectedDate) return;
+    setReasonValue(selectedDate.reason || '');
+    setEditingReason(true);
+  };
+
+  const handleSaveReason = async () => {
+    if (!selectedDate) return;
+
+    setSaving(true);
+    try {
+      const { getAuthHeaders } = await import('@/lib/auth');
+      const response = await fetch(`${BOT_API_URL}/api/schedule/update-reason`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          date: selectedDate.date,
+          reason: reasonValue.trim(),
+          focus: '',
+        }),
+      });
+
+      if (response.ok) {
+        toast.success('Reason updated');
+        setEditingReason(false);
+        await reloadSingleDate(selectedDate.date);
+      } else {
+        toast.error('Failed to update reason');
+      }
+    } catch (error) {
+      console.error('Failed to update reason:', error);
+      toast.error('Failed to update reason');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   // Show minimal loading screen while checking auth
   if (!loggedInUser) {
     return (
@@ -654,7 +715,7 @@ export default function HomePage() {
             </div>
             <div className="flex items-center gap-1.5">
               <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
-              <span className="text-xs">Training possible</span>
+              <span className="text-xs">Able to play</span>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="w-2.5 h-2.5 rounded-full bg-cyan-400" />
@@ -719,23 +780,27 @@ export default function HomePage() {
                   </div>
                 </CardHeader>
                 <CardContent className="pt-0.5 pb-3">
-                  <div className="space-y-0.5">
-                    <div className="flex items-center gap-1.5">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
-                      <span className="text-sm font-medium">{entry.availability.available}</span>
-                      <span className="text-xs text-muted-foreground">available</span>
+                  {entry.isOffDay ? (
+                    <div className="py-4"></div>
+                  ) : (
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-1.5">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
+                        <span className="text-sm font-medium">{entry.availability.available}</span>
+                        <span className="text-xs text-muted-foreground">available</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <XCircle className="w-3.5 h-3.5 text-red-600" />
+                        <span className="text-sm font-medium">{entry.availability.unavailable}</span>
+                        <span className="text-xs text-muted-foreground">unavailable</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-gray-400" />
+                        <span className="text-sm font-medium">{entry.availability.notSet}</span>
+                        <span className="text-xs text-muted-foreground">not set</span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <XCircle className="w-3.5 h-3.5 text-red-600" />
-                      <span className="text-sm font-medium">{entry.availability.unavailable}</span>
-                      <span className="text-xs text-muted-foreground">unavailable</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <Clock className="w-3.5 h-3.5 text-gray-400" />
-                      <span className="text-sm font-medium">{entry.availability.notSet}</span>
-                      <span className="text-xs text-muted-foreground">not set</span>
-                    </div>
-                  </div>
+                  )}
                 </CardContent>
               </Card>
               );
@@ -747,32 +812,53 @@ export default function HomePage() {
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto animate-scaleIn">
             <DialogHeader>
-              <DialogTitle>{selectedDate?.date} - {selectedDate?.weekday}</DialogTitle>
-              <DialogDescription>
-                Player availability status
-              </DialogDescription>
+              <div className="flex items-center gap-2">
+                <DialogTitle>{selectedDate?.date} - {selectedDate?.weekday}</DialogTitle>
+                {selectedDate && (
+                  <span 
+                    className={
+                      `inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
+                        selectedDate.reason === 'Premier' ? 'bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300' :
+                        selectedDate.reason === 'Off-Day' ? 'bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300' :
+                        selectedDate.reason === 'VOD-Review' ? 'bg-cyan-100 dark:bg-cyan-950 text-cyan-700 dark:text-cyan-300' :
+                        selectedDate.reason === 'Scrims' ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300' :
+                        selectedDate.reason === 'Tournament' ? 'bg-yellow-100 dark:bg-yellow-950 text-yellow-700 dark:text-yellow-300' :
+                        'bg-green-100 dark:bg-green-950 text-green-700 dark:text-green-300'
+                      }`
+                    }
+                  >
+                    {selectedDate.reason === 'Premier' && (
+                      <Image
+                        src="/assets/Premier_logo.png"
+                        alt="Premier"
+                        width={14}
+                        height={14}
+                        className="mr-1.5"
+                      />
+                    )}
+                    {selectedDate.reason || 'Training'}
+                  </span>
+                )}
+              </div>
+              {!selectedDate?.isOffDay && (
+                <DialogDescription>
+                  Player availability status
+                </DialogDescription>
+              )}
             </DialogHeader>
             
             {selectedDate && (
               <div className="space-y-3 mt-4">
-                {/* Off-Day Banner */}
-                {selectedDate.isOffDay && (
-                  <div className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-lg animate-fadeIn">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full bg-purple-500" />
-                      <span className="text-sm font-semibold text-purple-600 dark:text-purple-400">Off-Day</span>
-                      {selectedDate.reason && 
-                       !selectedDate.reason.toLowerCase().includes('off-day') &&
-                       !selectedDate.reason.toLowerCase().includes('off day') &&
-                       selectedDate.reason.toLowerCase() !== 'off' && (
-                        <span className="text-sm text-muted-foreground">— {selectedDate.reason}</span>
-                      )}
-                    </div>
+                {/* Off-Day Content */}
+                {selectedDate.isOffDay ? (
+                  <div className="flex flex-col items-center justify-center py-12 space-y-4 opacity-60">
+                    <Palmtree className="w-24 h-24 text-muted-foreground" strokeWidth={1.5} />
+                    <p className="text-sm text-muted-foreground">There is nothing scheduled for today</p>
                   </div>
-                )}
-                
+                ) : (
+                  <>
                 {/* Schedule Details */}
-                {!selectedDate.isOffDay && selectedDate.scheduleDetails && (
+                {selectedDate.scheduleDetails && (
                   <div className="p-3 bg-muted/50 rounded-lg border">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">Schedule Status</span>
@@ -781,19 +867,19 @@ export default function HomePage() {
                         className="text-xs"
                         style={{
                           backgroundColor: 
-                            selectedDate.scheduleDetails.status === 'Training possible' ? 'rgb(34 197 94 / 0.2)' :
+                            selectedDate.scheduleDetails.status === 'Able to play' ? 'rgb(34 197 94 / 0.2)' :
                             selectedDate.scheduleDetails.status === 'Almost there' ? 'rgb(34 211 238 / 0.25)' :
                             selectedDate.scheduleDetails.status === 'More players needed' ? 'rgb(234 179 8 / 0.2)' :
                             selectedDate.scheduleDetails.status === 'Insufficient players' ? 'rgb(239 68 68 / 0.2)' :
                             'rgb(156 163 175 / 0.2)',
                           borderColor:
-                            selectedDate.scheduleDetails.status === 'Training possible' ? 'rgb(34 197 94)' :
+                            selectedDate.scheduleDetails.status === 'Able to play' ? 'rgb(34 197 94)' :
                             selectedDate.scheduleDetails.status === 'Almost there' ? 'rgb(34 211 238)' :
                             selectedDate.scheduleDetails.status === 'More players needed' ? 'rgb(234 179 8)' :
                             selectedDate.scheduleDetails.status === 'Insufficient players' ? 'rgb(239 68 68)' :
                             'rgb(156 163 175)',
                           color:
-                            selectedDate.scheduleDetails.status === 'Training possible' ? 'rgb(22 163 74)' :
+                            selectedDate.scheduleDetails.status === 'Able to play' ? 'rgb(22 163 74)' :
                             selectedDate.scheduleDetails.status === 'Almost there' ? 'rgb(6 182 212)' :
                             selectedDate.scheduleDetails.status === 'More players needed' ? 'rgb(202 138 4)' :
                             selectedDate.scheduleDetails.status === 'Insufficient players' ? 'rgb(220 38 38)' :
@@ -803,7 +889,7 @@ export default function HomePage() {
                         {selectedDate.scheduleDetails.status}
                       </Badge>
                     </div>
-                    {selectedDate.scheduleDetails.status === 'Training possible' && 
+                    {selectedDate.scheduleDetails.status === 'Able to play' && 
                      selectedDate.scheduleDetails.startTime && 
                      selectedDate.scheduleDetails.endTime && (
                       <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
@@ -834,16 +920,28 @@ export default function HomePage() {
                             }`}
                             style={{ animationDelay: `${idx * 0.12}s` }}
                             >
-                              <span className="text-sm font-medium">{player.name}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium">{player.name}</span>
+                                {player.role === 'sub' && (
+                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-cyan-50 dark:bg-cyan-950/30 border-cyan-300 dark:border-cyan-700 text-cyan-700 dark:text-cyan-300">
+                                    Sub
+                                  </Badge>
+                                )}
+                                {player.role === 'coach' && (
+                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-purple-50 dark:bg-purple-950/30 border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300">
+                                    Coach
+                                  </Badge>
+                                )}
+                              </div>
                               <div className="flex items-center gap-2">
                                 {isCurrentUser && !editingUser && (
                                   <Button 
                                     size="icon" 
                                     variant="ghost" 
-                                    className="h-8 w-8"
+                                    className="h-7 w-7"
                                     onClick={() => setEditingUser(true)}
                                   >
-                                    <Edit2 className="h-3.5 w-3.5" />
+                                    <Edit2 className="h-3 w-3" />
                                   </Button>
                                 )}
                                 {player.time && (
@@ -882,7 +980,19 @@ export default function HomePage() {
                             }`}
                             style={{ animationDelay: `${idx * 0.12}s` }}
                             >
-                              <span className="text-sm font-medium">{player.name}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium">{player.name}</span>
+                                {player.role === 'sub' && (
+                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-cyan-50 dark:bg-cyan-950/30 border-cyan-300 dark:border-cyan-700 text-cyan-700 dark:text-cyan-300">
+                                    Sub
+                                  </Badge>
+                                )}
+                                {player.role === 'coach' && (
+                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-purple-50 dark:bg-purple-950/30 border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300">
+                                    Coach
+                                  </Badge>
+                                )}
+                              </div>
                               <div className="flex items-center gap-2">
                                 {isCurrentUser && !editingUser && (
                                   <Button 
@@ -933,9 +1043,21 @@ export default function HomePage() {
                             }`}
                             style={{ animationDelay: `${idx * 0.12}s` }}
                             >
-                              <span className={`text-sm font-medium ${!isCurrentUser ? 'text-muted-foreground' : ''}`}>
-                                {player.name}
-                              </span>
+                              <div className="flex items-center gap-2">
+                                <span className={`text-sm font-medium ${!isCurrentUser ? 'text-muted-foreground' : ''}`}>
+                                  {player.name}
+                                </span>
+                                {player.role === 'sub' && (
+                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-cyan-50 dark:bg-cyan-950/30 border-cyan-300 dark:border-cyan-700 text-cyan-700 dark:text-cyan-300">
+                                    Sub
+                                  </Badge>
+                                )}
+                                {player.role === 'coach' && (
+                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-purple-50 dark:bg-purple-950/30 border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300">
+                                    Coach
+                                  </Badge>
+                                )}
+                              </div>
                               <div className="flex items-center gap-2">
                                 {isCurrentUser && !editingUser && (
                                   <Button 
@@ -1035,6 +1157,8 @@ export default function HomePage() {
                       </div>
                     </div>
                   </div>
+                )}
+                </>
                 )}
               </div>
             )}

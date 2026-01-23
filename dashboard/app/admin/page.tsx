@@ -10,9 +10,10 @@ import LogsPanel from "@/components/logs-panel";
 import { UserMappingsPanel } from "@/components/user-mappings-panel";
 import { ScheduleEditor } from "@/components/schedule-editor";
 import { ScrimsPanel } from "@/components/scrims-panel";
+import SecurityPanel from "@/components/security-panel";
 import StatusCard from "@/components/status-card";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Settings, Zap, Terminal, Users, CalendarDays, LogOut, Trophy, ArrowLeft } from "lucide-react";
+import { Settings, Zap, Terminal, Users, CalendarDays, LogOut, Trophy, ArrowLeft, Shield } from "lucide-react";
 
 export default function Home() {
   const router = useRouter();
@@ -83,7 +84,7 @@ export default function Home() {
 
         {/* Main Content */}
         <Tabs defaultValue="settings" className="space-y-4 mt-6 animate-fadeIn stagger-1">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="settings" className="flex items-center gap-2">
               <Settings className="h-4 w-4" />
               Settings
@@ -103,6 +104,10 @@ export default function Home() {
             <TabsTrigger value="actions" className="flex items-center gap-2">
               <Zap className="h-4 w-4" />
               Actions
+            </TabsTrigger>
+            <TabsTrigger value="security" className="flex items-center gap-2">
+              <Shield className="h-4 w-4" />
+              Security
             </TabsTrigger>
             <TabsTrigger value="logs" className="flex items-center gap-2">
               <Terminal className="h-4 w-4" />
@@ -128,6 +133,10 @@ export default function Home() {
 
           <TabsContent value="actions" className="space-y-4">
             <ActionsPanel />
+          </TabsContent>
+
+          <TabsContent value="security" className="space-y-4">
+            <SecurityPanel />
           </TabsContent>
 
           <TabsContent value="logs" className="space-y-4">

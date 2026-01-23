@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Loader2, Plus, Edit, Trash2, TrendingUp, Trophy, Target, X, LayoutGrid, Table as TableIcon, Video } from "lucide-react";
+import { Loader2, Plus, Edit, Trash2, TrendingUp, Trophy, Target, X, LayoutGrid, Table as TableIcon, Video, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import Image from 'next/image';
 import { toast } from "sonner";
 import { AgentSelector } from "./agent-picker";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -96,13 +97,16 @@ export function ScrimsPanel() {
   const [filterResult, setFilterResult] = useState<string>('all');
   const [filterMatchType, setFilterMatchType] = useState<string>('all');
   
+  // Sort state
+  const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | null>(null);
+  
   // Form state
   const [formData, setFormData] = useState({
     date: getTodayDate(),
     opponent: '',
     result: 'loss' as 'win' | 'loss' | 'draw',
-    scoreUs: 0,
-    scoreThem: 0,
+    scoreUs: 0 as number | string,
+    scoreThem: 0 as number | string,
     map: '',
     matchType: 'Scrim',
     ourAgents: [] as string[],
@@ -159,8 +163,8 @@ export function ScrimsPanel() {
         date: formData.date,
         opponent: formData.opponent,
         result: formData.result,
-        scoreUs: formData.scoreUs,
-        scoreThem: formData.scoreThem,
+        scoreUs: typeof formData.scoreUs === 'string' ? 0 : formData.scoreUs,
+        scoreThem: typeof formData.scoreThem === 'string' ? 0 : formData.scoreThem,
         map: formData.map,
         matchType: formData.matchType,
         ourAgents: formData.ourAgents,
@@ -294,71 +298,40 @@ export function ScrimsPanel() {
   };
 
   const getMatchTypeBadge = (matchType: string) => {
-    switch (matchType) {
-      case 'Premier':
-        return (
-          <Badge 
-            variant="outline" 
-            className="text-xs"
-            style={{
-              backgroundColor: 'rgb(234 179 8 / 0.2)',
-              borderColor: 'rgb(234 179 8)',
-              color: 'rgb(202 138 4)'
-            }}
-          >
-            Premier
-          </Badge>
-        );
-      case 'Scrim':
-        return (
-          <Badge 
-            variant="outline" 
-            className="text-xs"
-            style={{
-              backgroundColor: 'rgb(34 211 238 / 0.25)',
-              borderColor: 'rgb(34 211 238)',
-              color: 'rgb(6 182 212)'
-            }}
-          >
-            Scrim
-          </Badge>
-        );
-      case 'Tournament':
-        return (
-          <Badge 
-            variant="outline" 
-            className="text-xs"
-            style={{
-              backgroundColor: 'rgb(168 85 247 / 0.2)',
-              borderColor: 'rgb(168 85 247)',
-              color: 'rgb(147 51 234)'
-            }}
-          >
-            Tournament
-          </Badge>
-        );
-      case 'Custom':
-        return (
-          <Badge 
-            variant="outline" 
-            className="text-xs"
-            style={{
-              backgroundColor: 'rgb(156 163 175 / 0.2)',
-              borderColor: 'rgb(156 163 175)',
-              color: 'rgb(107 114 128)'
-            }}
-          >
-            Custom
-          </Badge>
-        );
-      default:
-        return <Badge variant="outline" className="text-xs">{matchType}</Badge>;
-    }
+    const getClassName = () => {
+      switch (matchType) {
+        case 'Premier':
+          return 'bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300';
+        case 'Scrim':
+          return 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300';
+        case 'Tournament':
+          return 'bg-yellow-100 dark:bg-yellow-950 text-yellow-700 dark:text-yellow-300';
+        case 'Custom':
+          return 'bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300';
+        default:
+          return 'bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300';
+      }
+    };
+
+    return (
+      <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${getClassName()}`}>
+        {matchType === 'Premier' && (
+          <Image
+            src="/assets/Premier_logo.png"
+            alt="Premier"
+            width={12}
+            height={12}
+            className="mr-1"
+          />
+        )}
+        {matchType}
+      </span>
+    );
   };
 
-  // Filter scrims based on selected filters - memoized for performance
+  // Filter and sort scrims - memoized for performance
   const filteredScrims = useMemo(() => {
-    return scrims.filter((scrim) => {
+    const filtered = scrims.filter((scrim) => {
       // Filter by map
       if (filterMap !== 'all' && scrim.map !== filterMap) {
         return false;
@@ -373,7 +346,29 @@ export function ScrimsPanel() {
       }
       return true;
     });
-  }, [scrims, filterMap, filterResult, filterMatchType]);
+
+    // Sort by date if sortBy is set
+    if (sortBy) {
+      return filtered.sort((a, b) => {
+        // Parse DD.MM.YYYY format to Date objects
+        const parseDate = (dateStr: string) => {
+          const [day, month, year] = dateStr.split('.');
+          return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        };
+
+        const dateA = parseDate(a.date);
+        const dateB = parseDate(b.date);
+
+        if (sortBy === 'date-desc') {
+          return dateB.getTime() - dateA.getTime(); // Newest first
+        } else {
+          return dateA.getTime() - dateB.getTime(); // Oldest first
+        }
+      });
+    }
+    
+    return filtered;
+  }, [scrims, filterMap, filterResult, filterMatchType, sortBy]);
 
   if (loading) {
     return (
@@ -388,7 +383,7 @@ export function ScrimsPanel() {
       {/* Stats Cards */}
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
+          <Card className="animate-scaleIn stagger-1">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Overall Record</CardTitle>
               <Trophy className="h-4 w-4 text-muted-foreground" />
@@ -398,12 +393,12 @@ export function ScrimsPanel() {
                 {stats.wins}-{stats.losses}-{stats.draws}
               </div>
               <p className="text-xs text-muted-foreground">
-                {stats.totalScrims} total scrims
+                {stats.totalScrims} total games
               </p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="animate-scaleIn stagger-2">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Win Rate</CardTitle>
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
@@ -416,7 +411,7 @@ export function ScrimsPanel() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="animate-scaleIn stagger-3">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Maps Played</CardTitle>
               <Target className="h-4 w-4 text-muted-foreground" />
@@ -434,7 +429,7 @@ export function ScrimsPanel() {
       )}
 
       {/* Scrims List */}
-      <Card>
+      <Card className="animate-fadeIn stagger-4">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
@@ -534,7 +529,8 @@ export function ScrimsPanel() {
                             type="number"
                             min="0"
                             value={formData.scoreUs}
-                            onChange={(e) => setFormData({ ...formData, scoreUs: parseInt(e.target.value) || 0 })}
+                            onChange={(e) => setFormData({ ...formData, scoreUs: e.target.value === '' ? '' : parseInt(e.target.value) })}
+                            onFocus={(e) => e.target.select()}
                             required
                           />
                         </div>
@@ -545,7 +541,8 @@ export function ScrimsPanel() {
                             type="number"
                             min="0"
                             value={formData.scoreThem}
-                            onChange={(e) => setFormData({ ...formData, scoreThem: parseInt(e.target.value) || 0 })}
+                            onChange={(e) => setFormData({ ...formData, scoreThem: e.target.value === '' ? '' : parseInt(e.target.value) })}
+                            onFocus={(e) => e.target.select()}
                             required
                           />
                         </div>
@@ -683,20 +680,17 @@ export function ScrimsPanel() {
               
               {/* Match Type Filter */}
               <Select value={filterMatchType} onValueChange={setFilterMatchType}>
-                <SelectTrigger className="w-[160px]">
-                  <SelectValue placeholder="All Types" />
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Match Type" />
                 </SelectTrigger>
                 <SelectContent position="popper">
                   <SelectItem value="all">All Types</SelectItem>
                   {MATCH_TYPES.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {type}
-                    </SelectItem>
+                    <SelectItem key={type} value={type}>{type}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               
-              {/* Clear Filters Button */}
               {(filterMap !== 'all' || filterResult !== 'all' || filterMatchType !== 'all') && (
                 <Button
                   variant="ghost"
@@ -736,7 +730,31 @@ export function ScrimsPanel() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Date</TableHead>
+                    <TableHead>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="-ml-3 h-8 data-[state=open]:bg-accent"
+                        onClick={() => {
+                          if (sortBy === null) {
+                            setSortBy('date-desc');
+                          } else if (sortBy === 'date-desc') {
+                            setSortBy('date-asc');
+                          } else {
+                            setSortBy(null);
+                          }
+                        }}
+                      >
+                        Date
+                        {sortBy === 'date-desc' ? (
+                          <ArrowDown className="ml-2 h-4 w-4" />
+                        ) : sortBy === 'date-asc' ? (
+                          <ArrowUp className="ml-2 h-4 w-4" />
+                        ) : (
+                          <ArrowUpDown className="ml-2 h-4 w-4" />
+                        )}
+                      </Button>
+                    </TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Opponent</TableHead>
                     <TableHead>Map</TableHead>

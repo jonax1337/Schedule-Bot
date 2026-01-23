@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -419,6 +420,37 @@ export default function SettingsPanel() {
               }
             />
           </div>
+
+          {settings.scheduling.trainingStartPollEnabled && (
+            <div className="space-y-2 pl-4 border-l-2 border-muted">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="pollDuration">Poll Duration</Label>
+                <span className="text-sm font-medium text-muted-foreground">
+                  {settings.scheduling.pollDurationMinutes} minutes
+                </span>
+              </div>
+              <Slider
+                id="pollDuration"
+                min={15}
+                max={180}
+                step={15}
+                value={[settings.scheduling.pollDurationMinutes]}
+                onValueChange={(value) =>
+                  setSettings({
+                    ...settings,
+                    scheduling: {
+                      ...settings.scheduling,
+                      pollDurationMinutes: value[0],
+                    },
+                  })
+                }
+                className="w-full"
+              />
+              <p className="text-sm text-muted-foreground">
+                How long the training start poll should remain open (15-180 minutes)
+              </p>
+            </div>
+          )}
 
           <div className="flex items-center justify-between space-x-2">
             <div className="space-y-0.5">

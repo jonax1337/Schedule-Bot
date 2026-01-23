@@ -13,6 +13,14 @@ import { ThemeToggle } from '@/components/theme-toggle';
 
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
 
+// Helper to get weekday name from DD.MM.YYYY date string
+function getWeekdayName(dateStr: string): string {
+  const [day, month, year] = dateStr.split('.');
+  const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+  const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  return weekdays[date.getDay()];
+}
+
 interface DateEntry {
   date: string;
   value: string;
@@ -233,7 +241,7 @@ export default function UserSchedule() {
     <div className="min-h-screen bg-background">
       <div className="container mx-auto p-6 max-w-7xl">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-8 animate-slideDown">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Button 
@@ -257,12 +265,13 @@ export default function UserSchedule() {
         </div>
 
         {/* Availability Table */}
-        <Card>
+        <Card className="animate-fadeIn">
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Date</TableHead>
+                  <TableHead>Weekday</TableHead>
                   <TableHead>From</TableHead>
                   <TableHead>To</TableHead>
                   <TableHead>Status</TableHead>
@@ -273,6 +282,7 @@ export default function UserSchedule() {
                 {entries.map((entry) => (
                   <TableRow key={entry.date}>
                     <TableCell className="font-medium">{entry.date}</TableCell>
+                    <TableCell className="text-muted-foreground">{getWeekdayName(entry.date)}</TableCell>
                     <TableCell>
                       <Input
                         type="time"

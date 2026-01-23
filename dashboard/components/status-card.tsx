@@ -34,6 +34,21 @@ export default function StatusCard() {
     }
   };
 
+  const getApiServerUrl = () => {
+    const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
+    try {
+      const url = new URL(BOT_API_URL);
+      // For localhost, show with port
+      if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
+        return url.host;
+      }
+      // For production URLs, just show hostname (cleaner)
+      return url.hostname;
+    } catch {
+      return 'API';
+    }
+  };
+
   const formatUptime = (seconds?: number) => {
     if (!seconds) return 'N/A';
     const hours = Math.floor(seconds / 3600);
@@ -116,7 +131,12 @@ export default function StatusCard() {
         </CardHeader>
         <CardContent className="flex justify-center pt-0 pb-4">
           {isOnline ? (
-            <div className="text-2xl font-bold text-green-600 dark:text-green-400">:3001</div>
+            <div 
+              className="text-2xl font-bold text-green-600 dark:text-green-400 cursor-help" 
+              title={process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001'}
+            >
+              Online
+            </div>
           ) : (
             <div className="text-2xl font-bold text-red-600 dark:text-red-400">Offline</div>
           )}

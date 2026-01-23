@@ -1,4 +1,4 @@
-import { generatePasswordHash } from './middleware/passwordManager.js';
+import { generatePasswordHash } from './shared/middleware/passwordManager.js';
 
 const password = process.argv[2];
 

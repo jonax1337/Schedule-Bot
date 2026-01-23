@@ -1,5 +1,5 @@
 import { prisma } from './client.js';
-import type { ScrimEntry, ScrimStats } from '../types.js';
+import type { ScrimEntry, ScrimStats } from '../shared/types/types.js';
 
 function generateScrimId(): string {
   return `scrim_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;

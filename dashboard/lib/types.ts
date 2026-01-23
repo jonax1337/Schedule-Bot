@@ -8,6 +8,7 @@ export interface Settings {
     dailyPostTime: string;
     reminderHoursBefore: number;
     trainingStartPollEnabled: boolean;
+    pollDurationMinutes: number;
     timezone: string;
     cleanChannelBeforePost: boolean;
   };

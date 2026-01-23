@@ -1,8 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import { verifyToken, requireAdmin, generateToken, optionalAuth, AuthRequest } from './middleware/auth.js';
-import { loginLimiter, apiLimiter, strictApiLimiter } from './middleware/rateLimiter.js';
+import { verifyToken, requireAdmin, generateToken, optionalAuth, AuthRequest } from './shared/middleware/auth.js';
+import { loginLimiter, apiLimiter, strictApiLimiter } from './shared/middleware/rateLimiter.js';
 import { 
   validate, 
   updateCellSchema, 
@@ -13,20 +13,20 @@ import {
   notificationSchema,
   settingsSchema,
   sanitizeString 
-} from './middleware/validation.js';
-import { verifyPassword } from './middleware/passwordManager.js';
-import { postScheduleToChannel, client } from './bot.js';
-import { sendRemindersToUsersWithoutEntry } from './reminder.js';
-import { createQuickPoll } from './polls.js';
+} from './shared/middleware/validation.js';
+import { verifyPassword } from './shared/middleware/passwordManager.js';
+import { postScheduleToChannel, client } from './bot/client.js';
+import { sendRemindersToUsersWithoutEntry } from './bot/interactions/reminder.js';
+import { createQuickPoll } from './bot/interactions/polls.js';
 import { ChannelType, EmbedBuilder } from 'discord.js';
-import { config, reloadConfig } from './config.js';
-import { logger } from './logger.js';
-import { restartScheduler } from './scheduler.js';
-import { getUserMappings, addUserMapping, removeUserMapping, getUserMapping } from './database/userMappings.js';
-import { getScheduleForDate, updatePlayerAvailability, syncUserMappingsToSchedules } from './database/schedules.js';
-import { loadSettingsAsync, saveSettings } from './settingsManager.js';
-import { initiateDiscordAuth, handleDiscordCallback, getUserFromSession, logout } from './auth.js';
-import { getScheduleDetails, getScheduleDetailsBatch } from './scheduleDetails.js';
+import { config, reloadConfig } from './shared/config/config.js';
+import { logger } from './shared/utils/logger.js';
+import { restartScheduler } from './jobs/scheduler.js';
+import { getUserMappings, addUserMapping, updateUserMapping, removeUserMapping, getUserMapping } from './repositories/user-mapping.repository.js';
+import { getScheduleForDate, updatePlayerAvailability, syncUserMappingsToSchedules } from './repositories/schedule.repository.js';
+import { loadSettingsAsync, saveSettings } from './shared/utils/settingsManager.js';
+import { initiateDiscordAuth, handleDiscordCallback, getUserFromSession, logout } from './api/controllers/auth.controller.js';
+import { getScheduleDetails, getScheduleDetailsBatch } from './shared/utils/scheduleDetails.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -483,14 +483,13 @@ app.get('/api/user-mappings', async (req, res) => {
 // Add new user mapping (protected with validation)
 app.post('/api/user-mappings', verifyToken, requireAdmin, validate(addUserMappingSchema), async (req: AuthRequest, res) => {
   try {
-    const { discordId, discordUsername, displayName, role, sortOrder } = req.body;
+    const { discordId, discordUsername, displayName, role } = req.body;
     
     await addUserMapping({
       discordId,
       discordUsername,
       displayName: displayName || discordUsername,
       role,
-      sortOrder: sortOrder || 0,
     });
     
     // Sync to all schedules
@@ -502,6 +501,33 @@ app.post('/api/user-mappings', verifyToken, requireAdmin, validate(addUserMappin
     console.error('Error adding user mapping:', error);
     logger.error('User mapping add failed', error instanceof Error ? error.message : 'Unknown error');
     res.status(500).json({ success: false, error: 'Failed to add user mapping' });
+  }
+});
+
+// Update user mapping (protected)
+app.put('/api/user-mappings/:discordId', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
+  try {
+    const oldDiscordId = req.params.discordId as string;
+    const { discordId, discordUsername, displayName, role, sortOrder } = req.body;
+    
+    // Update the mapping
+    await updateUserMapping(oldDiscordId, {
+      discordId,
+      discordUsername,
+      displayName,
+      role,
+      sortOrder,
+    });
+    
+    // Sync to all schedules to update player info everywhere
+    await syncUserMappingsToSchedules();
+    
+    logger.success('User mapping updated', `${discordUsername} → ${displayName}`);
+    res.json({ success: true, message: 'User mapping updated successfully' });
+  } catch (error) {
+    console.error('Error updating user mapping:', error);
+    logger.error('User mapping update failed', error instanceof Error ? error.message : String(error));
+    res.status(500).json({ success: false, error: 'Failed to update user mapping' });
   }
 });
 

@@ -7,10 +7,12 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Loader2, Trash2, UserPlus, Search, Users } from 'lucide-react';
+import { Loader2, Trash2, UserPlus, Search, Users, Edit3, Edit } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface DiscordMember {
   id: string;
@@ -35,11 +37,22 @@ export function UserMappingsPanel() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [open, setOpen] = useState(false);
+  const [inputMode, setInputMode] = useState<'search' | 'manual'>('search');
   
   const [selectedUserId, setSelectedUserId] = useState('');
+  const [manualUserId, setManualUserId] = useState('');
+  const [manualUsername, setManualUsername] = useState('');
   const [displayName, setDisplayName] = useState('');
-  const [sortOrder, setSortOrder] = useState(0);
   const [role, setRole] = useState<'main' | 'sub' | 'coach'>('main');
+  
+  // Edit mode state
+  const [editingMapping, setEditingMapping] = useState<UserMapping | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editDiscordId, setEditDiscordId] = useState('');
+  const [editUsername, setEditUsername] = useState('');
+  const [editDisplayName, setEditDisplayName] = useState('');
+  const [editRole, setEditRole] = useState<'main' | 'sub' | 'coach'>('main');
+  const [editSortOrder, setEditSortOrder] = useState(0);
 
   useEffect(() => {
     loadData();
@@ -72,20 +85,37 @@ export function UserMappingsPanel() {
   };
 
   const addMapping = async () => {
-    if (!selectedUserId || !displayName || !role) {
-      toast.error('Please fill all fields');
-      return;
+    let discordId = '';
+    let discordUsername = '';
+
+    if (inputMode === 'search') {
+      if (!selectedUserId || !displayName || !role) {
+        toast.error('Please fill all fields');
+        return;
+      }
+
+      const selectedMember = members.find(m => m.id === selectedUserId);
+      if (!selectedMember) {
+        toast.error('Selected user not found');
+        return;
+      }
+
+      discordId = selectedUserId;
+      discordUsername = selectedMember.username;
+    } else {
+      // Manual mode
+      if (!manualUserId || !manualUsername || !displayName || !role) {
+        toast.error('Please fill all fields');
+        return;
+      }
+
+      discordId = manualUserId;
+      discordUsername = manualUsername;
     }
 
     // Check if user already has a mapping
-    if (mappings.some(m => m.discordId === selectedUserId)) {
+    if (mappings.some(m => m.discordId === discordId)) {
       toast.error('This user already has a mapping');
-      return;
-    }
-
-    const selectedMember = members.find(m => m.id === selectedUserId);
-    if (!selectedMember) {
-      toast.error('Selected user not found');
       return;
     }
 
@@ -96,19 +126,19 @@ export function UserMappingsPanel() {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({
-          discordId: selectedUserId,
-          discordUsername: selectedMember.username,
+          discordId,
+          discordUsername,
           displayName: displayName,
           role,
-          sortOrder: sortOrder,
         }),
       });
 
       if (response.ok) {
         toast.success('User mapping added successfully!');
         setSelectedUserId('');
+        setManualUserId('');
+        setManualUsername('');
         setDisplayName('');
-        setSortOrder(0);
         setRole('main');
         loadData();
       } else {
@@ -143,6 +173,53 @@ export function UserMappingsPanel() {
     } catch (error) {
       console.error('Failed to remove mapping:', error);
       toast.error('Failed to remove user mapping');
+    }
+  };
+
+  const handleEdit = (mapping: UserMapping) => {
+    setEditingMapping(mapping);
+    setEditDiscordId(mapping.discordId);
+    setEditUsername(mapping.discordUsername);
+    setEditDisplayName(mapping.displayName);
+    setEditRole(mapping.role);
+    setEditSortOrder(mapping.sortOrder);
+    setEditDialogOpen(true);
+  };
+
+  const handleUpdate = async () => {
+    if (!editingMapping || !editDisplayName || !editRole) {
+      toast.error('Please fill all required fields');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const { getAuthHeaders } = await import('@/lib/auth');
+      const response = await fetch(`${BOT_API_URL}/api/user-mappings/${editingMapping.discordId}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          discordId: editDiscordId,
+          discordUsername: editUsername,
+          displayName: editDisplayName,
+          role: editRole,
+          sortOrder: editSortOrder,
+        }),
+      });
+
+      if (response.ok) {
+        toast.success('User mapping updated successfully!');
+        setEditDialogOpen(false);
+        setEditingMapping(null);
+        loadData();
+      } else {
+        toast.error('Failed to update user mapping');
+      }
+    } catch (error) {
+      console.error('Failed to update mapping:', error);
+      toast.error('Failed to update user mapping');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -208,51 +285,85 @@ export function UserMappingsPanel() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="user-select">Discord User</Label>
-            <Popover open={open} onOpenChange={setOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  role="combobox"
-                  aria-expanded={open}
-                  className="w-full justify-between h-9 font-normal text-left px-3"
-                >
-                  {selectedMember ? (
-                    <span className="truncate">{selectedMember.displayName} (@{selectedMember.username})</span>
-                  ) : (
-                    <span className="text-muted-foreground">Select user...</span>
-                  )}
-                  <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                <Command>
-                  <CommandInput placeholder="Search users..." />
-                  <CommandList>
-                    <CommandEmpty>No user found.</CommandEmpty>
-                    <CommandGroup>
-                      {members.map((member) => (
-                        <CommandItem
-                          key={member.id}
-                          value={`${member.username} ${member.displayName}`}
-                          onSelect={() => {
-                            setSelectedUserId(member.id);
-                            setOpen(false);
-                          }}
-                        >
-                          <div className="flex flex-col">
-                            <span className="font-medium">{member.displayName}</span>
-                            <span className="text-sm text-muted-foreground">@{member.username}</span>
-                          </div>
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
-          </div>
+          <Tabs value={inputMode} onValueChange={(value) => setInputMode(value as 'search' | 'manual')} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="search" className="flex items-center gap-2">
+                <Search className="h-4 w-4" />
+                Search User
+              </TabsTrigger>
+              <TabsTrigger value="manual" className="flex items-center gap-2">
+                <Edit3 className="h-4 w-4" />
+                Manual Input
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="search" className="space-y-2 mt-4">
+              <Label htmlFor="user-select">Discord User</Label>
+              <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={open}
+                    className="w-full justify-between h-9 font-normal text-left px-3"
+                  >
+                    {selectedMember ? (
+                      <span className="truncate">{selectedMember.displayName} (@{selectedMember.username})</span>
+                    ) : (
+                      <span className="text-muted-foreground">Select user...</span>
+                    )}
+                    <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search users..." />
+                    <CommandList>
+                      <CommandEmpty>No user found.</CommandEmpty>
+                      <CommandGroup>
+                        {members.map((member) => (
+                          <CommandItem
+                            key={member.id}
+                            value={`${member.username} ${member.displayName}`}
+                            onSelect={() => {
+                              setSelectedUserId(member.id);
+                              setOpen(false);
+                            }}
+                          >
+                            <div className="flex flex-col">
+                              <span className="font-medium">{member.displayName}</span>
+                              <span className="text-sm text-muted-foreground">@{member.username}</span>
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </TabsContent>
+            
+            <TabsContent value="manual" className="space-y-4 mt-4">
+              <div className="space-y-2">
+                <Label htmlFor="manualUserId">Discord User ID</Label>
+                <Input
+                  id="manualUserId"
+                  value={manualUserId}
+                  onChange={(e) => setManualUserId(e.target.value)}
+                  placeholder="e.g., 123456789012345678"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="manualUsername">Discord Username</Label>
+                <Input
+                  id="manualUsername"
+                  value={manualUsername}
+                  onChange={(e) => setManualUsername(e.target.value)}
+                  placeholder="e.g., username"
+                />
+              </div>
+            </TabsContent>
+          </Tabs>
 
           <div className="space-y-2">
             <Label htmlFor="displayName">Display Name</Label>
@@ -261,17 +372,6 @@ export function UserMappingsPanel() {
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               placeholder="e.g., Alpha, Beta, Coach Delta"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="sortOrder">Sort Order</Label>
-            <Input
-              id="sortOrder"
-              type="number"
-              value={sortOrder}
-              onChange={(e) => setSortOrder(parseInt(e.target.value) || 0)}
-              placeholder="0"
             />
           </div>
 
@@ -337,19 +437,110 @@ export function UserMappingsPanel() {
                       Order: <span className="font-mono">{mapping.sortOrder}</span>
                     </div>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeMapping(mapping.discordId)}
-                  >
-                    <Trash2 className="w-4 h-4 text-destructive" />
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleEdit(mapping)}
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeMapping(mapping.discordId)}
+                    >
+                      <Trash2 className="w-4 h-4 text-destructive" />
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
           )}
         </CardContent>
       </Card>
+
+      {/* Edit Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Edit User Mapping</DialogTitle>
+            <DialogDescription>
+              Update user mapping details
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-discord-id">Discord User ID</Label>
+              <Input
+                id="edit-discord-id"
+                value={editDiscordId}
+                onChange={(e) => setEditDiscordId(e.target.value)}
+                placeholder="e.g., 123456789012345678"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-username">Discord Username</Label>
+              <Input
+                id="edit-username"
+                value={editUsername}
+                onChange={(e) => setEditUsername(e.target.value)}
+                placeholder="e.g., username"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-display-name">Display Name</Label>
+              <Input
+                id="edit-display-name"
+                value={editDisplayName}
+                onChange={(e) => setEditDisplayName(e.target.value)}
+                placeholder="e.g., Alpha, Beta, Coach Delta"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-role">Role</Label>
+              <Select value={editRole} onValueChange={(value: 'main' | 'sub' | 'coach') => setEditRole(value)}>
+                <SelectTrigger id="edit-role" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent position="popper">
+                  <SelectItem value="main">Main Player</SelectItem>
+                  <SelectItem value="sub">Substitute</SelectItem>
+                  <SelectItem value="coach">Coach</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-sort-order">Sort Order (Manual Override)</Label>
+              <Input
+                id="edit-sort-order"
+                type="number"
+                value={editSortOrder}
+                onChange={(e) => setEditSortOrder(parseInt(e.target.value) || 0)}
+                placeholder="0"
+              />
+              <p className="text-xs text-muted-foreground">
+                Leave as is for automatic ordering, or set manually to override
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdate} disabled={saving}>
+              {saving ? (
+                <>
+                  <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                'Update Mapping'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
