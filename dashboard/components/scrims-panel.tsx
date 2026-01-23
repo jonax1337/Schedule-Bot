@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Loader2, Plus, Edit, Trash2, TrendingUp, Trophy, Target, X, LayoutGrid, Table as TableIcon, Video } from "lucide-react";
+import { Loader2, Plus, Edit, Trash2, TrendingUp, Trophy, Target, X, LayoutGrid, Table as TableIcon, Video, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { toast } from "sonner";
 import { AgentSelector } from "./agent-picker";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -97,7 +97,7 @@ export function ScrimsPanel() {
   const [filterMatchType, setFilterMatchType] = useState<string>('all');
   
   // Sort state
-  const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc'>('date-desc');
+  const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | null>(null);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -377,23 +377,27 @@ export function ScrimsPanel() {
       return true;
     });
 
-    // Sort by date
-    return filtered.sort((a, b) => {
-      // Parse DD.MM.YYYY format to Date objects
-      const parseDate = (dateStr: string) => {
-        const [day, month, year] = dateStr.split('.');
-        return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-      };
+    // Sort by date if sortBy is set
+    if (sortBy) {
+      return filtered.sort((a, b) => {
+        // Parse DD.MM.YYYY format to Date objects
+        const parseDate = (dateStr: string) => {
+          const [day, month, year] = dateStr.split('.');
+          return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        };
 
-      const dateA = parseDate(a.date);
-      const dateB = parseDate(b.date);
+        const dateA = parseDate(a.date);
+        const dateB = parseDate(b.date);
 
-      if (sortBy === 'date-desc') {
-        return dateB.getTime() - dateA.getTime(); // Newest first
-      } else {
-        return dateA.getTime() - dateB.getTime(); // Oldest first
-      }
-    });
+        if (sortBy === 'date-desc') {
+          return dateB.getTime() - dateA.getTime(); // Newest first
+        } else {
+          return dateA.getTime() - dateB.getTime(); // Oldest first
+        }
+      });
+    }
+    
+    return filtered;
   }, [scrims, filterMap, filterResult, filterMatchType, sortBy]);
 
   if (loading) {
@@ -704,20 +708,17 @@ export function ScrimsPanel() {
               
               {/* Match Type Filter */}
               <Select value={filterMatchType} onValueChange={setFilterMatchType}>
-                <SelectTrigger className="w-[160px]">
-                  <SelectValue placeholder="All Types" />
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Match Type" />
                 </SelectTrigger>
-                <SelectContent position="popper">
+                <SelectContent>
                   <SelectItem value="all">All Types</SelectItem>
                   {MATCH_TYPES.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {type}
-                    </SelectItem>
+                    <SelectItem key={type} value={type}>{type}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               
-              {/* Clear Filters Button */}
               {(filterMap !== 'all' || filterResult !== 'all' || filterMatchType !== 'all') && (
                 <Button
                   variant="ghost"
@@ -757,7 +758,31 @@ export function ScrimsPanel() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Date</TableHead>
+                    <TableHead>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="-ml-3 h-8 data-[state=open]:bg-accent"
+                        onClick={() => {
+                          if (sortBy === null) {
+                            setSortBy('date-desc');
+                          } else if (sortBy === 'date-desc') {
+                            setSortBy('date-asc');
+                          } else {
+                            setSortBy(null);
+                          }
+                        }}
+                      >
+                        Date
+                        {sortBy === 'date-desc' ? (
+                          <ArrowDown className="ml-2 h-4 w-4" />
+                        ) : sortBy === 'date-asc' ? (
+                          <ArrowUp className="ml-2 h-4 w-4" />
+                        ) : (
+                          <ArrowUpDown className="ml-2 h-4 w-4" />
+                        )}
+                      </Button>
+                    </TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Opponent</TableHead>
                     <TableHead>Map</TableHead>
