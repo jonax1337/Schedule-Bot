@@ -840,10 +840,10 @@ export default function HomePage() {
                                   <Button 
                                     size="icon" 
                                     variant="ghost" 
-                                    className="h-8 w-8"
+                                    className="h-7 w-7"
                                     onClick={() => setEditingUser(true)}
                                   >
-                                    <Edit2 className="h-3.5 w-3.5" />
+                                    <Edit2 className="h-3 w-3" />
                                   </Button>
                                 )}
                                 {player.time && (
