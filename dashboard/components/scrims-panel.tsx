@@ -711,7 +711,7 @@ export function ScrimsPanel() {
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Match Type" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent position="popper">
                   <SelectItem value="all">All Types</SelectItem>
                   {MATCH_TYPES.map((type) => (
                     <SelectItem key={type} value={type}>{type}</SelectItem>
