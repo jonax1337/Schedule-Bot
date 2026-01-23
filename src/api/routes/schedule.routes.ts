@@ -1,8 +1,71 @@
 import { Router } from 'express';
+import { verifyToken, requireAdmin, AuthRequest } from '../../shared/middleware/auth.js';
+import { sanitizeString } from '../../shared/middleware/validation.js';
+import { getUserMappings } from '../../repositories/user-mapping.repository.js';
+import { updatePlayerAvailability } from '../../repositories/schedule.repository.js';
+import { logger } from '../../shared/utils/logger.js';
 
 const router = Router();
 
-// Schedule routes will be implemented by controllers
-// Placeholder for now
+// Get next 14 days schedule
+router.get('/next14', verifyToken, async (req: AuthRequest, res) => {
+  try {
+    const { getNext14DaysSchedule } = await import('../../repositories/schedule.repository.js');
+    const schedules = await getNext14DaysSchedule();
+    res.json({ success: true, schedules });
+  } catch (error) {
+    console.error('Error fetching next 14 days schedule:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch schedule' });
+  }
+});
+
+// Get schedules with pagination
+router.get('/paginated', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
+  try {
+    const { getSchedulesPaginated } = await import('../../repositories/schedule.repository.js');
+    const offset = parseInt(req.query.offset as string) || 0;
+    const result = await getSchedulesPaginated(offset);
+    res.json({ success: true, ...result });
+  } catch (error) {
+    console.error('Error fetching paginated schedules:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch schedules' });
+  }
+});
+
+// Update player availability
+router.post('/update-availability', verifyToken, async (req: AuthRequest, res) => {
+  try {
+    const { date, userId, availability } = req.body;
+    
+    if (!date || !userId || availability === undefined) {
+      return res.status(400).json({ error: 'Date, userId, and availability are required' });
+    }
+    
+    // Users can only edit their own availability
+    if (req.user?.role === 'user') {
+      const mappings = await getUserMappings();
+      const userMapping = mappings.find(m => m.displayName === req.user?.username);
+      
+      if (!userMapping || userMapping.discordId !== userId) {
+        logger.warn('Availability update denied', `User ${req.user?.username} tried to edit ${userId}`);
+        return res.status(403).json({ error: 'You can only edit your own availability' });
+      }
+    }
+    
+    const sanitizedValue = sanitizeString(availability);
+    const success = await updatePlayerAvailability(date, userId, sanitizedValue);
+    
+    if (success) {
+      logger.success('Availability updated', `${userId} for ${date} = ${availability}`);
+      res.json({ success: true, message: 'Availability updated successfully' });
+    } else {
+      res.status(500).json({ error: 'Failed to update availability' });
+    }
+  } catch (error) {
+    console.error('Error updating availability:', error);
+    logger.error('Failed to update availability', error instanceof Error ? error.message : String(error));
+    res.status(500).json({ error: 'Failed to update availability' });
+  }
+});
 
 export default router;
