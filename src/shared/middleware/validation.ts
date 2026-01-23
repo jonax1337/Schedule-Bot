@@ -12,7 +12,7 @@ export const addUserMappingSchema = Joi.object({
   discordUsername: Joi.string().min(1).max(32).required(),
   displayName: Joi.string().min(1).max(100).required(),
   role: Joi.string().valid('main', 'sub', 'coach').required(),
-  sortOrder: Joi.number().integer().min(0).required(),
+  sortOrder: Joi.number().integer().min(0).optional(), // Optional - wird automatisch berechnet
 });
 
 export const addScrimSchema = Joi.object({
