@@ -492,7 +492,7 @@ export default function ActionsPanel() {
                 id="pinMessage"
                 value={pinMessage}
                 onChange={(e) => setPinMessage(e.target.value)}
-                placeholder="Dashboard: https://your-dashboard.com\nAdmin: https://your-dashboard.com/admin"
+                placeholder="Dashboard: https://your-dashboard.com"
                 rows={5}
                 maxLength={2000}
               />
