@@ -1,5 +1,5 @@
 import { EmbedBuilder } from 'discord.js';
-import { getScheduleForDate } from './database/schedules.js';
+import { getScheduleForDate } from '../../repositories/schedule.repository.js';
 import { parseSchedule, analyzeSchedule } from './analyzer.js';
 import { loadSettings } from './settingsManager.js';
 

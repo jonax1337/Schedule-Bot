@@ -13,12 +13,12 @@ import {
   ChatInputCommandInteraction,
   MessageFlags,
 } from 'discord.js';
-import { getUserMapping } from './database/userMappings.js';
-import { updatePlayerAvailability, getScheduleForDate, getNext14Dates } from './database/schedules.js';
-import { parseSchedule, analyzeSchedule } from './analyzer.js';
-import { buildScheduleEmbed } from './embed.js';
+import { getUserMapping } from '../../repositories/user-mapping.repository.js';
+import { updatePlayerAvailability, getScheduleForDate, getNext14Dates } from '../../repositories/schedule.repository.js';
+import { parseSchedule, analyzeSchedule } from '../../shared/utils/analyzer.js';
+import { buildScheduleEmbed } from '../embeds/embed.js';
 // Week operations removed - use individual updatePlayerAvailability calls
-import { client } from './bot.js';
+import { client } from '../client.js';
 
 export async function createDateNavigationButtons(currentDate: string): Promise<ActionRowBuilder<ButtonBuilder>> {
   const prevDate = getAdjacentDate(currentDate, -1);
@@ -603,7 +603,7 @@ export async function handleInfoModal(
       recipientNames.push(userMapping.discordUsername);
     } else {
       // Get all user mappings and filter by target
-      const { getUserMappings } = await import('./database/userMappings.js');
+      const { getUserMappings } = await import('../../repositories/user-mapping.repository.js');
       const allMappings = await getUserMappings();
 
       const filteredMappings = allMappings.filter(mapping => {

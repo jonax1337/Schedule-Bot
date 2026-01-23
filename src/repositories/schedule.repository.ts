@@ -1,5 +1,5 @@
-import { prisma } from './client.js';
-import { getUserMappings } from './userMappings.js';
+import { prisma } from './database.repository.js';
+import { getUserMappings } from './user-mapping.repository.js';
 import type { ScheduleData, SchedulePlayerData } from '../shared/types/types.js';
 
 /**

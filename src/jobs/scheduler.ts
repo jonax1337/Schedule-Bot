@@ -1,8 +1,8 @@
 import cron from 'node-cron';
-import { config } from './config.js';
-import { postScheduleToChannel, client } from './bot.js';
-import { deleteOldRows } from './database/schedules.js';
-import { sendRemindersToUsersWithoutEntry } from './reminder.js';
+import { config } from '../shared/config/config.js';
+import { postScheduleToChannel, client } from '../bot/client.js';
+import { deleteOldRows } from '../repositories/schedule.repository.js';
+import { sendRemindersToUsersWithoutEntry } from '../bot/interactions/reminder.js';
 
 let scheduledTask: cron.ScheduledTask | null = null;
 let cleanupTask: cron.ScheduledTask | null = null;

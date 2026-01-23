@@ -1,8 +1,8 @@
-import { client } from './bot.js';
+import { client } from '../client.js';
 import { TextChannel } from 'discord.js';
-import { config } from './config.js';
-import { updateSetting, getSetting } from './settingsManager.js';
-import type { ScheduleResult } from './types.js';
+import { config } from '../../shared/config/config.js';
+import { updateSetting, getSetting } from '../../shared/utils/settingsManager.js';
+import type { ScheduleResult } from '../../shared/types/types.js';
 
 /**
  * Creates a poll asking when to start training based on the available time window

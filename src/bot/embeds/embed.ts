@@ -1,7 +1,7 @@
 import { EmbedBuilder } from 'discord.js';
-import { getOverlapDuration } from './analyzer.js';
-import { config } from './config.js';
-import type { ScheduleResult, PlayerAvailability } from './types.js';
+import { getOverlapDuration } from '../../shared/utils/analyzer.js';
+import { config } from '../../shared/config/config.js';
+import type { ScheduleResult, PlayerAvailability } from '../../shared/types/types.js';
 
 const COLORS = {
   SUCCESS: 0x2ecc71,

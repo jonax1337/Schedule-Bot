@@ -4,7 +4,7 @@ import type {
   TimeRange, 
   PlayerAvailability,
   ScheduleData 
-} from './types.js';
+} from '../types/types.js';
 
 /**
  * Parse raw schedule data into structured format

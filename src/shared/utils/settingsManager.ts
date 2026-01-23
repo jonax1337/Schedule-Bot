@@ -1,4 +1,4 @@
-import { prisma } from './database/client.js';
+import { prisma } from '../../repositories/database.repository.js';
 
 function flattenSettings(settings: Settings): Record<string, string | number | boolean> {
   return {

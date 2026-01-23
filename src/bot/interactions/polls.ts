@@ -1,6 +1,6 @@
 import { EmbedBuilder, Message, MessageReaction, User } from 'discord.js';
-import { client } from './bot.js';
-import { config } from './config.js';
+import { client } from '../client.js';
+import { config } from '../../shared/config/config.js';
 
 interface PollOption {
   emoji: string;

@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import crypto from 'crypto';
-import { getUserMapping } from './database/userMappings.js';
-import { loadSettings } from './settingsManager.js';
+import { getUserMapping } from '../../repositories/user-mapping.repository.js';
+import { loadSettings } from '../../shared/utils/settingsManager.js';
 
 interface OAuthState {
   state: string;
@@ -178,7 +178,7 @@ export async function handleDiscordCallback(req: Request, res: Response) {
     }
 
     // Generate JWT token instead of session token
-    const { generateToken } = await import('./middleware/auth.js');
+    const { generateToken } = await import('../../shared/middleware/auth.js');
     const token = generateToken(mapping.displayName, 'user');
     
     res.json({
@@ -227,7 +227,7 @@ export async function getUserFromSession(req: Request, res: Response) {
     
     // Try to verify as JWT token first
     try {
-      const { verifyTokenSync } = await import('./middleware/auth.js');
+      const { verifyTokenSync } = await import('../../shared/middleware/auth.js');
       const decoded = verifyTokenSync(token);
       
       if (decoded) {

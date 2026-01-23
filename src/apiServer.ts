@@ -1,8 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import { verifyToken, requireAdmin, generateToken, optionalAuth, AuthRequest } from './middleware/auth.js';
-import { loginLimiter, apiLimiter, strictApiLimiter } from './middleware/rateLimiter.js';
+import { verifyToken, requireAdmin, generateToken, optionalAuth, AuthRequest } from './shared/middleware/auth.js';
+import { loginLimiter, apiLimiter, strictApiLimiter } from './shared/middleware/rateLimiter.js';
 import { 
   validate, 
   updateCellSchema, 
@@ -13,20 +13,20 @@ import {
   notificationSchema,
   settingsSchema,
   sanitizeString 
-} from './middleware/validation.js';
-import { verifyPassword } from './middleware/passwordManager.js';
-import { postScheduleToChannel, client } from './bot.js';
-import { sendRemindersToUsersWithoutEntry } from './reminder.js';
-import { createQuickPoll } from './polls.js';
+} from './shared/middleware/validation.js';
+import { verifyPassword } from './shared/middleware/passwordManager.js';
+import { postScheduleToChannel, client } from './bot/client.js';
+import { sendRemindersToUsersWithoutEntry } from './bot/interactions/reminder.js';
+import { createQuickPoll } from './bot/interactions/polls.js';
 import { ChannelType, EmbedBuilder } from 'discord.js';
-import { config, reloadConfig } from './config.js';
-import { logger } from './logger.js';
-import { restartScheduler } from './scheduler.js';
-import { getUserMappings, addUserMapping, removeUserMapping, getUserMapping } from './database/userMappings.js';
-import { getScheduleForDate, updatePlayerAvailability, syncUserMappingsToSchedules } from './database/schedules.js';
-import { loadSettingsAsync, saveSettings } from './settingsManager.js';
-import { initiateDiscordAuth, handleDiscordCallback, getUserFromSession, logout } from './auth.js';
-import { getScheduleDetails, getScheduleDetailsBatch } from './scheduleDetails.js';
+import { config, reloadConfig } from './shared/config/config.js';
+import { logger } from './shared/utils/logger.js';
+import { restartScheduler } from './jobs/scheduler.js';
+import { getUserMappings, addUserMapping, removeUserMapping, getUserMapping } from './repositories/user-mapping.repository.js';
+import { getScheduleForDate, updatePlayerAvailability, syncUserMappingsToSchedules } from './repositories/schedule.repository.js';
+import { loadSettingsAsync, saveSettings } from './shared/utils/settingsManager.js';
+import { initiateDiscordAuth, handleDiscordCallback, getUserFromSession, logout } from './api/controllers/auth.controller.js';
+import { getScheduleDetails, getScheduleDetailsBatch } from './shared/utils/scheduleDetails.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;

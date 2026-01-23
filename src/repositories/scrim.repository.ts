@@ -1,4 +1,4 @@
-import { prisma } from './client.js';
+import { prisma } from './database.repository.js';
 import type { ScrimEntry, ScrimStats } from '../shared/types/types.js';
 
 function generateScrimId(): string {

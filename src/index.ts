@@ -1,10 +1,10 @@
-import { startBot, client } from './bot.js';
-import { startScheduler, stopScheduler, getNextScheduledTime } from './scheduler.js';
-import { connectDatabase } from './database/client.js';
-import { deleteOldRows } from './database/schedules.js';
-import { config, reloadConfig } from './config.js';
-import { startApiServer } from './apiServer.js';
-import { logger } from './logger.js';
+import { startBot, client } from './bot/client.js';
+import { startScheduler, stopScheduler, getNextScheduledTime } from './jobs/scheduler.js';
+import { connectDatabase } from './repositories/database.repository.js';
+import { deleteOldRows } from './repositories/schedule.repository.js';
+import { config, reloadConfig } from './shared/config/config.js';
+import { startApiServer } from './api/server.js';
+import { logger } from './shared/utils/logger.js';
 
 async function main(): Promise<void> {
   console.log('='.repeat(50));
@@ -44,7 +44,7 @@ async function main(): Promise<void> {
   // Ensure next 14 days have schedule entries
   console.log('\nEnsuring schedule entries for next 14 days...');
   try {
-    const { addMissingDays } = await import('./database/schedules.js');
+    const { addMissingDays } = await import('./repositories/schedule.repository.js');
     await addMissingDays();
     console.log('Schedule entries verified successfully!');
     logger.success('Schedule entries verified');

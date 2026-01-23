@@ -1,5 +1,5 @@
-import { getUserMappings } from './database/userMappings.js';
-import { getScheduleForDate } from './database/schedules.js';
+import { getUserMappings } from '../../repositories/user-mapping.repository.js';
+import { getScheduleForDate } from '../../repositories/schedule.repository.js';
 import { parseSchedule, analyzeSchedule } from './analyzer.js';
 
 export interface ScheduleDetail {

@@ -40,6 +40,8 @@ export interface ScheduleResult {
   statusMessage: string;
 }
 
+export type ScheduleAnalysisResult = ScheduleResult;
+
 export interface SchedulePlayerData {
   userId: string;
   displayName: string;
