@@ -10,7 +10,7 @@ const VALORANT_AGENTS = [
   'Fade', 'Gekko', 'Harbor', 'Iso', 'Jett', 'KAYO', 'Killjoy', 'Neon', 'Omen',
   'Phoenix', 'Raze', 'Reyna', 'Sage', 'Skye', 'Sova', 'Tejo', 'Veto',
   'Viper', 'Vyse', 'Waylay', 'Yoru'
-];
+].sort();
 
 interface AgentPickerProps {
   open: boolean;
@@ -58,11 +58,7 @@ export function AgentPicker({
                   className="w-full h-full object-cover"
                 />
                 {isSelected && (
-                  <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
-                    <div className="bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">
-                      {selectedAgents.indexOf(agent) + 1}
-                    </div>
-                  </div>
+                  <div className="absolute inset-0 bg-primary/20" />
                 )}
               </button>
             );
@@ -105,7 +101,7 @@ export function AgentSelector({ label, agents, onChange, maxAgents = 5 }: AgentS
       </div>
       
       <div className="flex flex-wrap gap-1.5">
-        {agents.map((agent, index) => (
+        {[...agents].sort().map((agent) => (
           <div key={agent} className="relative w-12 h-12 rounded-md overflow-hidden border-2 border-primary">
             <img
               src={`/assets/agents/${agent}_icon.webp`}
@@ -120,9 +116,6 @@ export function AgentSelector({ label, agents, onChange, maxAgents = 5 }: AgentS
             >
               <X className="h-2.5 w-2.5" />
             </button>
-            <div className="absolute bottom-0 left-0 bg-black/70 text-white text-[9px] px-1 rounded-tr">
-              {index + 1}
-            </div>
           </div>
         ))}
         
