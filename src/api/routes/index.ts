@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { client } from '../../bot/client.js';
 import authRoutes from './auth.routes.js';
 import scheduleRoutes from './schedule.routes.js';
+import scheduleDetailsRoutes from './schedule-details.routes.js';
 import userMappingRoutes from './user-mapping.routes.js';
 import scrimRoutes from './scrim.routes.js';
 import discordRoutes from './discord.routes.js';
@@ -13,6 +14,7 @@ const router = Router();
 // Mount all route modules
 router.use('/', authRoutes);
 router.use('/schedule', scheduleRoutes);
+router.use('/schedule-details', scheduleDetailsRoutes);
 router.use('/user-mappings', userMappingRoutes);
 router.use('/scrims', scrimRoutes);
 router.use('/discord', discordRoutes);
