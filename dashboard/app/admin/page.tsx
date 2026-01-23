@@ -10,7 +10,7 @@ import LogsPanel from "@/components/logs-panel";
 import { UserMappingsPanel } from "@/components/user-mappings-panel";
 import { ScheduleEditor } from "@/components/schedule-editor";
 import { ScrimsPanel } from "@/components/scrims-panel";
-import { SecurityPanel } from "@/components/security-panel";
+import SecurityPanel from "@/components/security-panel";
 import StatusCard from "@/components/status-card";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Settings, Zap, Terminal, Users, CalendarDays, LogOut, Trophy, ArrowLeft, Shield } from "lucide-react";
