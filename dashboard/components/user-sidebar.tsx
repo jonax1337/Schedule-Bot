@@ -39,6 +39,8 @@ export function UserSidebar({ userName, onLogout, ...props }: UserSidebarProps) 
   const router = useRouter()
   const [userRole, setUserRole] = React.useState<string | undefined>(undefined)
   const [teamName, setTeamName] = React.useState<string>('Valorant Bot')
+  const [tagline, setTagline] = React.useState<string>('Schedule Manager')
+  const [logoUrl, setLogoUrl] = React.useState<string>('')
 
   React.useEffect(() => {
     const fetchUserRole = async () => {
@@ -63,22 +65,24 @@ export function UserSidebar({ userName, onLogout, ...props }: UserSidebarProps) 
   }, [userName])
 
   React.useEffect(() => {
-    const fetchTeamName = async () => {
+    const fetchBranding = async () => {
       try {
         const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001'
         const response = await fetch(`${BOT_API_URL}/api/settings`)
         if (response.ok) {
           const data = await response.json()
-          if (data?.branding?.teamName) {
-            setTeamName(data.branding.teamName)
+          if (data?.branding) {
+            setTeamName(data.branding.teamName || 'Valorant Bot')
+            setTagline(data.branding.tagline || 'Schedule Manager')
+            setLogoUrl(data.branding.logoUrl || '')
           }
         }
       } catch (error) {
-        console.error('Failed to fetch team name:', error)
+        console.error('Failed to fetch branding:', error)
       }
     }
 
-    fetchTeamName()
+    fetchBranding()
   }, [])
 
   const [currentTab, setCurrentTab] = React.useState('schedule')
@@ -149,12 +153,23 @@ export function UserSidebar({ userName, onLogout, ...props }: UserSidebarProps) 
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" onClick={() => handleNavigation('schedule')}>
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <Calendar className="size-4" />
+              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground overflow-hidden">
+                {logoUrl ? (
+                  <img
+                    src={logoUrl}
+                    alt={teamName}
+                    className="w-full h-full object-contain"
+                    onError={(e) => {
+                      // Fallback to Calendar icon if image fails to load
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                ) : null}
+                {!logoUrl && <Calendar className="size-4" />}
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-semibold">{teamName}</span>
-                <span className="truncate text-xs">Schedule Manager</span>
+                <span className="truncate text-xs">{tagline}</span>
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>

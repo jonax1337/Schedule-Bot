@@ -12,6 +12,8 @@ function flattenSettings(settings: Settings): Record<string, string | number | b
     'scheduling.trainingStartPollEnabled': settings.scheduling.trainingStartPollEnabled,
     'scheduling.pollDurationMinutes': settings.scheduling.pollDurationMinutes,
     'branding.teamName': settings.branding.teamName,
+    'branding.tagline': settings.branding.tagline || DEFAULT_SETTINGS.branding.tagline!,
+    'branding.logoUrl': settings.branding.logoUrl || '',
   };
 }
 
@@ -32,6 +34,8 @@ export interface Settings {
   };
   branding: {
     teamName: string;
+    tagline?: string;
+    logoUrl?: string;
   };
 }
 
@@ -52,6 +56,8 @@ const DEFAULT_SETTINGS: Settings = {
   },
   branding: {
     teamName: 'Valorant Bot',
+    tagline: 'Schedule Manager',
+    logoUrl: '',
   },
 };
 
@@ -131,6 +137,8 @@ export async function loadSettingsAsync(): Promise<Settings> {
       },
       branding: {
         teamName: settingsMap['branding.teamName'] || DEFAULT_SETTINGS.branding.teamName,
+        tagline: settingsMap['branding.tagline'] || DEFAULT_SETTINGS.branding.tagline,
+        logoUrl: settingsMap['branding.logoUrl'] || DEFAULT_SETTINGS.branding.logoUrl,
       },
     };
     

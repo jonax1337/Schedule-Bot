@@ -18,6 +18,8 @@ const DEFAULT_SETTINGS = {
   'scheduling.cleanChannelBeforePost': false,
   'scheduling.trainingStartPollEnabled': false,
   'branding.teamName': 'Valorant Bot',
+  'branding.tagline': 'Schedule Manager',
+  'branding.logoUrl': '',
 };
 
 /**

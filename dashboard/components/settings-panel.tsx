@@ -480,10 +480,11 @@ export default function SettingsPanel() {
         <CardHeader>
           <CardTitle>Branding</CardTitle>
           <CardDescription>
-            Customize your team name and branding
+            Customize your team's identity and visual appearance
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Team Name Field */}
           <div className="space-y-2">
             <Label htmlFor="teamName">Team Name</Label>
             <Input
@@ -494,14 +495,70 @@ export default function SettingsPanel() {
               onChange={(e) =>
                 setSettings({
                   ...settings,
-                  branding: { teamName: e.target.value },
+                  branding: { ...settings.branding, teamName: e.target.value },
                 })
               }
               placeholder="Valorant Bot"
             />
             <p className="text-sm text-muted-foreground">
-              Your team's name displayed in the sidebar and match history
+              Your team's name displayed throughout the application
             </p>
+          </div>
+
+          {/* Tagline Field */}
+          <div className="space-y-2">
+            <Label htmlFor="tagline">Tagline / Slogan</Label>
+            <Input
+              id="tagline"
+              type="text"
+              maxLength={100}
+              value={settings.branding?.tagline || ''}
+              onChange={(e) =>
+                setSettings({
+                  ...settings,
+                  branding: { ...settings.branding, tagline: e.target.value },
+                })
+              }
+              placeholder="Schedule Manager"
+            />
+            <p className="text-sm text-muted-foreground">
+              Subtitle displayed below team name (e.g., "Building champions together")
+            </p>
+          </div>
+
+          {/* Logo URL Field */}
+          <div className="space-y-2">
+            <Label htmlFor="logoUrl">Team Logo URL</Label>
+            <Input
+              id="logoUrl"
+              type="url"
+              value={settings.branding?.logoUrl || ''}
+              onChange={(e) =>
+                setSettings({
+                  ...settings,
+                  branding: { ...settings.branding, logoUrl: e.target.value },
+                })
+              }
+              placeholder="https://i.imgur.com/yourlogo.png"
+            />
+            <p className="text-sm text-muted-foreground">
+              External image URL for your team logo (displayed in sidebar header)
+            </p>
+            {/* Logo Preview */}
+            {settings.branding?.logoUrl && (
+              <div className="flex items-center gap-2 p-2 border rounded-md">
+                <img
+                  src={settings.branding.logoUrl}
+                  alt="Logo preview"
+                  className="w-8 h-8 object-contain rounded"
+                  onError={(e) => {
+                    e.currentTarget.src = '';
+                    e.currentTarget.alt = 'Invalid image URL';
+                  }}
+                />
+                <span className="text-xs text-muted-foreground">Logo preview</span>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
