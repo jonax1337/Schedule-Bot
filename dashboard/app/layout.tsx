@@ -17,19 +17,6 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Team Calendar - Valorant Schedule Bot",
   description: "View and manage team availability",
-  manifest: "/manifest.json",
-  themeColor: "#0f172a",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: "Schedule Bot",
-  },
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 1,
-    userScalable: false,
-  },
 };
 
 export default function RootLayout({
@@ -39,23 +26,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              // Unregister any existing service workers
-              if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.getRegistrations().then(registrations => {
-                  registrations.forEach(registration => {
-                    registration.unregister();
-                    console.log('Service Worker unregistered');
-                  });
-                });
-              }
-            `,
-          }}
-        />
-      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}
       >
