@@ -55,7 +55,7 @@ export default function SettingsPanel() {
       const data = await response.json();
       
       // Validate settings structure (admin is now optional, comes from .env)
-      if (!data || !data.discord || !data.scheduling) {
+      if (!data || !data.discord || !data.scheduling || !data.branding) {
         console.error('Invalid settings structure:', data);
         toast.error('Settings missing required fields');
         return;
@@ -472,6 +472,36 @@ export default function SettingsPanel() {
                 })
               }
             />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Branding</CardTitle>
+          <CardDescription>
+            Customize your team name and branding
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="teamName">Team Name</Label>
+            <Input
+              id="teamName"
+              type="text"
+              maxLength={50}
+              value={settings.branding?.teamName || ''}
+              onChange={(e) =>
+                setSettings({
+                  ...settings,
+                  branding: { teamName: e.target.value },
+                })
+              }
+              placeholder="Valorant Bot"
+            />
+            <p className="text-sm text-muted-foreground">
+              Your team's name displayed in the sidebar and match history
+            </p>
           </div>
         </CardContent>
       </Card>

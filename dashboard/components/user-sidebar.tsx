@@ -38,6 +38,7 @@ export function UserSidebar({ userName, onLogout, ...props }: UserSidebarProps) 
   const pathname = usePathname()
   const router = useRouter()
   const [userRole, setUserRole] = React.useState<string | undefined>(undefined)
+  const [teamName, setTeamName] = React.useState<string>('Valorant Bot')
 
   React.useEffect(() => {
     const fetchUserRole = async () => {
@@ -60,6 +61,25 @@ export function UserSidebar({ userName, onLogout, ...props }: UserSidebarProps) 
     
     fetchUserRole()
   }, [userName])
+
+  React.useEffect(() => {
+    const fetchTeamName = async () => {
+      try {
+        const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001'
+        const response = await fetch(`${BOT_API_URL}/api/settings`)
+        if (response.ok) {
+          const data = await response.json()
+          if (data?.branding?.teamName) {
+            setTeamName(data.branding.teamName)
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch team name:', error)
+      }
+    }
+
+    fetchTeamName()
+  }, [])
 
   const [currentTab, setCurrentTab] = React.useState('schedule')
 
@@ -133,7 +153,7 @@ export function UserSidebar({ userName, onLogout, ...props }: UserSidebarProps) 
                 <Calendar className="size-4" />
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold">Valorant Bot</span>
+                <span className="truncate font-semibold">{teamName}</span>
                 <span className="truncate text-xs">Schedule Manager</span>
               </div>
             </SidebarMenuButton>

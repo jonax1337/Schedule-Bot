@@ -12,6 +12,9 @@ export interface Settings {
     timezone: string;
     cleanChannelBeforePost: boolean;
   };
+  branding: {
+    teamName: string;
+  };
   admin?: {
     username: string;
     password: string;

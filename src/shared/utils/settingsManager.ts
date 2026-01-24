@@ -11,6 +11,7 @@ function flattenSettings(settings: Settings): Record<string, string | number | b
     'scheduling.cleanChannelBeforePost': settings.scheduling.cleanChannelBeforePost,
     'scheduling.trainingStartPollEnabled': settings.scheduling.trainingStartPollEnabled,
     'scheduling.pollDurationMinutes': settings.scheduling.pollDurationMinutes,
+    'branding.teamName': settings.branding.teamName,
   };
 }
 
@@ -29,6 +30,9 @@ export interface Settings {
     cleanChannelBeforePost: boolean;
     changeNotificationsEnabled: boolean;
   };
+  branding: {
+    teamName: string;
+  };
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -45,6 +49,9 @@ const DEFAULT_SETTINGS: Settings = {
     timezone: 'Europe/Berlin',
     cleanChannelBeforePost: false,
     changeNotificationsEnabled: true,
+  },
+  branding: {
+    teamName: 'Valorant Bot',
   },
 };
 
@@ -84,6 +91,7 @@ export async function loadSettingsAsync(): Promise<Settings> {
       const defaultSettings = {
         discord: DEFAULT_SETTINGS.discord,
         scheduling: DEFAULT_SETTINGS.scheduling,
+        branding: DEFAULT_SETTINGS.branding,
       };
       
       // Save default settings to PostgreSQL
@@ -120,6 +128,9 @@ export async function loadSettingsAsync(): Promise<Settings> {
         timezone: settingsMap['scheduling.timezone'] || DEFAULT_SETTINGS.scheduling.timezone,
         cleanChannelBeforePost: settingsMap['scheduling.cleanChannelBeforePost'] === 'true',
         changeNotificationsEnabled: settingsMap['scheduling.changeNotificationsEnabled'] !== 'false',
+      },
+      branding: {
+        teamName: settingsMap['branding.teamName'] || DEFAULT_SETTINGS.branding.teamName,
       },
     };
     

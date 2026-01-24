@@ -64,6 +64,9 @@ export const settingsSchema = Joi.object({
     trainingStartPollEnabled: Joi.boolean().required(),
     cleanChannelBeforePost: Joi.boolean(),
   }).required(),
+  branding: Joi.object({
+    teamName: Joi.string().min(1).max(50).required(),
+  }).required(),
 });
 
 export function validate(schema: Joi.ObjectSchema) {
