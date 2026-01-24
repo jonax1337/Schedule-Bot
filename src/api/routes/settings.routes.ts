@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { verifyToken, requireAdmin, AuthRequest } from '../../shared/middleware/auth.js';
+import { validate, settingsSchema } from '../../shared/middleware/validation.js';
+import { strictApiLimiter } from '../../shared/middleware/rateLimiter.js';
 import { reloadConfig } from '../../shared/config/config.js';
 import { saveSettings, loadSettingsAsync } from '../../shared/utils/settingsManager.js';
 import { restartScheduler } from '../../jobs/scheduler.js';
@@ -20,7 +22,7 @@ router.get('/', async (req, res) => {
 });
 
 // Update settings
-router.post('/', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
+router.post('/', verifyToken, requireAdmin, strictApiLimiter, validate(settingsSchema), async (req: AuthRequest, res) => {
   try {
     const settings = req.body;
     
@@ -38,7 +40,7 @@ router.post('/', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
 });
 
 // Reload config
-router.post('/reload-config', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
+router.post('/reload-config', verifyToken, requireAdmin, strictApiLimiter, async (req: AuthRequest, res) => {
   try {
     await reloadConfig();
     restartScheduler();

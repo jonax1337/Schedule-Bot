@@ -144,6 +144,3 @@ export async function removeUserMapping(discordId: string): Promise<boolean> {
   }
 }
 
-export async function initializeUserMappingSheet(): Promise<void> {
-  console.log('User mappings table initialized (PostgreSQL)');
-}

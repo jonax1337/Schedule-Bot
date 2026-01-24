@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { verifyToken, requireAdmin, AuthRequest } from '../../shared/middleware/auth.js';
+import { validate, createPollSchema, notificationSchema } from '../../shared/middleware/validation.js';
 import { postScheduleToChannel } from '../../bot/utils/schedule-poster.js';
 import { sendRemindersToUsersWithoutEntry } from '../../bot/interactions/reminder.js';
 import { createQuickPoll } from '../../bot/interactions/polls.js';
@@ -74,14 +75,10 @@ router.post('/remind', verifyToken, requireAdmin, async (req: AuthRequest, res) 
 });
 
 // Create poll
-router.post('/poll', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
+router.post('/poll', verifyToken, requireAdmin, validate(createPollSchema), async (req: AuthRequest, res) => {
   try {
     const { question, options, duration } = req.body;
-    
-    if (!question || !options || !Array.isArray(options)) {
-      return res.status(400).json({ error: 'Question and options array required' });
-    }
-    
+
     await createQuickPoll(question, options, req.user?.username || 'admin', duration || 1);
     
     logger.success('Poll created', `By ${req.user?.username}`);
@@ -94,14 +91,10 @@ router.post('/poll', verifyToken, requireAdmin, async (req: AuthRequest, res) =>
 });
 
 // Send notification
-router.post('/notify', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
+router.post('/notify', verifyToken, requireAdmin, validate(notificationSchema), async (req: AuthRequest, res) => {
   try {
     const { type, target, title, message, specificUserId } = req.body;
-    
-    if (!type || !target || !title || !message) {
-      return res.status(400).json({ error: 'Type, target, title, and message are required' });
-    }
-    
+
     // Get color and emoji based on type
     const typeConfig = {
       info: { color: 0x3498db, emoji: '📢' },

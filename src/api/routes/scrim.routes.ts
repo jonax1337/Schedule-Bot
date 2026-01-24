@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { verifyToken, optionalAuth, AuthRequest } from '../../shared/middleware/auth.js';
+import { validate, addScrimSchema, updateScrimSchema } from '../../shared/middleware/validation.js';
 import { getAllScrims, addScrim, updateScrim, deleteScrim, getScrimById, getScrimStats, getScrimsByDateRange } from '../../repositories/scrim.repository.js';
 import { logger } from '../../shared/utils/logger.js';
 
@@ -57,7 +58,7 @@ router.get('/:id', optionalAuth, async (req: AuthRequest, res) => {
 });
 
 // Add scrim
-router.post('/', verifyToken, async (req: AuthRequest, res) => {
+router.post('/', verifyToken, validate(addScrimSchema), async (req: AuthRequest, res) => {
   try {
     const scrimData = req.body;
     const scrim = await addScrim(scrimData);
@@ -72,7 +73,7 @@ router.post('/', verifyToken, async (req: AuthRequest, res) => {
 });
 
 // Update scrim
-router.put('/:id', verifyToken, async (req: AuthRequest, res) => {
+router.put('/:id', verifyToken, validate(updateScrimSchema), async (req: AuthRequest, res) => {
   try {
     const id = req.params.id as string;
     const updates = req.body;

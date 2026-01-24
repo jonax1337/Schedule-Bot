@@ -194,26 +194,3 @@ export async function initializeDatabaseIfEmpty(): Promise<void> {
   }
 }
 
-/**
- * Get database statistics
- */
-export async function getDatabaseStats(): Promise<{
-  settings: number;
-  schedules: number;
-  userMappings: number;
-  scrims: number;
-}> {
-  try {
-    const [settings, schedules, userMappings, scrims] = await Promise.all([
-      prisma.setting.count(),
-      prisma.schedule.count(),
-      prisma.userMapping.count(),
-      prisma.scrim.count(),
-    ]);
-    
-    return { settings, schedules, userMappings, scrims };
-  } catch (error) {
-    console.error('Error getting database stats:', error);
-    return { settings: 0, schedules: 0, userMappings: 0, scrims: 0 };
-  }
-}

@@ -1,12 +1,6 @@
 import Joi from 'joi';
 import { Request, Response, NextFunction } from 'express';
 
-export const updateCellSchema = Joi.object({
-  row: Joi.number().integer().min(1).max(1000).required(),
-  column: Joi.string().pattern(/^[A-Z]+$/).max(5).required(),
-  value: Joi.string().max(200).allow('').required(),
-});
-
 export const addUserMappingSchema = Joi.object({
   discordId: Joi.string().pattern(/^\d{17,19}$/).required(),
   discordUsername: Joi.string().min(1).max(32).required(),
