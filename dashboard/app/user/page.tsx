@@ -7,9 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, ArrowLeft, XCircle, Clock } from 'lucide-react';
+import { Loader2, XCircle, Clock } from 'lucide-react';
 import { toast } from 'sonner';
-import { ThemeToggle } from '@/components/theme-toggle';
+import { UserLayoutWrapper } from '@/components/user-layout-wrapper';
 
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
 
@@ -238,33 +238,17 @@ export default function UserSchedule() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto p-6 max-w-7xl">
-        {/* Header */}
-        <div className="mb-8 animate-slideDown">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button 
-                variant="ghost" 
-                size="icon"
-                onClick={() => router.push('/')}
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              <div>
-                <h1 className="text-4xl font-bold tracking-tight">
-                  Availability
-                </h1>
-                <p className="text-muted-foreground mt-2">
-                  Manage your availability for the next 14 days
-                </p>
-              </div>
-            </div>
-            <ThemeToggle />
-          </div>
+    <UserLayoutWrapper breadcrumbs={[{ label: 'My Availability' }]}>
+      <div className="space-y-4">
+        <div className="animate-slideDown">
+          <h1 className="text-3xl font-bold tracking-tight">
+            My Availability
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Manage your availability for the next 14 days
+          </p>
         </div>
 
-        {/* Availability Table */}
         <Card className="animate-fadeIn">
           <CardContent>
             <Table>
@@ -345,6 +329,6 @@ export default function UserSchedule() {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </UserLayoutWrapper>
   );
 }

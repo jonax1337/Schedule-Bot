@@ -6,19 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ThemeToggle } from '@/components/theme-toggle';
-import { LogIn, Shield, CheckCircle2, XCircle, Clock, Loader2, User, LogOut, Edit2, Save, CalendarCheck, Trophy, X, Palmtree } from 'lucide-react';
+import { CheckCircle2, XCircle, Clock, Loader2, Edit2, Save, X, Palmtree } from 'lucide-react';
 import Image from 'next/image';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
+import { UserLayoutWrapper } from '@/components/user-layout-wrapper';
 
 interface PlayerStatus {
   name: string;
@@ -657,60 +649,20 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto p-4 sm:p-6 max-w-7xl">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 animate-slideDown">
-          <div>
-            <h1 className="text-4xl font-bold tracking-tight">
-              {`Welcome${loggedInUser ? `, ${loggedInUser}!` : "!"}`}
-            </h1>
-            <p className="text-muted-foreground mt-2">
-              View team availability for the next 14 days
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            {loggedInUser ? (
-              <>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline">
-                      <User className="mr-1 h-4 w-4" />
-                      {loggedInUser}
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={handleLogout}>
-                      <LogOut className="mr-1 h-4 w-4" />
-                      Logout
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                <Button variant="outline" onClick={() => router.push('/user')}>
-                  <CalendarCheck className="mr-1 h-4 w-4" />
-                  Availability
-                </Button>
-              </>
-            ) : (
-              <Button variant="outline" onClick={() => router.push('/login')}>
-                <LogIn className="mr-1 h-4 w-4" />
-                Player Login
-              </Button>
-            )}
-            <Button variant="outline" onClick={() => router.push('/matches')}>
-              <Trophy className="mr-1 h-4 w-4" />
-              Matches
-            </Button>
-            <Button variant="outline" onClick={() => router.push('/admin/login')}>
-              <Shield className="mr-1 h-4 w-4" />
-              Admin
-            </Button>
-            <ThemeToggle />
-          </div>
+    <UserLayoutWrapper>
+      <div className="space-y-4">
+        {/* Welcome Header */}
+        <div className="animate-slideDown">
+          <h1 className="text-3xl font-bold tracking-tight">
+            {`Welcome${loggedInUser ? `, ${loggedInUser}!` : "!"}`}
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            View team availability for the next 14 days
+          </p>
         </div>
 
         {/* Legend */}
-        <div className="mb-4 p-3 bg-muted/50 rounded-lg border animate-fadeIn stagger-1">
+        <div className="p-3 bg-muted/50 rounded-lg border animate-fadeIn stagger-1">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             <div className="flex items-center gap-1.5">
               <div className="w-2.5 h-2.5 rounded-full bg-purple-500" />
@@ -745,7 +697,7 @@ export default function HomePage() {
             <Loader2 className="w-8 h-8 animate-spin" />
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
             {entries.map((entry, index) => {
               const isTodayDate = isToday(entry.date);
               let ringClass = '';
@@ -1160,6 +1112,6 @@ export default function HomePage() {
           </DialogContent>
         </Dialog>
       </div>
-    </div>
+    </UserLayoutWrapper>
   );
 }
