@@ -717,9 +717,9 @@ export function UserScheduleContent() {
                               'bg-gray-400'
                             }`} />
                             <span className="text-sm font-medium">{player.name}</span>
-                            {player.role && (
+                            {player.role && player.role !== 'main' && (
                               <Badge variant="outline" className="text-xs h-5">
-                                {player.role}
+                                {player.role === 'sub' ? 'Substitute' : player.role === 'coach' ? 'Coach' : player.role}
                               </Badge>
                             )}
                           </div>
