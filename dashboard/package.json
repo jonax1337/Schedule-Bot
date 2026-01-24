@@ -4,10 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "rm -rf .next && next build",
+    "build": "next build",
     "start": "next start",
-    "lint": "eslint",
-    "clean": "rm -rf .next"
+    "lint": "eslint"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",
