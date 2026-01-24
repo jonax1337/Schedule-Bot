@@ -244,17 +244,6 @@ export async function addMissingDays(): Promise<void> {
 }
 
 /**
- * Delete old schedules (older than 14 days)
- * DISABLED - All historical data is now preserved
- */
-export async function deleteOldRows(): Promise<void> {
-  // Function disabled - no longer deleting old schedule data
-  // All historical data is preserved in the database
-  console.log('deleteOldRows called but disabled - preserving all historical data');
-  return;
-}
-
-/**
  * Sync user mappings to all schedules
  * Called when user mappings change (add/remove/update)
  */

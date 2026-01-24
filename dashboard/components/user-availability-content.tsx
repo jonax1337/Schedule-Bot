@@ -2,18 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, ArrowLeft, XCircle, Clock } from 'lucide-react';
+import { Loader2, XCircle, Clock } from 'lucide-react';
 import { toast } from 'sonner';
-import { ThemeToggle } from '@/components/theme-toggle';
 
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
 
-// Helper to get weekday name from DD.MM.YYYY date string
 function getWeekdayName(dateStr: string): string {
   const [day, month, year] = dateStr.split('.');
   const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
@@ -26,12 +23,11 @@ interface DateEntry {
   value: string;
   timeFrom: string;
   timeTo: string;
-  // Original values from DB for change detection
   originalTimeFrom: string;
   originalTimeTo: string;
 }
 
-export default function UserSchedule() {
+export function UserAvailabilityContent() {
   const router = useRouter();
   const [userName, setUserName] = useState('');
   const [userDiscordId, setUserDiscordId] = useState('');
@@ -42,8 +38,6 @@ export default function UserSchedule() {
   useEffect(() => {
     const checkAuthAndLoad = async () => {
       try {
-        const { validateToken, removeAuthToken } = await import('@/lib/auth');
-        
         const savedUser = localStorage.getItem('selectedUser');
         if (!savedUser) {
           router.replace('/login');
@@ -64,7 +58,6 @@ export default function UserSchedule() {
   const loadData = async (user: string) => {
     setLoading(true);
     try {
-      // Get user's Discord ID from user mappings
       const mappingsRes = await fetch(`${BOT_API_URL}/api/user-mappings`);
       if (!mappingsRes.ok) {
         toast.error('Failed to load user mappings');
@@ -83,7 +76,6 @@ export default function UserSchedule() {
       
       setUserDiscordId(userMapping.discordId);
 
-      // Get schedule data for next 14 days
       const { getAuthHeaders } = await import('@/lib/auth');
       const scheduleRes = await fetch(`${BOT_API_URL}/api/schedule/next14`, {
         headers: getAuthHeaders(),
@@ -99,7 +91,6 @@ export default function UserSchedule() {
       const schedules = scheduleData.schedules || [];
       const dateEntries: DateEntry[] = [];
       
-      // Generate next 14 dates
       const today = new Date();
       const formatDate = (d: Date): string => {
         const day = String(d.getDate()).padStart(2, '0');
@@ -113,12 +104,10 @@ export default function UserSchedule() {
         date.setDate(today.getDate() + i);
         const dateStr = formatDate(date);
         
-        // Find schedule for this date
         const schedule = schedules.find((s: any) => s.date === dateStr);
         const player = schedule?.players?.find((p: any) => p.userId === userMapping.discordId);
         const availability = player?.availability || '';
         
-        // Parse time range
         let timeFrom = '';
         let timeTo = '';
         
@@ -177,7 +166,6 @@ export default function UserSchedule() {
 
       if (response.ok) {
         toast.success('Availability updated!');
-        // Reload data from DB to ensure consistency
         await loadData(userName);
       } else {
         toast.error('Failed to update availability');
@@ -207,7 +195,6 @@ export default function UserSchedule() {
 
       if (response.ok) {
         toast.success('Marked as not available');
-        // Reload data from DB to ensure consistency
         await loadData(userName);
       } else {
         toast.error('Failed to update availability');
@@ -231,120 +218,93 @@ export default function UserSchedule() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-[400px] flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto p-6 max-w-7xl">
-        {/* Header */}
-        <div className="mb-8 animate-slideDown">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button 
-                variant="ghost" 
-                size="icon"
-                onClick={() => router.push('/')}
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              <div>
-                <h1 className="text-4xl font-bold tracking-tight">
-                  Availability
-                </h1>
-                <p className="text-muted-foreground mt-2">
-                  Manage your availability for the next 14 days
-                </p>
-              </div>
-            </div>
-            <ThemeToggle />
-          </div>
-        </div>
-
-        {/* Availability Table */}
-        <Card className="animate-fadeIn">
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Weekday</TableHead>
-                  <TableHead>From</TableHead>
-                  <TableHead>To</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
+    <div className="space-y-4">
+      <Card className="animate-fadeIn">
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Weekday</TableHead>
+                <TableHead>From</TableHead>
+                <TableHead>To</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {entries.map((entry) => (
+                <TableRow key={entry.date}>
+                  <TableCell className="font-medium">{entry.date}</TableCell>
+                  <TableCell className="text-muted-foreground">{getWeekdayName(entry.date)}</TableCell>
+                  <TableCell>
+                    <Input
+                      type="time"
+                      value={entry.timeFrom}
+                      onChange={(e) => handleTimeChange(entry.date, 'from', e.target.value)}
+                      className="w-32"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      type="time"
+                      value={entry.timeTo}
+                      onChange={(e) => handleTimeChange(entry.date, 'to', e.target.value)}
+                      className="w-32"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    {entry.value === 'x' ? (
+                      <span className="flex items-center gap-2 text-red-500">
+                        <XCircle className="w-4 h-4" />
+                        Not Available
+                      </span>
+                    ) : entry.value ? (
+                      <span className="flex items-center gap-2 text-green-600">
+                        <Clock className="w-4 h-4" />
+                        {entry.value}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400">Not set</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => saveEntry(entry.date, entry.timeFrom, entry.timeTo)}
+                        disabled={
+                          saving || 
+                          !entry.timeFrom || 
+                          !entry.timeTo ||
+                          (entry.timeFrom === entry.originalTimeFrom && entry.timeTo === entry.originalTimeTo)
+                        }
+                      >
+                        Save
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => setUnavailable(entry.date)}
+                        disabled={saving}
+                      >
+                        Not Available
+                      </Button>
+                    </div>
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {entries.map((entry) => (
-                  <TableRow key={entry.date}>
-                    <TableCell className="font-medium">{entry.date}</TableCell>
-                    <TableCell className="text-muted-foreground">{getWeekdayName(entry.date)}</TableCell>
-                    <TableCell>
-                      <Input
-                        type="time"
-                        value={entry.timeFrom}
-                        onChange={(e) => handleTimeChange(entry.date, 'from', e.target.value)}
-                        className="w-32"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="time"
-                        value={entry.timeTo}
-                        onChange={(e) => handleTimeChange(entry.date, 'to', e.target.value)}
-                        className="w-32"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      {entry.value === 'x' ? (
-                        <span className="flex items-center gap-2 text-red-500">
-                          <XCircle className="w-4 h-4" />
-                          Not Available
-                        </span>
-                      ) : entry.value ? (
-                        <span className="flex items-center gap-2 text-green-600">
-                          <Clock className="w-4 h-4" />
-                          {entry.value}
-                        </span>
-                      ) : (
-                        <span className="text-gray-400">Not set</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          onClick={() => saveEntry(entry.date, entry.timeFrom, entry.timeTo)}
-                          disabled={
-                            saving || 
-                            !entry.timeFrom || 
-                            !entry.timeTo ||
-                            (entry.timeFrom === entry.originalTimeFrom && entry.timeTo === entry.originalTimeTo)
-                          }
-                        >
-                          Save
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => setUnavailable(entry.date)}
-                          disabled={saving}
-                        >
-                          Not Available
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      </div>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </div>
   );
 }

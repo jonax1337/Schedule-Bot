@@ -1,11 +1,9 @@
 import cron from 'node-cron';
 import { config } from '../shared/config/config.js';
 import { postScheduleToChannel, client } from '../bot/client.js';
-import { deleteOldRows } from '../repositories/schedule.repository.js';
 import { sendRemindersToUsersWithoutEntry } from '../bot/interactions/reminder.js';
 
 let scheduledTask: cron.ScheduledTask | null = null;
-let cleanupTask: cron.ScheduledTask | null = null;
 let reminderTask: cron.ScheduledTask | null = null;
 
 function parseTime(timeStr: string): { hour: number; minute: number } {
@@ -42,10 +40,6 @@ export function startScheduler(): void {
   );
 
   console.log('Scheduler started successfully.');
-
-  // Daily cleanup DISABLED - keeping all historical data
-  // Old schedules are no longer automatically deleted
-  console.log('Cleanup job disabled - all schedule data will be preserved.');
 
   // Reminder job X hours before daily post
   const reminderTime = calculateReminderTime(hour, minute, config.scheduling.reminderHoursBefore);
@@ -85,11 +79,6 @@ export function stopScheduler(): void {
     scheduledTask.stop();
     scheduledTask = null;
     console.log('Scheduler stopped.');
-  }
-  if (cleanupTask) {
-    cleanupTask.stop();
-    cleanupTask = null;
-    console.log('Cleanup scheduler stopped.');
   }
   if (reminderTask) {
     reminderTask.stop();

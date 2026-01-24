@@ -5,10 +5,6 @@ function generateScrimId(): string {
   return `scrim_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
 
-export async function ensureScrimSheetExists(): Promise<void> {
-  console.log('Scrims table verified (PostgreSQL)');
-}
-
 export async function getAllScrims(): Promise<ScrimEntry[]> {
   const scrims = await prisma.scrim.findMany({
     orderBy: { createdAt: 'desc' },

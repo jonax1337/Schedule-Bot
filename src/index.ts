@@ -1,7 +1,6 @@
 import { startBot, client } from './bot/client.js';
 import { startScheduler, stopScheduler, getNextScheduledTime } from './jobs/scheduler.js';
 import { connectDatabase } from './repositories/database.repository.js';
-import { deleteOldRows } from './repositories/schedule.repository.js';
 import { config, reloadConfig } from './shared/config/config.js';
 import { startApiServer } from './api/server.js';
 import { logger } from './shared/utils/logger.js';

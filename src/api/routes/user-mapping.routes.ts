@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { verifyToken, requireAdmin, AuthRequest } from '../../shared/middleware/auth.js';
+import { validate, addUserMappingSchema } from '../../shared/middleware/validation.js';
 import { getUserMappings, addUserMapping, updateUserMapping, removeUserMapping } from '../../repositories/user-mapping.repository.js';
 import { syncUserMappingsToSchedules } from '../../repositories/schedule.repository.js';
 import { logger } from '../../shared/utils/logger.js';
@@ -19,14 +20,10 @@ router.get('/', async (req, res) => {
 });
 
 // Add user mapping
-router.post('/', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
+router.post('/', verifyToken, requireAdmin, validate(addUserMappingSchema), async (req: AuthRequest, res) => {
   try {
     const mapping = req.body;
-    
-    if (!mapping.discordId || !mapping.displayName || !mapping.role) {
-      return res.status(400).json({ error: 'Missing required fields' });
-    }
-    
+
     await addUserMapping(mapping);
     await syncUserMappingsToSchedules();
     
