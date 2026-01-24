@@ -17,6 +17,14 @@ export function AdminLayoutWrapper({ children }: AdminLayoutWrapperProps) {
   const [userName, setUserName] = useState<string | null>(null)
   const currentTab = searchParams.get('tab') || 'dashboard'
 
+  // Read sidebar state from cookie (client-side only, will cause hydration warning but we suppress it)
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    if (typeof window === 'undefined') return true // SSR default
+    const cookies = document.cookie.split('; ')
+    const sidebarCookie = cookies.find(c => c.startsWith('sidebar_state='))
+    return sidebarCookie ? sidebarCookie.split('=')[1] === 'true' : true
+  })
+
   useEffect(() => {
     const checkAuth = async () => {
       const { getUser } = await import('@/lib/auth')
@@ -46,7 +54,7 @@ export function AdminLayoutWrapper({ children }: AdminLayoutWrapperProps) {
   }
 
   return (
-    <SidebarProvider>
+    <SidebarProvider open={sidebarOpen} onOpenChange={setSidebarOpen}>
       <AdminSidebar userName={userName || undefined} onLogout={handleLogout} />
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">

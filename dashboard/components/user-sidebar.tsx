@@ -153,12 +153,12 @@ export function UserSidebar({ userName, onLogout, ...props }: UserSidebarProps) 
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" onClick={() => handleNavigation('schedule')}>
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground overflow-hidden">
+              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground flex-shrink-0">
                 {logoUrl ? (
                   <img
                     src={logoUrl}
                     alt={teamName}
-                    className="w-full h-full object-contain"
+                    className="size-4 object-contain"
                     onError={(e) => {
                       // Fallback to Calendar icon if image fails to load
                       e.currentTarget.style.display = 'none';

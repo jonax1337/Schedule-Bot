@@ -18,6 +18,14 @@ export function UserLayoutWrapper({ children, breadcrumbs = [] }: UserLayoutWrap
   const [userName, setUserName] = useState<string | null>(null)
   const currentTab = searchParams.get('tab') || 'schedule'
 
+  // Read sidebar state from cookie (client-side only, will cause hydration warning but we suppress it)
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    if (typeof window === 'undefined') return true // SSR default
+    const cookies = document.cookie.split('; ')
+    const sidebarCookie = cookies.find(c => c.startsWith('sidebar_state='))
+    return sidebarCookie ? sidebarCookie.split('=')[1] === 'true' : true
+  })
+
   const tabLabels: Record<string, string> = {
     schedule: 'Schedule',
     availability: 'My Availability',
@@ -41,7 +49,7 @@ export function UserLayoutWrapper({ children, breadcrumbs = [] }: UserLayoutWrap
   }
 
   return (
-    <SidebarProvider>
+    <SidebarProvider open={sidebarOpen} onOpenChange={setSidebarOpen}>
       <UserSidebar userName={userName || undefined} onLogout={handleLogout} />
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
