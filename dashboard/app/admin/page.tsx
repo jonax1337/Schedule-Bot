@@ -43,6 +43,23 @@ function AdminContent() {
 
     checkAuth();
   }, [router]);
+
+  useEffect(() => {
+    const titles: Record<string, string> = {
+      dashboard: 'Dashboard',
+      settings: 'Settings',
+      users: 'User Management',
+      schedule: 'Schedule Editor',
+      scrims: 'Match Management',
+      actions: 'Bot Actions',
+      security: 'Security',
+      logs: 'Logs',
+    };
+    
+    const pageTitle = titles[currentTab] || 'Dashboard';
+    document.title = `${pageTitle} - Admin Panel`;
+  }, [currentTab]);
+
   return (
     <AdminLayoutWrapper>
       <div className="animate-fadeIn">

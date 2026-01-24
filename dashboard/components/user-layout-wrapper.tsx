@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { UserSidebar } from "@/components/user-sidebar"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
@@ -14,7 +14,15 @@ interface UserLayoutWrapperProps {
 
 export function UserLayoutWrapper({ children, breadcrumbs = [] }: UserLayoutWrapperProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [userName, setUserName] = useState<string | null>(null)
+  const currentTab = searchParams.get('tab') || 'schedule'
+
+  const tabLabels: Record<string, string> = {
+    schedule: 'Schedule',
+    availability: 'My Availability',
+    matches: 'Match History',
+  }
 
   useEffect(() => {
     const user = localStorage.getItem('selectedUser')
@@ -24,8 +32,11 @@ export function UserLayoutWrapper({ children, breadcrumbs = [] }: UserLayoutWrap
   }, [])
 
   const handleLogout = async () => {
-    const { logout } = await import('@/lib/auth')
-    await logout()
+    // Only remove user session, keep admin token if exists
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('selectedUser')
+      localStorage.removeItem('sessionToken')
+    }
     router.push('/login')
   }
 
@@ -39,24 +50,8 @@ export function UserLayoutWrapper({ children, breadcrumbs = [] }: UserLayoutWrap
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem className="hidden md:block">
-                <BreadcrumbLink href="/">
-                  Schedule
-                </BreadcrumbLink>
+                <BreadcrumbPage>{tabLabels[currentTab] || 'Schedule'}</BreadcrumbPage>
               </BreadcrumbItem>
-              {breadcrumbs.map((crumb, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <BreadcrumbSeparator className="hidden md:block" />
-                  <BreadcrumbItem>
-                    {crumb.href ? (
-                      <BreadcrumbLink href={crumb.href}>
-                        {crumb.label}
-                      </BreadcrumbLink>
-                    ) : (
-                      <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
-                    )}
-                  </BreadcrumbItem>
-                </div>
-              ))}
             </BreadcrumbList>
           </Breadcrumb>
         </header>

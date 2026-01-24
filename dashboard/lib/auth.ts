@@ -67,7 +67,7 @@ export function getAuthHeaders(): Record<string, string> {
 export async function logout(): Promise<void> {
   removeAuthToken();
   if (typeof window !== 'undefined') {
-    window.location.href = '/admin/login';
+    window.location.href = '/login';
   }
 }
 

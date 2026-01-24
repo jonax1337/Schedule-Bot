@@ -15,7 +15,7 @@ export function AdminLayoutWrapper({ children }: AdminLayoutWrapperProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [userName, setUserName] = useState<string | null>(null)
-  const currentTab = searchParams.get('tab') || 'settings'
+  const currentTab = searchParams.get('tab') || 'dashboard'
 
   useEffect(() => {
     const checkAuth = async () => {

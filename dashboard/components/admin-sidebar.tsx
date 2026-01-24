@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import {
   Settings,
   Users,
@@ -38,7 +38,8 @@ interface AdminSidebarProps extends React.ComponentProps<typeof Sidebar> {
 
 export function AdminSidebar({ userName, onLogout, ...props }: AdminSidebarProps) {
   const pathname = usePathname()
-  const [currentTab, setCurrentTab] = React.useState('settings')
+  const router = useRouter()
+  const [currentTab, setCurrentTab] = React.useState('dashboard')
 
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -46,6 +47,15 @@ export function AdminSidebar({ userName, onLogout, ...props }: AdminSidebarProps
       setCurrentTab(params.get('tab') || 'dashboard')
     }
   }, [pathname])
+
+  const handleNavigation = (tab: string) => {
+    setCurrentTab(tab)
+    router.push(`/admin?tab=${tab}`, { scroll: false })
+  }
+
+  const handleBackToSchedule = () => {
+    router.push('/')
+  }
 
   const navItems = [
     {
@@ -117,16 +127,14 @@ export function AdminSidebar({ userName, onLogout, ...props }: AdminSidebarProps
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild>
-              <a href="/admin">
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                  <Shield className="size-4" />
-                </div>
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold">Admin Panel</span>
-                  <span className="truncate text-xs">Bot Configuration</span>
-                </div>
-              </a>
+            <SidebarMenuButton size="lg" onClick={() => handleNavigation('dashboard')}>
+              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                <Shield className="size-4" />
+              </div>
+              <div className="grid flex-1 text-left text-sm leading-tight">
+                <span className="truncate font-semibold">Admin Panel</span>
+                <span className="truncate text-xs">Bot Configuration</span>
+              </div>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
@@ -136,20 +144,21 @@ export function AdminSidebar({ userName, onLogout, ...props }: AdminSidebarProps
           <SidebarGroupLabel>Management</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={item.isActive}
-                    tooltip={item.title}
-                  >
-                    <a href={item.url}>
+              {navItems.map((item) => {
+                const tab = item.url.split('tab=')[1]
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      isActive={item.isActive}
+                      tooltip={item.title}
+                      onClick={() => handleNavigation(tab)}
+                    >
                       <item.icon />
                       <span>{item.title}</span>
-                    </a>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -159,11 +168,12 @@ export function AdminSidebar({ userName, onLogout, ...props }: AdminSidebarProps
             <SidebarMenu>
               {quickLinks.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild tooltip={item.title}>
-                    <a href={item.url}>
-                      <item.icon />
-                      <span>{item.title}</span>
-                    </a>
+                  <SidebarMenuButton 
+                    tooltip={item.title}
+                    onClick={handleBackToSchedule}
+                  >
+                    <item.icon />
+                    <span>{item.title}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}

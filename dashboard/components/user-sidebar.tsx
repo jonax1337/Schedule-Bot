@@ -61,31 +61,58 @@ export function UserSidebar({ userName, onLogout, ...props }: UserSidebarProps) 
     fetchUserRole()
   }, [userName])
 
+  const [currentTab, setCurrentTab] = React.useState('schedule')
+
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      setCurrentTab(params.get('tab') || 'schedule')
+    }
+  }, [pathname])
+
+  const handleNavigation = (tab: string) => {
+    setCurrentTab(tab)
+    router.push(`/?tab=${tab}`, { scroll: false })
+  }
+
   const navItems = [
     {
       title: "Schedule",
-      url: "/",
+      tab: "schedule",
       icon: Home,
-      isActive: pathname === "/",
+      isActive: currentTab === 'schedule',
     },
     {
       title: "My Availability",
-      url: "/user",
+      tab: "availability",
       icon: CalendarCheck,
-      isActive: pathname === "/user",
+      isActive: currentTab === 'availability',
     },
     {
       title: "Match History",
-      url: "/matches",
+      tab: "matches",
       icon: Trophy,
-      isActive: pathname === "/matches",
+      isActive: currentTab === 'matches',
     },
   ]
+
+  const handleAdminNavigation = async () => {
+    // Check if admin is already logged in
+    const { getUser } = await import('@/lib/auth')
+    const user = getUser()
+    
+    if (user && user.role === 'admin') {
+      // Already logged in as admin, go directly to admin dashboard
+      router.push('/admin?tab=dashboard')
+    } else {
+      // Not logged in as admin, go to login page
+      router.push('/admin/login')
+    }
+  }
 
   const adminItems = [
     {
       title: "Admin Panel",
-      url: "/admin/login",
       icon: Shield,
     },
   ]
@@ -101,16 +128,14 @@ export function UserSidebar({ userName, onLogout, ...props }: UserSidebarProps) 
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild>
-              <a href="/">
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                  <Calendar className="size-4" />
-                </div>
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold">Valorant Bot</span>
-                  <span className="truncate text-xs">Schedule Manager</span>
-                </div>
-              </a>
+            <SidebarMenuButton size="lg" onClick={() => handleNavigation('schedule')}>
+              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                <Calendar className="size-4" />
+              </div>
+              <div className="grid flex-1 text-left text-sm leading-tight">
+                <span className="truncate font-semibold">Valorant Bot</span>
+                <span className="truncate text-xs">Schedule Manager</span>
+              </div>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
@@ -123,14 +148,12 @@ export function UserSidebar({ userName, onLogout, ...props }: UserSidebarProps) 
               {navItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
-                    asChild
                     isActive={item.isActive}
                     tooltip={item.title}
+                    onClick={() => handleNavigation(item.tab)}
                   >
-                    <a href={item.url}>
-                      <item.icon />
-                      <span>{item.title}</span>
-                    </a>
+                    <item.icon />
+                    <span>{item.title}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -143,11 +166,12 @@ export function UserSidebar({ userName, onLogout, ...props }: UserSidebarProps) 
             <SidebarMenu>
               {adminItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild tooltip={item.title}>
-                    <a href={item.url}>
-                      <item.icon />
-                      <span>{item.title}</span>
-                    </a>
+                  <SidebarMenuButton 
+                    tooltip={item.title}
+                    onClick={handleAdminNavigation}
+                  >
+                    <item.icon />
+                    <span>{item.title}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
