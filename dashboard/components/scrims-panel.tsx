@@ -897,14 +897,11 @@ export function ScrimsPanel() {
                             backgroundPosition: 'center',
                             backgroundSize: 'cover',
                             backgroundRepeat: 'no-repeat',
-                            opacity: 0.15,
+                            opacity: 0.2,
                           }}
                         />
                         <div 
-                          className="absolute inset-0 w-full h-full"
-                          style={{
-                            background: 'linear-gradient(to right, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 50%, rgba(0,0,0,0.7) 100%)',
-                          }}
+                          className="absolute inset-0 w-full h-full bg-gradient-to-r from-background/90 via-background/70 to-background/90"
                         />
                       </div>
                     )}
@@ -937,41 +934,20 @@ export function ScrimsPanel() {
                     </div>
 
                     {/* Main Content */}
-                    <div className="p-4 sm:p-6 relative z-10">
-                      {/* Teams and Score Layout */}
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-                        {/* Score - Top on Mobile, Center on Desktop */}
-                        <div className="flex flex-col items-center justify-center sm:order-2 sm:px-6">
-                          <div className="flex items-center gap-3 sm:gap-4 mb-2">
-                            <div className={`text-3xl sm:text-4xl font-bold ${scrim.result === 'win' ? 'text-green-500' : scrim.result === 'loss' ? 'text-red-500' : 'text-muted-foreground'}`}>
-                              {scrim.scoreUs}
-                            </div>
-                            <div className="text-xl sm:text-2xl font-semibold text-muted-foreground">:</div>
-                            <div className={`text-3xl sm:text-4xl font-bold ${scrim.result === 'loss' ? 'text-green-500' : scrim.result === 'win' ? 'text-red-500' : 'text-muted-foreground'}`}>
-                              {scrim.scoreThem}
-                            </div>
-                          </div>
-                          {scrim.map && (
-                            <div className="text-sm font-medium text-muted-foreground mt-1">
-                              {scrim.map}
-                            </div>
-                          )}
-                          <div className="text-xs text-muted-foreground mt-1 sm:mt-2">
-                            {scrim.date}
-                          </div>
-                        </div>
-
+                    <div className="p-4 relative z-10">
+                      {/* Teams and Score Layout - Single Row */}
+                      <div className="flex items-center justify-between gap-4">
                         {/* Our Team - Left Side */}
-                        <div className="flex-1 flex flex-col items-center sm:items-end sm:order-1">
-                          <span className="text-base sm:text-lg font-semibold mb-2">Our Team</span>
+                        <div className="flex-1 flex flex-col items-center">
+                          <span className="text-base sm:text-lg font-semibold">Our Team</span>
                           {scrim.ourAgents?.length > 0 && (
-                            <div className="flex gap-1 sm:gap-1.5 justify-center sm:justify-end flex-wrap">
+                            <div className="flex gap-1 sm:gap-1.5 justify-center flex-wrap mt-1">
                               {[...scrim.ourAgents].sort().map((agent, idx) => (
                                 <img
                                   key={`our-${idx}`}
                                   src={`/assets/agents/${agent}_icon.webp`}
                                   alt={agent}
-                                  className="w-7 h-7 sm:w-8 sm:h-8 rounded border-2 border-primary/60"
+                                  className="w-6 h-6 sm:w-7 sm:h-7 rounded border-2 border-primary/60"
                                   title={agent}
                                 />
                               ))}
@@ -979,23 +955,42 @@ export function ScrimsPanel() {
                           )}
                         </div>
 
+                        {/* Score - Center */}
+                        <div className="flex items-center gap-3 sm:gap-4">
+                          <div className={`text-3xl sm:text-4xl font-bold ${scrim.result === 'win' ? 'text-green-500' : scrim.result === 'loss' ? 'text-red-500' : 'text-muted-foreground'}`}>
+                            {scrim.scoreUs}
+                          </div>
+                          <div className="text-xl sm:text-2xl font-semibold text-muted-foreground">:</div>
+                          <div className={`text-3xl sm:text-4xl font-bold ${scrim.result === 'loss' ? 'text-green-500' : scrim.result === 'win' ? 'text-red-500' : 'text-muted-foreground'}`}>
+                            {scrim.scoreThem}
+                          </div>
+                        </div>
+
                         {/* Opponent Team - Right Side */}
-                        <div className="flex-1 flex flex-col items-center sm:items-start sm:order-3">
-                          <span className="text-base sm:text-lg font-semibold mb-2">{scrim.opponent}</span>
+                        <div className="flex-1 flex flex-col items-center">
+                          <span className="text-base sm:text-lg font-semibold">{scrim.opponent}</span>
                           {scrim.theirAgents?.length > 0 && (
-                            <div className="flex gap-1 sm:gap-1.5 justify-center sm:justify-start flex-wrap">
+                            <div className="flex gap-1 sm:gap-1.5 justify-center flex-wrap mt-1">
                               {[...scrim.theirAgents].sort().map((agent, idx) => (
                                 <img
                                   key={`their-${idx}`}
                                   src={`/assets/agents/${agent}_icon.webp`}
                                   alt={agent}
-                                  className="w-7 h-7 sm:w-8 sm:h-8 rounded border-2 border-destructive/60"
+                                  className="w-6 h-6 sm:w-7 sm:h-7 rounded border-2 border-destructive/60"
                                   title={agent}
                                 />
                               ))}
                             </div>
                           )}
                         </div>
+                      </div>
+
+                      {/* Map and Date - Below */}
+                      <div className="flex flex-col items-center justify-center gap-1 mt-3 text-xs text-muted-foreground">
+                        {scrim.map && (
+                          <span className="font-medium">{scrim.map}</span>
+                        )}
+                        <span>{scrim.date}</span>
                       </div>
                         
                       {scrim.notes && (
