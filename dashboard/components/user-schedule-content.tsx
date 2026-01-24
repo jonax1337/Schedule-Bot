@@ -530,7 +530,7 @@ export function UserScheduleContent() {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto animate-scaleIn">
+        <DialogContent className="sm:max-w-md max-h-[80vh] overflow-y-auto animate-scaleIn">
           <DialogHeader>
             <div className="flex items-center gap-2">
               <DialogTitle>{selectedDate?.date} - {selectedDate?.weekday}</DialogTitle>
@@ -560,11 +560,6 @@ export function UserScheduleContent() {
                 </span>
               )}
             </div>
-            {!selectedDate?.isOffDay && (
-              <DialogDescription>
-                Player availability status
-              </DialogDescription>
-            )}
           </DialogHeader>
           
           {selectedDate && (

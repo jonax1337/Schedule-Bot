@@ -108,13 +108,6 @@ export function AdminSidebar({ userName, onLogout, ...props }: AdminSidebarProps
     },
   ]
 
-  const quickLinks = [
-    {
-      title: "Back to Schedule",
-      url: "/",
-      icon: ArrowLeft,
-    },
-  ]
 
   const user = userName ? {
     name: userName,
@@ -162,27 +155,20 @@ export function AdminSidebar({ userName, onLogout, ...props }: AdminSidebarProps
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-        <SidebarGroup>
-          <SidebarGroupLabel>Quick Links</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {quickLinks.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton 
-                    tooltip={item.title}
-                    onClick={handleBackToSchedule}
-                  >
-                    <item.icon />
-                    <span>{item.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
         <ThemeSwitcherSidebar />
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              tooltip="Back to Schedule"
+              onClick={handleBackToSchedule}
+            >
+              <ArrowLeft />
+              <span>Back to Schedule</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

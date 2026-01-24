@@ -91,7 +91,7 @@ export function ScrimsPanel() {
   const [loading, setLoading] = useState(true);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingScrim, setEditingScrim] = useState<ScrimEntry | null>(null);
-  const [viewMode, setViewMode] = useState<'cards' | 'table'>('table');
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
   
   // Filter states
   const [filterMap, setFilterMap] = useState<string>('all');
@@ -432,31 +432,32 @@ export function ScrimsPanel() {
       {/* Scrims List */}
       <Card className="animate-fadeIn stagger-4">
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <CardTitle>Match Results</CardTitle>
-              <CardDescription>Manage and track your team&apos;s match history</CardDescription>
+              <CardDescription className="hidden sm:block">Manage and track your team&apos;s match history</CardDescription>
             </div>
-            <div className="flex items-center gap-3">
-              {/* View Switcher */}
-              <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as 'cards' | 'table')}>
+            <div className="flex items-center gap-2 sm:gap-3">
+              {/* View Switcher - Hidden on mobile */}
+              <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as 'cards' | 'table')} className="hidden md:block">
                 <TabsList className="grid w-full grid-cols-2">
                   <TabsTrigger value="cards" className="flex items-center gap-2">
                     <LayoutGrid className="h-4 w-4" />
-                    Cards
+                    <span className="hidden lg:inline">Cards</span>
                   </TabsTrigger>
                   <TabsTrigger value="table" className="flex items-center gap-2">
                     <TableIcon className="h-4 w-4" />
-                    Table
+                    <span className="hidden lg:inline">Table</span>
                   </TabsTrigger>
                 </TabsList>
               </Tabs>
               
               <Dialog open={isAddDialogOpen} onOpenChange={handleDialogOpenChange}>
                 <DialogTrigger asChild>
-                  <Button size="sm">
+                  <Button size="sm" className="flex-1 sm:flex-none">
                     <Plus className="mr-2 h-4 w-4" />
-                    Add Match
+                    <span className="hidden sm:inline">Add Match</span>
+                    <span className="sm:hidden">Add</span>
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
@@ -647,14 +648,12 @@ export function ScrimsPanel() {
         
         {/* Filters Section */}
         {scrims.length > 0 && (
-          <div className="px-6 pb-4 pt-2 border-b">
-            <div className="flex flex-wrap gap-3 items-center">
-              <div className="text-sm font-medium text-muted-foreground">Filters:</div>
-              
+          <div className="border-b pb-4 px-3 sm:px-6 space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
               {/* Map Filter */}
               <Select value={filterMap} onValueChange={setFilterMap}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="All Maps" />
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Filter by map" />
                 </SelectTrigger>
                 <SelectContent position="popper">
                   <SelectItem value="all">All Maps</SelectItem>
@@ -668,7 +667,7 @@ export function ScrimsPanel() {
               
               {/* Result Filter */}
               <Select value={filterResult} onValueChange={setFilterResult}>
-                <SelectTrigger className="w-[140px]">
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="All Results" />
                 </SelectTrigger>
                 <SelectContent position="popper">
@@ -681,7 +680,7 @@ export function ScrimsPanel() {
               
               {/* Match Type Filter */}
               <Select value={filterMatchType} onValueChange={setFilterMatchType}>
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Match Type" />
                 </SelectTrigger>
                 <SelectContent position="popper">
@@ -692,6 +691,9 @@ export function ScrimsPanel() {
                 </SelectContent>
               </Select>
               
+            </div>
+            
+            <div className="flex flex-col sm:flex-row items-center gap-2">
               {(filterMap !== 'all' || filterResult !== 'all' || filterMatchType !== 'all') && (
                 <Button
                   variant="ghost"
@@ -701,7 +703,7 @@ export function ScrimsPanel() {
                     setFilterResult('all');
                     setFilterMatchType('all');
                   }}
-                  className="h-9"
+                  className="h-9 w-full sm:w-auto"
                 >
                   <X className="h-4 w-4 mr-1" />
                   Clear Filters
@@ -709,7 +711,7 @@ export function ScrimsPanel() {
               )}
               
               {/* Showing X of Y results */}
-              <div className="ml-auto text-sm text-muted-foreground">
+              <div className="text-sm text-muted-foreground sm:ml-auto">
                 Showing {filteredScrims.length} of {scrims.length} matches
               </div>
             </div>
@@ -935,35 +937,17 @@ export function ScrimsPanel() {
                     </div>
 
                     {/* Main Content */}
-                    <div className="p-6 relative z-10">
+                    <div className="p-4 sm:p-6 relative z-10">
                       {/* Teams and Score Layout */}
-                      <div className="flex items-center justify-between gap-4 mb-4">
-                        {/* Our Team - Left Side */}
-                        <div className="flex-1 flex flex-col items-end">
-                          <span className="text-lg font-semibold mb-2">Our Team</span>
-                          {scrim.ourAgents?.length > 0 && (
-                            <div className="flex gap-1.5 justify-end">
-                              {[...scrim.ourAgents].sort().map((agent, idx) => (
-                                <img
-                                  key={`our-${idx}`}
-                                  src={`/assets/agents/${agent}_icon.webp`}
-                                  alt={agent}
-                                  className="w-8 h-8 rounded border-2 border-primary/60"
-                                  title={agent}
-                                />
-                              ))}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Score - Center */}
-                        <div className="flex flex-col items-center justify-center px-6">
-                          <div className="flex items-center gap-4 mb-2">
-                            <div className={`text-4xl font-bold ${scrim.result === 'win' ? 'text-green-500' : scrim.result === 'loss' ? 'text-red-500' : 'text-muted-foreground'}`}>
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+                        {/* Score - Top on Mobile, Center on Desktop */}
+                        <div className="flex flex-col items-center justify-center sm:order-2 sm:px-6">
+                          <div className="flex items-center gap-3 sm:gap-4 mb-2">
+                            <div className={`text-3xl sm:text-4xl font-bold ${scrim.result === 'win' ? 'text-green-500' : scrim.result === 'loss' ? 'text-red-500' : 'text-muted-foreground'}`}>
                               {scrim.scoreUs}
                             </div>
-                            <div className="text-2xl font-semibold text-muted-foreground">:</div>
-                            <div className={`text-4xl font-bold ${scrim.result === 'loss' ? 'text-green-500' : scrim.result === 'win' ? 'text-red-500' : 'text-muted-foreground'}`}>
+                            <div className="text-xl sm:text-2xl font-semibold text-muted-foreground">:</div>
+                            <div className={`text-3xl sm:text-4xl font-bold ${scrim.result === 'loss' ? 'text-green-500' : scrim.result === 'win' ? 'text-red-500' : 'text-muted-foreground'}`}>
                               {scrim.scoreThem}
                             </div>
                           </div>
@@ -972,34 +956,40 @@ export function ScrimsPanel() {
                               {scrim.map}
                             </div>
                           )}
-                          <div className="text-xs text-muted-foreground mt-2">
+                          <div className="text-xs text-muted-foreground mt-1 sm:mt-2">
                             {scrim.date}
                           </div>
-                          {/* VOD Link (nur für Nicht-YouTube Links) */}
-                          {scrim.vodUrl && !vodId && (
-                            <a 
-                              href={scrim.vodUrl} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="text-xs text-primary hover:underline mt-1 inline-flex items-center gap-1"
-                            >
-                              <Video className="h-3 w-3" />
-                              VOD Link
-                            </a>
+                        </div>
+
+                        {/* Our Team - Left Side */}
+                        <div className="flex-1 flex flex-col items-center sm:items-end sm:order-1">
+                          <span className="text-base sm:text-lg font-semibold mb-2">Our Team</span>
+                          {scrim.ourAgents?.length > 0 && (
+                            <div className="flex gap-1 sm:gap-1.5 justify-center sm:justify-end flex-wrap">
+                              {[...scrim.ourAgents].sort().map((agent, idx) => (
+                                <img
+                                  key={`our-${idx}`}
+                                  src={`/assets/agents/${agent}_icon.webp`}
+                                  alt={agent}
+                                  className="w-7 h-7 sm:w-8 sm:h-8 rounded border-2 border-primary/60"
+                                  title={agent}
+                                />
+                              ))}
+                            </div>
                           )}
                         </div>
 
                         {/* Opponent Team - Right Side */}
-                        <div className="flex-1 flex flex-col items-start">
-                          <span className="text-lg font-semibold mb-2">{scrim.opponent}</span>
+                        <div className="flex-1 flex flex-col items-center sm:items-start sm:order-3">
+                          <span className="text-base sm:text-lg font-semibold mb-2">{scrim.opponent}</span>
                           {scrim.theirAgents?.length > 0 && (
-                            <div className="flex gap-1.5">
+                            <div className="flex gap-1 sm:gap-1.5 justify-center sm:justify-start flex-wrap">
                               {[...scrim.theirAgents].sort().map((agent, idx) => (
                                 <img
                                   key={`their-${idx}`}
                                   src={`/assets/agents/${agent}_icon.webp`}
                                   alt={agent}
-                                  className="w-8 h-8 rounded border-2 border-destructive/60"
+                                  className="w-7 h-7 sm:w-8 sm:h-8 rounded border-2 border-destructive/60"
                                   title={agent}
                                 />
                               ))}
