@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        // Apply to all routes
         source: '/:path*',
         headers: [
           {
@@ -19,9 +20,27 @@ const nextConfig: NextConfig = {
             key: 'Expires',
             value: '0',
           },
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
+        ],
+      },
+      {
+        // Specifically for static files
+        source: '/_next/static/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-store, no-cache, must-revalidate, max-age=0',
+          },
         ],
       },
     ];
+  },
+  // Generate build ID based on timestamp to force cache invalidation
+  generateBuildId: async () => {
+    return `build-${Date.now()}`;
   },
 };
 

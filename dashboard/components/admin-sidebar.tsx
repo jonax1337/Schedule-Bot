@@ -40,6 +40,8 @@ export function AdminSidebar({ userName, onLogout, ...props }: AdminSidebarProps
   const pathname = usePathname()
   const router = useRouter()
   const [currentTab, setCurrentTab] = React.useState('dashboard')
+  const [tagline, setTagline] = React.useState<string>('Bot Configuration')
+  const [logoUrl, setLogoUrl] = React.useState<string>('')
 
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -47,6 +49,26 @@ export function AdminSidebar({ userName, onLogout, ...props }: AdminSidebarProps
       setCurrentTab(params.get('tab') || 'dashboard')
     }
   }, [pathname])
+
+  React.useEffect(() => {
+    const fetchBranding = async () => {
+      try {
+        const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001'
+        const response = await fetch(`${BOT_API_URL}/api/settings`)
+        if (response.ok) {
+          const data = await response.json()
+          if (data?.branding) {
+            setTagline(data.branding.tagline || 'Bot Configuration')
+            setLogoUrl(data.branding.logoUrl || '')
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch branding:', error)
+      }
+    }
+
+    fetchBranding()
+  }, [])
 
   const handleNavigation = (tab: string) => {
     setCurrentTab(tab)
@@ -121,12 +143,23 @@ export function AdminSidebar({ userName, onLogout, ...props }: AdminSidebarProps
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" onClick={() => handleNavigation('dashboard')}>
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <Shield className="size-4" />
+              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground flex-shrink-0">
+                {logoUrl ? (
+                  <img
+                    src={logoUrl}
+                    alt="Admin Panel"
+                    className="size-4 object-contain"
+                    onError={(e) => {
+                      // Fallback to Shield icon if image fails to load
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                ) : null}
+                {!logoUrl && <Shield className="size-4" />}
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-semibold">Admin Panel</span>
-                <span className="truncate text-xs">Bot Configuration</span>
+                <span className="truncate text-xs">{tagline}</span>
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>

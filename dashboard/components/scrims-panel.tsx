@@ -92,6 +92,7 @@ export function ScrimsPanel() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingScrim, setEditingScrim] = useState<ScrimEntry | null>(null);
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
+  const [teamName, setTeamName] = useState<string>('Our Team');
   
   // Filter states
   const [filterMap, setFilterMap] = useState<string>('all');
@@ -119,6 +120,25 @@ export function ScrimsPanel() {
   useEffect(() => {
     fetchScrims();
     fetchStats();
+  }, []);
+
+  useEffect(() => {
+    const fetchTeamName = async () => {
+      try {
+        const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001'
+        const response = await fetch(`${BOT_API_URL}/api/settings`)
+        if (response.ok) {
+          const data = await response.json()
+          if (data?.branding?.teamName) {
+            setTeamName(data.branding.teamName)
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch team name:', error)
+      }
+    }
+
+    fetchTeamName()
   }, []);
 
   const fetchScrims = async () => {
@@ -592,7 +612,7 @@ export function ScrimsPanel() {
                     {/* Team Compositions Section */}
                     <div className="space-y-4 pt-2 border-t">
                       <AgentSelector
-                        label="Our Team Composition"
+                        label={`${teamName} Composition`}
                         agents={formData.ourAgents}
                         onChange={(agents) => setFormData({ ...formData, ourAgents: agents })}
                         maxAgents={5}
@@ -939,7 +959,7 @@ export function ScrimsPanel() {
                       <div className="flex items-center justify-between gap-4">
                         {/* Our Team - Left Side */}
                         <div className="flex-1 flex flex-col items-center">
-                          <span className="text-base sm:text-lg font-semibold">Our Team</span>
+                          <span className="text-base sm:text-lg font-semibold">{teamName}</span>
                           {scrim.ourAgents?.length > 0 && (
                             <div className="flex gap-1 sm:gap-1.5 justify-center flex-wrap mt-1">
                               {[...scrim.ourAgents].sort().map((agent, idx) => (
