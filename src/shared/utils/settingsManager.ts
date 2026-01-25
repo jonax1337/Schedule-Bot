@@ -141,8 +141,6 @@ export async function loadSettingsAsync(): Promise<Settings> {
         logoUrl: settingsMap['branding.logoUrl'] || DEFAULT_SETTINGS.branding.logoUrl,
       },
     };
-    
-    console.log('✅ Settings loaded from PostgreSQL');
     return cachedSettings;
   } catch (error) {
     console.error('Error loading settings:', error);
