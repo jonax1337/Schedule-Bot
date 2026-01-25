@@ -102,102 +102,83 @@ export default function AdminDashboardHome() {
   return (
     <div className="space-y-6">
       {/* Bot Status Cards */}
-      {statusLoading ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {[1, 2, 3, 4].map((i) => (
-            <Card key={i} className="invisible">
-              <CardHeader className="pb-0">
-                <CardTitle className="text-sm font-medium flex items-center justify-center text-muted-foreground">
-                  <Activity className="mr-2 h-4 w-4" />
-                  Placeholder
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="flex justify-center pt-0 pb-4">
-                <div className="text-2xl font-bold">
-                  00h 00m
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {/* Status Card */}
-          <Card className="animate-slideUp stagger-1">
-            <CardHeader className="pb-0">
-              <CardTitle className="text-sm font-medium flex items-center justify-center text-muted-foreground">
-                <Activity className="mr-2 h-4 w-4" />
-                Status
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex justify-center pt-0 pb-4">
-              {isOnline ? (
-                <Badge className="bg-green-500 hover:bg-green-600 text-base px-4 py-1">
-                  ● Running
-                </Badge>
-              ) : (
-                <Badge variant="destructive" className="text-base px-4 py-1">
-                  ● Offline
-                </Badge>
-              )}
-            </CardContent>
-          </Card>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {/* Status Card */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Bot Status</CardTitle>
+            <Activity className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {statusLoading ? (
+              <div className="text-2xl font-bold text-muted-foreground">...</div>
+            ) : isOnline ? (
+              <div className="text-2xl font-bold text-green-600 dark:text-green-400">Running</div>
+            ) : (
+              <div className="text-2xl font-bold text-red-600 dark:text-red-400">Offline</div>
+            )}
+            <p className="text-xs text-muted-foreground">
+              {isOnline ? 'Bot is operational' : 'Bot is offline'}
+            </p>
+          </CardContent>
+        </Card>
 
-          {/* Uptime Card */}
-          <Card className="animate-slideUp stagger-2">
-            <CardHeader className="pb-0">
-              <CardTitle className="text-sm font-medium flex items-center justify-center text-muted-foreground">
-                <Clock className="mr-2 h-4 w-4" />
-                Uptime
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex justify-center pt-0 pb-4">
-              <div className="text-2xl font-bold">
-                {formatUptime(botStatus?.uptime)}
-              </div>
-            </CardContent>
-          </Card>
+        {/* Uptime Card */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Uptime</CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {statusLoading ? '...' : formatUptime(botStatus?.uptime)}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Time since last restart
+            </p>
+          </CardContent>
+        </Card>
 
-          {/* API Server Card */}
-          <Card className="animate-slideUp stagger-3">
-            <CardHeader className="pb-0">
-              <CardTitle className="text-sm font-medium flex items-center justify-center text-muted-foreground">
-                <Calendar className="mr-2 h-4 w-4" />
-                API Server
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex justify-center pt-0 pb-4">
-              {isOnline ? (
-                <div
-                  className="text-2xl font-bold text-green-600 dark:text-green-400 cursor-help"
-                  title={process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001'}
-                >
-                  Online
-                </div>
-              ) : (
-                <div className="text-2xl font-bold text-red-600 dark:text-red-400">Offline</div>
-              )}
-            </CardContent>
-          </Card>
+        {/* API Server Card */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">API Server</CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {statusLoading ? (
+              <div className="text-2xl font-bold text-muted-foreground">...</div>
+            ) : isOnline ? (
+              <div className="text-2xl font-bold text-green-600 dark:text-green-400">Online</div>
+            ) : (
+              <div className="text-2xl font-bold text-red-600 dark:text-red-400">Offline</div>
+            )}
+            <p className="text-xs text-muted-foreground">
+              {isOnline ? 'API responding' : 'API not responding'}
+            </p>
+          </CardContent>
+        </Card>
 
-          {/* Connection Card */}
-          <Card className="animate-slideUp stagger-4">
-            <CardHeader className="pb-0">
-              <CardTitle className="text-sm font-medium flex items-center justify-center text-muted-foreground">
-                <Users className="mr-2 h-4 w-4" />
-                Connection
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex justify-center pt-0 pb-4">
-              {botStatus?.botReady ? (
-                <div className="text-2xl font-bold text-green-600 dark:text-green-400">Ready</div>
-              ) : (
-                <div className="text-2xl font-bold text-red-600 dark:text-red-400">Offline</div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      )}
+        {/* Connection Card */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Discord Connection</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {statusLoading ? (
+              <div className="text-2xl font-bold text-muted-foreground">...</div>
+            ) : botStatus?.botReady ? (
+              <div className="text-2xl font-bold text-green-600 dark:text-green-400">Ready</div>
+            ) : (
+              <div className="text-2xl font-bold text-red-600 dark:text-red-400">Offline</div>
+            )}
+            <p className="text-xs text-muted-foreground">
+              {botStatus?.botReady ? 'Connected to Discord' : 'Not connected'}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
