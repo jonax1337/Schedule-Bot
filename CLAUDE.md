@@ -12,7 +12,7 @@ This is a Discord bot with web dashboard for managing E-Sports team scheduling a
 All components run from a single Node.js process that starts the bot, API server, and scheduler together.
 
 ### Technology Stack
-**Backend:** TypeScript 5.9, discord.js 14.25, Express 5.2, Prisma 6.2, node-cron 4.2, bcrypt 6, jsonwebtoken 9, Helmet 8
+**Backend:** TypeScript 5.9, discord.js 14.25, Express 5.2, Prisma 7.3, node-cron 4.2, bcrypt 6, jsonwebtoken 9, Helmet 8
 **Frontend:** Next.js 16.1, React 19.2, TailwindCSS 4, Radix UI primitives, next-themes, sonner (toasts)
 **Database:** PostgreSQL via Prisma ORM
 
@@ -34,6 +34,9 @@ npm run dev
 
 # Run dashboard (separate terminal)
 cd dashboard && npm run dev
+
+# Build dashboard for production
+cd dashboard && npm run build
 
 # Start production (requires build first)
 npm start
@@ -130,17 +133,23 @@ dashboard/
 │   ├── matches/page.tsx        # Scrim history viewer
 │   └── auth/callback/          # Discord OAuth handler
 ├── components/
+│   ├── admin/                  # Admin-specific components
+│   │   ├── layout/             # Admin layout components
+│   │   └── panels/             # Admin feature panels
+│   │       ├── dashboard-home.tsx      # Admin dashboard home with stats cards
+│   │       ├── schedule-editor.tsx     # Edit schedule reason/focus
+│   │       ├── settings-panel.tsx      # Bot configuration UI
+│   │       ├── actions-panel.tsx       # Manual action triggers
+│   │       ├── user-mappings-panel.tsx # Player roster manager
+│   │       ├── logs-panel.tsx          # Application logs viewer
+│   │       ├── scrims-panel.tsx        # Match history (maps, agents, VOD)
+│   │       ├── security-panel.tsx      # Security settings
+│   │       └── agent-picker.tsx        # Valorant agent selector
+│   ├── auth/                   # Auth components
+│   ├── shared/                 # Shared components (bot-status-badge, etc.)
+│   ├── theme/                  # Theme components (theme-toggle)
 │   ├── ui/                     # Radix UI primitives (Card, Dialog, etc.)
-│   ├── schedule-editor.tsx     # Edit schedule reason/focus
-│   ├── settings-panel.tsx      # Bot configuration UI
-│   ├── actions-panel.tsx       # Manual action triggers
-│   ├── user-mappings-panel.tsx # Player roster manager
-│   ├── logs-panel.tsx          # Application logs viewer
-│   ├── scrims-panel.tsx        # Match history (maps, agents, VOD)
-│   ├── security-panel.tsx      # Security settings
-│   ├── agent-picker.tsx        # Valorant agent selector (for scrims)
-│   ├── bot-status-badge.tsx    # Bot online/offline indicator
-│   └── theme-toggle.tsx        # Dark/light mode
+│   └── user/                   # User portal components
 └── lib/
     ├── api.ts                  # API client (apiGet, apiPost, apiPut, apiDelete)
     ├── auth.ts                 # JWT token management
@@ -292,6 +301,9 @@ The analyzer calculates roster status from availability data:
 - Migrations are in `prisma/migrations/` and must be run on deploy
 - Date format is DD.MM.YYYY stored as TEXT (not DATE type) for consistency with legacy system
 - Cascade deletes: deleting a Schedule deletes all its SchedulePlayers
+- Prisma client outputs to custom path: `src/generated/prisma` (not default node_modules)
+- Always import from: `import { PrismaClient } from '../generated/prisma/client.js'`
+- After schema changes: run `npx prisma generate` to regenerate client in custom location
 
 ### Discord Bot Structure
 - Commands are defined in `src/bot/commands/definitions.ts` and registered on bot ready
@@ -336,6 +348,17 @@ Next.js App Router structure:
 - `/user` - User portal for setting own availability
 - `/matches` - Scrim/match history viewer
 - `/auth/callback` - Discord OAuth callback handler
+
+### Dashboard Component Organization
+Components are organized by domain/role:
+- `components/admin/` - Admin-only features (panels, layout)
+- `components/user/` - User portal features
+- `components/auth/` - Authentication UI
+- `components/shared/` - Shared across admin/user (bot-status-badge, etc.)
+- `components/theme/` - Theme system (theme-toggle)
+- `components/ui/` - Radix UI primitives
+
+All admin panels export from `components/admin/panels/index.ts` for centralized imports.
 
 ### Scheduler Jobs (src/jobs/scheduler.ts)
 Two scheduled cron jobs:
