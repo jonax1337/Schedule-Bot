@@ -440,7 +440,7 @@ export function UserAvailabilityContent() {
                   Clear
                 </Button>
                 <Button
-                  variant="ghost"
+                  variant="secondary"
                   onClick={() => setSelectedDates(new Set())}
                 >
                   Cancel
