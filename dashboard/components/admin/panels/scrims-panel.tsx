@@ -757,7 +757,7 @@ export function ScrimsPanel() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="-ml-3 h-8 data-[state=open]:bg-accent"
+                        className="h-8 data-[state=open]:bg-accent"
                         onClick={() => {
                           if (sortBy === null) {
                             setSortBy('date-desc');
