@@ -39,6 +39,7 @@
 - [Database Setup](#database-setup)
 - [Configuration](#configuration)
 - [Usage](#usage)
+- [Screenshots](#screenshots)
 - [API Documentation](#api-documentation)
 - [Development](#development)
 - [Deployment](#deployment)
@@ -726,6 +727,59 @@ Settings are stored in the `settings` table and can be modified via:
 2. Click any date to see details
 3. Quick edit your own entries
 4. See team status at a glance
+
+---
+
+## 📸 Screenshots
+
+### User Interface
+
+#### Login Page
+![User Login](screenshots/home-page.png)
+*User login page with player selection dropdown*
+
+![User Dropdown](screenshots/user-login-dropdown.png)
+*Player selection showing Main roster, Substitutes, and Coaches*
+
+#### Schedule Overview
+![Schedule View](screenshots/user-dashboard.png)
+*14-day calendar view showing player availability with status indicators*
+
+### Admin Dashboard
+
+#### Dashboard Home
+![Admin Dashboard](screenshots/admin-dashboard-overview.png)
+*Admin dashboard overview with bot status, uptime, and quick actions*
+
+#### Settings Panel
+![Settings Tab](screenshots/admin-settings-tab.png)
+*Discord and scheduling configuration*
+
+![Settings Branding](screenshots/admin-settings-tab-scrolled.png)
+*Team branding and customization options*
+
+#### User Management
+![User Mappings](screenshots/admin-users-tab.png)
+*Player roster management with Discord user linking*
+
+#### Schedule Editor
+![Schedule Editor](screenshots/admin-schedule-tab.png)
+*14-day schedule editor with player availability matrix*
+
+#### Match Management
+![Scrims Panel](screenshots/admin-scrims-tab.png)
+*Match history tracking with statistics and VOD links*
+
+#### Bot Actions
+![Actions Panel](screenshots/admin-actions-tab.png)
+*Manual trigger controls for schedule posts, reminders, and polls*
+
+![Actions Extended](screenshots/admin-actions-tab-scrolled.png)
+*Additional actions: notifications, pinned messages, and channel management*
+
+#### Security Settings
+![Security Panel](screenshots/admin-security-tab.png)
+*Password hash and JWT secret generators for secure authentication*
 
 ---
 

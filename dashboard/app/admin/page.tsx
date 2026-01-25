@@ -2,15 +2,17 @@
 
 import { useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import SettingsPanel from "@/components/settings-panel";
-import ActionsPanel from "@/components/actions-panel";
-import LogsPanel from "@/components/logs-panel";
-import { UserMappingsPanel } from "@/components/user-mappings-panel";
-import { ScheduleEditor } from "@/components/schedule-editor";
-import { ScrimsPanel } from "@/components/scrims-panel";
-import SecurityPanel from "@/components/security-panel";
-import AdminDashboardHome from "@/components/admin-dashboard-home";
-import { AdminLayoutWrapper } from "@/components/admin-layout-wrapper";
+import {
+  SettingsPanel,
+  ActionsPanel,
+  LogsPanel,
+  UserMappingsPanel,
+  ScheduleEditor,
+  ScrimsPanel,
+  SecurityPanel,
+  AdminDashboardHome
+} from "@/components/admin/panels";
+import { AdminLayoutWrapper } from "@/components/admin/layout";
 import { Loader2 } from "lucide-react";
 
 function AdminContent() {

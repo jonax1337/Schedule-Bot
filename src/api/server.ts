@@ -31,8 +31,6 @@ app.use(helmet({
 const allowedOrigins = [
   'http://localhost:3000',
   'http://127.0.0.1:3000',
-  'https://schedule-bot-dashboard.up.railway.app',
-  'https://schedule-bot-dashboard-production.up.railway.app',
   process.env.DASHBOARD_URL,
 ].filter(Boolean) as string[];
 

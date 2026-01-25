@@ -3,10 +3,12 @@
 import { useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-import { UserLayoutWrapper } from '@/components/user-layout-wrapper';
-import { UserScheduleContent } from '@/components/user-schedule-content';
-import { UserAvailabilityContent } from '@/components/user-availability-content';
-import { UserMatchesContent } from '@/components/user-matches-content';
+import {
+  UserLayoutWrapper,
+  UserScheduleContent,
+  UserAvailabilityContent,
+  UserMatchesContent
+} from '@/components/user';
 
 function HomeContent() {
   const router = useRouter();
