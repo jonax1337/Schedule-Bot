@@ -1,6 +1,6 @@
 'use client';
 
-import { ScrimsPanel } from "@/components/scrims-panel";
+import { ScrimsPanel } from "@/components/admin/panels";
 
 export function UserMatchesContent() {
   return (

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import StatusCard from '@/components/status-card';
+import StatusCard from '@/components/shared/status-card';
 import { Activity, Users, Calendar, Trophy, TrendingUp, Clock } from 'lucide-react';
 
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';

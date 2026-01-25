@@ -15,8 +15,8 @@ import {
   LayoutDashboard,
 } from "lucide-react"
 
-import { NavUser } from "@/components/nav-user"
-import { ThemeSwitcherSidebar } from "@/components/theme-switcher-sidebar"
+import { NavUser } from "@/components/shared"
+import { ThemeSwitcherSidebar } from "@/components/theme"
 import {
   Sidebar,
   SidebarContent,

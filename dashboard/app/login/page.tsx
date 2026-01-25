@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { LoginForm } from "@/components/login-form";
+import { LoginForm } from "@/components/auth";
 import { toast } from 'sonner';
 
 function LoginContent() {
