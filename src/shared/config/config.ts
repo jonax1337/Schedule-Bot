@@ -6,7 +6,8 @@ import { loadSettings, reloadSettings, loadSettingsAsync } from '../utils/settin
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-dotenv.config({ path: resolve(__dirname, '../.env') });
+// Load .env from project root (3 levels up from dist/shared/config/)
+dotenv.config({ path: resolve(__dirname, '../../../.env') });
 
 // Load persistent settings
 let settings = loadSettings();
