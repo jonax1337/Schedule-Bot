@@ -373,8 +373,7 @@ export default function AdminDashboardHome() {
             <Card
               key={card.title}
               className={cn(
-                stagger(index, 'fast', 'slideUpScale'),
-                microInteractions.hoverLift
+                stagger(index, 'fast', 'slideUpScale')
               )}
             >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -425,8 +424,7 @@ export default function AdminDashboardHome() {
             <Card
               key={stat.title}
               className={cn(
-                stagger(index, 'slow', 'slideUpScale'),
-                microInteractions.hoverLift
+                stagger(index, 'slow', 'slideUpScale')
               )}
             >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -445,7 +443,7 @@ export default function AdminDashboardHome() {
       {/* Charts Row 1: Scrim Results + Availability */}
       <div className="grid gap-4 md:grid-cols-2">
         {/* Scrim Results Pie Chart */}
-        <Card className={cn('animate-slideUp', microInteractions.hoverLift)}>
+        <Card className="animate-slideUp">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Target className="h-4 w-4" />
@@ -507,7 +505,7 @@ export default function AdminDashboardHome() {
         </Card>
 
         {/* Availability Overview Bar Chart */}
-        <Card className={cn('animate-slideUp', microInteractions.hoverLift)}>
+        <Card className="animate-slideUp">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <BarChart3 className="h-4 w-4" />
@@ -593,7 +591,7 @@ export default function AdminDashboardHome() {
       {/* Charts Row 2: Map Performance + Recent Results */}
       <div className="grid gap-4 md:grid-cols-2">
         {/* Map Performance Bar Chart */}
-        <Card className={cn('animate-slideUp', microInteractions.hoverLift)}>
+        <Card className="animate-slideUp">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Map className="h-4 w-4" />
@@ -635,7 +633,7 @@ export default function AdminDashboardHome() {
         </Card>
 
         {/* Recent Match Results */}
-        <Card className={cn('animate-slideUp', microInteractions.hoverLift)}>
+        <Card className="animate-slideUp">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
