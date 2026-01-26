@@ -100,6 +100,16 @@ const AVAILABILITY_RANGES: { value: AvailabilityRange; label: string; offsets: n
   { value: 'last60', label: 'Last 60 Days', offsets: [-4, -3, -2, -1] },
 ];
 
+type ScrimTimeRange = 'all' | 'last30' | 'last90' | 'last180' | 'last365';
+
+const SCRIM_TIME_RANGES: { value: ScrimTimeRange; label: string; days: number | null }[] = [
+  { value: 'all', label: 'All Time', days: null },
+  { value: 'last30', label: 'Last 30 Days', days: 30 },
+  { value: 'last90', label: 'Last 90 Days', days: 90 },
+  { value: 'last180', label: 'Last 6 Months', days: 180 },
+  { value: 'last365', label: 'Last Year', days: 365 },
+];
+
 // Chart configurations
 const scrimResultsConfig: ChartConfig = {
   wins: { label: 'Wins', color: 'oklch(0.723 0.219 149.579)' },
@@ -126,18 +136,97 @@ const recentResultsConfig: ChartConfig = {
   scoreThem: { label: 'Opponent', color: SCORE_THEM_COLOR },
 };
 
+function parseDDMMYYYY(dateStr: string): Date {
+  const [day, month, year] = dateStr.split('.').map(Number);
+  return new Date(year, month - 1, day);
+}
+
+function computeStatsFromScrims(scrims: ScrimEntry[]): ScrimStats {
+  const stats: ScrimStats = {
+    totalScrims: scrims.length,
+    wins: 0,
+    losses: 0,
+    draws: 0,
+    winRate: 0,
+    mapStats: {},
+  };
+
+  for (const scrim of scrims) {
+    if (scrim.result === 'win') stats.wins++;
+    else if (scrim.result === 'loss') stats.losses++;
+    else if (scrim.result === 'draw') stats.draws++;
+
+    if (scrim.map) {
+      if (!stats.mapStats[scrim.map]) {
+        stats.mapStats[scrim.map] = { played: 0, wins: 0, losses: 0 };
+      }
+      stats.mapStats[scrim.map].played++;
+      if (scrim.result === 'win') stats.mapStats[scrim.map].wins++;
+      else if (scrim.result === 'loss') stats.mapStats[scrim.map].losses++;
+    }
+  }
+
+  stats.winRate = stats.totalScrims > 0 ? (stats.wins / stats.totalScrims) * 100 : 0;
+  return stats;
+}
+
+function ScrimFilters({
+  matchType,
+  onMatchTypeChange,
+  timeRange,
+  onTimeRangeChange,
+  matchTypes,
+}: {
+  matchType: string;
+  onMatchTypeChange: (v: string) => void;
+  timeRange: ScrimTimeRange;
+  onTimeRangeChange: (v: string) => void;
+  matchTypes: string[];
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <Select value={matchType} onValueChange={onMatchTypeChange}>
+        <SelectTrigger size="sm" className="w-[120px]">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent position="popper" side="bottom" align="end">
+          <SelectItem value="__all__">All Types</SelectItem>
+          {matchTypes.map(type => (
+            <SelectItem key={type} value={type}>
+              {type}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Select value={timeRange} onValueChange={onTimeRangeChange}>
+        <SelectTrigger size="sm" className="w-[130px]">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent position="popper" side="bottom" align="end">
+          {SCRIM_TIME_RANGES.map(range => (
+            <SelectItem key={range.value} value={range.value}>
+              {range.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
 export default function AdminDashboardHome() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [botStatus, setBotStatus] = useState<BotStatus | null>(null);
   const [statusLoading, setStatusLoading] = useState(true);
-  const [scrimStats, setScrimStats] = useState<ScrimStats | null>(null);
+  const [allScrims, setAllScrims] = useState<ScrimEntry[]>([]);
   const [schedules, setSchedules] = useState<ScheduleDay[]>([]);
-  const [recentScrims, setRecentScrims] = useState<ScrimEntry[]>([]);
   const [userMappings, setUserMappings] = useState<UserMapping[]>([]);
   const [availabilityRange, setAvailabilityRange] = useState<AvailabilityRange>('next14');
   const [availabilitySchedules, setAvailabilitySchedules] = useState<ScheduleDay[]>([]);
   const [availabilityLoading, setAvailabilityLoading] = useState(false);
+  const [scrimMatchType, setScrimMatchType] = useState('__all__');
+  const [scrimTimeRange, setScrimTimeRange] = useState<ScrimTimeRange>('all');
 
   useEffect(() => {
     loadStats();
@@ -151,37 +240,33 @@ export default function AdminDashboardHome() {
     try {
       const { getAuthHeaders } = await import('@/lib/auth');
 
-      const [usersRes, schedulesRes, scrimsRes, scrimStatsRes] = await Promise.all([
+      const [usersRes, schedulesRes, scrimsRes] = await Promise.all([
         fetch(`${BOT_API_URL}/api/user-mappings`, { headers: getAuthHeaders() }),
         fetch(`${BOT_API_URL}/api/schedule/next14`, { headers: getAuthHeaders() }),
         fetch(`${BOT_API_URL}/api/scrims`, { headers: getAuthHeaders() }),
-        fetch(`${BOT_API_URL}/api/scrims/stats/summary`, { headers: getAuthHeaders() }),
       ]);
 
-      const [usersData, schedulesData, scrimsData, scrimStatsData] = await Promise.all([
+      const [usersData, schedulesData, scrimsData] = await Promise.all([
         usersRes.json(),
         schedulesRes.json(),
         scrimsRes.json(),
-        scrimStatsRes.json(),
       ]);
 
       const mappings = usersData.mappings || [];
       const schedulesList = schedulesData.schedules || [];
-      const scrimsList = scrimsData.scrims || [];
+      const scrimsList: ScrimEntry[] = scrimsData.scrims || [];
 
       setUserMappings(mappings);
       setSchedules(schedulesList);
       setAvailabilitySchedules(schedulesList);
-      setRecentScrims(scrimsList.slice(0, 10));
-      setScrimStats(scrimStatsData.stats || scrimStatsData);
+      setAllScrims(scrimsList);
 
       setStats({
         totalUsers: mappings.length,
         totalSchedules: schedulesList.length,
         totalScrims: scrimsList.length,
         upcomingSchedules: schedulesList.filter((s: ScheduleDay) => {
-          const [day, month, year] = s.date.split('.');
-          const scheduleDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+          const scheduleDate = parseDDMMYYYY(s.date);
           return scheduleDate >= new Date();
         }).length,
         recentActivity: [],
@@ -215,7 +300,6 @@ export default function AdminDashboardHome() {
       const dataArray = await Promise.all(responses.map(r => r.json()));
       const allSchedules: ScheduleDay[] = dataArray.flatMap(d => d.schedules || []);
 
-      // Sort by date ascending
       allSchedules.sort((a, b) => {
         const [ad, am, ay] = a.date.split('.').map(Number);
         const [bd, bm, by] = b.date.split('.').map(Number);
@@ -258,15 +342,50 @@ export default function AdminDashboardHome() {
     return `${minutes}m`;
   };
 
-  // Compute chart data
+  // Extract unique match types from all scrims
+  const availableMatchTypes = useMemo(() => {
+    const types = new Set<string>();
+    for (const scrim of allScrims) {
+      if (scrim.matchType && scrim.matchType.trim()) {
+        types.add(scrim.matchType.trim());
+      }
+    }
+    return Array.from(types).sort();
+  }, [allScrims]);
+
+  // Filter scrims by match type and time range
+  const filteredScrims = useMemo(() => {
+    let filtered = allScrims;
+
+    if (scrimMatchType !== '__all__') {
+      filtered = filtered.filter(s => s.matchType === scrimMatchType);
+    }
+
+    const rangeConfig = SCRIM_TIME_RANGES.find(r => r.value === scrimTimeRange);
+    if (rangeConfig?.days) {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - rangeConfig.days);
+      filtered = filtered.filter(s => parseDDMMYYYY(s.date) >= cutoff);
+    }
+
+    return filtered;
+  }, [allScrims, scrimMatchType, scrimTimeRange]);
+
+  // Compute stats from filtered scrims (client-side)
+  const filteredStats = useMemo(() => computeStatsFromScrims(filteredScrims), [filteredScrims]);
+
+  // Overall stats (unfiltered) for the summary cards
+  const overallStats = useMemo(() => computeStatsFromScrims(allScrims), [allScrims]);
+
+  // Compute chart data from filtered stats
   const scrimResultsData = useMemo(() => {
-    if (!scrimStats) return [];
+    if (filteredStats.totalScrims === 0) return [];
     return [
-      { name: 'wins', value: scrimStats.wins, fill: 'oklch(0.723 0.219 149.579)' },
-      { name: 'losses', value: scrimStats.losses, fill: 'oklch(0.577 0.245 27.325)' },
-      { name: 'draws', value: scrimStats.draws, fill: 'oklch(0.708 0 0)' },
+      { name: 'wins', value: filteredStats.wins, fill: 'oklch(0.723 0.219 149.579)' },
+      { name: 'losses', value: filteredStats.losses, fill: 'oklch(0.577 0.245 27.325)' },
+      { name: 'draws', value: filteredStats.draws, fill: 'oklch(0.708 0 0)' },
     ].filter(d => d.value > 0);
-  }, [scrimStats]);
+  }, [filteredStats]);
 
   const availabilityData = useMemo(() => {
     return availabilitySchedules.map(schedule => {
@@ -287,8 +406,8 @@ export default function AdminDashboardHome() {
   }, [availabilitySchedules]);
 
   const mapStatsData = useMemo(() => {
-    if (!scrimStats?.mapStats) return [];
-    return Object.entries(scrimStats.mapStats)
+    if (!filteredStats.mapStats) return [];
+    return Object.entries(filteredStats.mapStats)
       .map(([map, data]) => ({
         map,
         wins: data.wins,
@@ -298,10 +417,11 @@ export default function AdminDashboardHome() {
       }))
       .sort((a, b) => b.played - a.played)
       .slice(0, 8);
-  }, [scrimStats]);
+  }, [filteredStats]);
 
   const recentResultsData = useMemo(() => {
-    return [...recentScrims]
+    return [...allScrims]
+      .slice(0, 10)
       .reverse()
       .slice(-8)
       .map(scrim => ({
@@ -310,7 +430,7 @@ export default function AdminDashboardHome() {
         scoreThem: scrim.scoreThem,
         result: scrim.result,
       }));
-  }, [recentScrims]);
+  }, [allScrims]);
 
   const rosterBreakdown = useMemo(() => {
     const mains = userMappings.filter(u => u.role === 'MAIN').length;
@@ -352,9 +472,11 @@ export default function AdminDashboardHome() {
     },
   ];
 
-  const hasScrimData = scrimStats && scrimStats.totalScrims > 0;
+  const hasScrimData = filteredStats.totalScrims > 0;
+  const hasOverallScrimData = overallStats.totalScrims > 0;
   const hasAvailabilityData = availabilitySchedules.length > 0;
   const selectedRangeLabel = AVAILABILITY_RANGES.find(r => r.value === availabilityRange)?.label || '';
+  const isFiltered = scrimMatchType !== '__all__' || scrimTimeRange !== 'all';
 
   return (
     <div className="space-y-6">
@@ -410,13 +532,13 @@ export default function AdminDashboardHome() {
             title: 'Total Scrims',
             icon: Trophy,
             value: loading ? '...' : stats?.totalScrims || 0,
-            description: hasScrimData ? `Win Rate: ${scrimStats!.winRate.toFixed(1)}%` : 'Match history records',
+            description: hasOverallScrimData ? `Win Rate: ${overallStats.winRate.toFixed(1)}%` : 'Match history records',
           },
           {
             title: 'Win Rate',
             icon: Percent,
-            value: loading ? '...' : hasScrimData ? `${scrimStats!.winRate.toFixed(1)}%` : 'N/A',
-            description: hasScrimData ? `${scrimStats!.wins}W / ${scrimStats!.losses}L / ${scrimStats!.draws}D` : 'No match data',
+            value: loading ? '...' : hasOverallScrimData ? `${overallStats.winRate.toFixed(1)}%` : 'N/A',
+            description: hasOverallScrimData ? `${overallStats.wins}W / ${overallStats.losses}L / ${overallStats.draws}D` : 'No match data',
           },
         ].map((stat, index) => {
           const Icon = stat.icon;
@@ -449,10 +571,21 @@ export default function AdminDashboardHome() {
               <Target className="h-4 w-4" />
               Scrim Results
             </CardTitle>
+            <CardAction>
+              <ScrimFilters
+                matchType={scrimMatchType}
+                onMatchTypeChange={setScrimMatchType}
+                timeRange={scrimTimeRange}
+                onTimeRangeChange={(v) => setScrimTimeRange(v as ScrimTimeRange)}
+                matchTypes={availableMatchTypes}
+              />
+            </CardAction>
             <CardDescription>
               {hasScrimData
-                ? `Win/Loss distribution across ${scrimStats!.totalScrims} matches`
-                : 'No scrim data available yet'}
+                ? `Win/Loss distribution across ${filteredStats.totalScrims} matches${isFiltered ? ' (filtered)' : ''}`
+                : allScrims.length > 0
+                  ? 'No matches match the current filters'
+                  : 'No scrim data available yet'}
             </CardDescription>
           </CardHeader>
           <CardContent className="flex-1">
@@ -483,7 +616,7 @@ export default function AdminDashboardHome() {
                     dominantBaseline="middle"
                     className="fill-foreground text-2xl font-bold"
                   >
-                    {scrimStats!.winRate.toFixed(0)}%
+                    {filteredStats.winRate.toFixed(0)}%
                   </text>
                   <text
                     x="50%"
@@ -498,7 +631,7 @@ export default function AdminDashboardHome() {
               </ChartContainer>
             ) : (
               <div className="flex items-center justify-center h-[300px] text-muted-foreground text-sm">
-                Play some matches to see statistics
+                {allScrims.length > 0 ? 'No matches match the current filters' : 'Play some matches to see statistics'}
               </div>
             )}
           </CardContent>
@@ -597,10 +730,21 @@ export default function AdminDashboardHome() {
               <Map className="h-4 w-4" />
               Map Performance
             </CardTitle>
+            <CardAction>
+              <ScrimFilters
+                matchType={scrimMatchType}
+                onMatchTypeChange={setScrimMatchType}
+                timeRange={scrimTimeRange}
+                onTimeRangeChange={(v) => setScrimTimeRange(v as ScrimTimeRange)}
+                matchTypes={availableMatchTypes}
+              />
+            </CardAction>
             <CardDescription>
               {mapStatsData.length > 0
-                ? 'Win/Loss breakdown by map'
-                : 'No map data available yet'}
+                ? `Win/Loss breakdown by map${isFiltered ? ' (filtered)' : ''}`
+                : allScrims.length > 0
+                  ? 'No matches match the current filters'
+                  : 'No map data available yet'}
             </CardDescription>
           </CardHeader>
           <CardContent className="flex-1">
@@ -626,7 +770,7 @@ export default function AdminDashboardHome() {
               </ChartContainer>
             ) : (
               <div className="flex items-center justify-center h-[300px] text-muted-foreground text-sm">
-                Play matches on different maps to see performance
+                {allScrims.length > 0 ? 'No matches match the current filters' : 'Play matches on different maps to see performance'}
               </div>
             )}
           </CardContent>
