@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardAction } from '@/components/ui/card';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import {
   Select,
   SelectContent,
@@ -29,7 +30,7 @@ import {
   YAxis,
   CartesianGrid,
 } from 'recharts';
-import { Target, Map, BarChart3, Calendar, Swords, Loader2 } from 'lucide-react';
+import { Target, Map, BarChart3, Calendar, Swords, Loader2, ChevronDown } from 'lucide-react';
 import { stagger, cn } from '@/lib/animations';
 
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
@@ -741,57 +742,105 @@ export default function StatisticsPanel() {
         </CardHeader>
         <CardContent>
           {hasCompData ? (
-            <div className="space-y-5">
-              {mapCompositionsData.map((mapEntry, mapIndex) => (
-                <div
-                  key={mapEntry.map}
-                  className={cn('space-y-2', stagger(mapIndex, 'fast', 'fadeIn'))}
-                >
-                  <div className="flex items-center gap-2">
-                    <img
-                      src={`/assets/maps/${mapEntry.map}.webp`}
-                      alt={mapEntry.map}
-                      className="w-8 h-5 rounded object-cover shrink-0"
-                    />
-                    <span className="text-sm font-semibold">{mapEntry.map}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {mapEntry.totalPlayed} {mapEntry.totalPlayed === 1 ? 'match' : 'matches'}
-                    </span>
-                  </div>
-                  <div className="space-y-1.5 pl-10">
-                    {mapEntry.comps.map((comp, compIndex) => (
-                      <div
-                        key={compIndex}
-                        className="flex items-center gap-3"
-                      >
-                        <div className="flex items-center gap-1 shrink-0">
-                          {comp.agents.map((agent) => (
-                            <img
-                              key={agent}
-                              src={`/assets/agents/${agent}_icon.webp`}
-                              alt={agent}
-                              className="w-6 h-6 rounded-md"
-                              title={agent}
-                            />
-                          ))}
+            <div className="space-y-3">
+              {mapCompositionsData.map((mapEntry, mapIndex) => {
+                const bestComp = mapEntry.comps[0];
+                const otherComps = mapEntry.comps.slice(1);
+
+                return (
+                  <Collapsible key={mapEntry.map}>
+                    <div
+                      className={cn(
+                        'rounded-lg border bg-card p-4',
+                        stagger(mapIndex, 'fast', 'fadeIn')
+                      )}
+                    >
+                      {/* Map header + best comp (always visible) */}
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={`/assets/maps/Loading_Screen_${mapEntry.map}.webp`}
+                          alt={mapEntry.map}
+                          className="w-16 h-10 rounded-md object-cover shrink-0"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold">{mapEntry.map}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {mapEntry.totalPlayed} {mapEntry.totalPlayed === 1 ? 'match' : 'matches'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 mt-1.5">
+                            <div className="flex items-center gap-1">
+                              {bestComp.agents.map((agent) => (
+                                <img
+                                  key={agent}
+                                  src={`/assets/agents/${agent}_icon.webp`}
+                                  alt={agent}
+                                  className="w-8 h-8 rounded-md"
+                                  title={agent}
+                                />
+                              ))}
+                            </div>
+                            <div className="flex items-center gap-2 ml-1">
+                              <span className="text-sm text-muted-foreground tabular-nums">
+                                {bestComp.played}x
+                              </span>
+                              <span className={cn(
+                                'text-sm font-medium tabular-nums',
+                                bestComp.winRate >= 50 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                              )}>
+                                {bestComp.winRate}% WR
+                              </span>
+                            </div>
+                          </div>
                         </div>
-                        <div className="text-xs text-muted-foreground tabular-nums">
-                          {comp.played}x
-                        </div>
-                        <span className={cn(
-                          'text-xs font-medium tabular-nums',
-                          comp.winRate >= 50 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
-                        )}>
-                          {comp.winRate}% WR
-                        </span>
+                        {otherComps.length > 0 && (
+                          <CollapsibleTrigger className="shrink-0 rounded-md p-1.5 hover:bg-muted transition-colors group">
+                            <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+                          </CollapsibleTrigger>
+                        )}
                       </div>
-                    ))}
-                  </div>
-                  {mapIndex < mapCompositionsData.length - 1 && (
-                    <div className="border-t pt-1" />
-                  )}
-                </div>
-              ))}
+
+                      {/* Other comps (collapsible) */}
+                      {otherComps.length > 0 && (
+                        <CollapsibleContent>
+                          <div className="mt-3 pt-3 border-t space-y-2.5">
+                            {otherComps.map((comp, compIndex) => (
+                              <div
+                                key={compIndex}
+                                className="flex items-center gap-2 pl-[76px]"
+                              >
+                                <div className="flex items-center gap-1">
+                                  {comp.agents.map((agent) => (
+                                    <img
+                                      key={agent}
+                                      src={`/assets/agents/${agent}_icon.webp`}
+                                      alt={agent}
+                                      className="w-7 h-7 rounded-md"
+                                      title={agent}
+                                    />
+                                  ))}
+                                </div>
+                                <div className="flex items-center gap-2 ml-1">
+                                  <span className="text-xs text-muted-foreground tabular-nums">
+                                    {comp.played}x
+                                  </span>
+                                  <span className={cn(
+                                    'text-xs font-medium tabular-nums',
+                                    comp.winRate >= 50 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                                  )}>
+                                    {comp.winRate}% WR
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </CollapsibleContent>
+                      )}
+                    </div>
+                  </Collapsible>
+                );
+              })}
             </div>
           ) : (
             <div className="flex items-center justify-center h-[200px] text-muted-foreground text-sm">
