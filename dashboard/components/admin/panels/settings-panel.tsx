@@ -15,6 +15,7 @@ import { Loader2, Save, Hash, AtSign, ChevronsUpDown, Check } from "lucide-react
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { stagger, microInteractions, loadingStates } from '@/lib/animations';
 
 interface DiscordChannel {
   id: string;
@@ -53,14 +54,14 @@ export default function SettingsPanel() {
       const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
       const response = await fetch(`${BOT_API_URL}/api/settings`);
       const data = await response.json();
-      
+
       // Validate settings structure (admin is now optional, comes from .env)
       if (!data || !data.discord || !data.scheduling || !data.branding) {
         console.error('Invalid settings structure:', data);
         toast.error('Settings missing required fields');
         return;
       }
-      
+
       setSettings(data);
     } catch (error) {
       console.error('Failed to load settings:', error);
@@ -74,13 +75,13 @@ export default function SettingsPanel() {
     try {
       // Import auth helpers
       const { isAuthenticated, getAuthHeaders } = await import('@/lib/auth');
-      
+
       // Only load Discord data if authenticated
       if (!isAuthenticated()) {
         console.log('Not authenticated, skipping Discord data load');
         return;
       }
-      
+
       const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
       const [channelsRes, rolesRes] = await Promise.all([
         fetch(`${BOT_API_URL}/api/discord/channels`, { headers: getAuthHeaders() }),
@@ -109,10 +110,10 @@ export default function SettingsPanel() {
     try {
       const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
       const { getAuthHeaders } = await import('@/lib/auth');
-      
+
       await fetch(`${BOT_API_URL}/api/settings`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           ...getAuthHeaders()
         },
@@ -130,42 +131,22 @@ export default function SettingsPanel() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-6 w-32" />
-            <Skeleton className="h-4 w-48 mt-2" />
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-10 w-full" />
-            </div>
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-10 w-full" />
-            </div>
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-10 w-full" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-6 w-32" />
-            <Skeleton className="h-4 w-48 mt-2" />
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-10 w-full" />
-            </div>
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-10 w-full" />
-            </div>
-          </CardContent>
-        </Card>
+        {[1, 2, 3].map((i) => (
+          <Card key={i} className={cn("animate-fadeIn", stagger(i - 1, 'slow', 'fadeIn'))}>
+            <CardHeader>
+              <Skeleton className={cn("h-6 w-32", loadingStates.skeleton)} />
+              <Skeleton className={cn("h-4 w-48 mt-2", loadingStates.skeleton)} />
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {Array.from({ length: 3 }).map((_, j) => (
+                <div key={j} className="space-y-2">
+                  <Skeleton className={cn("h-4 w-24", loadingStates.skeleton)} />
+                  <Skeleton className={cn("h-10 w-full", loadingStates.skeleton)} />
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        ))}
       </div>
     );
   }
@@ -176,7 +157,7 @@ export default function SettingsPanel() {
 
   return (
     <div className="space-y-6">
-      <Card>
+      <Card className={stagger(0, 'slow', 'slideUpScale')}>
         <CardHeader>
           <CardTitle>Discord Configuration</CardTitle>
           <CardDescription>
@@ -190,7 +171,7 @@ export default function SettingsPanel() {
               Channel
             </Label>
             {loadingDiscord ? (
-              <div className="flex items-center h-10 px-3 border rounded-md">
+              <div className={cn("flex items-center h-10 px-3 border rounded-md", loadingStates.skeleton)}>
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
                 <span className="text-sm text-muted-foreground">Loading channels...</span>
               </div>
@@ -204,7 +185,7 @@ export default function SettingsPanel() {
                   })
                 }
               >
-                <SelectTrigger id="channelId" className="w-full">
+                <SelectTrigger id="channelId" className={cn("w-full", microInteractions.focusRing)}>
                   <SelectValue placeholder="Select a channel" />
                 </SelectTrigger>
                 <SelectContent position="popper">
@@ -227,7 +208,7 @@ export default function SettingsPanel() {
               Ping Role (Optional)
             </Label>
             {loadingDiscord ? (
-              <div className="flex items-center h-10 px-3 border rounded-md">
+              <div className={cn("flex items-center h-10 px-3 border rounded-md", loadingStates.skeleton)}>
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
                 <span className="text-sm text-muted-foreground">Loading roles...</span>
               </div>
@@ -241,7 +222,7 @@ export default function SettingsPanel() {
                   })
                 }
               >
-                <SelectTrigger id="pingRoleId" className="w-full">
+                <SelectTrigger id="pingRoleId" className={cn("w-full", microInteractions.focusRing)}>
                   <SelectValue placeholder="Select a role" />
                 </SelectTrigger>
                 <SelectContent position="popper">
@@ -281,12 +262,13 @@ export default function SettingsPanel() {
                   discord: { ...settings.discord, allowDiscordAuth: checked },
                 })
               }
+              className={microInteractions.smooth}
             />
           </div>
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className={stagger(1, 'slow', 'slideUpScale')}>
         <CardHeader>
           <CardTitle>Scheduling Configuration</CardTitle>
           <CardDescription>
@@ -306,6 +288,7 @@ export default function SettingsPanel() {
                   scheduling: { ...settings.scheduling, dailyPostTime: e.target.value },
                 })
               }
+              className={microInteractions.focusRing}
             />
             <p className="text-sm text-muted-foreground">
               Time when the daily schedule post is sent (24-hour format)
@@ -326,7 +309,7 @@ export default function SettingsPanel() {
                 })
               }
             >
-              <SelectTrigger id="reminderHours" className="w-full">
+              <SelectTrigger id="reminderHours" className={cn("w-full", microInteractions.focusRing)}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent position="popper">
@@ -351,7 +334,7 @@ export default function SettingsPanel() {
                   variant="outline"
                   role="combobox"
                   aria-expanded={timezoneOpen}
-                  className="w-full justify-between font-normal"
+                  className={cn("w-full justify-between font-normal", microInteractions.focusRing)}
                 >
                   {settings.scheduling.timezone}
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -359,8 +342,8 @@ export default function SettingsPanel() {
               </PopoverTrigger>
               <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
                 <Command shouldFilter={false}>
-                  <CommandInput 
-                    placeholder="Search timezone..." 
+                  <CommandInput
+                    placeholder="Search timezone..."
                     value={timezoneSearch}
                     onValueChange={setTimezoneSearch}
                   />
@@ -418,6 +401,7 @@ export default function SettingsPanel() {
                   },
                 })
               }
+              className={microInteractions.smooth}
             />
           </div>
 
@@ -471,12 +455,13 @@ export default function SettingsPanel() {
                   },
                 })
               }
+              className={microInteractions.smooth}
             />
           </div>
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className={stagger(2, 'slow', 'slideUpScale')}>
         <CardHeader>
           <CardTitle>Branding</CardTitle>
           <CardDescription>
@@ -499,6 +484,7 @@ export default function SettingsPanel() {
                 })
               }
               placeholder="Valorant Bot"
+              className={microInteractions.focusRing}
             />
             <p className="text-sm text-muted-foreground">
               Your team's name displayed throughout the application
@@ -520,6 +506,7 @@ export default function SettingsPanel() {
                 })
               }
               placeholder="Schedule Manager"
+              className={microInteractions.focusRing}
             />
             <p className="text-sm text-muted-foreground">
               Subtitle displayed below team name (e.g., "Building champions together")
@@ -540,6 +527,7 @@ export default function SettingsPanel() {
                 })
               }
               placeholder="https://i.imgur.com/yourlogo.png"
+              className={microInteractions.focusRing}
             />
             <p className="text-sm text-muted-foreground">
               External image URL for your team logo (displayed in sidebar header)
@@ -564,7 +552,11 @@ export default function SettingsPanel() {
       </Card>
 
       <div className="flex justify-end">
-        <Button onClick={saveSettings} disabled={saving}>
+        <Button
+          onClick={saveSettings}
+          disabled={saving}
+          className={cn(microInteractions.activePress, microInteractions.smooth)}
+        >
           {saving ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />

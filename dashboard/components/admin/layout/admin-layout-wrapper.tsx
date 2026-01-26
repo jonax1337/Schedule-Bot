@@ -6,6 +6,7 @@ import { AdminSidebar } from "./admin-sidebar"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage } from "@/components/ui/breadcrumb"
+import { ThemeToggle } from "@/components/theme"
 
 interface AdminLayoutWrapperProps {
   children: React.ReactNode
@@ -62,17 +63,14 @@ export function AdminLayoutWrapper({ children }: AdminLayoutWrapperProps) {
           <Separator orientation="vertical" className="mr-2 h-4" />
           <Breadcrumb>
             <BreadcrumbList>
-              <BreadcrumbItem className="hidden md:block">
-                <BreadcrumbLink href="/admin">
-                  Admin Panel
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator className="hidden md:block" />
               <BreadcrumbItem>
-                <BreadcrumbPage>{tabLabels[currentTab] || 'Settings'}</BreadcrumbPage>
+                <BreadcrumbPage>{tabLabels[currentTab] || 'Dashboard'}</BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
+          <div className="ml-auto">
+            <ThemeToggle />
+          </div>
         </header>
         <div className="flex flex-1 flex-col gap-4 p-4">
           {children}

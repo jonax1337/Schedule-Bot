@@ -51,7 +51,7 @@ function LoginContent() {
 
   return (
     <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
-      <div className="w-full max-w-sm">
+      <div className="w-full max-w-sm animate-scaleIn">
         <LoginForm />
       </div>
     </div>
@@ -62,7 +62,7 @@ export default function Page() {
   return (
     <Suspense fallback={
       <div className="flex min-h-svh w-full items-center justify-center">
-        <div className="text-muted-foreground">Loading...</div>
+        <div className="text-muted-foreground animate-pulse">Loading...</div>
       </div>
     }>
       <LoginContent />

@@ -9,6 +9,7 @@ import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Shield, Loader2, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { setAuthToken, setUser } from '@/lib/auth';
+import { microInteractions, cn } from '@/lib/animations';
 
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
 
@@ -90,11 +91,15 @@ export default function AdminLogin() {
   return (
     <div className="flex min-h-svh w-full flex-col items-center justify-center p-6 md:p-10">
       <div className="w-full max-w-sm">
-        <Button 
-          variant="ghost" 
-          size="sm" 
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={() => router.push('/')}
-          className="mb-4 animate-slideDown"
+          className={cn(
+            "mb-4 animate-slideDown",
+            microInteractions.smooth,
+            microInteractions.hoverScaleSm
+          )}
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Schedule
@@ -102,16 +107,16 @@ export default function AdminLogin() {
 
         <Card className="animate-scaleIn">
           <CardHeader className="text-center">
-            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 animate-fadeIn stagger-1">
               <Shield className="h-6 w-6 text-primary" />
             </div>
-            <CardTitle>Admin Dashboard</CardTitle>
-            <CardDescription>
+            <CardTitle className="animate-fadeIn stagger-2">Admin Dashboard</CardTitle>
+            <CardDescription className="animate-fadeIn stagger-3">
               Enter your credentials to access the admin panel
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleLogin}>
+            <form onSubmit={handleLogin} className="animate-fadeIn stagger-4">
               <FieldGroup>
                 <Field>
                   <FieldLabel htmlFor="username">Username</FieldLabel>
@@ -122,6 +127,7 @@ export default function AdminLogin() {
                     onChange={(e) => setUsername(e.target.value)}
                     placeholder="admin"
                     autoComplete="username"
+                    className={microInteractions.focusRing}
                   />
                 </Field>
                 <Field>
@@ -133,10 +139,15 @@ export default function AdminLogin() {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
                     autoComplete="current-password"
+                    className={microInteractions.focusRing}
                   />
                 </Field>
                 <Field>
-                  <Button type="submit" className="w-full" disabled={loading}>
+                  <Button
+                    type="submit"
+                    className={cn("w-full", microInteractions.activePress)}
+                    disabled={loading}
+                  >
                     {loading ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />

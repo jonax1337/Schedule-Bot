@@ -10,6 +10,7 @@ import { CheckCircle2, XCircle, Clock, Loader2, Edit2, Save, X, Palmtree } from 
 import Image from 'next/image';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
+import { stagger, microInteractions, cn } from '@/lib/animations';
 
 interface PlayerStatus {
   name: string;
@@ -217,6 +218,10 @@ export function UserScheduleContent() {
           let startTime: string | undefined;
           let endTime: string | undefined;
 
+          // Check if anyone has responded at all
+          const totalPlayers = players.length;
+          const hasAnyResponse = noResponsePlayers.length < totalPlayers;
+
           if (available >= 5) {
             status = 'Able to play';
             const times = players
@@ -229,9 +234,9 @@ export function UserScheduleContent() {
                 return { start, end };
               });
 
-              const latestStart = timeRanges.reduce((max, curr) => 
+              const latestStart = timeRanges.reduce((max, curr) =>
                 curr.start > max ? curr.start : max, timeRanges[0].start);
-              const earliestEnd = timeRanges.reduce((min, curr) => 
+              const earliestEnd = timeRanges.reduce((min, curr) =>
                 curr.end < min ? curr.end : min, timeRanges[0].end);
 
               startTime = latestStart;
@@ -241,8 +246,10 @@ export function UserScheduleContent() {
             status = 'Almost there';
           } else if (available === 3) {
             status = 'More players needed';
-          } else if (available < 3 && available > 0) {
+          } else if (available < 3 && hasAnyResponse) {
             status = 'Insufficient players';
+          } else if (!hasAnyResponse) {
+            status = 'Unknown';
           }
 
           scheduleDetails = {
@@ -299,7 +306,9 @@ export function UserScheduleContent() {
       return <div className="w-3 h-3 rounded-full bg-purple-500" />;
     }
 
-    const { available } = entry.availability;
+    const { available, notSet } = entry.availability;
+    const totalPlayers = entry.players.length;
+    const hasAnyResponse = notSet < totalPlayers;
     let color = 'bg-gray-400';
 
     if (available >= 5) {
@@ -308,8 +317,10 @@ export function UserScheduleContent() {
       color = 'bg-cyan-400';
     } else if (available === 3) {
       color = 'bg-yellow-500';
-    } else if (available > 0) {
+    } else if (available < 3 && hasAnyResponse) {
       color = 'bg-red-500';
+    } else if (!hasAnyResponse) {
+      color = 'bg-gray-400';
     }
 
     return <div className={`w-3 h-3 rounded-full ${color}`} />;
@@ -428,7 +439,9 @@ export function UserScheduleContent() {
   if (loading) {
     return (
       <div className="min-h-[400px] flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin" />
+        <div className="animate-scaleIn">
+          <Loader2 className="w-8 h-8 animate-spin" />
+        </div>
       </div>
     );
   }
@@ -486,11 +499,13 @@ export function UserScheduleContent() {
           return (
             <Card
               key={entry.date}
-              className={`cursor-pointer transition-all duration-300 hover:shadow-lg hover:scale-[1.02] hover:-translate-y-1 animate-slideUp ${ringClass} ${
-                entry.isOffDay ? 'bg-purple-500/5 opacity-60' : ''
-              }`}
+              className={cn(
+                "cursor-pointer transition-transform duration-300 ease-out hover:scale-[1.03]",
+                stagger(index, 'fast', 'slideUpScale'),
+                ringClass,
+                entry.isOffDay && 'bg-purple-500/5 opacity-60'
+              )}
               onClick={() => handleDateClick(entry)}
-              style={{ animationDelay: `${(index % 14) * 0.08}s` }}
             >
             <CardHeader className="pb-0">
               <div className="flex items-center justify-between">
@@ -530,9 +545,9 @@ export function UserScheduleContent() {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md max-h-[80vh] overflow-y-auto animate-scaleIn">
+        <DialogContent className="sm:max-w-md max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 animate-fadeIn stagger-1">
               <DialogTitle>{selectedDate?.date} - {selectedDate?.weekday}</DialogTitle>
               {selectedDate && (
                 <span 
@@ -622,8 +637,8 @@ export function UserScheduleContent() {
                       <Button
                         size="sm"
                         variant="outline"
+                        className={cn("h-7 text-xs", microInteractions.activePress, microInteractions.smooth)}
                         onClick={startEditingUser}
-                        className="h-7 text-xs"
                       >
                         <Edit2 className="w-3 h-3 mr-1" />
                         Edit My Status

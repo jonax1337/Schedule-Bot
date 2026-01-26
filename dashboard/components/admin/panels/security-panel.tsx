@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Key, Copy, Check, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
+import { stagger, microInteractions, cn } from "@/lib/animations";
 
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
 
@@ -18,7 +19,7 @@ export default function SecurityPanel() {
   const [copied, setCopied] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  
+
   // JWT Secret state
   const [generatedJwtSecret, setGeneratedJwtSecret] = useState('');
   const [generatingJwt, setGeneratingJwt] = useState(false);
@@ -104,7 +105,7 @@ export default function SecurityPanel() {
 
   return (
     <div className="space-y-6">
-      <Card>
+      <Card className={stagger(0, 'fast', 'slideUpScale')}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Key className="h-5 w-5" />
@@ -124,7 +125,7 @@ export default function SecurityPanel() {
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 placeholder="Enter new admin password"
-                className="pr-10"
+                className={cn("pr-10", microInteractions.focusRing)}
               />
               <Button
                 type="button"
@@ -151,7 +152,7 @@ export default function SecurityPanel() {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="Confirm new admin password"
-                className="pr-10"
+                className={cn("pr-10", microInteractions.focusRing)}
               />
               <Button
                 type="button"
@@ -172,7 +173,7 @@ export default function SecurityPanel() {
           <Button
             onClick={handleGenerateHash}
             disabled={generating || !newPassword || !confirmPassword}
-            className="w-full"
+            className={cn("w-full", microInteractions.activePress, microInteractions.smooth)}
           >
             {generating ? (
               <>
@@ -188,14 +189,14 @@ export default function SecurityPanel() {
           </Button>
 
           {generatedHash && (
-            <div className="space-y-2 p-4 bg-muted rounded-lg">
+            <div className={cn("space-y-2 p-4 bg-muted rounded-lg", "animate-fadeIn")}>
               <div className="flex items-center justify-between">
                 <Label className="text-sm font-semibold">Generated Hash:</Label>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={handleCopyHash}
-                  className="h-8"
+                  className={cn("h-8", microInteractions.activePress)}
                 >
                   {copied ? (
                     <>
@@ -218,66 +219,65 @@ export default function SecurityPanel() {
         </CardContent>
       </Card>
 
-      <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Key className="h-5 w-5" />
-          JWT Secret Generator
-        </CardTitle>
-        <CardDescription>
-          Generate a secure random JWT secret for token signing. This secret should be added to your .env file as JWT_SECRET.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <Button
-          onClick={handleGenerateJwtSecret}
-          disabled={generatingJwt}
-          className="w-full"
-        >
-          {generatingJwt ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Generating Secret...
-            </>
-          ) : (
-            <>
-              <Key className="mr-2 h-4 w-4" />
-              Generate JWT Secret
-            </>
-          )}
-        </Button>
+      <Card className={stagger(1, 'fast', 'slideUpScale')}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Key className="h-5 w-5" />
+            JWT Secret Generator
+          </CardTitle>
+          <CardDescription>
+            Generate a secure random JWT secret for token signing. This secret should be added to your .env file as JWT_SECRET.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Button
+            onClick={handleGenerateJwtSecret}
+            disabled={generatingJwt}
+            className={cn("w-full", microInteractions.activePress, microInteractions.smooth)}
+          >
+            {generatingJwt ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Generating Secret...
+              </>
+            ) : (
+              <>
+                <Key className="mr-2 h-4 w-4" />
+                Generate JWT Secret
+              </>
+            )}
+          </Button>
 
-        {generatedJwtSecret && (
-          <div className="space-y-2 p-4 bg-muted rounded-lg">
-            <div className="flex items-center justify-between">
-              <Label className="text-sm font-semibold">Generated Secret:</Label>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleCopyJwtSecret}
-                className="h-8"
-              >
-                {copiedJwt ? (
-                  <>
-                    <Check className="h-4 w-4 mr-1" />
-                    Copied!
-                  </>
-                ) : (
-                  <>
-                    <Copy className="h-4 w-4 mr-1" />
-                    Copy
-                  </>
-                )}
-              </Button>
+          {generatedJwtSecret && (
+            <div className={cn("space-y-2 p-4 bg-muted rounded-lg", "animate-fadeIn")}>
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-semibold">Generated Secret:</Label>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleCopyJwtSecret}
+                  className={cn("h-8", microInteractions.activePress)}
+                >
+                  {copiedJwt ? (
+                    <>
+                      <Check className="h-4 w-4 mr-1" />
+                      Copied!
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-4 w-4 mr-1" />
+                      Copy
+                    </>
+                  )}
+                </Button>
+              </div>
+              <code className="block p-3 bg-background rounded border text-xs break-all">
+                {generatedJwtSecret}
+              </code>
             </div>
-            <code className="block p-3 bg-background rounded border text-xs break-all">
-              {generatedJwtSecret}
-            </code>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  </div>
-);
-    
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
 }

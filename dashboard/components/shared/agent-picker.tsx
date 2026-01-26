@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
+import { microInteractions, gridStagger, stagger, cn } from "@/lib/animations";
 
 const VALORANT_AGENTS = [
   'Astra', 'Breach', 'Brimstone', 'Chamber', 'Clove', 'Cypher', 'Deadlock',
@@ -36,20 +37,24 @@ export function AgentPicker({
           <DialogTitle className="text-base">{title} ({selectedAgents.length}/{maxAgents})</DialogTitle>
         </DialogHeader>
         <div className="grid grid-cols-6 gap-1.5 py-3">
-          {VALORANT_AGENTS.map((agent) => {
+          {VALORANT_AGENTS.map((agent, index) => {
             const isSelected = selectedAgents.includes(agent);
             const canSelect = selectedAgents.length < maxAgents || isSelected;
-            
+            const row = Math.floor(index / 6);
+            const col = index % 6;
+
             return (
               <button
                 key={agent}
                 onClick={() => canSelect && onSelectAgent(agent)}
                 disabled={!canSelect}
-                className={`
-                  relative aspect-square rounded-md overflow-hidden border-2 transition-all
-                  ${isSelected ? 'border-primary ring-2 ring-primary' : 'border-transparent hover:border-gray-400'}
-                  ${!canSelect ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer hover:scale-105'}
-                `}
+                className={cn(
+                  "relative aspect-square rounded-md overflow-hidden border-2 transition-all",
+                  isSelected ? 'border-primary ring-2 ring-primary' : 'border-transparent hover:border-gray-400',
+                  !canSelect ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer hover:scale-105',
+                  gridStagger(row, col, 6, 'fast', 'scaleIn'),
+                  microInteractions.smooth
+                )}
                 title={agent}
               >
                 <img
@@ -99,10 +104,17 @@ export function AgentSelector({ label, agents, onChange, maxAgents = 5 }: AgentS
         <label className="text-sm font-medium">{label}</label>
         <span className="text-xs text-muted-foreground">{agents.length}/{maxAgents}</span>
       </div>
-      
+
       <div className="flex flex-wrap gap-1.5">
-        {[...agents].sort().map((agent) => (
-          <div key={agent} className="relative w-12 h-12 rounded-md overflow-hidden border-2 border-primary">
+        {[...agents].sort().map((agent, index) => (
+          <div
+            key={agent}
+            className={cn(
+              "relative w-12 h-12 rounded-md overflow-hidden border-2 border-primary",
+              stagger(index, 'fast', 'scaleIn'),
+              microInteractions.hoverScale
+            )}
+          >
             <img
               src={`/assets/agents/${agent}_icon.webp`}
               alt={agent}
@@ -112,19 +124,27 @@ export function AgentSelector({ label, agents, onChange, maxAgents = 5 }: AgentS
             <button
               type="button"
               onClick={() => handleRemoveAgent(agent)}
-              className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 hover:bg-destructive/90 shadow-sm"
+              className={cn(
+                "absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 hover:bg-destructive/90 shadow-sm",
+                microInteractions.activePress,
+                microInteractions.smooth
+              )}
             >
               <X className="h-2.5 w-2.5" />
             </button>
           </div>
         ))}
-        
+
         {/* Add button */}
         {agents.length < maxAgents && (
           <button
             type="button"
             onClick={() => setPickerOpen(true)}
-            className="w-12 h-12 rounded-md border-2 border-dashed border-muted-foreground/30 hover:border-primary/50 hover:bg-muted/50 flex items-center justify-center text-muted-foreground hover:text-primary transition-colors"
+            className={cn(
+              "w-12 h-12 rounded-md border-2 border-dashed border-muted-foreground/30 hover:border-primary/50 hover:bg-muted/50 flex items-center justify-center text-muted-foreground hover:text-primary transition-colors",
+              microInteractions.hoverScale,
+              microInteractions.smooth
+            )}
             title="Add agent"
           >
             <span className="text-xl">+</span>

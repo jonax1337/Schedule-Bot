@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { microInteractions } from "@/lib/animations";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -178,9 +179,13 @@ export function LoginForm({
                   </Select>
                 </Field>
                 <Field>
-                  <Button 
-                    type="submit" 
-                    className="w-full"
+                  <Button
+                    type="submit"
+                    className={cn(
+                      "w-full",
+                      microInteractions.activePress,
+                      microInteractions.smooth
+                    )}
                     disabled={!selectedUser || loading}
                   >
                     {loading ? 'Loading...' : 'Continue'}
@@ -193,7 +198,11 @@ export function LoginForm({
               <Field>
                 <Button
                   type="button"
-                  className="w-full"
+                  className={cn(
+                    "w-full",
+                    microInteractions.activePress,
+                    microInteractions.smooth
+                  )}
                   onClick={handleDiscordLogin}
                   disabled={discordLoading}
                 >

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { microInteractions, cn } from '@/lib/animations';
 
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
 
@@ -87,29 +88,29 @@ function CallbackContent() {
       <div className="w-full max-w-sm">
         <Card className="animate-scaleIn">
           <CardHeader className="text-center">
-            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 animate-fadeIn stagger-1">
               {status === 'loading' && <Loader2 className="h-6 w-6 animate-spin text-primary" />}
-              {status === 'success' && <CheckCircle2 className="h-6 w-6 text-primary" />}
-              {status === 'error' && <XCircle className="h-6 w-6 text-red-500" />}
+              {status === 'success' && <CheckCircle2 className="h-6 w-6 text-primary animate-scaleIn" />}
+              {status === 'error' && <XCircle className="h-6 w-6 text-red-500 animate-shake" />}
             </div>
-            <CardTitle>
+            <CardTitle className="animate-fadeIn stagger-2">
               {status === 'loading' && 'Authenticating'}
               {status === 'success' && 'Success'}
               {status === 'error' && 'Authentication Failed'}
             </CardTitle>
-            <CardDescription>{message}</CardDescription>
+            <CardDescription className="animate-fadeIn stagger-3">{message}</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="animate-fadeIn stagger-4">
             {status === 'loading' && (
               <p className="text-center text-sm text-muted-foreground">
                 Please wait while we verify your Discord account...
               </p>
             )}
             {status === 'error' && (
-              <Button 
-                onClick={() => router.push('/login')} 
-                variant="outline" 
-                className="w-full"
+              <Button
+                onClick={() => router.push('/login')}
+                variant="outline"
+                className={cn("w-full", microInteractions.activePress)}
               >
                 Back to Login
               </Button>

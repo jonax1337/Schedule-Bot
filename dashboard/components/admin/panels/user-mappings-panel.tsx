@@ -13,6 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { stagger, microInteractions, loadingStates, cn } from '@/lib/animations';
 
 interface DiscordMember {
   id: string;
@@ -228,41 +229,41 @@ export function UserMappingsPanel() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <Card>
+        <Card className="animate-slideUpScale">
           <CardHeader>
-            <Skeleton className="h-6 w-40" />
-            <Skeleton className="h-4 w-56 mt-2" />
+            <Skeleton className={cn("h-6 w-40", loadingStates.skeleton)} />
+            <Skeleton className={cn("h-4 w-56 mt-2", loadingStates.skeleton)} />
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-10 w-full" />
+              <Skeleton className={cn("h-4 w-24", loadingStates.skeleton)} />
+              <Skeleton className={cn("h-10 w-full", loadingStates.skeleton)} />
             </div>
             <div className="space-y-2">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-10 w-full" />
+              <Skeleton className={cn("h-4 w-24", loadingStates.skeleton)} />
+              <Skeleton className={cn("h-10 w-full", loadingStates.skeleton)} />
             </div>
             <div className="space-y-2">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-10 w-full" />
+              <Skeleton className={cn("h-4 w-24", loadingStates.skeleton)} />
+              <Skeleton className={cn("h-10 w-full", loadingStates.skeleton)} />
             </div>
-            <Skeleton className="h-10 w-full" />
+            <Skeleton className={cn("h-10 w-full", loadingStates.skeleton)} />
           </CardContent>
         </Card>
-        <Card>
+        <Card className="animate-slideUpScale stagger-1">
           <CardHeader>
-            <Skeleton className="h-6 w-40" />
-            <Skeleton className="h-4 w-56 mt-2" />
+            <Skeleton className={cn("h-6 w-40", loadingStates.skeleton)} />
+            <Skeleton className={cn("h-4 w-56 mt-2", loadingStates.skeleton)} />
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
               {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="flex items-center justify-between p-3 border rounded-lg">
+                <div key={i} className={cn("flex items-center justify-between p-3 border rounded-lg", stagger(i, 'fast', 'fadeIn'))}>
                   <div className="space-y-1 flex-1">
-                    <Skeleton className="h-4 w-32" />
-                    <Skeleton className="h-3 w-48" />
+                    <Skeleton className={cn("h-4 w-32", loadingStates.skeleton)} />
+                    <Skeleton className={cn("h-3 w-48", loadingStates.skeleton)} />
                   </div>
-                  <Skeleton className="h-8 w-8" />
+                  <Skeleton className={cn("h-8 w-8", loadingStates.skeleton)} />
                 </div>
               ))}
             </div>
@@ -274,7 +275,7 @@ export function UserMappingsPanel() {
 
   return (
     <div className="space-y-6">
-      <Card>
+      <Card className="animate-slideUpScale">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <UserPlus className="w-5 h-5" />
@@ -351,6 +352,7 @@ export function UserMappingsPanel() {
                   value={manualUserId}
                   onChange={(e) => setManualUserId(e.target.value)}
                   placeholder="e.g., 123456789012345678"
+                  className={microInteractions.focusRing}
                 />
               </div>
               <div className="space-y-2">
@@ -360,6 +362,7 @@ export function UserMappingsPanel() {
                   value={manualUsername}
                   onChange={(e) => setManualUsername(e.target.value)}
                   placeholder="e.g., username"
+                  className={microInteractions.focusRing}
                 />
               </div>
             </TabsContent>
@@ -372,6 +375,7 @@ export function UserMappingsPanel() {
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               placeholder="e.g., Alpha, Beta, Coach Delta"
+              className={microInteractions.focusRing}
             />
           </div>
 
@@ -389,7 +393,7 @@ export function UserMappingsPanel() {
             </Select>
           </div>
 
-          <Button onClick={addMapping} disabled={saving} className="w-full">
+          <Button onClick={addMapping} disabled={saving} className={cn("w-full", microInteractions.activePress)}>
             {saving ? (
               <>
                 <Loader2 className="mr-1 h-4 w-4 animate-spin" />
@@ -405,7 +409,7 @@ export function UserMappingsPanel() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="animate-slideUpScale stagger-1">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Users className="w-5 h-5" />
@@ -417,15 +421,19 @@ export function UserMappingsPanel() {
         </CardHeader>
         <CardContent>
           {mappings.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">
+            <p className="text-center text-muted-foreground py-8 animate-fadeIn">
               No user mappings yet. Add one above to get started.
             </p>
           ) : (
             <div className="space-y-2">
-              {mappings.map((mapping) => (
+              {mappings.map((mapping, index) => (
                 <div
                   key={mapping.discordId}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors"
+                  className={cn(
+                    "flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50",
+                    stagger(index, 'fast', 'fadeIn'),
+                    microInteractions.smooth
+                  )}
                 >
                   <div className="flex-1">
                     <div className="font-medium">{mapping.discordUsername}</div>
@@ -442,6 +450,7 @@ export function UserMappingsPanel() {
                       variant="ghost"
                       size="sm"
                       onClick={() => handleEdit(mapping)}
+                      className={cn(microInteractions.hoverScale, microInteractions.smooth)}
                     >
                       <Edit className="w-4 h-4" />
                     </Button>
@@ -449,6 +458,7 @@ export function UserMappingsPanel() {
                       variant="ghost"
                       size="sm"
                       onClick={() => removeMapping(mapping.discordId)}
+                      className={cn(microInteractions.hoverScale, microInteractions.smooth)}
                     >
                       <Trash2 className="w-4 h-4 text-destructive" />
                     </Button>
@@ -464,12 +474,12 @@ export function UserMappingsPanel() {
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Edit User Mapping</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="animate-fadeIn stagger-1">Edit User Mapping</DialogTitle>
+            <DialogDescription className="animate-fadeIn stagger-2">
               Update user mapping details
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="space-y-4 py-4 animate-fadeIn stagger-3">
             <div className="space-y-2">
               <Label htmlFor="edit-discord-id">Discord User ID</Label>
               <Input
@@ -477,6 +487,7 @@ export function UserMappingsPanel() {
                 value={editDiscordId}
                 onChange={(e) => setEditDiscordId(e.target.value)}
                 placeholder="e.g., 123456789012345678"
+                className={microInteractions.focusRing}
               />
             </div>
             <div className="space-y-2">
@@ -486,6 +497,7 @@ export function UserMappingsPanel() {
                 value={editUsername}
                 onChange={(e) => setEditUsername(e.target.value)}
                 placeholder="e.g., username"
+                className={microInteractions.focusRing}
               />
             </div>
             <div className="space-y-2">
@@ -495,6 +507,7 @@ export function UserMappingsPanel() {
                 value={editDisplayName}
                 onChange={(e) => setEditDisplayName(e.target.value)}
                 placeholder="e.g., Alpha, Beta, Coach Delta"
+                className={microInteractions.focusRing}
               />
             </div>
             <div className="space-y-2">
@@ -518,17 +531,26 @@ export function UserMappingsPanel() {
                 value={editSortOrder}
                 onChange={(e) => setEditSortOrder(parseInt(e.target.value) || 0)}
                 placeholder="0"
+                className={microInteractions.focusRing}
               />
               <p className="text-xs text-muted-foreground">
                 Leave as is for automatic ordering, or set manually to override
               </p>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+          <DialogFooter className="animate-fadeIn stagger-4">
+            <Button
+              variant="outline"
+              onClick={() => setEditDialogOpen(false)}
+              className={microInteractions.smooth}
+            >
               Cancel
             </Button>
-            <Button onClick={handleUpdate} disabled={saving}>
+            <Button
+              onClick={handleUpdate}
+              disabled={saving}
+              className={microInteractions.activePress}
+            >
               {saving ? (
                 <>
                   <Loader2 className="mr-1 h-4 w-4 animate-spin" />
