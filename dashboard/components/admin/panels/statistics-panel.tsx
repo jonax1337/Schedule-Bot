@@ -405,7 +405,7 @@ export default function StatisticsPanel() {
     return Object.entries(mapComps)
       .map(([map, comps]) => {
         const topComps = Object.values(comps)
-          .sort((a, b) => b.played - a.played)
+          .sort((a, b) => b.played - a.played || (b.played > 0 ? b.wins / b.played : 0) - (a.played > 0 ? a.wins / a.played : 0))
           .slice(0, 3)
           .map(c => ({
             agents: c.agents,
@@ -760,7 +760,7 @@ export default function StatisticsPanel() {
                         <img
                           src={`/assets/maps/Loading_Screen_${mapEntry.map}.webp`}
                           alt={mapEntry.map}
-                          className="w-16 h-10 rounded-md object-cover shrink-0"
+                          className="w-24 h-14 rounded-md object-cover shrink-0"
                         />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
@@ -808,7 +808,7 @@ export default function StatisticsPanel() {
                             {otherComps.map((comp, compIndex) => (
                               <div
                                 key={compIndex}
-                                className="flex items-center gap-2 pl-[76px]"
+                                className="flex items-center gap-2 pl-[108px]"
                               >
                                 <div className="flex items-center gap-1">
                                   {comp.agents.map((agent) => (
