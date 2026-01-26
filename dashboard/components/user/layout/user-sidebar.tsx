@@ -10,6 +10,7 @@ import {
   LogOut,
   User,
   Home,
+  BarChart3,
 } from "lucide-react"
 
 import { NavUser } from "@/components/shared"
@@ -116,6 +117,12 @@ export function UserSidebar({ userName, onLogout, ...props }: UserSidebarProps) 
       tab: "matches",
       icon: Trophy,
       isActive: currentTab === 'matches',
+    },
+    {
+      title: "Statistics",
+      tab: "statistics",
+      icon: BarChart3,
+      isActive: currentTab === 'statistics',
     },
   ]
 
