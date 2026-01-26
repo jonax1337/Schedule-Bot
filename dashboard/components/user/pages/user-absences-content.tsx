@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Plus, Trash2, PlaneTakeoff, CalendarOff } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Loader2, Plus, Trash2, PlaneTakeoff } from 'lucide-react';
 import { toast } from 'sonner';
 import { stagger, microInteractions, cn } from '@/lib/animations';
 
@@ -21,12 +22,6 @@ interface Absence {
   reason: string;
   createdAt: string;
   updatedAt: string;
-}
-
-function formatDateForInput(ddmmyyyy: string): string {
-  if (!ddmmyyyy) return '';
-  const [day, month, year] = ddmmyyyy.split('.');
-  return `${year}-${month}-${day}`;
 }
 
 function formatDateFromInput(isoDate: string): string {
@@ -66,7 +61,7 @@ export function UserAbsencesContent() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<number | null>(null);
-  const [showForm, setShowForm] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   // Form state
   const [newStartDate, setNewStartDate] = useState('');
@@ -147,7 +142,7 @@ export function UserAbsencesContent() {
         setNewStartDate('');
         setNewEndDate('');
         setNewReason('');
-        setShowForm(false);
+        setDialogOpen(false);
         await loadAbsences();
       } else {
         const data = await response.json();
@@ -185,6 +180,13 @@ export function UserAbsencesContent() {
     }
   };
 
+  const openNewAbsenceDialog = () => {
+    setNewStartDate('');
+    setNewEndDate('');
+    setNewReason('');
+    setDialogOpen(true);
+  };
+
   // Set minimum date to today for the date inputs
   const today = new Date();
   const minDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
@@ -204,104 +206,27 @@ export function UserAbsencesContent() {
 
   return (
     <div className="space-y-4">
-      {/* Add Absence */}
       <Card className="animate-fadeIn">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base flex items-center gap-2">
-              <PlaneTakeoff className="w-4 h-4" />
-              Absences
-            </CardTitle>
-            {!showForm && (
-              <Button
-                size="sm"
-                onClick={() => setShowForm(true)}
-                className={microInteractions.activePress}
-              >
-                <Plus className="w-4 h-4 mr-1" />
-                New Absence
-              </Button>
-            )}
+        <CardContent>
+          {/* Action bar */}
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-sm text-muted-foreground">
+              {activeAbsences.length > 0
+                ? `${activeAbsences.length} active/upcoming absence${activeAbsences.length !== 1 ? 's' : ''}`
+                : 'No active absences'}
+            </p>
+            <Button
+              size="sm"
+              onClick={openNewAbsenceDialog}
+              className={microInteractions.activePress}
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              New Absence
+            </Button>
           </div>
-        </CardHeader>
-        {showForm && (
-          <CardContent>
-            <div className="p-4 bg-muted/50 rounded-lg border space-y-3 animate-slideDown">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs text-muted-foreground mb-1 block">Start Date</label>
-                  <Input
-                    type="date"
-                    value={newStartDate}
-                    min={minDate}
-                    onChange={(e) => {
-                      setNewStartDate(e.target.value);
-                      if (newEndDate && e.target.value > newEndDate) {
-                        setNewEndDate(e.target.value);
-                      }
-                    }}
-                    className={microInteractions.focusRing}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground mb-1 block">End Date</label>
-                  <Input
-                    type="date"
-                    value={newEndDate}
-                    min={newStartDate || minDate}
-                    onChange={(e) => setNewEndDate(e.target.value)}
-                    className={microInteractions.focusRing}
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Reason (optional)</label>
-                <Input
-                  type="text"
-                  value={newReason}
-                  onChange={(e) => setNewReason(e.target.value)}
-                  placeholder="e.g. Vacation, Sick, Personal"
-                  maxLength={100}
-                  className={microInteractions.focusRing}
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  onClick={createAbsence}
-                  disabled={saving || !newStartDate || !newEndDate}
-                  className={microInteractions.activePress}
-                >
-                  {saving ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Plus className="w-4 h-4 mr-1" />}
-                  Add Absence
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setShowForm(false);
-                    setNewStartDate('');
-                    setNewEndDate('');
-                    setNewReason('');
-                  }}
-                  className={microInteractions.activePress}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        )}
-      </Card>
 
-      {/* Active Absences */}
-      {activeAbsences.length > 0 && (
-        <Card className="animate-fadeIn">
-          <CardHeader>
-            <CardTitle className="text-sm flex items-center gap-2">
-              <CalendarOff className="w-4 h-4 text-purple-500" />
-              Active & Upcoming Absences
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+          {/* Absences Table */}
+          {absences.length > 0 ? (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -367,35 +292,20 @@ export function UserAbsencesContent() {
                     </TableRow>
                   );
                 })}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Past Absences */}
-      {pastAbsences.length > 0 && (
-        <Card className="animate-fadeIn opacity-60">
-          <CardHeader>
-            <CardTitle className="text-sm text-muted-foreground">Past Absences</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>From</TableHead>
-                  <TableHead>To</TableHead>
-                  <TableHead>Reason</TableHead>
-                  <TableHead></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
                 {pastAbsences.map((absence, index) => (
-                  <TableRow key={absence.id} className={stagger(index, 'fast', 'fadeIn')}>
+                  <TableRow
+                    key={absence.id}
+                    className={cn("opacity-40", stagger(activeAbsences.length + index, 'fast', 'fadeIn'))}
+                  >
                     <TableCell className="text-muted-foreground">{absence.startDate}</TableCell>
                     <TableCell className="text-muted-foreground">{absence.endDate}</TableCell>
                     <TableCell className="text-muted-foreground">
                       {absence.reason || '-'}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="text-muted-foreground opacity-60">
+                        Past
+                      </Badge>
                     </TableCell>
                     <TableCell>
                       <Button
@@ -416,20 +326,84 @@ export function UserAbsencesContent() {
                 ))}
               </TableBody>
             </Table>
-          </CardContent>
-        </Card>
-      )}
+          ) : (
+            <div className="py-12 text-center">
+              <PlaneTakeoff className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">No absences registered</p>
+              <p className="text-xs text-muted-foreground mt-1">Add an absence to automatically mark yourself as unavailable</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-      {/* Empty State */}
-      {absences.length === 0 && !showForm && (
-        <Card className="animate-fadeIn">
-          <CardContent className="py-12 text-center">
-            <PlaneTakeoff className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">No absences registered</p>
-            <p className="text-xs text-muted-foreground mt-1">Add an absence to automatically mark yourself as unavailable</p>
-          </CardContent>
-        </Card>
-      )}
+      {/* New Absence Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <PlaneTakeoff className="w-4 h-4" />
+              New Absence
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Start Date</label>
+                <Input
+                  type="date"
+                  value={newStartDate}
+                  min={minDate}
+                  onChange={(e) => {
+                    setNewStartDate(e.target.value);
+                    if (newEndDate && e.target.value > newEndDate) {
+                      setNewEndDate(e.target.value);
+                    }
+                  }}
+                  className={microInteractions.focusRing}
+                />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">End Date</label>
+                <Input
+                  type="date"
+                  value={newEndDate}
+                  min={newStartDate || minDate}
+                  onChange={(e) => setNewEndDate(e.target.value)}
+                  className={microInteractions.focusRing}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Reason (optional)</label>
+              <Input
+                type="text"
+                value={newReason}
+                onChange={(e) => setNewReason(e.target.value)}
+                placeholder="e.g. Vacation, Sick, Personal"
+                maxLength={100}
+                className={microInteractions.focusRing}
+              />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => setDialogOpen(false)}
+                className={microInteractions.activePress}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={createAbsence}
+                disabled={saving || !newStartDate || !newEndDate}
+                className={microInteractions.activePress}
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Plus className="w-4 h-4 mr-1" />}
+                Add Absence
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
