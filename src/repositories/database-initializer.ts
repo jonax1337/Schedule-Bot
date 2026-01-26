@@ -40,6 +40,37 @@ async function checkTablesExist(): Promise<boolean> {
 }
 
 /**
+ * Check for missing tables and sync schema if needed.
+ * This handles the case where the database already has data
+ * but is missing newly added tables (e.g. absences).
+ */
+async function checkForMissingTables(): Promise<void> {
+  const tablesToCheck = [
+    { name: 'absences', check: () => prisma.absence.count() },
+  ];
+
+  const missingTables: string[] = [];
+
+  for (const table of tablesToCheck) {
+    try {
+      await table.check();
+    } catch (error: any) {
+      if (error.code === 'P2021') {
+        missingTables.push(table.name);
+      }
+    }
+  }
+
+  if (missingTables.length > 0) {
+    console.log(`⚠️  Missing tables detected: ${missingTables.join(', ')}`);
+    console.log('🔄 Syncing database schema...');
+    await createDatabaseTables();
+    console.log('✅ Missing tables created successfully!');
+    logger.success('Database schema synced', `Created missing tables: ${missingTables.join(', ')}`);
+  }
+}
+
+/**
  * Create database tables using Prisma
  */
 async function createDatabaseTables(): Promise<void> {
@@ -164,6 +195,8 @@ export async function initializeDatabaseIfEmpty(): Promise<void> {
   const isEmpty = await isDatabaseEmpty();
   
   if (!isEmpty) {
+    // Check for missing tables (schema drift) even when DB has data
+    await checkForMissingTables();
     console.log('✅ Database already initialized. Skipping setup.');
     console.log('='.repeat(50) + '\n');
     return;
