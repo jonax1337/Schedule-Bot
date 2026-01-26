@@ -14,7 +14,6 @@ import { Settings } from "@/lib/types";
 import { Loader2, Save, Hash, AtSign, ChevronsUpDown, Check } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { Skeleton } from "@/components/ui/skeleton";
 import { stagger, microInteractions, loadingStates } from '@/lib/animations';
 
 interface DiscordChannel {
@@ -129,26 +128,7 @@ export default function SettingsPanel() {
   };
 
   if (loading) {
-    return (
-      <div className="space-y-6">
-        {[1, 2, 3].map((i) => (
-          <Card key={i} className={cn("animate-fadeIn", stagger(i - 1, 'slow', 'fadeIn'))}>
-            <CardHeader>
-              <Skeleton className={cn("h-6 w-32", loadingStates.skeleton)} />
-              <Skeleton className={cn("h-4 w-48 mt-2", loadingStates.skeleton)} />
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {Array.from({ length: 3 }).map((_, j) => (
-                <div key={j} className="space-y-2">
-                  <Skeleton className={cn("h-4 w-24", loadingStates.skeleton)} />
-                  <Skeleton className={cn("h-10 w-full", loadingStates.skeleton)} />
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    );
+    return null;
   }
 
   if (!settings) {

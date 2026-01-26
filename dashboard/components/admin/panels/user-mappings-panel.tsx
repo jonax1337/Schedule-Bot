@@ -9,7 +9,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { Loader2, Trash2, UserPlus, Search, Users, Edit3, Edit } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -225,53 +224,6 @@ export function UserMappingsPanel() {
   };
 
   const selectedMember = members.find(m => m.id === selectedUserId);
-
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        <Card className="animate-slideUpScale">
-          <CardHeader>
-            <Skeleton className={cn("h-6 w-40", loadingStates.skeleton)} />
-            <Skeleton className={cn("h-4 w-56 mt-2", loadingStates.skeleton)} />
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Skeleton className={cn("h-4 w-24", loadingStates.skeleton)} />
-              <Skeleton className={cn("h-10 w-full", loadingStates.skeleton)} />
-            </div>
-            <div className="space-y-2">
-              <Skeleton className={cn("h-4 w-24", loadingStates.skeleton)} />
-              <Skeleton className={cn("h-10 w-full", loadingStates.skeleton)} />
-            </div>
-            <div className="space-y-2">
-              <Skeleton className={cn("h-4 w-24", loadingStates.skeleton)} />
-              <Skeleton className={cn("h-10 w-full", loadingStates.skeleton)} />
-            </div>
-            <Skeleton className={cn("h-10 w-full", loadingStates.skeleton)} />
-          </CardContent>
-        </Card>
-        <Card className="animate-slideUpScale stagger-1">
-          <CardHeader>
-            <Skeleton className={cn("h-6 w-40", loadingStates.skeleton)} />
-            <Skeleton className={cn("h-4 w-56 mt-2", loadingStates.skeleton)} />
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className={cn("flex items-center justify-between p-3 border rounded-lg", stagger(i, 'fast', 'fadeIn'))}>
-                  <div className="space-y-1 flex-1">
-                    <Skeleton className={cn("h-4 w-32", loadingStates.skeleton)} />
-                    <Skeleton className={cn("h-3 w-48", loadingStates.skeleton)} />
-                  </div>
-                  <Skeleton className={cn("h-8 w-8", loadingStates.skeleton)} />
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">

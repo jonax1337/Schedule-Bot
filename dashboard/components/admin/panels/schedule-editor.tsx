@@ -9,7 +9,6 @@ import { toast } from 'sonner';
 import { Loader2, Calendar, Save, RefreshCw, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import Image from 'next/image';
-import { Skeleton } from '@/components/ui/skeleton';
 import { stagger, microInteractions, loadingStates, cn } from '@/lib/animations';
 
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
@@ -217,36 +216,6 @@ export function ScheduleEditor() {
       setEditingCell(null);
     }
   };
-
-  if (loading) {
-    return (
-      <Card className="animate-fadeIn">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <Skeleton className={cn("h-6 w-40", loadingStates.skeleton)} />
-              <Skeleton className={cn("h-4 w-64 mt-2", loadingStates.skeleton)} />
-            </div>
-            <Skeleton className={cn("h-9 w-24", loadingStates.skeleton)} />
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-md border">
-            <div className="p-2">
-              {Array.from({ length: 14 }).map((_, i) => (
-                <div key={i} className={cn("flex gap-2 mb-2", stagger(i, 'fast', 'fadeIn'))}>
-                  <Skeleton className={cn("h-8 w-24", loadingStates.skeleton)} />
-                  {Array.from({ length: 7 }).map((_, j) => (
-                    <Skeleton key={j} className={cn("h-8 flex-1", loadingStates.skeleton)} />
-                  ))}
-                </div>
-              ))}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
 
   return (
     <Card className="animate-fadeIn">
