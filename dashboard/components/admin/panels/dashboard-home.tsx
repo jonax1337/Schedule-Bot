@@ -173,7 +173,7 @@ export default function AdminDashboardHome() {
       setSchedules(schedulesList);
       setAvailabilitySchedules(schedulesList);
       setRecentScrims(scrimsList.slice(0, 10));
-      setScrimStats(scrimStatsData);
+      setScrimStats(scrimStatsData.stats || scrimStatsData);
 
       setStats({
         totalUsers: mappings.length,
