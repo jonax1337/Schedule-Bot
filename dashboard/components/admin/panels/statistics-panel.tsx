@@ -161,9 +161,9 @@ function ScrimFilters({
   matchTypes: string[];
 }) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       <Select value={matchType} onValueChange={onMatchTypeChange}>
-        <SelectTrigger size="sm" className="w-[120px]">
+        <SelectTrigger size="sm" className="w-[110px]">
           <SelectValue />
         </SelectTrigger>
         <SelectContent position="popper" side="bottom" align="end">
@@ -176,7 +176,7 @@ function ScrimFilters({
         </SelectContent>
       </Select>
       <Select value={timeRange} onValueChange={onTimeRangeChange}>
-        <SelectTrigger size="sm" className="w-[130px]">
+        <SelectTrigger size="sm" className="w-[120px]">
           <SelectValue />
         </SelectTrigger>
         <SelectContent position="popper" side="bottom" align="end">
@@ -511,7 +511,7 @@ export default function StatisticsPanel() {
           </CardHeader>
           <CardContent className="flex-1">
             {!availabilityLoading && hasAvailabilityData && availabilityData.length > 0 ? (
-              <ChartContainer config={availabilityConfig} className="aspect-auto h-[300px] w-full">
+              <ChartContainer config={availabilityConfig} className="aspect-auto h-[220px] md:h-[300px] w-full">
                 <BarChart data={availabilityData} margin={{ top: 5, right: 5, bottom: 5, left: -15 }}>
                   <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border" />
                   <XAxis
@@ -562,11 +562,11 @@ export default function StatisticsPanel() {
                 </BarChart>
               </ChartContainer>
             ) : availabilityLoading ? (
-              <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+              <div className="flex items-center justify-center h-[220px] md:h-[300px] text-muted-foreground">
                 <Loader2 className="h-5 w-5 animate-spin" />
               </div>
             ) : (
-              <div className="flex items-center justify-center h-[300px] text-muted-foreground text-sm">
+              <div className="flex items-center justify-center h-[220px] md:h-[300px] text-muted-foreground text-sm">
                 Schedule data will appear here
               </div>
             )}
@@ -599,11 +599,11 @@ export default function StatisticsPanel() {
           </CardHeader>
           <CardContent className="flex-1">
             {currentFormData ? (
-              <div className="flex flex-col justify-center h-[300px] gap-6">
+              <div className="flex flex-col justify-center h-[220px] md:h-[300px] gap-4 md:gap-6">
                 {/* Streak display */}
                 <div className="flex items-center justify-center gap-3">
                   <div className={cn(
-                    'text-4xl font-bold tabular-nums',
+                    'text-3xl md:text-4xl font-bold tabular-nums',
                     currentFormData.streakType === 'win' ? 'text-green-600 dark:text-green-400'
                       : currentFormData.streakType === 'loss' ? 'text-red-600 dark:text-red-400'
                       : 'text-muted-foreground'
@@ -616,7 +616,7 @@ export default function StatisticsPanel() {
                 </div>
 
                 {/* Result dots */}
-                <div className="flex items-center justify-center gap-2">
+                <div className="flex items-center justify-center gap-1.5 md:gap-2 flex-wrap">
                   {currentFormData.matches.map((match, index) => (
                     <div
                       key={index}
@@ -624,7 +624,7 @@ export default function StatisticsPanel() {
                     >
                       <div
                         className={cn(
-                          'w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white transition-transform hover:scale-110',
+                          'w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-[10px] md:text-xs font-bold text-white transition-transform hover:scale-110',
                           match.result === 'win' ? 'bg-green-600 dark:bg-green-500'
                             : match.result === 'loss' ? 'bg-red-600 dark:bg-red-500'
                             : 'bg-neutral-400 dark:bg-neutral-500'
@@ -662,7 +662,7 @@ export default function StatisticsPanel() {
                 </div>
               </div>
             ) : (
-              <div className="flex items-center justify-center h-[300px] text-muted-foreground text-sm">
+              <div className="flex items-center justify-center h-[220px] md:h-[300px] text-muted-foreground text-sm">
                 {allScrims.length > 0 ? 'No matches match the current filters' : 'Play some matches to see your form'}
               </div>
             )}
@@ -698,7 +698,7 @@ export default function StatisticsPanel() {
           </CardHeader>
           <CardContent className="flex-1">
             {hasScrimData && scrimResultsData.length > 0 ? (
-              <ChartContainer config={scrimResultsConfig} className="mx-auto aspect-square max-h-[300px] w-full">
+              <ChartContainer config={scrimResultsConfig} className="mx-auto aspect-square max-h-[220px] md:max-h-[300px] w-full">
                 <PieChart>
                   <ChartTooltip content={<ChartTooltipContent hideLabel />} />
                   <Pie
@@ -738,7 +738,7 @@ export default function StatisticsPanel() {
                 </PieChart>
               </ChartContainer>
             ) : (
-              <div className="flex items-center justify-center h-[300px] text-muted-foreground text-sm">
+              <div className="flex items-center justify-center h-[220px] md:h-[300px] text-muted-foreground text-sm">
                 {allScrims.length > 0 ? 'No matches match the current filters' : 'Play some matches to see statistics'}
               </div>
             )}
@@ -771,7 +771,7 @@ export default function StatisticsPanel() {
           </CardHeader>
           <CardContent className="flex-1">
             {mapStatsData.length > 0 ? (
-              <ChartContainer config={mapStatsConfig} className="aspect-auto h-[300px] w-full">
+              <ChartContainer config={mapStatsConfig} className="aspect-auto h-[220px] md:h-[300px] w-full">
                 <BarChart data={mapStatsData} layout="vertical" margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
                   <CartesianGrid horizontal={false} strokeDasharray="3 3" className="stroke-border" />
                   <XAxis type="number" tickLine={false} axisLine={false} fontSize={11} allowDecimals={false} />
@@ -780,8 +780,8 @@ export default function StatisticsPanel() {
                     type="category"
                     tickLine={false}
                     axisLine={false}
-                    fontSize={11}
-                    width={80}
+                    fontSize={isMobile ? 10 : 11}
+                    width={isMobile ? 60 : 80}
                     tickMargin={4}
                   />
                   <ChartTooltip content={<ChartTooltipContent />} />
@@ -791,7 +791,7 @@ export default function StatisticsPanel() {
                 </BarChart>
               </ChartContainer>
             ) : (
-              <div className="flex items-center justify-center h-[300px] text-muted-foreground text-sm">
+              <div className="flex items-center justify-center h-[220px] md:h-[300px] text-muted-foreground text-sm">
                 {allScrims.length > 0 ? 'No matches match the current filters' : 'Play matches on different maps to see performance'}
               </div>
             )}
@@ -839,11 +839,11 @@ export default function StatisticsPanel() {
                       )}
                     >
                       {/* Map header + best comp (always visible) */}
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2 md:gap-3">
                         <img
                           src={`/assets/maps/Loading_Screen_${mapEntry.map}.webp`}
                           alt={mapEntry.map}
-                          className="w-24 h-14 rounded-md object-cover shrink-0"
+                          className="w-16 h-10 md:w-24 md:h-14 rounded-md object-cover shrink-0"
                         />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
@@ -852,24 +852,24 @@ export default function StatisticsPanel() {
                               {mapEntry.totalPlayed} {mapEntry.totalPlayed === 1 ? 'match' : 'matches'}
                             </span>
                           </div>
-                          <div className="flex items-center gap-2 mt-1.5">
-                            <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                            <div className="flex items-center gap-0.5 md:gap-1">
                               {bestComp.agents.map((agent) => (
                                 <img
                                   key={agent}
                                   src={`/assets/agents/${agent}_icon.webp`}
                                   alt={agent}
-                                  className="w-8 h-8 rounded-md"
+                                  className="w-6 h-6 md:w-8 md:h-8 rounded-md"
                                   title={agent}
                                 />
                               ))}
                             </div>
                             <div className="flex items-center gap-2 ml-1">
-                              <span className="text-sm text-muted-foreground tabular-nums">
+                              <span className="text-xs md:text-sm text-muted-foreground tabular-nums">
                                 {bestComp.played}x
                               </span>
                               <span className={cn(
-                                'text-sm font-medium tabular-nums',
+                                'text-xs md:text-sm font-medium tabular-nums',
                                 bestComp.winRate >= 50 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                               )}>
                                 {bestComp.winRate}% WR
@@ -891,15 +891,15 @@ export default function StatisticsPanel() {
                             {otherComps.map((comp, compIndex) => (
                               <div
                                 key={compIndex}
-                                className="flex items-center gap-2 pl-[108px]"
+                                className="flex items-center gap-2 pl-[72px] md:pl-[108px]"
                               >
-                                <div className="flex items-center gap-1">
+                                <div className="flex items-center gap-0.5 md:gap-1">
                                   {comp.agents.map((agent) => (
                                     <img
                                       key={agent}
                                       src={`/assets/agents/${agent}_icon.webp`}
                                       alt={agent}
-                                      className="w-7 h-7 rounded-md"
+                                      className="w-6 h-6 md:w-7 md:h-7 rounded-md"
                                       title={agent}
                                     />
                                   ))}
