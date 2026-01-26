@@ -7,9 +7,31 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2, XCircle, Clock, CheckSquare, Square, Check } from 'lucide-react';
+import { Loader2, XCircle, Clock, CheckSquare, Square, Check, PlaneTakeoff } from 'lucide-react';
 import { toast } from 'sonner';
 import { stagger, microInteractions, cn } from '@/lib/animations';
+
+interface AbsenceData {
+  id: number;
+  userId: string;
+  startDate: string;
+  endDate: string;
+  reason: string;
+}
+
+function parseGermanDate(dateStr: string): Date {
+  const [day, month, year] = dateStr.split('.');
+  return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+}
+
+function isDateInAbsence(date: string, absences: AbsenceData[]): boolean {
+  const d = parseGermanDate(date);
+  return absences.some(a => {
+    const start = parseGermanDate(a.startDate);
+    const end = parseGermanDate(a.endDate);
+    return d >= start && d <= end;
+  });
+}
 
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
 
@@ -41,6 +63,7 @@ export function UserAvailabilityContent() {
   const [selectedDates, setSelectedDates] = useState<Set<string>>(new Set());
   const [bulkTimeFrom, setBulkTimeFrom] = useState('');
   const [bulkTimeTo, setBulkTimeTo] = useState('');
+  const [absences, setAbsences] = useState<AbsenceData[]>([]);
   const autoSaveTimeoutsRef = useRef<Record<string, NodeJS.Timeout>>({});
 
   useEffect(() => {
@@ -94,6 +117,20 @@ export function UserAvailabilityContent() {
       setUserDiscordId(userMapping.discordId);
 
       const { getAuthHeaders } = await import('@/lib/auth');
+
+      // Fetch absences using discordId (works regardless of admin/user JWT)
+      try {
+        const absencesRes = await fetch(`${BOT_API_URL}/api/absences?userId=${userMapping.discordId}`, {
+          headers: getAuthHeaders(),
+        });
+        if (absencesRes.ok) {
+          const absencesData = await absencesRes.json();
+          setAbsences(absencesData.absences || []);
+        }
+      } catch (e) {
+        console.error('Failed to load absences:', e);
+      }
+
       const scheduleRes = await fetch(`${BOT_API_URL}/api/schedule/next14`, {
         headers: getAuthHeaders(),
       });
@@ -390,10 +427,11 @@ export function UserAvailabilityContent() {
   };
 
   const toggleSelectAll = () => {
-    if (selectedDates.size === entries.length) {
+    const selectableDates = entries.filter(e => !isDateInAbsence(e.date, absences)).map(e => e.date);
+    if (selectedDates.size === selectableDates.length) {
       setSelectedDates(new Set());
     } else {
-      setSelectedDates(new Set(entries.map(e => e.date)));
+      setSelectedDates(new Set(selectableDates));
     }
   };
 
@@ -672,11 +710,13 @@ export function UserAvailabilityContent() {
             <TableBody>
               {entries.map((entry, index) => {
                 const isSelected = selectedDates.has(entry.date);
+                const isAbsent = isDateInAbsence(entry.date, absences);
                 return (
                   <TableRow
                     key={entry.date}
                     className={cn(
                       isSelected && 'bg-primary/5',
+                      isAbsent && 'bg-purple-500/5 opacity-60',
                       stagger(index, 'fast', 'fadeIn')
                     )}
                   >
@@ -685,63 +725,98 @@ export function UserAvailabilityContent() {
                         checked={isSelected}
                         onCheckedChange={() => toggleDateSelection(entry.date)}
                         aria-label={`Select ${entry.date}`}
+                        disabled={isAbsent}
                       />
                     </TableCell>
                     <TableCell className="font-medium">{entry.date}</TableCell>
                     <TableCell className="text-muted-foreground">{getWeekdayName(entry.date)}</TableCell>
-                    <TableCell>
-                      <div className="relative">
-                        <Input
-                          type="time"
-                          value={entry.timeFrom}
-                          onChange={(e) => handleTimeChange(entry.date, 'from', e.target.value)}
-                          className={cn("w-32", microInteractions.focusRing)}
-                          disabled={entry.isSaving}
-                        />
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="relative">
-                        <Input
-                          type="time"
-                          value={entry.timeTo}
-                          onChange={(e) => handleTimeChange(entry.date, 'to', e.target.value)}
-                          className={cn("w-32", microInteractions.focusRing)}
-                          disabled={entry.isSaving}
-                        />
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {entry.justSaved ? (
-                        <span className="flex items-center gap-2 text-green-600 animate-fadeIn">
-                          <Check className="w-4 h-4" />
-                          Saved
-                        </span>
-                      ) : entry.value === 'x' ? (
-                        <span className="flex items-center gap-2 text-red-500">
-                          <XCircle className="w-4 h-4" />
-                          Not Available
-                        </span>
-                      ) : entry.value ? (
-                        <span className="flex items-center gap-2 text-green-600">
-                          <Clock className="w-4 h-4" />
-                          {entry.value}
-                        </span>
-                      ) : (
-                        <span className="text-gray-400">Not set</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => setUnavailable(entry.date)}
-                        disabled={saving || entry.isSaving}
-                        className={cn(microInteractions.activePress, microInteractions.smooth)}
-                      >
-                        Not Available
-                      </Button>
-                    </TableCell>
+                    {isAbsent ? (
+                      <>
+                        <TableCell>
+                          <div className="relative">
+                            <Input
+                              type="time"
+                              value=""
+                              className="w-32 opacity-40 cursor-not-allowed"
+                              disabled
+                            />
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="relative">
+                            <Input
+                              type="time"
+                              value=""
+                              className="w-32 opacity-40 cursor-not-allowed"
+                              disabled
+                            />
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <span className="flex items-center gap-2 text-purple-500">
+                            <PlaneTakeoff className="w-4 h-4" />
+                            Absent
+                          </span>
+                        </TableCell>
+                        <TableCell></TableCell>
+                      </>
+                    ) : (
+                      <>
+                        <TableCell>
+                          <div className="relative">
+                            <Input
+                              type="time"
+                              value={entry.timeFrom}
+                              onChange={(e) => handleTimeChange(entry.date, 'from', e.target.value)}
+                              className={cn("w-32", microInteractions.focusRing)}
+                              disabled={entry.isSaving}
+                            />
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="relative">
+                            <Input
+                              type="time"
+                              value={entry.timeTo}
+                              onChange={(e) => handleTimeChange(entry.date, 'to', e.target.value)}
+                              className={cn("w-32", microInteractions.focusRing)}
+                              disabled={entry.isSaving}
+                            />
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {entry.justSaved ? (
+                            <span className="flex items-center gap-2 text-green-600 animate-fadeIn">
+                              <Check className="w-4 h-4" />
+                              Saved
+                            </span>
+                          ) : entry.value === 'x' ? (
+                            <span className="flex items-center gap-2 text-red-500">
+                              <XCircle className="w-4 h-4" />
+                              Not Available
+                            </span>
+                          ) : entry.value ? (
+                            <span className="flex items-center gap-2 text-green-600">
+                              <Clock className="w-4 h-4" />
+                              {entry.value}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400">Not set</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => setUnavailable(entry.date)}
+                            disabled={saving || entry.isSaving}
+                            className={cn(microInteractions.activePress, microInteractions.smooth)}
+                          >
+                            Not Available
+                          </Button>
+                        </TableCell>
+                      </>
+                    )}
                   </TableRow>
                 );
               })}

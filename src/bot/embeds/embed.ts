@@ -16,6 +16,9 @@ function formatPlayer(player: PlayerAvailability): string {
   if (player.available && player.timeRange) {
     return `✅ ${player.displayName} \`${player.timeRange.start} - ${player.timeRange.end}\``;
   }
+  if (player.isAbsent) {
+    return `✈️ ~~${player.displayName}~~`;
+  }
   return `❌ ~~${player.displayName}~~`;
 }
 
@@ -71,9 +74,9 @@ export function buildScheduleEmbed(result: ScheduleResult): EmbedBuilder {
     embed.addFields({ name: 'Main Roster', value: mainLines, inline: false });
   }
 
-  // Subs - only show subs that have a time or are marked unavailable
+  // Subs - only show subs that have a time, are marked unavailable, or are absent
   const subs = schedule.players.filter(p => p.role === 'SUB');
-  const visibleSubs = subs.filter(p => p.timeRange !== null || p.rawValue.toLowerCase() === 'x');
+  const visibleSubs = subs.filter(p => p.timeRange !== null || p.rawValue.toLowerCase() === 'x' || p.isAbsent);
 
   if (visibleSubs.length > 0) {
     const subLines = visibleSubs.map(p => {
@@ -84,9 +87,9 @@ export function buildScheduleEmbed(result: ScheduleResult): EmbedBuilder {
     embed.addFields({ name: 'Subs', value: subLines || '—', inline: false });
   }
 
-  // Coaches - only show coaches that have a time or are marked unavailable
+  // Coaches - only show coaches that have a time, are marked unavailable, or are absent
   const coaches = schedule.players.filter(p => p.role === 'COACH');
-  const visibleCoaches = coaches.filter(p => p.timeRange !== null || p.rawValue.toLowerCase() === 'x');
+  const visibleCoaches = coaches.filter(p => p.timeRange !== null || p.rawValue.toLowerCase() === 'x' || p.isAbsent);
 
   if (visibleCoaches.length > 0) {
     const coachLines = visibleCoaches.map(formatPlayer).join('\n');

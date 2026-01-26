@@ -1,5 +1,6 @@
 import { getUserMappings } from '../../repositories/user-mapping.repository.js';
 import { getScheduleForDate } from '../../repositories/schedule.repository.js';
+import { getAbsentUserIdsForDate } from '../../repositories/absence.repository.js';
 import { parseSchedule, analyzeSchedule } from './analyzer.js';
 
 export interface ScheduleDetail {
@@ -9,6 +10,7 @@ export interface ScheduleDetail {
   availablePlayers: string[];
   unavailablePlayers: string[];
   noResponsePlayers: string[];
+  absentPlayers: string[];
 }
 
 /**
@@ -18,28 +20,33 @@ export async function getScheduleDetails(date: string): Promise<ScheduleDetail |
   try {
     const scheduleData = await getScheduleForDate(date);
     if (!scheduleData) return null;
-    
-    const schedule = parseSchedule(scheduleData);
+
+    const absentUserIds = await getAbsentUserIdsForDate(date);
+    const schedule = parseSchedule(scheduleData, absentUserIds);
     const status = analyzeSchedule(schedule);
-    
+
     // Extract player lists from schedule - filter by role
     const mainPlayers = status.schedule.players.filter(p => p.role === 'MAIN');
     const availablePlayers = mainPlayers
       .filter(p => p.available)
       .map(p => p.displayName);
     const unavailablePlayers = mainPlayers
-      .filter(p => !p.available && p.rawValue.toLowerCase() === 'x')
+      .filter(p => !p.available && !p.isAbsent && p.rawValue.toLowerCase() === 'x')
       .map(p => p.displayName);
     const noResponsePlayers = mainPlayers
-      .filter(p => !p.available && p.rawValue === '')
+      .filter(p => !p.available && !p.isAbsent && p.rawValue === '')
       .map(p => p.displayName);
-    
-    // Check if no one has set their availability yet
-    const allPlayersNoResponse = mainPlayers.every(p => !p.available && p.rawValue === '');
-    
+    const absentPlayers = status.schedule.players
+      .filter(p => p.isAbsent)
+      .map(p => p.displayName);
+
+    // Check if no one has set their availability yet (excluding absent players)
+    const nonAbsentMains = mainPlayers.filter(p => !p.isAbsent);
+    const allPlayersNoResponse = nonAbsentMains.length > 0 && nonAbsentMains.every(p => !p.available && p.rawValue === '');
+
     // Convert backend status to frontend-friendly string
     let statusString = 'Unknown';
-    
+
     if (allPlayersNoResponse) {
       // If no one has set availability yet, show "Unknown"
       statusString = 'Unknown';
@@ -60,7 +67,7 @@ export async function getScheduleDetails(date: string): Promise<ScheduleDetail |
     } else if (status.status === 'NOT_ENOUGH') {
       statusString = 'Insufficient players';
     }
-    
+
     return {
       status: statusString,
       startTime: status.commonTimeRange?.start,
@@ -68,6 +75,7 @@ export async function getScheduleDetails(date: string): Promise<ScheduleDetail |
       availablePlayers,
       unavailablePlayers,
       noResponsePlayers,
+      absentPlayers,
     };
   } catch (error) {
     console.error(`[ScheduleDetails] Error fetching details for ${date}:`, error);

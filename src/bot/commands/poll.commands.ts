@@ -1,5 +1,6 @@
 import { ChatInputCommandInteraction, MessageFlags, EmbedBuilder } from 'discord.js';
 import { getScheduleForDate } from '../../repositories/schedule.repository.js';
+import { getAbsentUserIdsForDate } from '../../repositories/absence.repository.js';
 import { parseSchedule, analyzeSchedule } from '../../shared/utils/analyzer.js';
 import { getTodayFormatted } from '../../shared/utils/dateFormatter.js';
 
@@ -82,7 +83,8 @@ export async function handleSendTrainingPollCommand(interaction: ChatInputComman
       return;
     }
 
-    const schedule = parseSchedule(sheetData);
+    const absentUserIds = await getAbsentUserIdsForDate(displayDate);
+    const schedule = parseSchedule(sheetData, absentUserIds);
     const result = analyzeSchedule(schedule);
 
     // Check if training can proceed

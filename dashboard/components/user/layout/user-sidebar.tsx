@@ -11,6 +11,7 @@ import {
   User,
   Home,
   BarChart3,
+  PlaneTakeoff,
 } from "lucide-react"
 
 import { NavUser } from "@/components/shared"
@@ -111,6 +112,12 @@ export function UserSidebar({ userName, onLogout, ...props }: UserSidebarProps) 
       tab: "availability",
       icon: CalendarCheck,
       isActive: currentTab === 'availability',
+    },
+    {
+      title: "Absences",
+      tab: "absences",
+      icon: PlaneTakeoff,
+      isActive: currentTab === 'absences',
     },
     {
       title: "Match History",
