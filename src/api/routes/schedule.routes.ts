@@ -4,6 +4,7 @@ import { sanitizeString } from '../../shared/middleware/validation.js';
 import { getUserMappings } from '../../repositories/user-mapping.repository.js';
 import { updatePlayerAvailability } from '../../repositories/schedule.repository.js';
 import { getScheduleDetails, getScheduleDetailsBatch } from '../../shared/utils/scheduleDetails.js';
+import { isUserAbsentOnDate } from '../../repositories/absence.repository.js';
 import { logger } from '../../shared/utils/logger.js';
 
 const router = Router();
@@ -73,13 +74,19 @@ router.post('/update-availability', verifyToken, async (req: AuthRequest, res) =
     if (req.user?.role === 'user') {
       const mappings = await getUserMappings();
       const userMapping = mappings.find(m => m.displayName === req.user?.username);
-      
+
       if (!userMapping || userMapping.discordId !== userId) {
         logger.warn('Availability update denied', `User ${req.user?.username} tried to edit ${userId}`);
         return res.status(403).json({ error: 'You can only edit your own availability' });
       }
     }
-    
+
+    // Check if user is absent on this date
+    const isAbsent = await isUserAbsentOnDate(userId, date);
+    if (isAbsent && req.user?.role !== 'admin') {
+      return res.status(403).json({ error: 'Cannot edit availability during an absence period' });
+    }
+
     const sanitizedValue = sanitizeString(availability);
     const success = await updatePlayerAvailability(date, userId, sanitizedValue);
     

@@ -72,6 +72,20 @@ model Scrim {
   @@map("scrims")
 }
 
+model Absence {
+  id        Int      @id @default(autoincrement())
+  userId    String   @map("user_id")
+  startDate String   @map("start_date")
+  endDate   String   @map("end_date")
+  reason    String   @default("")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([startDate, endDate])
+  @@map("absences")
+}
+
 model Setting {
   id        Int      @id @default(autoincrement())
   key       String   @unique

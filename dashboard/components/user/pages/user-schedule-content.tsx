@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { CheckCircle2, XCircle, Clock, Loader2, Edit2, Save, X, Palmtree } from 'lucide-react';
+import { CheckCircle2, XCircle, Clock, Loader2, Edit2, Save, X, Palmtree, PlaneTakeoff } from 'lucide-react';
 import Image from 'next/image';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
@@ -14,7 +14,7 @@ import { stagger, microInteractions, cn } from '@/lib/animations';
 
 interface PlayerStatus {
   name: string;
-  status: 'available' | 'unavailable' | 'not-set';
+  status: 'available' | 'unavailable' | 'not-set' | 'absent';
   time?: string;
   role?: 'main' | 'sub' | 'coach';
 }
@@ -35,12 +35,13 @@ interface DateEntry {
     available: number;
     unavailable: number;
     notSet: number;
+    absent: number;
   };
   players: PlayerStatus[];
   reason?: string;
   isOffDay: boolean;
   userHasSet: boolean;
-  userStatus?: 'available' | 'unavailable' | 'not-set';
+  userStatus?: 'available' | 'unavailable' | 'not-set' | 'absent';
   scheduleDetails?: ScheduleDetails;
 }
 
@@ -157,6 +158,29 @@ export function UserScheduleContent() {
         return weekdays[d.getDay()];
       };
 
+      // Build date strings for next 14 days
+      const dateStrings: string[] = [];
+      for (let i = 0; i < 14; i++) {
+        const date = new Date(today);
+        date.setDate(today.getDate() + i);
+        dateStrings.push(formatDate(date));
+      }
+
+      // Fetch absence data for all 14 dates
+      let absentByDate: Record<string, string[]> = {};
+      try {
+        const absencesRes = await fetch(
+          `${BOT_API_URL}/api/absences/by-dates?dates=${dateStrings.join(',')}`,
+          { headers: getAuthHeaders() }
+        );
+        if (absencesRes.ok) {
+          const absencesData = await absencesRes.json();
+          absentByDate = absencesData.absentByDate || {};
+        }
+      } catch (e) {
+        console.error('Failed to load absences:', e);
+      }
+
       for (let i = 0; i < 14; i++) {
         const date = new Date(today);
         date.setDate(today.getDate() + i);
@@ -165,13 +189,15 @@ export function UserScheduleContent() {
 
         const schedule = schedules.find((s: any) => s.date === dateStr);
         const isOffDay = schedule?.reason === 'Off-Day';
+        const absentUserIds = absentByDate[dateStr] || [];
 
         let available = 0;
         let unavailable = 0;
         let notSet = 0;
+        let absent = 0;
         const players: PlayerStatus[] = [];
         let userHasSet = false;
-        let userStatus: 'available' | 'unavailable' | 'not-set' = 'not-set';
+        let userStatus: 'available' | 'unavailable' | 'not-set' | 'absent' = 'not-set';
 
         if (schedule && schedule.players) {
           schedule.players.forEach((player: any) => {
@@ -180,10 +206,14 @@ export function UserScheduleContent() {
 
             const playerName = mapping.displayName;
             const availability = player.availability || '';
-            let status: 'available' | 'unavailable' | 'not-set' = 'not-set';
+            const isPlayerAbsent = absentUserIds.includes(player.userId);
+            let status: 'available' | 'unavailable' | 'not-set' | 'absent' = 'not-set';
             let time: string | undefined;
 
-            if (availability === 'x') {
+            if (isPlayerAbsent) {
+              status = 'absent';
+              absent++;
+            } else if (availability === 'x') {
               status = 'unavailable';
               unavailable++;
             } else if (availability && availability !== '') {
@@ -211,7 +241,7 @@ export function UserScheduleContent() {
         let scheduleDetails: ScheduleDetails | undefined;
         if (schedule && !isOffDay) {
           const availablePlayers = players.filter(p => p.status === 'available').map(p => p.name);
-          const unavailablePlayers = players.filter(p => p.status === 'unavailable').map(p => p.name);
+          const unavailablePlayers = players.filter(p => p.status === 'unavailable' || p.status === 'absent').map(p => p.name);
           const noResponsePlayers = players.filter(p => p.status === 'not-set').map(p => p.name);
 
           let status = 'Unknown';
@@ -220,7 +250,8 @@ export function UserScheduleContent() {
 
           // Check if anyone has responded at all
           const totalPlayers = players.length;
-          const hasAnyResponse = noResponsePlayers.length < totalPlayers;
+          const respondedCount = players.filter(p => p.status !== 'not-set').length;
+          const hasAnyResponse = respondedCount > 0;
 
           if (available >= 5) {
             status = 'Able to play';
@@ -265,7 +296,7 @@ export function UserScheduleContent() {
         dateEntries.push({
           date: dateStr,
           weekday,
-          availability: { available, unavailable, notSet },
+          availability: { available, unavailable, notSet, absent },
           players,
           reason: schedule?.reason,
           isOffDay,
@@ -474,6 +505,10 @@ export function UserScheduleContent() {
             <div className="w-2.5 h-2.5 rounded-full bg-gray-400" />
             <span className="text-xs">Unknown</span>
           </div>
+          <div className="flex items-center gap-1.5">
+            <PlaneTakeoff className="w-2.5 h-2.5 text-purple-500" />
+            <span className="text-xs">Absent</span>
+          </div>
         </div>
       </div>
 
@@ -487,7 +522,9 @@ export function UserScheduleContent() {
           } else if (entry.isOffDay) {
             ringClass = 'ring-1 ring-purple-500/40';
           } else if (loggedInUser) {
-            if (entry.userStatus === 'available') {
+            if (entry.userStatus === 'absent') {
+              ringClass = 'ring-1 ring-purple-500/40';
+            } else if (entry.userStatus === 'available') {
               ringClass = 'ring-1 ring-green-500/40';
             } else if (entry.userStatus === 'unavailable') {
               ringClass = 'ring-1 ring-red-500/40';
@@ -531,6 +568,13 @@ export function UserScheduleContent() {
                     <span className="text-sm font-medium">{entry.availability.unavailable}</span>
                     <span className="text-xs text-muted-foreground">unavailable</span>
                   </div>
+                  {entry.availability.absent > 0 && (
+                    <div className="flex items-center gap-1.5">
+                      <PlaneTakeoff className="w-3.5 h-3.5 text-purple-500" />
+                      <span className="text-sm font-medium">{entry.availability.absent}</span>
+                      <span className="text-xs text-muted-foreground">absent</span>
+                    </div>
+                  )}
                   <div className="flex items-center gap-1.5">
                     <Clock className="w-3.5 h-3.5 text-gray-400" />
                     <span className="text-sm font-medium">{entry.availability.notSet}</span>
@@ -633,7 +677,7 @@ export function UserScheduleContent() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <h4 className="text-sm font-medium">Players</h4>
-                    {!editingUser && loggedInUser && (
+                    {!editingUser && loggedInUser && selectedDate.players.find(p => p.name === loggedInUser)?.status !== 'absent' && (
                       <Button
                         size="sm"
                         variant="outline"
@@ -723,11 +767,15 @@ export function UserScheduleContent() {
                       .map((player) => (
                         <div
                           key={player.name}
-                          className="flex items-center justify-between p-2 rounded-md bg-muted/30"
+                          className={cn(
+                            "flex items-center justify-between p-2 rounded-md bg-muted/30",
+                            player.status === 'absent' && 'bg-purple-500/10 opacity-60'
+                          )}
                         >
                           <div className="flex items-center gap-2">
                             <div className={`w-2 h-2 rounded-full ${
                               player.status === 'available' ? 'bg-green-500' :
+                              player.status === 'absent' ? 'bg-purple-500' :
                               player.status === 'unavailable' ? 'bg-red-500' :
                               'bg-gray-400'
                             }`} />
@@ -738,9 +786,14 @@ export function UserScheduleContent() {
                               </Badge>
                             )}
                           </div>
-                          {player.time && (
+                          {player.status === 'absent' ? (
+                            <span className="text-xs text-purple-500 font-medium flex items-center gap-1">
+                              <PlaneTakeoff className="w-3 h-3" />
+                              Abwesend
+                            </span>
+                          ) : player.time ? (
                             <span className="text-xs text-muted-foreground">{player.time}</span>
-                          )}
+                          ) : null}
                         </div>
                       ))}
                   </div>

@@ -7,7 +7,8 @@ import {
   UserLayoutWrapper,
   UserScheduleContent,
   UserAvailabilityContent,
-  UserMatchesContent
+  UserMatchesContent,
+  UserAbsencesContent
 } from '@/components/user';
 import { StatisticsPanel } from '@/components/admin/panels';
 
@@ -50,6 +51,7 @@ function HomeContent() {
     const titles: Record<string, string> = {
       schedule: 'Team Calendar',
       availability: 'My Availability',
+      absences: 'Absences',
       matches: 'Match History',
       statistics: 'Statistics',
     };
@@ -63,6 +65,7 @@ function HomeContent() {
       <div className="animate-fadeIn">
         {currentTab === 'schedule' && <UserScheduleContent />}
         {currentTab === 'availability' && <UserAvailabilityContent />}
+        {currentTab === 'absences' && <UserAbsencesContent />}
         {currentTab === 'matches' && <UserMatchesContent />}
         {currentTab === 'statistics' && <StatisticsPanel />}
       </div>
