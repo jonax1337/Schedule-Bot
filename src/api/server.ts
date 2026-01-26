@@ -72,6 +72,12 @@ app.use('/api', apiLimiter);
 // Mount all API routes
 app.use('/api', apiRoutes);
 
+// Log unmatched API requests for debugging
+app.use('/api', (req, res) => {
+  console.log(`[404] Unmatched: ${req.method} ${req.originalUrl} (baseUrl: ${req.baseUrl}, path: ${req.path})`);
+  res.status(404).json({ error: 'Not found', path: req.originalUrl });
+});
+
 // Export startApiServer function
 export function startApiServer(): void {
   app.listen(PORT, () => {
