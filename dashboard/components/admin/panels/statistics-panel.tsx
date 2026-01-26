@@ -24,13 +24,11 @@ import {
   Cell,
   BarChart,
   Bar,
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
 } from 'recharts';
-import { Target, Map, BarChart3, Calendar, Swords, Loader2, ChevronDown } from 'lucide-react';
+import { Target, Map, BarChart3, Flame, Swords, Loader2, ChevronDown } from 'lucide-react';
 import { stagger, cn } from '@/lib/animations';
 
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
@@ -111,10 +109,6 @@ const availabilityConfig: ChartConfig = {
 const mapStatsConfig: ChartConfig = {
   wins: { label: 'Wins', color: 'oklch(0.723 0.219 149.579)' },
   losses: { label: 'Losses', color: 'oklch(0.577 0.245 27.325)' },
-};
-
-const matchFrequencyConfig: ChartConfig = {
-  matches: { label: 'Matches', color: 'oklch(0.769 0.188 70.08)' },
 };
 
 function parseDDMMYYYY(dateStr: string): Date {
@@ -353,36 +347,57 @@ export default function StatisticsPanel() {
       .slice(0, 8);
   }, [filteredStats]);
 
-  const matchFrequencyData = useMemo(() => {
-    if (filteredScrims.length === 0) return [];
+  const currentFormData = useMemo(() => {
+    if (filteredScrims.length === 0) return null;
 
     const sorted = [...filteredScrims].sort((a, b) => {
-      return parseDDMMYYYY(a.date).getTime() - parseDDMMYYYY(b.date).getTime();
+      return parseDDMMYYYY(b.date).getTime() - parseDDMMYYYY(a.date).getTime();
     });
 
-    // Group matches by calendar week
-    const weekBuckets: Record<string, { label: string; matches: number }> = {};
+    const recent = sorted.slice(0, 10);
 
-    for (const scrim of sorted) {
-      const date = parseDDMMYYYY(scrim.date);
-      // Get Monday of that week
-      const day = date.getDay();
-      const monday = new Date(date);
-      monday.setDate(date.getDate() - ((day + 6) % 7));
-      const key = monday.toISOString().slice(0, 10);
-      const [d, m] = scrim.date.split('.');
-
-      if (!weekBuckets[key]) {
-        const md = String(monday.getDate()).padStart(2, '0');
-        const mm = String(monday.getMonth() + 1).padStart(2, '0');
-        weekBuckets[key] = { label: `${md}.${mm}`, matches: 0 };
+    // Current streak
+    let streakType = recent[0]?.result || 'draw';
+    let streakCount = 0;
+    for (const scrim of recent) {
+      if (scrim.result === streakType) {
+        streakCount++;
+      } else {
+        break;
       }
-      weekBuckets[key].matches++;
     }
 
-    return Object.entries(weekBuckets)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([, data]) => data);
+    // Best streak (wins) across all filtered
+    let bestWinStreak = 0;
+    let currentWinStreak = 0;
+    const chronological = [...sorted].reverse();
+    for (const scrim of chronological) {
+      if (scrim.result === 'win') {
+        currentWinStreak++;
+        bestWinStreak = Math.max(bestWinStreak, currentWinStreak);
+      } else {
+        currentWinStreak = 0;
+      }
+    }
+
+    const recentWins = recent.filter(s => s.result === 'win').length;
+    const recentLosses = recent.filter(s => s.result === 'loss').length;
+    const recentDraws = recent.filter(s => s.result === 'draw').length;
+
+    return {
+      matches: recent.map(s => ({
+        result: s.result,
+        opponent: s.opponent,
+        date: s.date,
+        score: `${s.scoreUs}-${s.scoreThem}`,
+      })),
+      streakType,
+      streakCount,
+      bestWinStreak,
+      recentWins,
+      recentLosses,
+      recentDraws,
+    };
   }, [filteredScrims]);
 
   const mapCompositionsData = useMemo(() => {
@@ -438,7 +453,7 @@ export default function StatisticsPanel() {
 
   return (
     <div className="space-y-6">
-      {/* Charts Row 1: Team Availability + Match Frequency */}
+      {/* Charts Row 1: Team Availability + Current Form */}
       <div className="grid gap-4 md:grid-cols-2">
         {/* Team Availability Bar Chart */}
         <Card className={stagger(0, 'slow', 'slideUpScale')}>
@@ -523,12 +538,12 @@ export default function StatisticsPanel() {
           </CardContent>
         </Card>
 
-        {/* Match Frequency Bar Chart */}
+        {/* Current Form */}
         <Card className={stagger(1, 'slow', 'slideUpScale')}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-4 w-4" />
-              Match Frequency
+              <Flame className="h-4 w-4" />
+              Current Form
             </CardTitle>
             <CardAction>
               <ScrimFilters
@@ -540,47 +555,80 @@ export default function StatisticsPanel() {
               />
             </CardAction>
             <CardDescription>
-              {matchFrequencyData.length > 0
-                ? `Matches per week${isFiltered ? ' (filtered)' : ''}`
+              {currentFormData
+                ? `Last ${currentFormData.matches.length} matches${isFiltered ? ' (filtered)' : ''}`
                 : allScrims.length > 0
                   ? 'No matches match the current filters'
                   : 'No match data available yet'}
             </CardDescription>
           </CardHeader>
           <CardContent className="flex-1">
-            {matchFrequencyData.length > 0 ? (
-              <ChartContainer config={matchFrequencyConfig} className="aspect-auto h-[300px] w-full">
-                <LineChart data={matchFrequencyData} margin={{ top: 5, right: 5, bottom: 5, left: -15 }}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis
-                    dataKey="label"
-                    tickLine={false}
-                    axisLine={false}
-                    fontSize={10}
-                    tickMargin={8}
-                    interval={matchFrequencyData.length > 20 ? Math.floor(matchFrequencyData.length / 10) : 0}
-                  />
-                  <YAxis
-                    tickLine={false}
-                    axisLine={false}
-                    fontSize={11}
-                    tickMargin={4}
-                    allowDecimals={false}
-                  />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Line
-                    type="monotone"
-                    dataKey="matches"
-                    stroke="oklch(0.769 0.188 70.08)"
-                    strokeWidth={2}
-                    dot={{ r: 3, fill: 'oklch(0.769 0.188 70.08)' }}
-                    activeDot={{ r: 5 }}
-                  />
-                </LineChart>
-              </ChartContainer>
+            {currentFormData ? (
+              <div className="flex flex-col justify-center h-[300px] gap-6">
+                {/* Streak display */}
+                <div className="flex items-center justify-center gap-3">
+                  <div className={cn(
+                    'text-4xl font-bold tabular-nums',
+                    currentFormData.streakType === 'win' ? 'text-green-600 dark:text-green-400'
+                      : currentFormData.streakType === 'loss' ? 'text-red-600 dark:text-red-400'
+                      : 'text-muted-foreground'
+                  )}>
+                    {currentFormData.streakCount}{currentFormData.streakType === 'win' ? 'W' : currentFormData.streakType === 'loss' ? 'L' : 'D'}
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    Current Streak
+                  </div>
+                </div>
+
+                {/* Result dots */}
+                <div className="flex items-center justify-center gap-2">
+                  {currentFormData.matches.map((match, index) => (
+                    <div
+                      key={index}
+                      className="group relative"
+                    >
+                      <div
+                        className={cn(
+                          'w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white transition-transform hover:scale-110',
+                          match.result === 'win' ? 'bg-green-600 dark:bg-green-500'
+                            : match.result === 'loss' ? 'bg-red-600 dark:bg-red-500'
+                            : 'bg-neutral-400 dark:bg-neutral-500'
+                        )}
+                      >
+                        {match.result === 'win' ? 'W' : match.result === 'loss' ? 'L' : 'D'}
+                      </div>
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 rounded bg-popover border text-xs text-popover-foreground opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10 shadow-md">
+                        <div className="font-medium">{match.opponent}</div>
+                        <div className="text-muted-foreground">{match.score} · {match.date}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Stats row */}
+                <div className="flex items-center justify-center gap-6 text-sm">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 rounded-full bg-green-600 dark:bg-green-500" />
+                    <span className="tabular-nums font-medium">{currentFormData.recentWins}W</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 rounded-full bg-red-600 dark:bg-red-500" />
+                    <span className="tabular-nums font-medium">{currentFormData.recentLosses}L</span>
+                  </div>
+                  {currentFormData.recentDraws > 0 && (
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-3 h-3 rounded-full bg-neutral-400 dark:bg-neutral-500" />
+                      <span className="tabular-nums font-medium">{currentFormData.recentDraws}D</span>
+                    </div>
+                  )}
+                  <div className="border-l pl-4 text-muted-foreground">
+                    Best: <span className="font-medium text-foreground">{currentFormData.bestWinStreak}W</span>
+                  </div>
+                </div>
+              </div>
             ) : (
               <div className="flex items-center justify-center h-[300px] text-muted-foreground text-sm">
-                {allScrims.length > 0 ? 'No matches match the current filters' : 'Play some matches to see frequency'}
+                {allScrims.length > 0 ? 'No matches match the current filters' : 'Play some matches to see your form'}
               </div>
             )}
           </CardContent>
