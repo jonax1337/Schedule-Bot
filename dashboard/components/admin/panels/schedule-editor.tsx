@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { Loader2, Calendar, Save, RefreshCw, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Loader2, Calendar, Save, RefreshCw, ChevronLeft, ChevronRight, X, PlaneTakeoff } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import Image from 'next/image';
 import { stagger, microInteractions, loadingStates, cn } from '@/lib/animations';
@@ -38,6 +38,7 @@ interface ScheduleData {
 export function ScheduleEditor() {
   const [schedules, setSchedules] = useState<ScheduleData[]>([]);
   const [userMappings, setUserMappings] = useState<UserMapping[]>([]);
+  const [absentByDate, setAbsentByDate] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editingCell, setEditingCell] = useState<{ date: string; userId: string } | null>(null);
@@ -82,11 +83,28 @@ export function ScheduleEditor() {
 
       if (schedulesRes.ok) {
         const data = await schedulesRes.json();
-        setSchedules(data.schedules || []);
+        const loadedSchedules = data.schedules || [];
+        setSchedules(loadedSchedules);
         setHasMore(data.hasMore || false);
         setHasNewer(data.hasNewer || false);
         setTotalPages(data.totalPages || 1);
         setCurrentPage(page);
+
+        // Fetch absences for loaded dates
+        if (loadedSchedules.length > 0) {
+          const dates = loadedSchedules.map((s: ScheduleData) => s.date).join(',');
+          try {
+            const absencesRes = await fetch(`${BOT_API_URL}/api/absences/by-dates?dates=${dates}`, {
+              headers: getAuthHeaders(),
+            });
+            if (absencesRes.ok) {
+              const absenceData = await absencesRes.json();
+              setAbsentByDate(absenceData.absentByDate || {});
+            }
+          } catch (err) {
+            console.error('Failed to load absences:', err);
+          }
+        }
       }
     } catch (error) {
       console.error('Failed to load data:', error);
@@ -312,10 +330,16 @@ export function ScheduleEditor() {
                     const player = schedule.players.find(p => p.userId === mapping.discordId);
                     const availability = player?.availability || '';
                     const isEditing = editingCell?.date === schedule.date && editingCell?.userId === mapping.discordId;
+                    const isAbsent = (absentByDate[schedule.date] || []).includes(mapping.discordId);
 
                     return (
                       <TableCell key={mapping.discordId} className="p-1">
-                        {isEditing ? (
+                        {isAbsent ? (
+                          <div className="h-8 px-2 flex items-center gap-1.5 text-sm text-purple-500 opacity-70">
+                            <PlaneTakeoff className="w-3.5 h-3.5" />
+                            <span className="font-medium">Absent</span>
+                          </div>
+                        ) : isEditing ? (
                           <Input
                             value={editValue}
                             onChange={(e) => setEditValue(e.target.value)}
