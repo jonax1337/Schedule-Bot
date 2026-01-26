@@ -1,9 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Activity, Users, Calendar, Trophy, TrendingUp, Clock, Loader2 } from 'lucide-react';
+import { Activity, Users, Calendar, Trophy, TrendingUp, Clock, Percent, BarChart3, Zap, Settings, Terminal } from 'lucide-react';
 import { stagger, microInteractions, cn } from '@/lib/animations';
 
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
@@ -13,7 +12,6 @@ interface DashboardStats {
   totalSchedules: number;
   totalScrims: number;
   upcomingSchedules: number;
-  recentActivity: string[];
 }
 
 interface BotStatus {
@@ -22,16 +20,48 @@ interface BotStatus {
   uptime?: number;
 }
 
+interface ScheduleDay {
+  date: string;
+  players: {
+    userId: string;
+    displayName: string;
+    role: string;
+    availability: string;
+    sortOrder: number;
+  }[];
+  reason: string;
+  focus: string;
+}
+
+interface ScrimEntry {
+  id: string;
+  date: string;
+  result: 'win' | 'loss' | 'draw';
+}
+
+interface UserMapping {
+  discordId: string;
+  displayName: string;
+  role: string;
+}
+
+function parseDDMMYYYY(dateStr: string): Date {
+  const [day, month, year] = dateStr.split('.').map(Number);
+  return new Date(year, month - 1, day);
+}
+
 export default function AdminDashboardHome() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [botStatus, setBotStatus] = useState<BotStatus | null>(null);
   const [statusLoading, setStatusLoading] = useState(true);
+  const [userMappings, setUserMappings] = useState<UserMapping[]>([]);
+  const [scrims, setScrims] = useState<ScrimEntry[]>([]);
 
   useEffect(() => {
     loadStats();
     checkBotStatus();
-    const interval = setInterval(checkBotStatus, 10000); // Check bot status every 10 seconds
+    const interval = setInterval(checkBotStatus, 10000);
     return () => clearInterval(interval);
   }, []);
 
@@ -40,34 +70,33 @@ export default function AdminDashboardHome() {
     try {
       const { getAuthHeaders } = await import('@/lib/auth');
 
-      // Load user mappings
-      const usersRes = await fetch(`${BOT_API_URL}/api/user-mappings`, {
-        headers: getAuthHeaders(),
-      });
-      const usersData = await usersRes.json();
+      const [usersRes, schedulesRes, scrimsRes] = await Promise.all([
+        fetch(`${BOT_API_URL}/api/user-mappings`, { headers: getAuthHeaders() }),
+        fetch(`${BOT_API_URL}/api/schedule/next14`, { headers: getAuthHeaders() }),
+        fetch(`${BOT_API_URL}/api/scrims`, { headers: getAuthHeaders() }),
+      ]);
 
-      // Load schedules
-      const schedulesRes = await fetch(`${BOT_API_URL}/api/schedule/next14`, {
-        headers: getAuthHeaders(),
-      });
-      const schedulesData = await schedulesRes.json();
+      const [usersData, schedulesData, scrimsData] = await Promise.all([
+        usersRes.json(),
+        schedulesRes.json(),
+        scrimsRes.json(),
+      ]);
 
-      // Load scrims
-      const scrimsRes = await fetch(`${BOT_API_URL}/api/scrims`, {
-        headers: getAuthHeaders(),
-      });
-      const scrimsData = await scrimsRes.json();
+      const mappings = usersData.mappings || [];
+      const schedulesList = schedulesData.schedules || [];
+      const scrimsList: ScrimEntry[] = scrimsData.scrims || [];
+
+      setUserMappings(mappings);
+      setScrims(scrimsList);
 
       setStats({
-        totalUsers: usersData.mappings?.length || 0,
-        totalSchedules: schedulesData.schedules?.length || 0,
-        totalScrims: scrimsData.scrims?.length || 0,
-        upcomingSchedules: schedulesData.schedules?.filter((s: any) => {
-          const [day, month, year] = s.date.split('.');
-          const scheduleDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        totalUsers: mappings.length,
+        totalSchedules: schedulesList.length,
+        totalScrims: scrimsList.length,
+        upcomingSchedules: schedulesList.filter((s: ScheduleDay) => {
+          const scheduleDate = parseDDMMYYYY(s.date);
           return scheduleDate >= new Date();
-        }).length || 0,
-        recentActivity: [],
+        }).length,
       });
     } catch (error) {
       console.error('Failed to load stats:', error);
@@ -98,7 +127,27 @@ export default function AdminDashboardHome() {
     return `${minutes}m`;
   };
 
+  const overallStats = useMemo(() => {
+    let wins = 0, losses = 0, draws = 0;
+    for (const scrim of scrims) {
+      if (scrim.result === 'win') wins++;
+      else if (scrim.result === 'loss') losses++;
+      else if (scrim.result === 'draw') draws++;
+    }
+    const total = scrims.length;
+    const winRate = total > 0 ? (wins / total) * 100 : 0;
+    return { wins, losses, draws, winRate, total };
+  }, [scrims]);
+
+  const rosterBreakdown = useMemo(() => {
+    const mains = userMappings.filter(u => u.role.toLowerCase() === 'main').length;
+    const subs = userMappings.filter(u => u.role.toLowerCase() === 'sub').length;
+    const coaches = userMappings.filter(u => u.role.toLowerCase() === 'coach').length;
+    return { mains, subs, coaches };
+  }, [userMappings]);
+
   const isOnline = botStatus && botStatus.status === 'running' && botStatus.botReady;
+  const hasScrimData = overallStats.total > 0;
 
   const statusCards = [
     {
@@ -113,7 +162,7 @@ export default function AdminDashboardHome() {
       icon: Clock,
       value: statusLoading ? '...' : formatUptime(botStatus?.uptime),
       description: 'Time since last restart',
-      color: 'default',
+      color: statusLoading ? 'muted' : isOnline ? 'green' : 'red',
     },
     {
       title: 'API Server',
@@ -133,7 +182,7 @@ export default function AdminDashboardHome() {
 
   return (
     <div className="space-y-6">
-      {/* Bot Status Cards with Stagger Animation */}
+      {/* Bot Status Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {statusCards.map((card, index) => {
           const Icon = card.icon;
@@ -148,8 +197,7 @@ export default function AdminDashboardHome() {
             <Card
               key={card.title}
               className={cn(
-                stagger(index, 'fast', 'slideUpScale'),
-                microInteractions.hoverLift
+                stagger(index, 'fast', 'slideUpScale')
               )}
             >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -167,14 +215,14 @@ export default function AdminDashboardHome() {
         })}
       </div>
 
-      {/* Stats Grid with Stagger Animation */}
+      {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {[
           {
             title: 'Total Users',
             icon: Users,
             value: loading ? '...' : stats?.totalUsers || 0,
-            description: 'Registered team members',
+            description: `${rosterBreakdown.mains} Main, ${rosterBreakdown.subs} Sub, ${rosterBreakdown.coaches} Coach`,
           },
           {
             title: 'Upcoming Schedules',
@@ -186,13 +234,13 @@ export default function AdminDashboardHome() {
             title: 'Total Scrims',
             icon: Trophy,
             value: loading ? '...' : stats?.totalScrims || 0,
-            description: 'Match history records',
+            description: hasScrimData ? `Win Rate: ${overallStats.winRate.toFixed(1)}%` : 'Match history records',
           },
           {
-            title: 'Active Schedules',
-            icon: Activity,
-            value: loading ? '...' : stats?.totalSchedules || 0,
-            description: 'Total schedule entries',
+            title: 'Win Rate',
+            icon: Percent,
+            value: loading ? '...' : hasScrimData ? `${overallStats.winRate.toFixed(1)}%` : 'N/A',
+            description: hasScrimData ? `${overallStats.wins}W / ${overallStats.losses}L / ${overallStats.draws}D` : 'No match data',
           },
         ].map((stat, index) => {
           const Icon = stat.icon;
@@ -200,8 +248,7 @@ export default function AdminDashboardHome() {
             <Card
               key={stat.title}
               className={cn(
-                stagger(index, 'slow', 'slideUpScale'),
-                microInteractions.hoverLift
+                stagger(index, 'slow', 'slideUpScale')
               )}
             >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -217,7 +264,7 @@ export default function AdminDashboardHome() {
         })}
       </div>
 
-      {/* Quick Actions with Stagger Animation */}
+      {/* Quick Actions */}
       <Card className="animate-slideUp">
         <CardHeader>
           <CardTitle>Quick Actions</CardTitle>
@@ -225,6 +272,12 @@ export default function AdminDashboardHome() {
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {[
+            {
+              href: '/admin?tab=statistics',
+              icon: BarChart3,
+              title: 'Statistics',
+              description: 'Charts & analytics',
+            },
             {
               href: '/admin?tab=users',
               icon: Users,
@@ -245,19 +298,19 @@ export default function AdminDashboardHome() {
             },
             {
               href: '/admin?tab=actions',
-              icon: Activity,
+              icon: Zap,
               title: 'Bot Actions',
               description: 'Trigger manual actions',
             },
             {
               href: '/admin?tab=settings',
-              icon: Clock,
+              icon: Settings,
               title: 'Settings',
               description: 'Configure bot settings',
             },
             {
               href: '/admin?tab=logs',
-              icon: TrendingUp,
+              icon: Terminal,
               title: 'View Logs',
               description: 'System activity logs',
             },

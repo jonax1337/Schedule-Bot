@@ -10,7 +10,8 @@ import {
   ScheduleEditor,
   ScrimsPanel,
   SecurityPanel,
-  AdminDashboardHome
+  AdminDashboardHome,
+  StatisticsPanel
 } from "@/components/admin/panels";
 import { AdminLayoutWrapper } from "@/components/admin/layout";
 import { Loader2 } from "lucide-react";
@@ -49,6 +50,7 @@ function AdminContent() {
   useEffect(() => {
     const titles: Record<string, string> = {
       dashboard: 'Dashboard',
+      statistics: 'Statistics',
       settings: 'Settings',
       users: 'User Management',
       schedule: 'Schedule Editor',
@@ -66,6 +68,7 @@ function AdminContent() {
     <AdminLayoutWrapper>
       <div className="animate-fadeIn">
         {currentTab === 'dashboard' && <AdminDashboardHome />}
+        {currentTab === 'statistics' && <StatisticsPanel />}
         {currentTab === 'settings' && <SettingsPanel />}
         {currentTab === 'users' && <UserMappingsPanel />}
         {currentTab === 'schedule' && <ScheduleEditor />}

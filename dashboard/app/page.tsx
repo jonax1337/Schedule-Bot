@@ -9,6 +9,7 @@ import {
   UserAvailabilityContent,
   UserMatchesContent
 } from '@/components/user';
+import { StatisticsPanel } from '@/components/admin/panels';
 
 function HomeContent() {
   const router = useRouter();
@@ -50,6 +51,7 @@ function HomeContent() {
       schedule: 'Team Calendar',
       availability: 'My Availability',
       matches: 'Match History',
+      statistics: 'Statistics',
     };
     
     const pageTitle = titles[currentTab] || 'Team Calendar';
@@ -62,6 +64,7 @@ function HomeContent() {
         {currentTab === 'schedule' && <UserScheduleContent />}
         {currentTab === 'availability' && <UserAvailabilityContent />}
         {currentTab === 'matches' && <UserMatchesContent />}
+        {currentTab === 'statistics' && <StatisticsPanel />}
       </div>
     </UserLayoutWrapper>
   );

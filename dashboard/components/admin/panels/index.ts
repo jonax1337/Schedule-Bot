@@ -1,4 +1,5 @@
 export { default as AdminDashboardHome } from './dashboard-home';
+export { default as StatisticsPanel } from './statistics-panel';
 export { default as SettingsPanel } from './settings-panel';
 export { default as ActionsPanel } from './actions-panel';
 export { UserMappingsPanel } from './user-mappings-panel';
