@@ -384,41 +384,44 @@ export default function StatisticsPanel() {
       .map(([, data]) => data);
   }, [filteredScrims]);
 
-  const agentUsageData = useMemo(() => {
-    const agentCounts: Record<string, { picks: number; wins: number }> = {};
+  const mapCompositionsData = useMemo(() => {
+    const mapComps: Record<string, Record<string, { played: number; wins: number; agents: string[] }>> = {};
 
     for (const scrim of filteredScrims) {
-      if (scrim.ourAgents && scrim.ourAgents.length > 0) {
-        for (const agent of scrim.ourAgents) {
-          if (!agent || !agent.trim()) continue;
-          const name = agent.trim();
-          if (!agentCounts[name]) {
-            agentCounts[name] = { picks: 0, wins: 0 };
-          }
-          agentCounts[name].picks++;
-          if (scrim.result === 'win') agentCounts[name].wins++;
-        }
+      if (!scrim.map || !scrim.ourAgents || scrim.ourAgents.length === 0) continue;
+      const agents = scrim.ourAgents.map(a => a.trim()).filter(Boolean);
+      if (agents.length === 0) continue;
+
+      const compKey = [...agents].sort().join(',');
+      if (!mapComps[scrim.map]) mapComps[scrim.map] = {};
+      if (!mapComps[scrim.map][compKey]) {
+        mapComps[scrim.map][compKey] = { played: 0, wins: 0, agents };
       }
+      mapComps[scrim.map][compKey].played++;
+      if (scrim.result === 'win') mapComps[scrim.map][compKey].wins++;
     }
 
-    return Object.entries(agentCounts)
-      .map(([agent, data]) => ({
-        agent,
-        picks: data.picks,
-        wins: data.wins,
-        winRate: data.picks > 0 ? Math.round((data.wins / data.picks) * 100) : 0,
-      }))
-      .sort((a, b) => b.picks - a.picks)
-      .slice(0, 10);
+    return Object.entries(mapComps)
+      .map(([map, comps]) => {
+        const topComps = Object.values(comps)
+          .sort((a, b) => b.played - a.played)
+          .slice(0, 3)
+          .map(c => ({
+            agents: c.agents,
+            played: c.played,
+            wins: c.wins,
+            winRate: c.played > 0 ? Math.round((c.wins / c.played) * 100) : 0,
+          }));
+        const totalPlayed = Object.values(comps).reduce((sum, c) => sum + c.played, 0);
+        return { map, comps: topComps, totalPlayed };
+      })
+      .sort((a, b) => b.totalPlayed - a.totalPlayed);
   }, [filteredScrims]);
 
-  const maxAgentPicks = useMemo(() => {
-    return agentUsageData.length > 0 ? agentUsageData[0].picks : 0;
-  }, [agentUsageData]);
+  const hasCompData = mapCompositionsData.length > 0;
 
   const hasScrimData = filteredStats.totalScrims > 0;
   const hasAvailabilityData = availabilitySchedules.length > 0;
-  const hasAgentData = agentUsageData.length > 0;
   const selectedRangeLabel = AVAILABILITY_RANGES.find(r => r.value === availabilityRange)?.label || '';
   const isFiltered = scrimMatchType !== '__all__' || scrimTimeRange !== 'all';
 
@@ -712,12 +715,12 @@ export default function StatisticsPanel() {
         </Card>
       </div>
 
-      {/* Agent Usage */}
+      {/* Map Compositions */}
       <Card className={stagger(4, 'slow', 'slideUpScale')}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Swords className="h-4 w-4" />
-            Agent Usage
+            Map Compositions
           </CardTitle>
           <CardAction>
             <ScrimFilters
@@ -729,91 +732,70 @@ export default function StatisticsPanel() {
             />
           </CardAction>
           <CardDescription>
-            {hasAgentData
-              ? `Most picked agents across ${filteredScrims.filter(s => s.ourAgents && s.ourAgents.length > 0).length} matches with agent data${isFiltered ? ' (filtered)' : ''}`
+            {hasCompData
+              ? `Most played team compositions per map${isFiltered ? ' (filtered)' : ''}`
               : allScrims.length > 0
-                ? 'No agent data available for the current filters'
-                : 'No agent data available yet'}
+                ? 'No composition data for the current filters'
+                : 'Add agents to your scrims to see compositions'}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {hasAgentData ? (
-            <div className="space-y-2">
-              {agentUsageData.map((entry, index) => {
-                const losses = entry.picks - entry.wins;
-                const barWidth = maxAgentPicks > 0 ? (entry.picks / maxAgentPicks) * 100 : 0;
-                const winPortion = entry.picks > 0 ? (entry.wins / entry.picks) * 100 : 0;
-
-                return (
-                  <div
-                    key={entry.agent}
-                    className={cn(
-                      'flex items-center gap-3 py-1.5',
-                      stagger(index, 'fast', 'fadeIn')
-                    )}
-                  >
+          {hasCompData ? (
+            <div className="space-y-5">
+              {mapCompositionsData.map((mapEntry, mapIndex) => (
+                <div
+                  key={mapEntry.map}
+                  className={cn('space-y-2', stagger(mapIndex, 'fast', 'fadeIn'))}
+                >
+                  <div className="flex items-center gap-2">
                     <img
-                      src={`/assets/agents/${entry.agent}_icon.webp`}
-                      alt={entry.agent}
-                      className="w-7 h-7 rounded-md shrink-0"
-                      title={entry.agent}
+                      src={`/assets/maps/${mapEntry.map}.webp`}
+                      alt={mapEntry.map}
+                      className="w-8 h-5 rounded object-cover shrink-0"
                     />
-                    <div className="w-16 text-sm font-medium truncate shrink-0">
-                      {entry.agent}
-                    </div>
-                    <div className="flex-1 flex items-center gap-3">
-                      <div className="flex-1 h-5 bg-muted/50 rounded overflow-hidden" style={{ maxWidth: `${barWidth}%`, minWidth: '20px' }}>
-                        <div className="h-full flex">
-                          {entry.wins > 0 && (
-                            <div
-                              className="h-full transition-all duration-500"
-                              style={{
-                                width: `${winPortion}%`,
-                                backgroundColor: 'oklch(0.723 0.219 149.579)',
-                              }}
-                            />
-                          )}
-                          {losses > 0 && (
-                            <div
-                              className="h-full transition-all duration-500"
-                              style={{
-                                width: `${100 - winPortion}%`,
-                                backgroundColor: 'oklch(0.577 0.245 27.325)',
-                              }}
-                            />
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-xs text-muted-foreground tabular-nums shrink-0 text-right w-20">
-                      <span className="font-medium text-foreground">{entry.picks}</span>
-                      {' '}{entry.picks === 1 ? 'pick' : 'picks'}
-                    </div>
-                    <div className="w-12 text-right tabular-nums shrink-0">
-                      <span className={cn(
-                        'text-xs font-medium',
-                        entry.winRate >= 50 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
-                      )}>
-                        {entry.winRate}%
-                      </span>
-                    </div>
+                    <span className="text-sm font-semibold">{mapEntry.map}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {mapEntry.totalPlayed} {mapEntry.totalPlayed === 1 ? 'match' : 'matches'}
+                    </span>
                   </div>
-                );
-              })}
-              <div className="flex items-center gap-4 pt-2 text-xs text-muted-foreground border-t">
-                <div className="flex items-center gap-1.5">
-                  <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: 'oklch(0.723 0.219 149.579)' }} />
-                  Wins
+                  <div className="space-y-1.5 pl-10">
+                    {mapEntry.comps.map((comp, compIndex) => (
+                      <div
+                        key={compIndex}
+                        className="flex items-center gap-3"
+                      >
+                        <div className="flex items-center gap-1 shrink-0">
+                          {comp.agents.map((agent) => (
+                            <img
+                              key={agent}
+                              src={`/assets/agents/${agent}_icon.webp`}
+                              alt={agent}
+                              className="w-6 h-6 rounded-md"
+                              title={agent}
+                            />
+                          ))}
+                        </div>
+                        <div className="text-xs text-muted-foreground tabular-nums">
+                          {comp.played}x
+                        </div>
+                        <span className={cn(
+                          'text-xs font-medium tabular-nums',
+                          comp.winRate >= 50 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                        )}>
+                          {comp.winRate}% WR
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  {mapIndex < mapCompositionsData.length - 1 && (
+                    <div className="border-t pt-1" />
+                  )}
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: 'oklch(0.577 0.245 27.325)' }} />
-                  Losses
-                </div>
-              </div>
+              ))}
             </div>
           ) : (
             <div className="flex items-center justify-center h-[200px] text-muted-foreground text-sm">
-              {allScrims.length > 0 ? 'No agent data available for the current filters' : 'Add agents to your scrims to see usage statistics'}
+              {allScrims.length > 0 ? 'No composition data for the current filters' : 'Add agents to your scrims to see compositions'}
             </div>
           )}
         </CardContent>
