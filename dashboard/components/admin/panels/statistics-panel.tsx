@@ -705,46 +705,78 @@ export default function StatisticsPanel() {
         </CardHeader>
         <CardContent>
           {hasAgentData ? (
-            <div className="space-y-3">
-              {agentUsageData.map((entry, index) => (
-                <div
-                  key={entry.agent}
-                  className={cn(
-                    'flex items-center gap-3',
-                    stagger(index, 'fast', 'fadeIn')
-                  )}
-                >
-                  <img
-                    src={`/assets/agents/${entry.agent}_icon.webp`}
-                    alt={entry.agent}
-                    className="w-8 h-8 rounded border border-border shrink-0"
-                    title={entry.agent}
-                  />
-                  <div className="w-20 text-sm font-medium truncate shrink-0">
-                    {entry.agent}
-                  </div>
-                  <div className="flex-1 flex items-center gap-3">
-                    <div className="flex-1 h-6 bg-muted rounded-sm overflow-hidden relative">
-                      <div
-                        className="h-full rounded-sm transition-all duration-500"
-                        style={{
-                          width: maxAgentPicks > 0 ? `${(entry.picks / maxAgentPicks) * 100}%` : '0%',
-                          background: `linear-gradient(90deg, oklch(0.488 0.243 264.376), oklch(0.588 0.200 264.376))`,
-                        }}
-                      />
-                      <span className="absolute inset-0 flex items-center px-2 text-xs font-medium">
-                        {entry.picks} {entry.picks === 1 ? 'pick' : 'picks'}
-                      </span>
+            <div className="space-y-2">
+              {agentUsageData.map((entry, index) => {
+                const losses = entry.picks - entry.wins;
+                const barWidth = maxAgentPicks > 0 ? (entry.picks / maxAgentPicks) * 100 : 0;
+                const winPortion = entry.picks > 0 ? (entry.wins / entry.picks) * 100 : 0;
+
+                return (
+                  <div
+                    key={entry.agent}
+                    className={cn(
+                      'flex items-center gap-3 py-1.5',
+                      stagger(index, 'fast', 'fadeIn')
+                    )}
+                  >
+                    <img
+                      src={`/assets/agents/${entry.agent}_icon.webp`}
+                      alt={entry.agent}
+                      className="w-7 h-7 rounded-md shrink-0"
+                      title={entry.agent}
+                    />
+                    <div className="w-16 text-sm font-medium truncate shrink-0">
+                      {entry.agent}
                     </div>
-                    <div className="w-16 text-right text-xs text-muted-foreground shrink-0">
-                      <span className={entry.winRate >= 50 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
+                    <div className="flex-1 flex items-center gap-3">
+                      <div className="flex-1 h-5 bg-muted/50 rounded overflow-hidden" style={{ maxWidth: `${barWidth}%`, minWidth: '20px' }}>
+                        <div className="h-full flex">
+                          {entry.wins > 0 && (
+                            <div
+                              className="h-full transition-all duration-500"
+                              style={{
+                                width: `${winPortion}%`,
+                                backgroundColor: 'oklch(0.723 0.219 149.579)',
+                              }}
+                            />
+                          )}
+                          {losses > 0 && (
+                            <div
+                              className="h-full transition-all duration-500"
+                              style={{
+                                width: `${100 - winPortion}%`,
+                                backgroundColor: 'oklch(0.577 0.245 27.325)',
+                              }}
+                            />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-xs text-muted-foreground tabular-nums shrink-0 text-right w-20">
+                      <span className="font-medium text-foreground">{entry.picks}</span>
+                      {' '}{entry.picks === 1 ? 'pick' : 'picks'}
+                    </div>
+                    <div className="w-12 text-right tabular-nums shrink-0">
+                      <span className={cn(
+                        'text-xs font-medium',
+                        entry.winRate >= 50 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                      )}>
                         {entry.winRate}%
                       </span>
-                      {' '}WR
                     </div>
                   </div>
+                );
+              })}
+              <div className="flex items-center gap-4 pt-2 text-xs text-muted-foreground border-t">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: 'oklch(0.723 0.219 149.579)' }} />
+                  Wins
                 </div>
-              ))}
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: 'oklch(0.577 0.245 27.325)' }} />
+                  Losses
+                </div>
+              </div>
             </div>
           ) : (
             <div className="flex items-center justify-center h-[200px] text-muted-foreground text-sm">
