@@ -518,7 +518,7 @@ export default function AdminDashboardHome() {
                 <SelectTrigger size="sm" className="w-[140px]">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent position="popper" side="bottom" align="end">
                   {AVAILABILITY_RANGES.map(range => (
                     <SelectItem key={range.value} value={range.value}>
                       {range.label}
