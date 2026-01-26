@@ -23,13 +23,11 @@ import {
   Cell,
   BarChart,
   Bar,
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
 } from 'recharts';
-import { Target, Map, BarChart3, TrendingUp, Swords, Loader2 } from 'lucide-react';
+import { Target, Map, BarChart3, Calendar, Swords, Loader2 } from 'lucide-react';
 import { stagger, cn } from '@/lib/animations';
 
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
@@ -112,8 +110,8 @@ const mapStatsConfig: ChartConfig = {
   losses: { label: 'Losses', color: 'oklch(0.577 0.245 27.325)' },
 };
 
-const performanceTrendConfig: ChartConfig = {
-  winRate: { label: 'Win Rate (Last 5)', color: 'oklch(0.488 0.243 264.376)' },
+const matchFrequencyConfig: ChartConfig = {
+  matches: { label: 'Matches', color: 'oklch(0.488 0.243 264.376)' },
 };
 
 function parseDDMMYYYY(dateStr: string): Date {
@@ -352,27 +350,36 @@ export default function StatisticsPanel() {
       .slice(0, 8);
   }, [filteredStats]);
 
-  const performanceTrendData = useMemo(() => {
+  const matchFrequencyData = useMemo(() => {
+    if (filteredScrims.length === 0) return [];
+
     const sorted = [...filteredScrims].sort((a, b) => {
       return parseDDMMYYYY(a.date).getTime() - parseDDMMYYYY(b.date).getTime();
     });
 
-    if (sorted.length === 0) return [];
+    // Group matches by calendar week
+    const weekBuckets: Record<string, { label: string; matches: number }> = {};
 
-    const windowSize = 5;
+    for (const scrim of sorted) {
+      const date = parseDDMMYYYY(scrim.date);
+      // Get Monday of that week
+      const day = date.getDay();
+      const monday = new Date(date);
+      monday.setDate(date.getDate() - ((day + 6) % 7));
+      const key = monday.toISOString().slice(0, 10);
+      const [d, m] = scrim.date.split('.');
 
-    return sorted.map((scrim, index) => {
-      const windowStart = Math.max(0, index - windowSize + 1);
-      const window = sorted.slice(windowStart, index + 1);
-      const windowWins = window.filter(s => s.result === 'win').length;
-      const rollingWinRate = Math.round((windowWins / window.length) * 100);
+      if (!weekBuckets[key]) {
+        const md = String(monday.getDate()).padStart(2, '0');
+        const mm = String(monday.getMonth() + 1).padStart(2, '0');
+        weekBuckets[key] = { label: `${md}.${mm}`, matches: 0 };
+      }
+      weekBuckets[key].matches++;
+    }
 
-      const [day, month] = scrim.date.split('.');
-      return {
-        label: `${day}.${month}`,
-        winRate: rollingWinRate,
-      };
-    });
+    return Object.entries(weekBuckets)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([, data]) => data);
   }, [filteredScrims]);
 
   const agentUsageData = useMemo(() => {
@@ -425,7 +432,7 @@ export default function StatisticsPanel() {
 
   return (
     <div className="space-y-6">
-      {/* Charts Row 1: Team Availability + Performance Trend */}
+      {/* Charts Row 1: Team Availability + Match Frequency */}
       <div className="grid gap-4 md:grid-cols-2">
         {/* Team Availability Bar Chart */}
         <Card className={stagger(0, 'slow', 'slideUpScale')}>
@@ -510,12 +517,12 @@ export default function StatisticsPanel() {
           </CardContent>
         </Card>
 
-        {/* Performance Trend Line Chart */}
+        {/* Match Frequency Bar Chart */}
         <Card className={stagger(1, 'slow', 'slideUpScale')}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" />
-              Performance Trend
+              <Calendar className="h-4 w-4" />
+              Match Frequency
             </CardTitle>
             <CardAction>
               <ScrimFilters
@@ -527,50 +534,44 @@ export default function StatisticsPanel() {
               />
             </CardAction>
             <CardDescription>
-              {performanceTrendData.length > 0
-                ? `Rolling win rate (last 5 matches)${isFiltered ? ' — filtered' : ''}`
+              {matchFrequencyData.length > 0
+                ? `Matches per week${isFiltered ? ' (filtered)' : ''}`
                 : allScrims.length > 0
                   ? 'No matches match the current filters'
                   : 'No match data available yet'}
             </CardDescription>
           </CardHeader>
           <CardContent className="flex-1">
-            {performanceTrendData.length > 0 ? (
-              <ChartContainer config={performanceTrendConfig} className="aspect-auto h-[300px] w-full">
-                <LineChart data={performanceTrendData} margin={{ top: 5, right: 5, bottom: 5, left: -15 }}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+            {matchFrequencyData.length > 0 ? (
+              <ChartContainer config={matchFrequencyConfig} className="aspect-auto h-[300px] w-full">
+                <BarChart data={matchFrequencyData} margin={{ top: 5, right: 5, bottom: 5, left: -15 }}>
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border" />
                   <XAxis
                     dataKey="label"
                     tickLine={false}
                     axisLine={false}
                     fontSize={10}
                     tickMargin={8}
-                    interval={performanceTrendData.length > 20 ? Math.floor(performanceTrendData.length / 10) : 0}
+                    interval={matchFrequencyData.length > 20 ? Math.floor(matchFrequencyData.length / 10) : 0}
                   />
                   <YAxis
                     tickLine={false}
                     axisLine={false}
                     fontSize={11}
                     tickMargin={4}
-                    domain={[0, 100]}
-                    tickFormatter={(v) => `${v}%`}
+                    allowDecimals={false}
                   />
-                  <ChartTooltip
-                    content={<ChartTooltipContent formatter={(value) => `${value}%`} />}
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Bar
+                    dataKey="matches"
+                    fill="oklch(0.488 0.243 264.376)"
+                    radius={[4, 4, 0, 0]}
                   />
-                  <Line
-                    type="monotone"
-                    dataKey="winRate"
-                    stroke="oklch(0.488 0.243 264.376)"
-                    strokeWidth={2}
-                    dot={{ r: 3, fill: 'oklch(0.488 0.243 264.376)' }}
-                    activeDot={{ r: 5 }}
-                  />
-                </LineChart>
+                </BarChart>
               </ChartContainer>
             ) : (
               <div className="flex items-center justify-center h-[300px] text-muted-foreground text-sm">
-                {allScrims.length > 0 ? 'No matches match the current filters' : 'Play some matches to see the performance trend'}
+                {allScrims.length > 0 ? 'No matches match the current filters' : 'Play some matches to see frequency'}
               </div>
             )}
           </CardContent>
