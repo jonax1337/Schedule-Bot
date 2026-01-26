@@ -31,6 +31,7 @@ export function UserLayoutWrapper({ children, breadcrumbs = [] }: UserLayoutWrap
     schedule: 'Schedule',
     availability: 'My Availability',
     matches: 'Match History',
+    statistics: 'Statistics',
   }
 
   useEffect(() => {
