@@ -71,7 +71,9 @@ export default function Home() {
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin" />
+        <div className="animate-scaleIn">
+          <Loader2 className="w-8 h-8 animate-spin" />
+        </div>
       </div>
     }>
       <HomeContent />

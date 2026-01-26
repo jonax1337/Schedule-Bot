@@ -15,6 +15,7 @@ import { AgentSelector } from "./agent-picker";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { stagger, microInteractions, loadingStates, cn } from '@/lib/animations';
 
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
 
@@ -404,7 +405,7 @@ export function ScrimsPanel() {
       {/* Stats Cards */}
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="animate-scaleIn stagger-1">
+          <Card className={cn(stagger(0, 'fast', 'slideUpScale'), microInteractions.hoverLift)}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Overall Record</CardTitle>
               <Trophy className="h-4 w-4 text-muted-foreground" />
@@ -419,7 +420,7 @@ export function ScrimsPanel() {
             </CardContent>
           </Card>
 
-          <Card className="animate-scaleIn stagger-2">
+          <Card className={cn(stagger(1, 'fast', 'slideUpScale'), microInteractions.hoverLift)}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Win Rate</CardTitle>
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
@@ -432,7 +433,7 @@ export function ScrimsPanel() {
             </CardContent>
           </Card>
 
-          <Card className="animate-scaleIn stagger-3">
+          <Card className={cn(stagger(2, 'fast', 'slideUpScale'), microInteractions.hoverLift)}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Maps Played</CardTitle>
               <Target className="h-4 w-4 text-muted-foreground" />
@@ -450,7 +451,7 @@ export function ScrimsPanel() {
       )}
 
       {/* Scrims List */}
-      <Card className="animate-fadeIn stagger-4">
+      <Card className={stagger(3, 'fast', 'slideUpScale')}>
         <CardHeader>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
@@ -474,7 +475,7 @@ export function ScrimsPanel() {
               
               <Dialog open={isAddDialogOpen} onOpenChange={handleDialogOpenChange}>
                 <DialogTrigger asChild>
-                  <Button size="sm" className="flex-1 sm:flex-none">
+                  <Button size="sm" className={cn("flex-1 sm:flex-none", microInteractions.activePress)}>
                     <Plus className="mr-2 h-4 w-4" />
                     <span className="hidden sm:inline">Add Match</span>
                     <span className="sm:hidden">Add</span>
@@ -483,8 +484,8 @@ export function ScrimsPanel() {
                 <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
                 <form onSubmit={handleSubmit}>
                   <DialogHeader>
-                    <DialogTitle>{editingScrim ? 'Edit Match' : 'Add New Match'}</DialogTitle>
-                    <DialogDescription>
+                    <DialogTitle className="animate-fadeIn stagger-1">{editingScrim ? 'Edit Match' : 'Add New Match'}</DialogTitle>
+                    <DialogDescription className="animate-fadeIn stagger-2">
                       {editingScrim ? 'Update match details' : 'Record a new match result'}
                     </DialogDescription>
                   </DialogHeader>
@@ -506,10 +507,11 @@ export function ScrimsPanel() {
                               setFormData({ ...formData, date: '' });
                             }
                           }}
+                          className={microInteractions.focusRing}
                           required
                         />
                       </div>
-                      
+
                       <div className="space-y-2">
                         <Label htmlFor="opponent">Opponent Team</Label>
                         <Input
@@ -517,6 +519,7 @@ export function ScrimsPanel() {
                           placeholder="Enter opponent team name"
                           value={formData.opponent}
                           onChange={(e) => setFormData({ ...formData, opponent: e.target.value })}
+                          className={microInteractions.focusRing}
                           required
                         />
                       </div>
@@ -553,6 +556,7 @@ export function ScrimsPanel() {
                             value={formData.scoreUs}
                             onChange={(e) => setFormData({ ...formData, scoreUs: e.target.value === '' ? '' : parseInt(e.target.value) })}
                             onFocus={(e) => e.target.select()}
+                            className={microInteractions.focusRing}
                             required
                           />
                         </div>
@@ -565,6 +569,7 @@ export function ScrimsPanel() {
                             value={formData.scoreThem}
                             onChange={(e) => setFormData({ ...formData, scoreThem: e.target.value === '' ? '' : parseInt(e.target.value) })}
                             onFocus={(e) => e.target.select()}
+                            className={microInteractions.focusRing}
                             required
                           />
                         </div>
@@ -636,6 +641,7 @@ export function ScrimsPanel() {
                           placeholder="https://youtube.com/watch?v=..."
                           value={formData.vodUrl}
                           onChange={(e) => setFormData({ ...formData, vodUrl: e.target.value })}
+                          className={microInteractions.focusRing}
                         />
                         <p className="text-xs text-muted-foreground">YouTube video URL for review</p>
                       </div>
@@ -647,15 +653,24 @@ export function ScrimsPanel() {
                           placeholder="Add any additional notes or observations..."
                           value={formData.notes}
                           onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                          className={microInteractions.focusRing}
                         />
                       </div>
                     </div>
                   </div>
                   <DialogFooter>
-                    <Button type="button" variant="outline" onClick={() => handleDialogOpenChange(false)}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleDialogOpenChange(false)}
+                      className={microInteractions.smooth}
+                    >
                       Cancel
                     </Button>
-                    <Button type="submit">
+                    <Button
+                      type="submit"
+                      className={cn(microInteractions.activePress, microInteractions.smooth)}
+                    >
                       {editingScrim ? 'Update Match' : 'Add Match'}
                     </Button>
                   </DialogFooter>

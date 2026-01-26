@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2, XCircle, Clock, CheckSquare, Square } from 'lucide-react';
 import { toast } from 'sonner';
+import { stagger, microInteractions, cn } from '@/lib/animations';
 
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
 
@@ -380,7 +381,9 @@ export function UserAvailabilityContent() {
   if (loading) {
     return (
       <div className="min-h-[400px] flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin" />
+        <div className="animate-scaleIn">
+          <Loader2 className="w-8 h-8 animate-spin" />
+        </div>
       </div>
     );
   }
@@ -389,7 +392,7 @@ export function UserAvailabilityContent() {
     <div className="space-y-4">
       {/* Bulk Actions Toolbar */}
       {selectedDates.size > 0 && (
-        <Card className="animate-fadeIn border-primary">
+        <Card className="animate-slideDown border-primary">
           <CardHeader>
             <CardTitle className="text-sm flex items-center gap-2">
               <CheckSquare className="w-4 h-4" />
@@ -406,6 +409,7 @@ export function UserAvailabilityContent() {
                     value={bulkTimeFrom}
                     onChange={(e) => setBulkTimeFrom(e.target.value)}
                     placeholder="Start time"
+                    className={microInteractions.focusRing}
                   />
                 </div>
                 <div className="flex-1">
@@ -415,6 +419,7 @@ export function UserAvailabilityContent() {
                     value={bulkTimeTo}
                     onChange={(e) => setBulkTimeTo(e.target.value)}
                     placeholder="End time"
+                    className={microInteractions.focusRing}
                   />
                 </div>
               </div>
@@ -422,6 +427,7 @@ export function UserAvailabilityContent() {
                 <Button
                   onClick={bulkSetTime}
                   disabled={saving || !bulkTimeFrom || !bulkTimeTo}
+                  className={microInteractions.activePress}
                 >
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Set Time'}
                 </Button>
@@ -429,6 +435,7 @@ export function UserAvailabilityContent() {
                   variant="destructive"
                   onClick={bulkSetUnavailable}
                   disabled={saving}
+                  className={microInteractions.activePress}
                 >
                   Mark Unavailable
                 </Button>
@@ -436,12 +443,14 @@ export function UserAvailabilityContent() {
                   variant="outline"
                   onClick={bulkClear}
                   disabled={saving}
+                  className={microInteractions.activePress}
                 >
                   Clear
                 </Button>
                 <Button
                   variant="secondary"
                   onClick={() => setSelectedDates(new Set())}
+                  className={microInteractions.activePress}
                 >
                   Cancel
                 </Button>
@@ -473,12 +482,15 @@ export function UserAvailabilityContent() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {entries.map((entry) => {
+              {entries.map((entry, index) => {
                 const isSelected = selectedDates.has(entry.date);
                 return (
                   <TableRow
                     key={entry.date}
-                    className={isSelected ? 'bg-primary/5' : ''}
+                    className={cn(
+                      isSelected && 'bg-primary/5',
+                      stagger(index, 'fast', 'fadeIn')
+                    )}
                   >
                     <TableCell>
                       <Checkbox
@@ -494,7 +506,7 @@ export function UserAvailabilityContent() {
                         type="time"
                         value={entry.timeFrom}
                         onChange={(e) => handleTimeChange(entry.date, 'from', e.target.value)}
-                        className="w-32"
+                        className={cn("w-32", microInteractions.focusRing)}
                       />
                     </TableCell>
                     <TableCell>
@@ -502,7 +514,7 @@ export function UserAvailabilityContent() {
                         type="time"
                         value={entry.timeTo}
                         onChange={(e) => handleTimeChange(entry.date, 'to', e.target.value)}
-                        className="w-32"
+                        className={cn("w-32", microInteractions.focusRing)}
                       />
                     </TableCell>
                     <TableCell>
@@ -531,6 +543,7 @@ export function UserAvailabilityContent() {
                             !entry.timeTo ||
                             (entry.timeFrom === entry.originalTimeFrom && entry.timeTo === entry.originalTimeTo)
                           }
+                          className={cn(microInteractions.activePress, microInteractions.smooth)}
                         >
                           Save
                         </Button>
@@ -539,6 +552,7 @@ export function UserAvailabilityContent() {
                           variant="destructive"
                           onClick={() => setUnavailable(entry.date)}
                           disabled={saving}
+                          className={cn(microInteractions.activePress, microInteractions.smooth)}
                         >
                           Not Available
                         </Button>

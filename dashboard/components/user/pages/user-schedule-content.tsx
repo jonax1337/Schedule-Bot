@@ -10,6 +10,7 @@ import { CheckCircle2, XCircle, Clock, Loader2, Edit2, Save, X, Palmtree } from 
 import Image from 'next/image';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
+import { stagger, microInteractions, cn } from '@/lib/animations';
 
 interface PlayerStatus {
   name: string;
@@ -428,7 +429,9 @@ export function UserScheduleContent() {
   if (loading) {
     return (
       <div className="min-h-[400px] flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin" />
+        <div className="animate-scaleIn">
+          <Loader2 className="w-8 h-8 animate-spin" />
+        </div>
       </div>
     );
   }
@@ -486,11 +489,13 @@ export function UserScheduleContent() {
           return (
             <Card
               key={entry.date}
-              className={`cursor-pointer transition-all duration-300 hover:shadow-lg hover:scale-[1.02] hover:-translate-y-1 animate-slideUp ${ringClass} ${
-                entry.isOffDay ? 'bg-purple-500/5 opacity-60' : ''
-              }`}
+              className={cn(
+                "cursor-pointer transition-transform duration-300 ease-out hover:scale-[1.03]",
+                stagger(index, 'fast', 'slideUpScale'),
+                ringClass,
+                entry.isOffDay && 'bg-purple-500/5 opacity-60'
+              )}
               onClick={() => handleDateClick(entry)}
-              style={{ animationDelay: `${(index % 14) * 0.08}s` }}
             >
             <CardHeader className="pb-0">
               <div className="flex items-center justify-between">
@@ -530,9 +535,9 @@ export function UserScheduleContent() {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md max-h-[80vh] overflow-y-auto animate-scaleIn">
+        <DialogContent className="sm:max-w-md max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 animate-fadeIn stagger-1">
               <DialogTitle>{selectedDate?.date} - {selectedDate?.weekday}</DialogTitle>
               {selectedDate && (
                 <span 
@@ -622,8 +627,8 @@ export function UserScheduleContent() {
                       <Button
                         size="sm"
                         variant="outline"
+                        className={cn("h-7 text-xs", microInteractions.activePress, microInteractions.smooth)}
                         onClick={startEditingUser}
-                        className="h-7 text-xs"
                       >
                         <Edit2 className="w-3 h-3 mr-1" />
                         Edit My Status

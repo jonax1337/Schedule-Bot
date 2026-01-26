@@ -10,6 +10,7 @@ import { Loader2, Calendar, Save, RefreshCw, ChevronLeft, ChevronRight, X } from
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import Image from 'next/image';
 import { Skeleton } from '@/components/ui/skeleton';
+import { stagger, microInteractions, loadingStates, cn } from '@/lib/animations';
 
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
 
@@ -67,7 +68,7 @@ export function ScheduleEditor() {
     setLoading(true);
     try {
       const { getAuthHeaders } = await import('@/lib/auth');
-      
+
       // Load user mappings and schedules
       const [mappingsRes, schedulesRes] = await Promise.all([
         fetch(`${BOT_API_URL}/api/user-mappings`),
@@ -219,24 +220,24 @@ export function ScheduleEditor() {
 
   if (loading) {
     return (
-      <Card>
+      <Card className="animate-fadeIn">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <Skeleton className="h-6 w-40" />
-              <Skeleton className="h-4 w-64 mt-2" />
+              <Skeleton className={cn("h-6 w-40", loadingStates.skeleton)} />
+              <Skeleton className={cn("h-4 w-64 mt-2", loadingStates.skeleton)} />
             </div>
-            <Skeleton className="h-9 w-24" />
+            <Skeleton className={cn("h-9 w-24", loadingStates.skeleton)} />
           </div>
         </CardHeader>
         <CardContent>
           <div className="rounded-md border">
             <div className="p-2">
               {Array.from({ length: 14 }).map((_, i) => (
-                <div key={i} className="flex gap-2 mb-2">
-                  <Skeleton className="h-8 w-24" />
+                <div key={i} className={cn("flex gap-2 mb-2", stagger(i, 'fast', 'fadeIn'))}>
+                  <Skeleton className={cn("h-8 w-24", loadingStates.skeleton)} />
                   {Array.from({ length: 7 }).map((_, j) => (
-                    <Skeleton key={j} className="h-8 flex-1" />
+                    <Skeleton key={j} className={cn("h-8 flex-1", loadingStates.skeleton)} />
                   ))}
                 </div>
               ))}
@@ -248,7 +249,7 @@ export function ScheduleEditor() {
   }
 
   return (
-    <Card>
+    <Card className="animate-fadeIn">
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
@@ -257,13 +258,18 @@ export function ScheduleEditor() {
               Schedule Editor
             </CardTitle>
             <CardDescription>
-              {currentPage === 0 
+              {currentPage === 0
                 ? 'Edit player availability for the next 14 days'
                 : `Viewing historical data (${currentPage * 14} - ${(currentPage + 1) * 14} days from now)`
               }
             </CardDescription>
           </div>
-          <Button onClick={() => loadData(currentPage)} variant="outline" size="sm">
+          <Button
+            onClick={() => loadData(currentPage)}
+            variant="outline"
+            size="sm"
+            className={cn(microInteractions.hoverScale, microInteractions.smooth)}
+          >
             <RefreshCw className="w-4 h-4 mr-2" />
             Refresh
           </Button>
@@ -287,16 +293,16 @@ export function ScheduleEditor() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {schedules.map((schedule) => {
+              {schedules.map((schedule, index) => {
                 // Parse date and get weekday
                 const getWeekday = (dateStr: string) => {
                   const [day, month, year] = dateStr.split('.');
                   const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
                   return date.toLocaleDateString('en-US', { weekday: 'long' });
                 };
-                
+
                 return (
-                <TableRow key={schedule.date}>
+                <TableRow key={schedule.date} className={stagger(index, 'fast', 'fadeIn')}>
                   <TableCell className="sticky left-0 bg-background z-10">
                     <div className="flex flex-col">
                       <span className="font-medium">{schedule.date}</span>
@@ -308,7 +314,7 @@ export function ScheduleEditor() {
                       variant="ghost"
                       size="sm"
                       onClick={() => handleReasonClick(schedule.date, schedule.reason)}
-                      className="h-8 w-full justify-start text-xs p-1"
+                      className={cn("h-8 w-full justify-start text-xs p-1", microInteractions.smooth)}
                     >
                       <div className={
                         `inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
@@ -347,13 +353,13 @@ export function ScheduleEditor() {
                             onBlur={handleCellBlur}
                             onKeyDown={handleKeyDown}
                             autoFocus
-                            className="h-8 text-sm"
+                            className={cn("h-8 text-sm", microInteractions.focusRing)}
                             placeholder="14:00-20:00 or x"
                           />
                         ) : (
                           <div
                             onClick={() => handleCellClick(schedule.date, mapping.discordId, availability)}
-                            className="h-8 px-2 flex items-center cursor-pointer hover:bg-accent rounded text-sm"
+                            className={cn("h-8 px-2 flex items-center cursor-pointer hover:bg-accent rounded text-sm", microInteractions.smooth)}
                           >
                             {availability || '-'}
                           </div>
@@ -368,12 +374,12 @@ export function ScheduleEditor() {
           </Table>
         </div>
         {saving && (
-          <div className="flex items-center justify-center mt-4 text-sm text-muted-foreground">
+          <div className="flex items-center justify-center mt-4 text-sm text-muted-foreground animate-scaleIn">
             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
             Saving...
           </div>
         )}
-        
+
         {/* Pagination Controls */}
         <div className="flex items-center justify-between mt-4">
           <div className="text-sm text-muted-foreground">
@@ -391,6 +397,7 @@ export function ScheduleEditor() {
               size="sm"
               onClick={() => loadData(currentPage - 1)}
               disabled={loading}
+              className={cn(microInteractions.hoverScale, microInteractions.smooth)}
             >
               <ChevronLeft className="w-4 h-4 mr-1" />
               Older
@@ -400,6 +407,7 @@ export function ScheduleEditor() {
               size="sm"
               onClick={() => loadData(0)}
               disabled={currentPage === 0 || loading}
+              className={cn(microInteractions.activePress, microInteractions.smooth)}
             >
               <Calendar className="w-4 h-4 mr-1" />
               Today
@@ -409,6 +417,7 @@ export function ScheduleEditor() {
               size="sm"
               onClick={() => loadData(currentPage + 1)}
               disabled={loading}
+              className={cn(microInteractions.hoverScale, microInteractions.smooth)}
             >
               Newer
               <ChevronRight className="w-4 h-4 ml-1" />
@@ -418,14 +427,14 @@ export function ScheduleEditor() {
 
         {/* Reason Dialog */}
         <Dialog open={reasonDialogOpen} onOpenChange={setReasonDialogOpen}>
-          <DialogContent>
+          <DialogContent className="animate-scaleIn">
             <DialogHeader>
-              <DialogTitle>Set Reason for {selectedDateForReason}</DialogTitle>
-              <DialogDescription>
+              <DialogTitle className={stagger(1, 'fast', 'fadeIn')}>Set Reason for {selectedDateForReason}</DialogTitle>
+              <DialogDescription className={stagger(2, 'fast', 'fadeIn')}>
                 Choose the type of activity for this date
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 py-4">
+            <div className={cn("space-y-4 py-4", stagger(3, 'fast', 'fadeIn'))}>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Tag</label>
                 <div className="relative">
@@ -433,13 +442,13 @@ export function ScheduleEditor() {
                     value={reasonValue}
                     onChange={(e) => setReasonValue(e.target.value)}
                     placeholder="Enter tag (e.g., Training, Premier, Off-Day)"
-                    className="pr-8"
+                    className={cn("pr-8", microInteractions.focusRing)}
                   />
                   {reasonValue && (
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6"
+                      className={cn("absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6", microInteractions.hoverScale)}
                       onClick={() => setReasonValue('')}
                     >
                       <X className="w-3 h-3" />
@@ -452,7 +461,7 @@ export function ScheduleEditor() {
                       key={suggestion}
                       variant="outline"
                       size="sm"
-                      className="h-6 text-xs"
+                      className={cn("h-6 text-xs", microInteractions.hoverScale, microInteractions.smooth)}
                       onClick={() => setReasonValue(suggestion)}
                     >
                       {suggestion === 'Premier' && (
@@ -470,10 +479,18 @@ export function ScheduleEditor() {
                 </div>
               </div>
               <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setReasonDialogOpen(false)}>
+                <Button
+                  variant="outline"
+                  onClick={() => setReasonDialogOpen(false)}
+                  className={cn(microInteractions.smooth)}
+                >
                   Cancel
                 </Button>
-                <Button onClick={saveReason} disabled={saving}>
+                <Button
+                  onClick={saveReason}
+                  disabled={saving}
+                  className={cn(microInteractions.activePress, microInteractions.smooth)}
+                >
                   {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                   Save
                 </Button>

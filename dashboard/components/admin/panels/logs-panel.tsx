@@ -11,6 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2, RefreshCw, Terminal, AlertCircle, Info, CheckCircle, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { stagger, microInteractions, loadingStates, cn } from "@/lib/animations";
 
 interface LogEntry {
   timestamp: string;
@@ -28,7 +29,7 @@ export default function LogsPanel() {
 
   useEffect(() => {
     loadLogs();
-    
+
     if (autoRefresh) {
       const interval = setInterval(loadLogs, 5000); // Refresh every 5 seconds
       return () => clearInterval(interval);
@@ -81,15 +82,15 @@ export default function LogsPanel() {
 
   const formatTime = (timestamp: string) => {
     const date = new Date(timestamp);
-    return date.toLocaleTimeString('de-DE', { 
-      hour: '2-digit', 
-      minute: '2-digit', 
-      second: '2-digit' 
+    return date.toLocaleTimeString('de-DE', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
     });
   };
 
   return (
-    <Card>
+    <Card className="animate-fadeIn">
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
@@ -117,6 +118,7 @@ export default function LogsPanel() {
               size="sm"
               onClick={() => loadLogs()}
               disabled={loading}
+              className={cn(microInteractions.activePress, microInteractions.smooth)}
             >
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -164,7 +166,7 @@ export default function LogsPanel() {
           {loading && logs.length === 0 ? (
             <div className="space-y-2">
               {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="flex items-start gap-3 p-3 border rounded-lg">
+                <div key={i} className={cn("flex items-start gap-3 p-3 border rounded-lg", loadingStates.skeleton)}>
                   <Skeleton className="h-4 w-4 mt-0.5" />
                   <div className="flex-1 space-y-2">
                     <Skeleton className="h-4 w-32" />
@@ -183,7 +185,12 @@ export default function LogsPanel() {
               {logs.map((log, index) => (
                 <div
                   key={index}
-                  className={`flex items-start gap-3 p-3 rounded-lg border ${getLevelColor(log.level)}`}
+                  className={cn(
+                    "flex items-start gap-3 p-3 rounded-lg border",
+                    getLevelColor(log.level),
+                    stagger(index, 'fast', 'fadeIn'),
+                    microInteractions.smooth
+                  )}
                 >
                   <div className="mt-0.5">
                     {getLevelIcon(log.level)}

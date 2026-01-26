@@ -13,7 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Bell, Send, Vote, Calendar, Loader2, MessageSquare, ChevronsUpDown, Check, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { stagger, microInteractions, cn } from "@/lib/animations";
 
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
 
@@ -54,7 +54,7 @@ export default function ActionsPanel() {
   const [pinMessage, setPinMessage] = useState("");
 
   const filteredMembers = userSearch
-    ? members.filter(m => 
+    ? members.filter(m =>
         m.displayName.toLowerCase().includes(userSearch.toLowerCase()) ||
         m.username.toLowerCase().includes(userSearch.toLowerCase())
       )
@@ -83,7 +83,7 @@ export default function ActionsPanel() {
       const { getAuthHeaders } = await import('@/lib/auth');
       const response = await fetch(`${BOT_API_URL}${endpoint}`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           ...getAuthHeaders()
         },
@@ -155,7 +155,7 @@ export default function ActionsPanel() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
+        <Card className={stagger(0, 'fast', 'slideUpScale')}>
           <CardHeader>
             <CardTitle className="flex items-center">
               <Calendar className="mr-2 h-5 w-5" />
@@ -174,15 +174,16 @@ export default function ActionsPanel() {
                 value={scheduleDate}
                 onChange={(e) => setScheduleDate(e.target.value)}
                 placeholder="Leave empty for today"
+                className={microInteractions.focusRing}
               />
               <p className="text-sm text-muted-foreground">
                 Leave empty to post today's schedule
               </p>
             </div>
-            <Button 
-              onClick={postSchedule} 
+            <Button
+              onClick={postSchedule}
               disabled={loading === 'schedule'}
-              className="w-full"
+              className={cn("w-full", microInteractions.activePress, microInteractions.smooth)}
             >
               {loading === 'schedule' ? (
                 <>
@@ -199,7 +200,7 @@ export default function ActionsPanel() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className={stagger(1, 'fast', 'slideUpScale')}>
           <CardHeader>
             <CardTitle className="flex items-center">
               <Bell className="mr-2 h-5 w-5" />
@@ -218,15 +219,16 @@ export default function ActionsPanel() {
                 value={reminderDate}
                 onChange={(e) => setReminderDate(e.target.value)}
                 placeholder="Leave empty for today"
+                className={microInteractions.focusRing}
               />
               <p className="text-sm text-muted-foreground">
                 Leave empty to send reminders for today
               </p>
             </div>
-            <Button 
-              onClick={sendReminders} 
+            <Button
+              onClick={sendReminders}
               disabled={loading === 'remind'}
-              className="w-full"
+              className={cn("w-full", microInteractions.activePress, microInteractions.smooth)}
             >
               {loading === 'remind' ? (
                 <>
@@ -244,7 +246,7 @@ export default function ActionsPanel() {
         </Card>
       </div>
 
-      <Card>
+      <Card className={stagger(2, 'fast', 'slideUpScale')}>
         <CardHeader>
           <CardTitle className="flex items-center">
             <Vote className="mr-2 h-5 w-5" />
@@ -262,6 +264,7 @@ export default function ActionsPanel() {
               value={pollQuestion}
               onChange={(e) => setPollQuestion(e.target.value)}
               placeholder="What should we practice today?"
+              className={microInteractions.focusRing}
             />
           </div>
 
@@ -273,6 +276,7 @@ export default function ActionsPanel() {
               onChange={(e) => setPollOptions(e.target.value)}
               placeholder="Aim training, Team tactics, Map practice"
               rows={3}
+              className={microInteractions.focusRing}
             />
             <p className="text-sm text-muted-foreground">
               Separate options with commas (max 10 options)
@@ -295,10 +299,10 @@ export default function ActionsPanel() {
             </Select>
           </div>
 
-          <Button 
-            onClick={createPoll} 
+          <Button
+            onClick={createPoll}
             disabled={loading === 'poll'}
-            className="w-full"
+            className={cn("w-full", microInteractions.activePress, microInteractions.smooth)}
           >
             {loading === 'poll' ? (
               <>
@@ -315,7 +319,7 @@ export default function ActionsPanel() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className={stagger(3, 'fast', 'slideUpScale')}>
         <CardHeader>
           <CardTitle className="flex items-center">
             <MessageSquare className="mr-2 h-5 w-5" />
@@ -365,18 +369,18 @@ export default function ActionsPanel() {
                   variant="outline"
                   role="combobox"
                   aria-expanded={userOpen}
-                  className="w-full justify-between font-normal"
+                  className={cn("w-full justify-between font-normal", microInteractions.smooth)}
                 >
-                  {notifySpecificUser 
-                    ? members.find(m => m.id === notifySpecificUser)?.displayName 
+                  {notifySpecificUser
+                    ? members.find(m => m.id === notifySpecificUser)?.displayName
                     : "Select user (overrides target)"}
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
                 <Command shouldFilter={false}>
-                  <CommandInput 
-                    placeholder="Search users..." 
+                  <CommandInput
+                    placeholder="Search users..."
                     value={userSearch}
                     onValueChange={setUserSearch}
                   />
@@ -436,6 +440,7 @@ export default function ActionsPanel() {
               onChange={(e) => setNotifyTitle(e.target.value)}
               placeholder="Team Announcement"
               maxLength={100}
+              className={microInteractions.focusRing}
             />
           </div>
 
@@ -448,16 +453,17 @@ export default function ActionsPanel() {
               placeholder="Your message here..."
               rows={4}
               maxLength={1000}
+              className={microInteractions.focusRing}
             />
             <p className="text-sm text-muted-foreground">
               {notifyMessage.length}/1000 characters
             </p>
           </div>
 
-          <Button 
-            onClick={sendNotification} 
+          <Button
+            onClick={sendNotification}
             disabled={loading === 'notify'}
-            className="w-full"
+            className={cn("w-full", microInteractions.activePress, microInteractions.smooth)}
           >
             {loading === 'notify' ? (
               <>
@@ -475,7 +481,7 @@ export default function ActionsPanel() {
       </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
+        <Card className={stagger(4, 'fast', 'slideUpScale')}>
           <CardHeader>
             <CardTitle className="flex items-center">
               <MessageSquare className="mr-2 h-5 w-5" />
@@ -495,15 +501,16 @@ export default function ActionsPanel() {
                 placeholder="Dashboard: https://your-dashboard.com"
                 rows={5}
                 maxLength={2000}
+                className={microInteractions.focusRing}
               />
               <p className="text-sm text-muted-foreground">
                 {pinMessage.length}/2000 characters
               </p>
             </div>
-            <Button 
-              onClick={sendPinMessage} 
+            <Button
+              onClick={sendPinMessage}
               disabled={loading === 'pin'}
-              className="w-full"
+              className={cn("w-full", microInteractions.activePress, microInteractions.smooth)}
             >
               {loading === 'pin' ? (
                 <>
@@ -520,7 +527,7 @@ export default function ActionsPanel() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className={stagger(5, 'fast', 'slideUpScale')}>
           <CardHeader>
             <CardTitle className="flex items-center">
               <Trash2 className="mr-2 h-5 w-5" />
@@ -543,10 +550,10 @@ export default function ActionsPanel() {
             </div>
             <AlertDialog open={clearDialogOpen} onOpenChange={setClearDialogOpen}>
               <AlertDialogTrigger asChild>
-                <Button 
+                <Button
                   variant="destructive"
                   disabled={loading === 'clear'}
-                  className="w-full"
+                  className={cn("w-full", microInteractions.activePress, microInteractions.smooth)}
                 >
                   {loading === 'clear' ? (
                     <>
