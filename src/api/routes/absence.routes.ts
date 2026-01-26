@@ -14,7 +14,8 @@ router.get('/my', verifyToken, async (req: AuthRequest, res) => {
     const userMapping = mappings.find(m => m.displayName === req.user?.username);
 
     if (!userMapping) {
-      return res.status(404).json({ error: 'User mapping not found' });
+      // User not in roster (e.g. admin account) - return empty absences
+      return res.json({ success: true, absences: [] });
     }
 
     const absences = await absenceService.getAbsencesForUser(userMapping.discordId);
