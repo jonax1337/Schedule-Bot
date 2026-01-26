@@ -13,6 +13,7 @@ import {
   Calendar,
   ArrowLeft,
   LayoutDashboard,
+  BarChart3,
 } from "lucide-react"
 
 import { NavUser } from "@/components/shared"
@@ -84,6 +85,12 @@ export function AdminSidebar({ userName, onLogout, ...props }: AdminSidebarProps
       url: "/admin?tab=dashboard",
       icon: LayoutDashboard,
       isActive: currentTab === 'dashboard',
+    },
+    {
+      title: "Statistics",
+      url: "/admin?tab=statistics",
+      icon: BarChart3,
+      isActive: currentTab === 'statistics',
     },
     {
       title: "Settings",
