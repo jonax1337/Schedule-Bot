@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2, XCircle, Clock, CheckSquare, Square } from 'lucide-react';
+import { Loader2, XCircle, Clock, CheckSquare, Square, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { stagger, microInteractions, cn } from '@/lib/animations';
 
@@ -27,6 +27,8 @@ interface DateEntry {
   timeTo: string;
   originalTimeFrom: string;
   originalTimeTo: string;
+  isSaving?: boolean;
+  justSaved?: boolean;
 }
 
 export function UserAvailabilityContent() {
@@ -39,6 +41,7 @@ export function UserAvailabilityContent() {
   const [selectedDates, setSelectedDates] = useState<Set<string>>(new Set());
   const [bulkTimeFrom, setBulkTimeFrom] = useState('');
   const [bulkTimeTo, setBulkTimeTo] = useState('');
+  const autoSaveTimeoutsRef = useRef<Record<string, NodeJS.Timeout>>({});
 
   useEffect(() => {
     const checkAuthAndLoad = async () => {
@@ -59,6 +62,15 @@ export function UserAvailabilityContent() {
 
     checkAuthAndLoad();
   }, [router]);
+
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(autoSaveTimeoutsRef.current).forEach(timeout => {
+        clearTimeout(timeout);
+      });
+    };
+  }, []);
 
   const loadData = async (user: string) => {
     setLoading(true);
@@ -143,18 +155,26 @@ export function UserAvailabilityContent() {
     }
   };
 
-  const saveEntry = async (date: string, timeFrom: string, timeTo: string) => {
+  const saveEntry = async (date: string, timeFrom: string, timeTo: string, isAutoSave = false) => {
     if (!timeFrom || !timeTo) {
-      toast.error('Please enter both start and end time');
+      if (!isAutoSave) {
+        toast.error('Please enter both start and end time');
+      }
       return;
     }
 
     if (timeTo <= timeFrom) {
-      toast.error('End time must be after start time');
+      if (!isAutoSave) {
+        toast.error('End time must be after start time');
+      }
       return;
     }
 
-    setSaving(true);
+    // Mark this entry as saving
+    setEntries(prev => prev.map(e =>
+      e.date === date ? { ...e, isSaving: true, justSaved: false } : e
+    ));
+
     try {
       const value = `${timeFrom}-${timeTo}`;
       const { getAuthHeaders } = await import('@/lib/auth');
@@ -170,21 +190,110 @@ export function UserAvailabilityContent() {
       });
 
       if (response.ok) {
-        toast.success('Availability updated!');
-        await loadData(userName);
+        // Only show toast if it's NOT an auto-save
+        if (!isAutoSave) {
+          toast.success('Availability updated!');
+        }
+
+        // Update local state without reloading everything
+        setEntries(prev => prev.map(e =>
+          e.date === date ? {
+            ...e,
+            value,
+            originalTimeFrom: timeFrom,
+            originalTimeTo: timeTo,
+            isSaving: false,
+            justSaved: true
+          } : e
+        ));
+
+        // Clear the "just saved" indicator after 2 seconds
+        setTimeout(() => {
+          setEntries(prev => prev.map(e =>
+            e.date === date ? { ...e, justSaved: false } : e
+          ));
+        }, 2000);
       } else {
         toast.error('Failed to update availability');
+        setEntries(prev => prev.map(e =>
+          e.date === date ? { ...e, isSaving: false } : e
+        ));
       }
     } catch (error) {
       console.error('Failed to save:', error);
       toast.error('Failed to save availability');
-    } finally {
-      setSaving(false);
+      setEntries(prev => prev.map(e =>
+        e.date === date ? { ...e, isSaving: false } : e
+      ));
+    }
+  };
+
+  const clearAvailability = async (date: string, isAutoSave = true) => {
+    // Mark this entry as saving
+    setEntries(prev => prev.map(e =>
+      e.date === date ? { ...e, isSaving: true, justSaved: false } : e
+    ));
+
+    try {
+      const { getAuthHeaders } = await import('@/lib/auth');
+
+      const response = await fetch(`${BOT_API_URL}/api/schedule/update-availability`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          date,
+          userId: userDiscordId,
+          availability: '',
+        }),
+      });
+
+      if (response.ok) {
+        // Only show toast if it's NOT an auto-save
+        if (!isAutoSave) {
+          toast.success('Availability cleared');
+        }
+
+        // Update local state without reloading everything
+        setEntries(prev => prev.map(e =>
+          e.date === date ? {
+            ...e,
+            value: '',
+            timeFrom: '',
+            timeTo: '',
+            originalTimeFrom: '',
+            originalTimeTo: '',
+            isSaving: false,
+            justSaved: true
+          } : e
+        ));
+
+        // Clear the "just saved" indicator after 2 seconds
+        setTimeout(() => {
+          setEntries(prev => prev.map(e =>
+            e.date === date ? { ...e, justSaved: false } : e
+          ));
+        }, 2000);
+      } else {
+        toast.error('Failed to clear availability');
+        setEntries(prev => prev.map(e =>
+          e.date === date ? { ...e, isSaving: false } : e
+        ));
+      }
+    } catch (error) {
+      console.error('Failed to clear:', error);
+      toast.error('Failed to clear availability');
+      setEntries(prev => prev.map(e =>
+        e.date === date ? { ...e, isSaving: false } : e
+      ));
     }
   };
 
   const setUnavailable = async (date: string) => {
-    setSaving(true);
+    // Mark this entry as saving
+    setEntries(prev => prev.map(e =>
+      e.date === date ? { ...e, isSaving: true, justSaved: false } : e
+    ));
+
     try {
       const { getAuthHeaders } = await import('@/lib/auth');
 
@@ -200,25 +309,71 @@ export function UserAvailabilityContent() {
 
       if (response.ok) {
         toast.success('Marked as not available');
-        await loadData(userName);
+
+        // Update local state without reloading everything
+        setEntries(prev => prev.map(e =>
+          e.date === date ? {
+            ...e,
+            value: 'x',
+            timeFrom: '',
+            timeTo: '',
+            originalTimeFrom: '',
+            originalTimeTo: '',
+            isSaving: false,
+            justSaved: true
+          } : e
+        ));
+
+        // Clear the "just saved" indicator after 2 seconds
+        setTimeout(() => {
+          setEntries(prev => prev.map(e =>
+            e.date === date ? { ...e, justSaved: false } : e
+          ));
+        }, 2000);
       } else {
         toast.error('Failed to update availability');
+        setEntries(prev => prev.map(e =>
+          e.date === date ? { ...e, isSaving: false } : e
+        ));
       }
     } catch (error) {
       console.error('Failed to save:', error);
       toast.error('Failed to save availability');
-    } finally {
-      setSaving(false);
+      setEntries(prev => prev.map(e =>
+        e.date === date ? { ...e, isSaving: false } : e
+      ));
     }
   };
 
   const handleTimeChange = (date: string, field: 'from' | 'to', value: string) => {
+    // Update local state immediately
     setEntries(prev => prev.map(e =>
       e.date === date ? {
         ...e,
         [field === 'from' ? 'timeFrom' : 'timeTo']: value
       } : e
     ));
+
+    // Clear existing timeout for this date
+    if (autoSaveTimeoutsRef.current[date]) {
+      clearTimeout(autoSaveTimeoutsRef.current[date]);
+    }
+
+    // Set new timeout for auto-save
+    autoSaveTimeoutsRef.current[date] = setTimeout(() => {
+      // Get the updated entry
+      setEntries(current => {
+        const entry = current.find(e => e.date === date);
+        if (entry && entry.timeFrom && entry.timeTo) {
+          // Both fields are filled, trigger auto-save
+          saveEntry(date, entry.timeFrom, entry.timeTo, true);
+        } else if (entry && !entry.timeFrom && !entry.timeTo && entry.value) {
+          // Both fields are empty but there was a previous value - clear it
+          clearAvailability(date);
+        }
+        return current;
+      });
+    }, 1000); // Wait 1 second after last keystroke
   };
 
   // Bulk Edit Functions
@@ -280,13 +435,24 @@ export function UserAvailabilityContent() {
 
       if (allSuccess) {
         toast.success(`Updated ${selectedDates.size} day(s)`);
+
+        // Update local state for all selected dates
+        setEntries(prev => prev.map(e =>
+          selectedDates.has(e.date) ? {
+            ...e,
+            value,
+            timeFrom: bulkTimeFrom,
+            timeTo: bulkTimeTo,
+            originalTimeFrom: bulkTimeFrom,
+            originalTimeTo: bulkTimeTo,
+          } : e
+        ));
+
         setSelectedDates(new Set());
         setBulkTimeFrom('');
         setBulkTimeTo('');
-        await loadData(userName);
       } else {
         toast.error('Some updates failed');
-        await loadData(userName);
       }
     } catch (error) {
       console.error('Failed to bulk update:', error);
@@ -323,11 +489,22 @@ export function UserAvailabilityContent() {
 
       if (allSuccess) {
         toast.success(`Marked ${selectedDates.size} day(s) as unavailable`);
+
+        // Update local state for all selected dates
+        setEntries(prev => prev.map(e =>
+          selectedDates.has(e.date) ? {
+            ...e,
+            value: 'x',
+            timeFrom: '',
+            timeTo: '',
+            originalTimeFrom: '',
+            originalTimeTo: '',
+          } : e
+        ));
+
         setSelectedDates(new Set());
-        await loadData(userName);
       } else {
         toast.error('Some updates failed');
-        await loadData(userName);
       }
     } catch (error) {
       console.error('Failed to bulk update:', error);
@@ -364,11 +541,22 @@ export function UserAvailabilityContent() {
 
       if (allSuccess) {
         toast.success(`Cleared ${selectedDates.size} day(s)`);
+
+        // Update local state for all selected dates
+        setEntries(prev => prev.map(e =>
+          selectedDates.has(e.date) ? {
+            ...e,
+            value: '',
+            timeFrom: '',
+            timeTo: '',
+            originalTimeFrom: '',
+            originalTimeTo: '',
+          } : e
+        ));
+
         setSelectedDates(new Set());
-        await loadData(userName);
       } else {
         toast.error('Some updates failed');
-        await loadData(userName);
       }
     } catch (error) {
       console.error('Failed to bulk clear:', error);
@@ -477,8 +665,8 @@ export function UserAvailabilityContent() {
                 <TableHead>Weekday</TableHead>
                 <TableHead>From</TableHead>
                 <TableHead>To</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
+                <TableHead>Current Status</TableHead>
+                <TableHead></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -502,23 +690,34 @@ export function UserAvailabilityContent() {
                     <TableCell className="font-medium">{entry.date}</TableCell>
                     <TableCell className="text-muted-foreground">{getWeekdayName(entry.date)}</TableCell>
                     <TableCell>
-                      <Input
-                        type="time"
-                        value={entry.timeFrom}
-                        onChange={(e) => handleTimeChange(entry.date, 'from', e.target.value)}
-                        className={cn("w-32", microInteractions.focusRing)}
-                      />
+                      <div className="relative">
+                        <Input
+                          type="time"
+                          value={entry.timeFrom}
+                          onChange={(e) => handleTimeChange(entry.date, 'from', e.target.value)}
+                          className={cn("w-32", microInteractions.focusRing)}
+                          disabled={entry.isSaving}
+                        />
+                      </div>
                     </TableCell>
                     <TableCell>
-                      <Input
-                        type="time"
-                        value={entry.timeTo}
-                        onChange={(e) => handleTimeChange(entry.date, 'to', e.target.value)}
-                        className={cn("w-32", microInteractions.focusRing)}
-                      />
+                      <div className="relative">
+                        <Input
+                          type="time"
+                          value={entry.timeTo}
+                          onChange={(e) => handleTimeChange(entry.date, 'to', e.target.value)}
+                          className={cn("w-32", microInteractions.focusRing)}
+                          disabled={entry.isSaving}
+                        />
+                      </div>
                     </TableCell>
                     <TableCell>
-                      {entry.value === 'x' ? (
+                      {entry.justSaved ? (
+                        <span className="flex items-center gap-2 text-green-600 animate-fadeIn">
+                          <Check className="w-4 h-4" />
+                          Saved
+                        </span>
+                      ) : entry.value === 'x' ? (
                         <span className="flex items-center gap-2 text-red-500">
                           <XCircle className="w-4 h-4" />
                           Not Available
@@ -533,30 +732,15 @@ export function UserAvailabilityContent() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          onClick={() => saveEntry(entry.date, entry.timeFrom, entry.timeTo)}
-                          disabled={
-                            saving ||
-                            !entry.timeFrom ||
-                            !entry.timeTo ||
-                            (entry.timeFrom === entry.originalTimeFrom && entry.timeTo === entry.originalTimeTo)
-                          }
-                          className={cn(microInteractions.activePress, microInteractions.smooth)}
-                        >
-                          Save
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => setUnavailable(entry.date)}
-                          disabled={saving}
-                          className={cn(microInteractions.activePress, microInteractions.smooth)}
-                        >
-                          Not Available
-                        </Button>
-                      </div>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => setUnavailable(entry.date)}
+                        disabled={saving || entry.isSaving}
+                        className={cn(microInteractions.activePress, microInteractions.smooth)}
+                      >
+                        Not Available
+                      </Button>
                     </TableCell>
                   </TableRow>
                 );
