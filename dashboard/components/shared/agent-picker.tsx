@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
-import { microInteractions, gridStagger, cn } from "@/lib/animations";
+import { microInteractions, gridStagger, stagger, cn } from "@/lib/animations";
 
 const VALORANT_AGENTS = [
   'Astra', 'Breach', 'Brimstone', 'Chamber', 'Clove', 'Cypher', 'Deadlock',
@@ -111,10 +111,9 @@ export function AgentSelector({ label, agents, onChange, maxAgents = 5 }: AgentS
             key={agent}
             className={cn(
               "relative w-12 h-12 rounded-md overflow-hidden border-2 border-primary",
-              "animate-scaleIn",
+              stagger(index, 'fast', 'scaleIn'),
               microInteractions.hoverScale
             )}
-            style={{ animationDelay: `${index * 30}ms` }}
           >
             <img
               src={`/assets/agents/${agent}_icon.webp`}
