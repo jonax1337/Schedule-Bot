@@ -30,6 +30,7 @@ import {
 } from 'recharts';
 import { Target, Map, BarChart3, Flame, Swords, Loader2, ChevronDown } from 'lucide-react';
 import { stagger, cn } from '@/lib/animations';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
 
@@ -103,6 +104,7 @@ const scrimResultsConfig: ChartConfig = {
 const availabilityConfig: ChartConfig = {
   available: { label: 'Available', color: 'oklch(0.723 0.219 149.579)' },
   unavailable: { label: 'Unavailable', color: 'oklch(0.577 0.245 27.325)' },
+  absent: { label: 'Absent', color: 'oklch(0.702 0.183 293.541)' },
   noResponse: { label: 'No Response', color: 'oklch(0.708 0 0)' },
 };
 
@@ -196,21 +198,38 @@ export default function StatisticsPanel() {
   const [availabilityRange, setAvailabilityRange] = useState<AvailabilityRange>('next14');
   const [availabilitySchedules, setAvailabilitySchedules] = useState<ScheduleDay[]>([]);
   const [availabilityLoading, setAvailabilityLoading] = useState(false);
+  const [absentByDate, setAbsentByDate] = useState<Record<string, string[]>>({});
   const [scrimMatchType, setScrimMatchType] = useState('__all__');
   const [scrimTimeRange, setScrimTimeRange] = useState<ScrimTimeRange>('all');
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     loadData();
   }, []);
 
+  const fetchAbsencesForSchedules = async (schedulesList: ScheduleDay[], headers: Record<string, string>) => {
+    if (schedulesList.length === 0) return;
+    try {
+      const dates = schedulesList.map(s => s.date).join(',');
+      const res = await fetch(`${BOT_API_URL}/api/absences/by-dates?dates=${dates}`, { headers });
+      if (res.ok) {
+        const data = await res.json();
+        setAbsentByDate(prev => ({ ...prev, ...(data.absentByDate || {}) }));
+      }
+    } catch (err) {
+      console.error('Failed to load absences:', err);
+    }
+  };
+
   const loadData = async () => {
     setLoading(true);
     try {
       const { getAuthHeaders } = await import('@/lib/auth');
+      const headers = getAuthHeaders();
 
       const [schedulesRes, scrimsRes] = await Promise.all([
-        fetch(`${BOT_API_URL}/api/schedule/next14`, { headers: getAuthHeaders() }),
-        fetch(`${BOT_API_URL}/api/scrims`, { headers: getAuthHeaders() }),
+        fetch(`${BOT_API_URL}/api/schedule/next14`, { headers }),
+        fetch(`${BOT_API_URL}/api/scrims`, { headers }),
       ]);
 
       const [schedulesData, scrimsData] = await Promise.all([
@@ -224,6 +243,8 @@ export default function StatisticsPanel() {
       setSchedules(schedulesList);
       setAvailabilitySchedules(schedulesList);
       setAllScrims(scrimsList);
+
+      await fetchAbsencesForSchedules(schedulesList, headers);
     } catch (error) {
       console.error('Failed to load statistics data:', error);
     } finally {
@@ -240,13 +261,12 @@ export default function StatisticsPanel() {
     setAvailabilityLoading(true);
     try {
       const { getAuthHeaders } = await import('@/lib/auth');
+      const headers = getAuthHeaders();
       const rangeConfig = AVAILABILITY_RANGES.find(r => r.value === range)!;
 
       const responses = await Promise.all(
         rangeConfig.offsets.map(offset =>
-          fetch(`${BOT_API_URL}/api/schedule/paginated?offset=${offset}`, {
-            headers: getAuthHeaders(),
-          })
+          fetch(`${BOT_API_URL}/api/schedule/paginated?offset=${offset}`, { headers })
         )
       );
 
@@ -260,6 +280,7 @@ export default function StatisticsPanel() {
       });
 
       setAvailabilitySchedules(allSchedules);
+      await fetchAbsencesForSchedules(allSchedules, headers);
     } catch (error) {
       console.error('Failed to load availability data:', error);
     } finally {
@@ -317,21 +338,25 @@ export default function StatisticsPanel() {
 
   const availabilityData = useMemo(() => {
     return availabilitySchedules.map(schedule => {
+      const absentUserIds = absentByDate[schedule.date] || [];
       const activePlayers = schedule.players.filter(p => p.role === 'MAIN' || p.role === 'SUB');
-      const available = activePlayers.filter(p => p.availability && p.availability !== 'x' && p.availability !== 'X').length;
-      const unavailable = activePlayers.filter(p => p.availability === 'x' || p.availability === 'X').length;
-      const noResponse = activePlayers.filter(p => !p.availability).length;
+      const absent = activePlayers.filter(p => absentUserIds.includes(p.userId)).length;
+      const nonAbsentPlayers = activePlayers.filter(p => !absentUserIds.includes(p.userId));
+      const available = nonAbsentPlayers.filter(p => p.availability && p.availability !== 'x' && p.availability !== 'X').length;
+      const unavailable = nonAbsentPlayers.filter(p => p.availability === 'x' || p.availability === 'X').length;
+      const noResponse = nonAbsentPlayers.filter(p => !p.availability).length;
 
       const [day, month] = schedule.date.split('.');
       return {
         date: `${day}.${month}`,
         available,
         unavailable,
+        absent,
         noResponse,
         total: activePlayers.length,
       };
     });
-  }, [availabilitySchedules]);
+  }, [availabilitySchedules, absentByDate]);
 
   const mapStatsData = useMemo(() => {
     if (!filteredStats.mapStats) return [];
@@ -495,7 +520,11 @@ export default function StatisticsPanel() {
                     axisLine={false}
                     fontSize={10}
                     tickMargin={8}
-                    interval={availabilityData.length > 20 ? Math.floor(availabilityData.length / 10) : 0}
+                    interval={
+                      availabilityData.length > 20
+                        ? Math.floor(availabilityData.length / 10)
+                        : isMobile ? 1 : 0
+                    }
                   />
                   <YAxis
                     tickLine={false}
@@ -516,6 +545,12 @@ export default function StatisticsPanel() {
                     dataKey="unavailable"
                     stackId="a"
                     fill="oklch(0.577 0.245 27.325)"
+                    radius={[0, 0, 0, 0]}
+                  />
+                  <Bar
+                    dataKey="absent"
+                    stackId="a"
+                    fill="oklch(0.702 0.183 293.541)"
                     radius={[0, 0, 0, 0]}
                   />
                   <Bar
