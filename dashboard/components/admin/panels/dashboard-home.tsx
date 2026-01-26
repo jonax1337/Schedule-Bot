@@ -1,7 +1,14 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardAction } from '@/components/ui/card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   ChartContainer,
   ChartTooltip,
@@ -84,6 +91,15 @@ interface UserMapping {
   role: string;
 }
 
+type AvailabilityRange = 'next14' | 'last14' | 'last30' | 'last60';
+
+const AVAILABILITY_RANGES: { value: AvailabilityRange; label: string; offsets: number[] }[] = [
+  { value: 'next14', label: 'Next 14 Days', offsets: [0] },
+  { value: 'last14', label: 'Last 14 Days', offsets: [-1] },
+  { value: 'last30', label: 'Last 30 Days', offsets: [-2, -1] },
+  { value: 'last60', label: 'Last 60 Days', offsets: [-4, -3, -2, -1] },
+];
+
 // Chart configurations
 const scrimResultsConfig: ChartConfig = {
   wins: { label: 'Wins', color: 'oklch(0.723 0.219 149.579)' },
@@ -102,9 +118,12 @@ const mapStatsConfig: ChartConfig = {
   losses: { label: 'Losses', color: 'oklch(0.577 0.245 27.325)' },
 };
 
+const SCORE_US_COLOR = 'oklch(0.488 0.243 264.376)';
+const SCORE_THEM_COLOR = 'oklch(0.645 0.246 16.439)';
+
 const recentResultsConfig: ChartConfig = {
-  scoreUs: { label: 'Our Score', color: 'var(--chart-1)' },
-  scoreThem: { label: 'Opponent', color: 'var(--chart-5)' },
+  scoreUs: { label: 'Our Score', color: SCORE_US_COLOR },
+  scoreThem: { label: 'Opponent', color: SCORE_THEM_COLOR },
 };
 
 export default function AdminDashboardHome() {
@@ -116,6 +135,9 @@ export default function AdminDashboardHome() {
   const [schedules, setSchedules] = useState<ScheduleDay[]>([]);
   const [recentScrims, setRecentScrims] = useState<ScrimEntry[]>([]);
   const [userMappings, setUserMappings] = useState<UserMapping[]>([]);
+  const [availabilityRange, setAvailabilityRange] = useState<AvailabilityRange>('next14');
+  const [availabilitySchedules, setAvailabilitySchedules] = useState<ScheduleDay[]>([]);
+  const [availabilityLoading, setAvailabilityLoading] = useState(false);
 
   useEffect(() => {
     loadStats();
@@ -149,6 +171,7 @@ export default function AdminDashboardHome() {
 
       setUserMappings(mappings);
       setSchedules(schedulesList);
+      setAvailabilitySchedules(schedulesList);
       setRecentScrims(scrimsList.slice(0, 10));
       setScrimStats(scrimStatsData);
 
@@ -169,6 +192,49 @@ export default function AdminDashboardHome() {
       setLoading(false);
     }
   };
+
+  const loadAvailabilityForRange = useCallback(async (range: AvailabilityRange) => {
+    if (range === 'next14') {
+      setAvailabilitySchedules(schedules);
+      return;
+    }
+
+    setAvailabilityLoading(true);
+    try {
+      const { getAuthHeaders } = await import('@/lib/auth');
+      const rangeConfig = AVAILABILITY_RANGES.find(r => r.value === range)!;
+
+      const responses = await Promise.all(
+        rangeConfig.offsets.map(offset =>
+          fetch(`${BOT_API_URL}/api/schedule/paginated?offset=${offset}`, {
+            headers: getAuthHeaders(),
+          })
+        )
+      );
+
+      const dataArray = await Promise.all(responses.map(r => r.json()));
+      const allSchedules: ScheduleDay[] = dataArray.flatMap(d => d.schedules || []);
+
+      // Sort by date ascending
+      allSchedules.sort((a, b) => {
+        const [ad, am, ay] = a.date.split('.').map(Number);
+        const [bd, bm, by] = b.date.split('.').map(Number);
+        return (ay - by) || (am - bm) || (ad - bd);
+      });
+
+      setAvailabilitySchedules(allSchedules);
+    } catch (error) {
+      console.error('Failed to load availability data:', error);
+    } finally {
+      setAvailabilityLoading(false);
+    }
+  }, [schedules]);
+
+  const handleAvailabilityRangeChange = useCallback((value: string) => {
+    const range = value as AvailabilityRange;
+    setAvailabilityRange(range);
+    loadAvailabilityForRange(range);
+  }, [loadAvailabilityForRange]);
 
   const checkBotStatus = async () => {
     try {
@@ -203,7 +269,7 @@ export default function AdminDashboardHome() {
   }, [scrimStats]);
 
   const availabilityData = useMemo(() => {
-    return schedules.map(schedule => {
+    return availabilitySchedules.map(schedule => {
       const mainPlayers = schedule.players.filter(p => p.role === 'MAIN');
       const available = mainPlayers.filter(p => p.availability && p.availability !== 'x' && p.availability !== 'X').length;
       const unavailable = mainPlayers.filter(p => p.availability === 'x' || p.availability === 'X').length;
@@ -218,7 +284,7 @@ export default function AdminDashboardHome() {
         total: mainPlayers.length,
       };
     });
-  }, [schedules]);
+  }, [availabilitySchedules]);
 
   const mapStatsData = useMemo(() => {
     if (!scrimStats?.mapStats) return [];
@@ -239,11 +305,10 @@ export default function AdminDashboardHome() {
       .reverse()
       .slice(-8)
       .map(scrim => ({
-        opponent: scrim.opponent.length > 10 ? scrim.opponent.slice(0, 10) + '..' : scrim.opponent,
+        opponent: scrim.opponent.length > 12 ? scrim.opponent.slice(0, 12) + '..' : scrim.opponent,
         scoreUs: scrim.scoreUs,
         scoreThem: scrim.scoreThem,
         result: scrim.result,
-        fill: scrim.result === 'win' ? 'oklch(0.723 0.219 149.579)' : scrim.result === 'loss' ? 'oklch(0.577 0.245 27.325)' : 'oklch(0.708 0 0)',
       }));
   }, [recentScrims]);
 
@@ -288,7 +353,8 @@ export default function AdminDashboardHome() {
   ];
 
   const hasScrimData = scrimStats && scrimStats.totalScrims > 0;
-  const hasScheduleData = schedules.length > 0;
+  const hasAvailabilityData = availabilitySchedules.length > 0;
+  const selectedRangeLabel = AVAILABILITY_RANGES.find(r => r.value === availabilityRange)?.label || '';
 
   return (
     <div className="space-y-6">
@@ -391,9 +457,9 @@ export default function AdminDashboardHome() {
                 : 'No scrim data available yet'}
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex-1">
             {hasScrimData && scrimResultsData.length > 0 ? (
-              <ChartContainer config={scrimResultsConfig} className="mx-auto aspect-square max-h-[280px]">
+              <ChartContainer config={scrimResultsConfig} className="mx-auto aspect-square max-h-[300px] w-full">
                 <PieChart>
                   <ChartTooltip content={<ChartTooltipContent hideLabel />} />
                   <Pie
@@ -433,7 +499,7 @@ export default function AdminDashboardHome() {
                 </PieChart>
               </ChartContainer>
             ) : (
-              <div className="flex items-center justify-center h-[280px] text-muted-foreground text-sm">
+              <div className="flex items-center justify-center h-[300px] text-muted-foreground text-sm">
                 Play some matches to see statistics
               </div>
             )}
@@ -447,23 +513,40 @@ export default function AdminDashboardHome() {
               <BarChart3 className="h-4 w-4" />
               Team Availability
             </CardTitle>
+            <CardAction>
+              <Select value={availabilityRange} onValueChange={handleAvailabilityRangeChange}>
+                <SelectTrigger size="sm" className="w-[140px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {AVAILABILITY_RANGES.map(range => (
+                    <SelectItem key={range.value} value={range.value}>
+                      {range.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </CardAction>
             <CardDescription>
-              {hasScheduleData
-                ? 'Main player availability for the next 14 days'
-                : 'No schedule data available'}
+              {availabilityLoading
+                ? 'Loading...'
+                : hasAvailabilityData
+                  ? `Main player availability — ${selectedRangeLabel}`
+                  : 'No schedule data available'}
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            {hasScheduleData && availabilityData.length > 0 ? (
-              <ChartContainer config={availabilityConfig} className="max-h-[280px]">
-                <BarChart data={availabilityData} margin={{ top: 0, right: 0, bottom: 0, left: -20 }}>
+          <CardContent className="flex-1">
+            {!availabilityLoading && hasAvailabilityData && availabilityData.length > 0 ? (
+              <ChartContainer config={availabilityConfig} className="aspect-auto h-[300px] w-full">
+                <BarChart data={availabilityData} margin={{ top: 5, right: 5, bottom: 5, left: -15 }}>
                   <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border" />
                   <XAxis
                     dataKey="date"
                     tickLine={false}
                     axisLine={false}
-                    fontSize={11}
+                    fontSize={10}
                     tickMargin={8}
+                    interval={availabilityData.length > 20 ? Math.floor(availabilityData.length / 10) : 0}
                   />
                   <YAxis
                     tickLine={false}
@@ -494,8 +577,12 @@ export default function AdminDashboardHome() {
                   />
                 </BarChart>
               </ChartContainer>
+            ) : availabilityLoading ? (
+              <div className="flex items-center justify-center h-[300px] text-muted-foreground text-sm">
+                Loading availability data...
+              </div>
             ) : (
-              <div className="flex items-center justify-center h-[280px] text-muted-foreground text-sm">
+              <div className="flex items-center justify-center h-[300px] text-muted-foreground text-sm">
                 Schedule data will appear here
               </div>
             )}
@@ -518,10 +605,10 @@ export default function AdminDashboardHome() {
                 : 'No map data available yet'}
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex-1">
             {mapStatsData.length > 0 ? (
-              <ChartContainer config={mapStatsConfig} className="max-h-[300px]">
-                <BarChart data={mapStatsData} layout="vertical" margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+              <ChartContainer config={mapStatsConfig} className="aspect-auto h-[300px] w-full">
+                <BarChart data={mapStatsData} layout="vertical" margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
                   <CartesianGrid horizontal={false} strokeDasharray="3 3" className="stroke-border" />
                   <XAxis type="number" tickLine={false} axisLine={false} fontSize={11} allowDecimals={false} />
                   <YAxis
@@ -560,10 +647,10 @@ export default function AdminDashboardHome() {
                 : 'No recent match data'}
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex-1">
             {recentResultsData.length > 0 ? (
-              <ChartContainer config={recentResultsConfig} className="max-h-[300px]">
-                <BarChart data={recentResultsData} margin={{ top: 0, right: 0, bottom: 0, left: -20 }}>
+              <ChartContainer config={recentResultsConfig} className="aspect-auto h-[300px] w-full">
+                <BarChart data={recentResultsData} margin={{ top: 5, right: 5, bottom: 5, left: -15 }}>
                   <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border" />
                   <XAxis
                     dataKey="opponent"
@@ -584,8 +671,8 @@ export default function AdminDashboardHome() {
                   />
                   <ChartTooltip content={<ChartTooltipContent />} />
                   <ChartLegend content={<ChartLegendContent />} />
-                  <Bar dataKey="scoreUs" fill="var(--chart-1)" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="scoreThem" fill="var(--chart-5)" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="scoreUs" fill={SCORE_US_COLOR} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="scoreThem" fill={SCORE_THEM_COLOR} radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ChartContainer>
             ) : (
