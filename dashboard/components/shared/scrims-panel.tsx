@@ -394,8 +394,10 @@ export function ScrimsPanel() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin" />
+      <div className="min-h-[400px] flex items-center justify-center">
+        <div className="animate-scaleIn">
+          <Loader2 className="w-8 h-8 animate-spin" />
+        </div>
       </div>
     );
   }
