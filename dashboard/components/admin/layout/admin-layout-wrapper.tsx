@@ -45,6 +45,7 @@ export function AdminLayoutWrapper({ children }: AdminLayoutWrapperProps) {
 
   const tabLabels: Record<string, string> = {
     dashboard: 'Dashboard',
+    statistics: 'Statistics',
     settings: 'Settings',
     users: 'Users',
     schedule: 'Schedule',
