@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Loader2, Plus, Trash2, PlaneTakeoff } from 'lucide-react';
 import { toast } from 'sonner';
 import { stagger, microInteractions, cn } from '@/lib/animations';
@@ -344,6 +344,9 @@ export function UserAbsencesContent() {
               <PlaneTakeoff className="w-4 h-4" />
               New Absence
             </DialogTitle>
+            <DialogDescription>
+              Add an absence period to automatically mark yourself as unavailable.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 mt-2">
             <div className="grid grid-cols-2 gap-3">
