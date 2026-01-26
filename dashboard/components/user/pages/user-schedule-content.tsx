@@ -218,6 +218,10 @@ export function UserScheduleContent() {
           let startTime: string | undefined;
           let endTime: string | undefined;
 
+          // Check if anyone has responded at all
+          const totalPlayers = players.length;
+          const hasAnyResponse = noResponsePlayers.length < totalPlayers;
+
           if (available >= 5) {
             status = 'Able to play';
             const times = players
@@ -230,9 +234,9 @@ export function UserScheduleContent() {
                 return { start, end };
               });
 
-              const latestStart = timeRanges.reduce((max, curr) => 
+              const latestStart = timeRanges.reduce((max, curr) =>
                 curr.start > max ? curr.start : max, timeRanges[0].start);
-              const earliestEnd = timeRanges.reduce((min, curr) => 
+              const earliestEnd = timeRanges.reduce((min, curr) =>
                 curr.end < min ? curr.end : min, timeRanges[0].end);
 
               startTime = latestStart;
@@ -242,8 +246,10 @@ export function UserScheduleContent() {
             status = 'Almost there';
           } else if (available === 3) {
             status = 'More players needed';
-          } else if (available < 3 && available > 0) {
+          } else if (available < 3 && hasAnyResponse) {
             status = 'Insufficient players';
+          } else if (!hasAnyResponse) {
+            status = 'Unknown';
           }
 
           scheduleDetails = {
@@ -300,7 +306,9 @@ export function UserScheduleContent() {
       return <div className="w-3 h-3 rounded-full bg-purple-500" />;
     }
 
-    const { available } = entry.availability;
+    const { available, notSet } = entry.availability;
+    const totalPlayers = entry.players.length;
+    const hasAnyResponse = notSet < totalPlayers;
     let color = 'bg-gray-400';
 
     if (available >= 5) {
@@ -309,8 +317,10 @@ export function UserScheduleContent() {
       color = 'bg-cyan-400';
     } else if (available === 3) {
       color = 'bg-yellow-500';
-    } else if (available > 0) {
+    } else if (available < 3 && hasAnyResponse) {
       color = 'bg-red-500';
+    } else if (!hasAnyResponse) {
+      color = 'bg-gray-400';
     }
 
     return <div className={`w-3 h-3 rounded-full ${color}`} />;
