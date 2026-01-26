@@ -190,7 +190,10 @@ export function UserAvailabilityContent() {
       });
 
       if (response.ok) {
-        toast.success('Availability updated!');
+        // Only show toast if it's NOT an auto-save
+        if (!isAutoSave) {
+          toast.success('Availability updated!');
+        }
 
         // Update local state without reloading everything
         setEntries(prev => prev.map(e =>
@@ -219,6 +222,66 @@ export function UserAvailabilityContent() {
     } catch (error) {
       console.error('Failed to save:', error);
       toast.error('Failed to save availability');
+      setEntries(prev => prev.map(e =>
+        e.date === date ? { ...e, isSaving: false } : e
+      ));
+    }
+  };
+
+  const clearAvailability = async (date: string, isAutoSave = true) => {
+    // Mark this entry as saving
+    setEntries(prev => prev.map(e =>
+      e.date === date ? { ...e, isSaving: true, justSaved: false } : e
+    ));
+
+    try {
+      const { getAuthHeaders } = await import('@/lib/auth');
+
+      const response = await fetch(`${BOT_API_URL}/api/schedule/update-availability`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          date,
+          userId: userDiscordId,
+          availability: '',
+        }),
+      });
+
+      if (response.ok) {
+        // Only show toast if it's NOT an auto-save
+        if (!isAutoSave) {
+          toast.success('Availability cleared');
+        }
+
+        // Update local state without reloading everything
+        setEntries(prev => prev.map(e =>
+          e.date === date ? {
+            ...e,
+            value: '',
+            timeFrom: '',
+            timeTo: '',
+            originalTimeFrom: '',
+            originalTimeTo: '',
+            isSaving: false,
+            justSaved: true
+          } : e
+        ));
+
+        // Clear the "just saved" indicator after 2 seconds
+        setTimeout(() => {
+          setEntries(prev => prev.map(e =>
+            e.date === date ? { ...e, justSaved: false } : e
+          ));
+        }, 2000);
+      } else {
+        toast.error('Failed to clear availability');
+        setEntries(prev => prev.map(e =>
+          e.date === date ? { ...e, isSaving: false } : e
+        ));
+      }
+    } catch (error) {
+      console.error('Failed to clear:', error);
+      toast.error('Failed to clear availability');
       setEntries(prev => prev.map(e =>
         e.date === date ? { ...e, isSaving: false } : e
       ));
@@ -304,6 +367,9 @@ export function UserAvailabilityContent() {
         if (entry && entry.timeFrom && entry.timeTo) {
           // Both fields are filled, trigger auto-save
           saveEntry(date, entry.timeFrom, entry.timeTo, true);
+        } else if (entry && !entry.timeFrom && !entry.timeTo && entry.value) {
+          // Both fields are empty but there was a previous value - clear it
+          clearAvailability(date);
         }
         return current;
       });
@@ -599,8 +665,8 @@ export function UserAvailabilityContent() {
                 <TableHead>Weekday</TableHead>
                 <TableHead>From</TableHead>
                 <TableHead>To</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
+                <TableHead>Current Status</TableHead>
+                <TableHead></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -646,7 +712,12 @@ export function UserAvailabilityContent() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      {entry.value === 'x' ? (
+                      {entry.justSaved ? (
+                        <span className="flex items-center gap-2 text-green-600 animate-fadeIn">
+                          <Check className="w-4 h-4" />
+                          Saved
+                        </span>
+                      ) : entry.value === 'x' ? (
                         <span className="flex items-center gap-2 text-red-500">
                           <XCircle className="w-4 h-4" />
                           Not Available
@@ -661,31 +732,15 @@ export function UserAvailabilityContent() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <div className="flex gap-2 items-center">
-                        {entry.isSaving && (
-                          <span className="flex items-center gap-2 text-blue-500 text-sm">
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            Saving...
-                          </span>
-                        )}
-                        {entry.justSaved && !entry.isSaving && (
-                          <span className="flex items-center gap-2 text-green-600 text-sm animate-fadeIn">
-                            <Check className="w-4 h-4" />
-                            Saved
-                          </span>
-                        )}
-                        {!entry.isSaving && !entry.justSaved && (
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => setUnavailable(entry.date)}
-                            disabled={saving}
-                            className={cn(microInteractions.activePress, microInteractions.smooth)}
-                          >
-                            Not Available
-                          </Button>
-                        )}
-                      </div>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => setUnavailable(entry.date)}
+                        disabled={saving || entry.isSaving}
+                        className={cn(microInteractions.activePress, microInteractions.smooth)}
+                      >
+                        Not Available
+                      </Button>
                     </TableCell>
                   </TableRow>
                 );
