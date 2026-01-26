@@ -15,6 +15,7 @@ import {
 } from 'discord.js';
 import { getUserMapping } from '../../repositories/user-mapping.repository.js';
 import { updatePlayerAvailability, getScheduleForDate, getNext14Dates } from '../../repositories/schedule.repository.js';
+import { isUserAbsentOnDate, getAbsentUserIdsForDate } from '../../repositories/absence.repository.js';
 import { parseSchedule, analyzeSchedule } from '../../shared/utils/analyzer.js';
 import { buildScheduleEmbed } from '../embeds/embed.js';
 import { getTodayFormatted, addDays, normalizeDateFormat, isDateAfterOrEqual } from '../../shared/utils/dateFormatter.js';
@@ -134,7 +135,7 @@ export async function handleDateNavigation(
   }
 
   const sheetData = await getScheduleForDate(targetDate);
-  
+
   if (!sheetData) {
     await interaction.editReply({
       content: `No data found for ${targetDate}.`,
@@ -143,7 +144,8 @@ export async function handleDateNavigation(
     return;
   }
 
-  const schedule = parseSchedule(sheetData);
+  const absentUserIds = await getAbsentUserIdsForDate(targetDate);
+  const schedule = parseSchedule(sheetData, absentUserIds);
   const result = analyzeSchedule(schedule);
   const embed = buildScheduleEmbed(result);
 
@@ -164,10 +166,20 @@ export async function handleAvailabilityButton(
   // For "Set Time" modal, show immediately without deferring
   if (customId.startsWith('set_custom_')) {
     const userMapping = await getUserMapping(interaction.user.id);
-    
+
     if (!userMapping) {
       await interaction.reply({
         content: '❌ You are not registered yet. Please contact an admin to register you.',
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
+
+    // Check if user is absent on this date
+    const isAbsent = await isUserAbsentOnDate(userMapping.discordId, date);
+    if (isAbsent) {
+      await interaction.reply({
+        content: '✈️ You have an active absence for this date. Remove the absence first to set availability.',
         flags: MessageFlags.Ephemeral,
       });
       return;
@@ -180,18 +192,27 @@ export async function handleAvailabilityButton(
   // For "Not Available", defer first then process
   if (customId.startsWith('set_unavailable_')) {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-    
+
     const userMapping = await getUserMapping(interaction.user.id);
-    
+
     if (!userMapping) {
       await interaction.editReply({
         content: '❌ You are not registered yet. Please contact an admin to register you.',
       });
       return;
     }
-    
+
+    // Check if user is absent on this date
+    const isAbsent = await isUserAbsentOnDate(userMapping.discordId, date);
+    if (isAbsent) {
+      await interaction.editReply({
+        content: '✈️ You have an active absence for this date. Remove the absence first to set availability.',
+      });
+      return;
+    }
+
     const success = await updatePlayerAvailability(date, userMapping.discordId, 'x');
-    
+
     if (success) {
       await interaction.editReply({
         content: `✅ You have been marked as not available for ${date}.`,
@@ -219,6 +240,16 @@ export async function handleTimeModal(
   }
 
   const date = interaction.customId.replace('time_modal_', '');
+
+  // Check if user is absent on this date
+  const isAbsent = await isUserAbsentOnDate(userMapping.discordId, date);
+  if (isAbsent) {
+    await interaction.editReply({
+      content: '✈️ You have an active absence for this date. Remove the absence first to set availability.',
+    });
+    return;
+  }
+
   const startTime = interaction.fields.getTextInputValue('start_time');
   const endTime = interaction.fields.getTextInputValue('end_time');
 
@@ -270,9 +301,10 @@ export async function sendWeekOverview(
 
   for (const date of dates) {
     const sheetData = await getScheduleForDate(date);
-    
+
     if (sheetData) {
-      const schedule = parseSchedule(sheetData);
+      const absentUserIds = await getAbsentUserIdsForDate(date);
+      const schedule = parseSchedule(sheetData, absentUserIds);
       const result = analyzeSchedule(schedule);
       
       let statusEmoji = '❌';
@@ -316,20 +348,21 @@ export async function sendMySchedule(
     return;
   }
 
-  const today = new Date();
-  const endDate = new Date(today);
-  endDate.setDate(endDate.getDate() + 13);
-
   // Simplified - fetch schedules for next 14 days
   const dates = getNext14Dates();
-  const availability: Record<string, string> = {};
-  
+  const availability: Record<string, { value: string; isAbsent: boolean }> = {};
+
   for (const date of dates) {
+    const isAbsent = await isUserAbsentOnDate(userMapping.discordId, date);
+    if (isAbsent) {
+      availability[date] = { value: '', isAbsent: true };
+      continue;
+    }
     const schedule = await getScheduleForDate(date);
     if (schedule) {
       const player = schedule.players.find(p => p.userId === userMapping.discordId);
       if (player && player.availability) {
-        availability[date] = player.availability;
+        availability[date] = { value: player.availability, isAbsent: false };
       }
     }
   }
@@ -344,10 +377,15 @@ export async function sendMySchedule(
     embed.setDescription('No entries for the next 14 days.');
   } else {
     let description = '';
-    for (const [date, value] of availabilityEntries) {
-      const status = value 
-        ? (value === 'x' ? '❌ Not available' : `✅ ${value}`)
-        : '⚪ No entry';
+    for (const [date, entry] of availabilityEntries) {
+      let status: string;
+      if (entry.isAbsent) {
+        status = '✈️ Absent';
+      } else if (entry.value) {
+        status = entry.value === 'x' ? '❌ Not available' : `✅ ${entry.value}`;
+      } else {
+        status = '⚪ No entry';
+      }
       description += `**${date}**: ${status}\n`;
     }
     embed.setDescription(description);

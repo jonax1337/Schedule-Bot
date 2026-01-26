@@ -1,6 +1,7 @@
 import { Client, EmbedBuilder } from 'discord.js';
 import { getScheduleForDate } from '../../repositories/schedule.repository.js';
 import { getUserMappings } from '../../repositories/user-mapping.repository.js';
+import { getAbsentUserIdsForDate } from '../../repositories/absence.repository.js';
 import { getTodayFormatted, normalizeDateFormat } from '../../shared/utils/dateFormatter.js';
 import { createAvailabilityButtons } from './interactive.js';
 
@@ -19,11 +20,19 @@ export async function sendRemindersToUsersWithoutEntry(client: Client, date?: st
       return;
     }
 
+    // Fetch absent user IDs for this date
+    const absentUserIds = await getAbsentUserIdsForDate(normalizedDate);
+
     let remindersSent = 0;
 
     for (const mapping of userMappings) {
       // Skip coach role
       if (mapping.role === 'coach') {
+        continue;
+      }
+
+      // Skip absent users - they don't need reminders
+      if (absentUserIds.includes(mapping.discordId)) {
         continue;
       }
 

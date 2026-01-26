@@ -8,18 +8,34 @@ import type {
 
 /**
  * Parse raw schedule data into structured format
+ * @param scheduleData - Raw schedule data from the database
+ * @param absentUserIds - Optional array of user IDs who are absent on this date
  */
-export function parseSchedule(scheduleData: ScheduleData): DaySchedule {
+export function parseSchedule(scheduleData: ScheduleData, absentUserIds?: string[]): DaySchedule {
   const [day, month, year] = scheduleData.date.split('.');
   const dateFormatted = `${day}.${month}.${year}`;
 
   // Parse all players
   const players: PlayerAvailability[] = scheduleData.players.map(p => {
+    // Check if user is absent
+    if (absentUserIds && absentUserIds.includes(p.userId)) {
+      return {
+        userId: p.userId,
+        displayName: p.displayName,
+        role: p.role,
+        available: false,
+        timeRange: null,
+        rawValue: 'absent',
+        sortOrder: p.sortOrder,
+        isAbsent: true,
+      };
+    }
+
     const availability = p.availability.trim();
-    
+
     // Parse time range (e.g., "14:00-20:00")
     const timeMatch = availability.match(/^(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})$/);
-    
+
     if (timeMatch) {
       const [, startHour, startMin, endHour, endMin] = timeMatch;
       return {
@@ -35,7 +51,7 @@ export function parseSchedule(scheduleData: ScheduleData): DaySchedule {
         sortOrder: p.sortOrder,
       };
     }
-    
+
     // Not available (x or X)
     if (availability.toLowerCase() === 'x') {
       return {
@@ -48,7 +64,7 @@ export function parseSchedule(scheduleData: ScheduleData): DaySchedule {
         sortOrder: p.sortOrder,
       };
     }
-    
+
     // No response (empty)
     return {
       userId: p.userId,

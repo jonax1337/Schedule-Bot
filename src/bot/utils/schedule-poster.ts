@@ -1,6 +1,7 @@
 import { TextChannel, EmbedBuilder, Client } from 'discord.js';
 import { config } from '../../shared/config/config.js';
 import { getScheduleForDate } from '../../repositories/schedule.repository.js';
+import { getAbsentUserIdsForDate } from '../../repositories/absence.repository.js';
 import { parseSchedule, analyzeSchedule } from '../../shared/utils/analyzer.js';
 import { buildScheduleEmbed } from '../embeds/embed.js';
 import { formatDateToDDMMYYYY, getTodayFormatted } from '../../shared/utils/dateFormatter.js';
@@ -73,7 +74,8 @@ export async function postScheduleToChannel(date?: string, clientInstance?: Clie
       return;
     }
 
-    const schedule = parseSchedule(sheetData);
+    const absentUserIds = await getAbsentUserIdsForDate(targetDate);
+    const schedule = parseSchedule(sheetData, absentUserIds);
     const result = analyzeSchedule(schedule);
     const embed = buildScheduleEmbed(result);
 

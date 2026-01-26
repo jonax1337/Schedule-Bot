@@ -1,5 +1,6 @@
 import { ChatInputCommandInteraction, MessageFlags, EmbedBuilder } from 'discord.js';
 import { getScheduleForDate } from '../../repositories/schedule.repository.js';
+import { getAbsentUserIdsForDate } from '../../repositories/absence.repository.js';
 import { parseSchedule, analyzeSchedule } from '../../shared/utils/analyzer.js';
 import { buildScheduleEmbed } from '../embeds/embed.js';
 import { createDateNavigationButtons } from '../interactions/interactive.js';
@@ -37,7 +38,8 @@ export async function handleScheduleCommand(interaction: ChatInputCommandInterac
       return;
     }
 
-    const schedule = parseSchedule(sheetData);
+    const absentUserIds = await getAbsentUserIdsForDate(targetDate);
+    const schedule = parseSchedule(sheetData, absentUserIds);
     const result = analyzeSchedule(schedule);
     const embed = buildScheduleEmbed(result);
 

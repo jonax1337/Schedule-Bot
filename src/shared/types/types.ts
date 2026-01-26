@@ -11,6 +11,7 @@ export interface PlayerAvailability {
   timeRange: TimeRange | null;
   rawValue: string;
   sortOrder: number;
+  isAbsent?: boolean; // true if user has an active absence for this date
 }
 
 export interface DaySchedule {
