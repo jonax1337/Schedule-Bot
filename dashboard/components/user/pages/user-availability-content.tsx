@@ -118,9 +118,9 @@ export function UserAvailabilityContent() {
 
       const { getAuthHeaders } = await import('@/lib/auth');
 
-      // Fetch absences
+      // Fetch absences using discordId (works regardless of admin/user JWT)
       try {
-        const absencesRes = await fetch(`${BOT_API_URL}/api/absences/my`, {
+        const absencesRes = await fetch(`${BOT_API_URL}/api/absences?userId=${userMapping.discordId}`, {
           headers: getAuthHeaders(),
         });
         if (absencesRes.ok) {

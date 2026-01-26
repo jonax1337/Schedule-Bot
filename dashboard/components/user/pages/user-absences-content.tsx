@@ -62,6 +62,7 @@ export function UserAbsencesContent() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<number | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [userDiscordId, setUserDiscordId] = useState('');
 
   // Form state
   const [newStartDate, setNewStartDate] = useState('');
@@ -76,7 +77,26 @@ export function UserAbsencesContent() {
           router.replace('/login');
           return;
         }
-        await loadAbsences();
+
+        // Look up the user mapping to get discordId (same pattern as availability page)
+        const mappingsRes = await fetch(`${BOT_API_URL}/api/user-mappings`);
+        if (!mappingsRes.ok) {
+          toast.error('Failed to load user mappings');
+          setLoading(false);
+          return;
+        }
+
+        const mappingsData = await mappingsRes.json();
+        const userMapping = (mappingsData.mappings || []).find((m: any) => m.displayName === savedUser);
+
+        if (!userMapping) {
+          toast.error('User mapping not found');
+          setLoading(false);
+          return;
+        }
+
+        setUserDiscordId(userMapping.discordId);
+        await loadAbsences(userMapping.discordId);
       } catch (error) {
         console.error('Auth check failed:', error);
         router.push('/login');
@@ -86,11 +106,14 @@ export function UserAbsencesContent() {
     checkAuthAndLoad();
   }, [router]);
 
-  const loadAbsences = async () => {
+  const loadAbsences = async (discordId?: string) => {
+    const userId = discordId || userDiscordId;
+    if (!userId) return;
+
     setLoading(true);
     try {
       const { getAuthHeaders } = await import('@/lib/auth');
-      const response = await fetch(`${BOT_API_URL}/api/absences/my`, {
+      const response = await fetch(`${BOT_API_URL}/api/absences?userId=${userId}`, {
         headers: getAuthHeaders(),
       });
 
@@ -131,6 +154,7 @@ export function UserAbsencesContent() {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({
+          userId: userDiscordId,
           startDate,
           endDate,
           reason: newReason,
