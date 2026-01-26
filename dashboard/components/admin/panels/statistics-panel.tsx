@@ -575,7 +575,7 @@ export default function StatisticsPanel() {
 
         {/* Current Form */}
         <Card className={stagger(1, 'slow', 'slideUpScale')}>
-          <CardHeader>
+          <CardHeader className="max-md:flex max-md:flex-col max-md:items-start">
             <CardTitle className="flex items-center gap-2">
               <Flame className="h-4 w-4" />
               Current Form
@@ -674,7 +674,7 @@ export default function StatisticsPanel() {
       <div className="grid gap-4 md:grid-cols-2">
         {/* Match Results Pie Chart */}
         <Card className={stagger(2, 'slow', 'slideUpScale')}>
-          <CardHeader>
+          <CardHeader className="max-md:flex max-md:flex-col max-md:items-start">
             <CardTitle className="flex items-center gap-2">
               <Target className="h-4 w-4" />
               Match Results
@@ -747,7 +747,7 @@ export default function StatisticsPanel() {
 
         {/* Map Performance Bar Chart */}
         <Card className={stagger(3, 'slow', 'slideUpScale')}>
-          <CardHeader>
+          <CardHeader className="max-md:flex max-md:flex-col max-md:items-start">
             <CardTitle className="flex items-center gap-2">
               <Map className="h-4 w-4" />
               Map Performance
@@ -801,7 +801,7 @@ export default function StatisticsPanel() {
 
       {/* Map Compositions */}
       <Card className={stagger(4, 'slow', 'slideUpScale')}>
-        <CardHeader>
+        <CardHeader className="max-md:flex max-md:flex-col max-md:items-start">
           <CardTitle className="flex items-center gap-2">
             <Swords className="h-4 w-4" />
             Map Compositions
