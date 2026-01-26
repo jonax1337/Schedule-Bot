@@ -196,6 +196,87 @@ app.get('/api/settings', verifyToken, async (req, res) => {
 });
 ```
 
+### API Proxy Layer
+
+The dashboard includes Next.js API routes (`dashboard/app/api/`) that proxy certain requests to the backend Express API. This avoids CORS issues for server-side operations:
+
+- **Server-side**: Uses `BOT_API_URL` environment variable (defaults to `http://localhost:3001`)
+- **Client-side**: Uses `NEXT_PUBLIC_BOT_API_URL` to call the backend directly
+- **Proxy routes**: bot-status, settings, discord (channels, roles), actions (schedule, remind, poll), logs
+- **Caching**: All proxy routes use `export const dynamic = 'force-dynamic'` to disable Next.js caching
+
+**Example Proxy Route**:
+```typescript
+// dashboard/app/api/settings/route.ts
+export const dynamic = 'force-dynamic';
+
+export async function GET(request: NextRequest) {
+  const response = await fetch(`${process.env.BOT_API_URL}/api/settings`);
+  const data = await response.json();
+  return NextResponse.json(data);
+}
+```
+
+### Process Lifecycle
+
+The main process follows this startup sequence (defined in `src/index.ts`):
+
+1. **Connect to PostgreSQL** via Prisma
+2. **Initialize database** if empty (create default settings, user mappings)
+3. **Load settings** from PostgreSQL `settings` table
+4. **Seed schedule** (ensures next 14 days of schedule entries exist)
+5. **Start Discord bot** (`src/bot/client.ts`)
+6. **Wait for bot 'clientReady'** event
+7. **Start scheduler** (node-cron jobs for daily posts and reminders)
+8. **Start Express API server** on port 3001
+
+**Graceful shutdown** is handled via SIGINT/SIGTERM handlers that stop the scheduler and destroy the Discord client.
+
+### Scheduler Jobs
+
+The bot runs two scheduled cron jobs (`src/jobs/scheduler.ts`):
+
+1. **Main Post** - Daily at `config.scheduling.dailyPostTime`, posts schedule embed to Discord
+2. **Reminder** - X hours before main post (calculated from `reminderHoursBefore`), DMs players without availability entry
+
+**Important**:
+- Jobs respect `config.scheduling.timezone` for accurate scheduling
+- Jobs are restarted on settings change via `restartScheduler()`
+- Training Start Poll is triggered separately via bot command (`/send-training-poll`) or toggle (`/training-start-poll`), not as a cron job
+
+### Schedule Seeding
+
+The bot maintains a 14-day rolling window:
+- On startup and daily, `addMissingDays()` ensures entries exist for next 14 days
+- Each schedule entry has date (DD.MM.YYYY format), reason, focus
+- Players are cloned from `user_mappings` with availability defaulting to empty string
+- Users can set availability to time ranges ("14:00-20:00") or "x" for unavailable
+
+### Settings Management
+
+Settings are stored in PostgreSQL `settings` table as flat key-value pairs:
+- Keys use dot notation: `"discord.channelId"`, `"scheduling.dailyPostTime"`
+- Values are always strings, parsed to correct types on load
+- Settings are cached in memory (`settingsManager.ts`) and reloaded via `reloadConfig()`
+- Dashboard changes trigger `POST /api/settings` → saves to DB → calls `reloadConfig()` → restarts scheduler with new times
+
+**Config structure in memory**:
+```typescript
+config.discord = {
+  channelId,           // Discord channel for posts
+  pingRoleId,          // Role to mention
+  allowDiscordAuth     // Enable Discord OAuth
+}
+config.scheduling = {
+  dailyPostTime,              // "HH:MM" format
+  timezone,                   // IANA timezone (e.g., "Europe/Berlin")
+  reminderHoursBefore,        // Send reminders X hours before post
+  trainingStartPollEnabled,   // Toggle training poll feature
+  pollDurationMinutes,        // Poll open duration
+  cleanChannelBeforePost      // Auto-clean before posting
+}
+```
+
 ---
 
 ## 🛠️ Tech Stack
@@ -205,22 +286,24 @@ app.get('/api/settings', verifyToken, async (req, res) => {
 - **Language**: TypeScript 5.9
 - **Discord**: discord.js 14.25
 - **API Server**: Express 5.2
-- **Database ORM**: Prisma 6.2.0
+- **Database ORM**: Prisma 7.3 (with @prisma/adapter-pg + pg native driver)
 - **Database**: PostgreSQL 14+
 - **Scheduling**: node-cron 4.2
-- **Authentication**: JWT (jsonwebtoken 9.0), bcrypt 6.0
-- **Security**: Helmet, CORS, Rate Limiting (express-rate-limit)
-- **Validation**: Joi 18.0
+- **Authentication**: JWT (jsonwebtoken 9), bcrypt 6
+- **Security**: Helmet 8, CORS, Rate Limiting (express-rate-limit)
+- **Validation**: Joi 18
+- **Calendar**: ical-generator 10
+- **Config**: dotenv 17
 
 ### Frontend
-- **Framework**: Next.js 16.1.3 (App Router)
-- **UI Library**: React 19.2.3
-- **Styling**: TailwindCSS 4 (OKLCH color space)
-- **Components**: shadcn/ui 2.1.8 (Radix UI Primitives)
-- **Icons**: Lucide React 0.562
-- **Theme**: next-themes 0.4.6 (Dark Mode)
-- **Notifications**: Sonner 2.0.7
-- **Animations**: tw-animate-css 1.4.0
+- **Framework**: Next.js 16+ (App Router)
+- **UI Library**: React 19+
+- **Styling**: TailwindCSS 4
+- **Components**: Radix UI Primitives (29 components)
+- **Icons**: Lucide React
+- **Theme**: next-themes (Dark Mode)
+- **Notifications**: Sonner (toasts)
+- **Command Palette**: cmdk
 
 ### Database Schema
 - **schedules**: Daily schedules with date, reason, focus
@@ -525,15 +608,24 @@ DATABASE_URL="postgresql://schedule_bot_user:your_password@localhost:5432/schedu
 ### Run Migrations
 
 ```bash
-# Generate Prisma Client
+# Generate Prisma Client (outputs to custom path: src/generated/prisma)
 npx prisma generate
 
-# Run migrations
+# Run migrations (production)
 npx prisma migrate deploy
 
 # Or for development:
 npx prisma migrate dev
+
+# Push schema changes without migrations (dev only)
+npx prisma db push
 ```
+
+**Important**:
+- Prisma client outputs to custom path: `src/generated/prisma` (not default node_modules)
+- Always import from: `import { PrismaClient } from '../generated/prisma/client.js'`
+- After schema changes: run `npx prisma generate` to regenerate client in custom location
+- Uses `@prisma/adapter-pg` with native `pg` driver for PostgreSQL connection
 
 ### Database Schema
 
@@ -642,6 +734,24 @@ JWT_SECRET=your_jwt_secret_here_min_32_chars
 
 # Dashboard URL (for CORS)
 DASHBOARD_URL=http://localhost:3000
+
+# API URLs (Dashboard)
+BOT_API_URL=http://localhost:3001          # Backend API URL for server-side proxy
+NEXT_PUBLIC_BOT_API_URL=http://localhost:3001  # Backend API URL for client-side
+```
+
+**Environment Variables Explanation**:
+
+- **DISCORD_TOKEN**: Bot token from Discord Developer Portal
+- **DISCORD_GUILD_ID**: Server ID where bot operates
+- **DISCORD_CLIENT_ID / SECRET**: For Discord OAuth (optional)
+- **DISCORD_REDIRECT_URI**: OAuth callback URL
+- **DATABASE_URL**: PostgreSQL connection string
+- **ADMIN_USERNAME / ADMIN_PASSWORD_HASH**: Admin dashboard credentials
+- **JWT_SECRET**: Random 32+ character string for JWT signing
+- **DASHBOARD_URL**: Dashboard URL for production CORS (defaults to localhost:3000)
+- **BOT_API_URL**: Backend API URL for dashboard server-side proxy (defaults to http://localhost:3001)
+- **NEXT_PUBLIC_BOT_API_URL**: Backend API URL for dashboard client-side (defaults to http://localhost:3001)
 ```
 
 ### Generate Password Hash
@@ -674,6 +784,60 @@ Settings are stored in the `settings` table and can be modified via:
 ---
 
 ## 📖 Usage
+
+### Common Development Commands
+
+```bash
+# Install backend dependencies
+npm install
+
+# Install dashboard dependencies
+cd dashboard && npm install && cd ..
+
+# Build TypeScript (backend only, also runs prisma generate)
+npm run build
+
+# Run in development (rebuilds + starts bot + API)
+npm run dev
+
+# Run dashboard (separate terminal)
+cd dashboard && npm run dev
+
+# Build dashboard for production
+cd dashboard && npm run build
+
+# Start production (requires build first)
+npm start
+
+# Full deploy (migrate + build)
+npm run deploy
+
+# Generate Prisma client (required after schema changes)
+npx prisma generate
+# or shortcut:
+npm run db:generate
+
+# Run migrations in development
+npx prisma migrate dev
+# or shortcut:
+npm run db:migrate
+
+# Deploy migrations in production
+npx prisma migrate deploy
+
+# Open database GUI
+npx prisma studio
+# or shortcut:
+npm run db:studio
+
+# Push schema changes without migrations (dev only)
+npx prisma db push
+# or shortcut:
+npm run db:push
+
+# Generate password hash for ADMIN_PASSWORD_HASH
+node dist/generateHash.js YOUR_PASSWORD
+```
 
 ### Discord Commands
 
@@ -790,10 +954,23 @@ The bot runs an Express REST API on port **3001**.
 ### Authentication
 
 **JWT-based authentication**:
-- Admin: Username + Password (bcrypt hashed)
-- User: Username from dropdown or Discord OAuth
-- Token expires: 24h
-- Header: `Authorization: Bearer <token>`
+- **Admin**: Username + Password (bcrypt hashed)
+- **User**: Username from dropdown (no password) OR Discord OAuth flow
+  - Discord OAuth requires DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, and DISCORD_REDIRECT_URI
+  - OAuth must be enabled in settings: `discord.allowDiscordAuth = true`
+- **Token expires**: 24h
+- **Header**: `Authorization: Bearer <token>`
+
+**Middleware chain**: `verifyToken` → `requireAdmin` (or `optionalAuth` for public endpoints)
+
+### API Security
+
+- **Helmet** - Security headers (CSP, HSTS, X-Frame-Options)
+- **CORS** - Whitelist: localhost:3000, Railway URLs, custom DASHBOARD_URL
+- **Rate limiting** - `strictApiLimiter` on settings endpoints, `loginLimiter` on auth, general `apiLimiter` on all `/api`
+- **Input sanitization** - `sanitizeString()` removes `<>`, `javascript:`, event handlers
+- **Validation** - Joi schemas with `validate()` middleware on: user mappings, scrims, settings, polls, notifications
+- No caching headers on API responses
 
 ### Key Endpoints
 
@@ -855,45 +1032,192 @@ GET /api/logs (admin)
 ```
 schedule-bot/
 ├── src/                      # Backend TypeScript
-│   ├── index.ts             # Entry point
-│   ├── api/                 # Express API
-│   │   ├── controllers/     # Auth, etc.
-│   │   └── routes/          # API routes
-│   ├── bot/                 # Discord bot
-│   │   ├── client.ts        # Bot client
-│   │   ├── commands/        # Slash commands
-│   │   ├── events/          # Event handlers
-│   │   ├── interactions/    # Buttons, modals
-│   │   └── utils/           # Bot utilities
-│   ├── jobs/                # Cron jobs
-│   │   └── scheduler.ts     # Automation
-│   ├── repositories/        # Data access (Prisma)
-│   │   ├── database.repository.ts
-│   │   ├── schedule.repository.ts
-│   │   └── user-mapping.repository.ts
-│   └── shared/              # Shared code
-│       ├── config/          # Configuration
-│       ├── middleware/      # Express middleware
-│       └── utils/           # Utilities
+│   ├── index.ts             # Entry point (startup orchestration)
+│   ├── api/
+│   │   ├── server.ts        # Express app (CORS, Helmet, routes)
+│   │   ├── controllers/
+│   │   │   └── auth.controller.ts  # Auth logic (admin, user, Discord OAuth)
+│   │   └── routes/
+│   │       ├── index.ts            # Route aggregator + health/logs/schedule-details
+│   │       ├── actions.routes.ts   # Manual action triggers
+│   │       ├── admin.routes.ts     # Admin utilities (hash, JWT generation)
+│   │       ├── auth.routes.ts      # Login, logout, OAuth endpoints
+│   │       ├── discord.routes.ts   # Discord server data
+│   │       ├── schedule.routes.ts  # Schedule CRUD + availability updates
+│   │       ├── scrim.routes.ts     # Scrim/match CRUD + stats
+│   │       ├── settings.routes.ts  # Bot settings management
+│   │       └── user-mapping.routes.ts # Player roster management
+│   ├── bot/
+│   │   ├── client.ts        # Discord client singleton
+│   │   ├── commands/        # Slash command definitions and handlers
+│   │   ├── events/          # ready.event.ts, interaction.event.ts
+│   │   ├── interactions/    # Buttons, modals, polls, reminders
+│   │   ├── embeds/          # Discord embed builders
+│   │   └── utils/
+│   │       └── schedule-poster.ts  # Schedule posting logic
+│   ├── jobs/
+│   │   └── scheduler.ts     # node-cron job management
+│   ├── repositories/        # Data access layer (Prisma queries)
+│   │   ├── database.repository.ts     # Prisma client singleton
+│   │   ├── database-initializer.ts    # First-run DB setup
+│   │   ├── schedule.repository.ts     # Schedule queries, seeding, sync
+│   │   ├── scrim.repository.ts        # Match tracking CRUD
+│   │   └── user-mapping.repository.ts # Roster management
+│   ├── services/            # Business logic layer
+│   │   ├── schedule.service.ts        # Schedule analysis, validation
+│   │   ├── scrim.service.ts           # Scrim CRUD + stats
+│   │   └── user-mapping.service.ts    # Roster CRUD with auto-sync
+│   └── shared/
+│       ├── config/config.ts           # Global config (env + DB settings)
+│       ├── middleware/
+│       │   ├── auth.ts                # JWT verification, admin check
+│       │   ├── passwordManager.ts     # Password hashing/comparison
+│       │   ├── rateLimiter.ts         # Rate limiting
+│       │   └── validation.ts          # Joi schemas + validate()
+│       ├── types/types.ts             # Shared TypeScript interfaces
+│       └── utils/
+│           ├── analyzer.ts            # Schedule roster analysis
+│           ├── dateFormatter.ts       # DD.MM.YYYY formatting
+│           ├── logger.ts              # In-memory log store
+│           ├── scheduleDetails.ts     # Schedule detail queries
+│           └── settingsManager.ts     # Settings load/save/reload
 ├── dashboard/               # Next.js frontend
-│   ├── app/                 # App router pages
-│   │   ├── page.tsx         # Home (calendar)
-│   │   ├── user/            # User portal
-│   │   ├── admin/           # Admin panel
-│   │   └── login/           # Login pages
-│   ├── components/          # React components
-│   │   ├── ui/              # shadcn/ui
-│   │   └── *.tsx            # Feature components
-│   └── lib/                 # Frontend utilities
-│       ├── api.ts           # API client
-│       └── auth.ts          # Auth helpers
+│   ├── app/                 # Next.js App Router
+│   │   ├── layout.tsx       # Root layout (theme, fonts, toaster)
+│   │   ├── page.tsx         # Home (calendar view)
+│   │   ├── globals.css      # Global styles + animation tokens
+│   │   ├── login/           # User login
+│   │   ├── admin/
+│   │   │   ├── login/       # Admin login
+│   │   │   └── page.tsx     # Admin dashboard
+│   │   ├── user/page.tsx    # User availability portal
+│   │   ├── auth/callback/   # Discord OAuth handler
+│   │   └── api/             # Next.js API proxy routes
+│   │       ├── bot-status/  # Proxies to /api/health
+│   │       ├── settings/    # Proxies to /api/settings
+│   │       ├── discord/     # Proxies to /api/discord/*
+│   │       ├── actions/     # Proxies to /api/actions/*
+│   │       └── logs/        # Proxies to /api/logs
+│   ├── components/
+│   │   ├── admin/           # Admin-specific components
+│   │   │   ├── layout/      # admin-layout-wrapper, admin-sidebar
+│   │   │   └── panels/      # Dashboard panels (settings, actions, etc.)
+│   │   ├── shared/          # Shared across admin/user
+│   │   │   ├── agent-picker.tsx      # Valorant agent selector
+│   │   │   ├── nav-user.tsx          # User navigation menu
+│   │   │   └── scrims-panel.tsx      # Match history panel
+│   │   ├── auth/            # Auth components (login-form)
+│   │   ├── theme/           # Theme system (provider, toggle, switcher)
+│   │   ├── ui/              # Radix UI primitives (29 components)
+│   │   └── user/            # User portal components
+│   │       ├── layout/      # user-layout-wrapper, user-sidebar
+│   │       └── pages/       # User content pages
+│   ├── hooks/
+│   │   └── use-mobile.ts    # Mobile breakpoint hook (768px)
+│   ├── lib/
+│   │   ├── api.ts           # API client (apiGet, apiPost, etc.)
+│   │   ├── auth.ts          # JWT token management
+│   │   ├── types.ts         # Frontend type definitions
+│   │   ├── utils.ts         # Tailwind merge utility (cn)
+│   │   └── animations.ts    # Animation utilities (stagger, presets)
+│   └── public/
+│       └── assets/
+│           ├── agents/      # Valorant agent icons (32 .webp files)
+│           └── maps/        # Valorant map images (12 .webp files)
 ├── prisma/                  # Prisma ORM
 │   ├── schema.prisma        # Database schema
 │   └── migrations/          # Migration files
 ├── .env                     # Environment variables
 ├── package.json
-└── tsconfig.json
+├── tsconfig.json
+└── CLAUDE.md                # Project instructions for Claude Code
 ```
+
+### Dashboard Component Organization
+
+Components are organized by domain/role:
+
+- **`components/admin/`** - Admin-only features (panels, layout)
+- **`components/user/`** - User portal features
+  - `layout/` - User layout wrapper and sidebar
+  - `pages/` - User content pages (schedule, availability, matches)
+- **`components/auth/`** - Authentication UI
+- **`components/shared/`** - Shared across admin/user (agent-picker, scrims-panel, nav-user)
+- **`components/theme/`** - Theme system (theme-toggle, theme-provider, theme-switcher-sidebar)
+- **`components/ui/`** - Radix UI primitives (29 components)
+
+Admin panels export from `components/admin/panels/index.ts` which also re-exports shared components (ScrimsPanel, AgentSelector) for convenience.
+
+### Dashboard Animation System
+
+The dashboard uses a custom animation utility system (`dashboard/lib/animations.ts`):
+
+- **`stagger()` / `staggerList()`** - Staggered list animations with configurable speed
+- **`animate()`** - Animation class builder with presets (fadeIn, slideUp, scaleIn, etc.)
+- **`gridStagger()`** - 2D grid stagger patterns
+- **`microInteractions`** - Hover lift, hover scale, active press, focus ring utilities
+- **`presets`** - Common UI patterns (cardEntrance, modalEntrance, listItem, button, card)
+
+Animation design tokens are defined in `dashboard/app/globals.css`.
+
+**Example Usage**:
+```typescript
+import { animate, staggerList, presets } from '@/lib/animations';
+
+// Animate a card with fade-in and slide-up
+<div className={animate('fadeIn', 'slideUp')}>
+  <Card>...</Card>
+</div>
+
+// Stagger children with a preset
+<div className={staggerList('fast')}>
+  {items.map((item, i) => (
+    <div key={i} className={presets.listItem}>
+      {item}
+    </div>
+  ))}
+</div>
+```
+
+### Dashboard Caching Strategy
+
+The dashboard aggressively disables caching for live data:
+
+- `next.config.ts` adds `no-store, no-cache, must-revalidate` headers to all routes
+- Build ID uses timestamps (`build-${Date.now()}`) for cache invalidation
+- Root layout metadata includes cache-control headers
+- All API proxy routes use `force-dynamic` export
+
+### Repository Pattern
+
+Data access is abstracted into repositories (sole data layer):
+
+- **`database.repository.ts`** - Prisma client singleton, `connectDatabase()`, `disconnectDatabase()`
+- **`database-initializer.ts`** - First-run setup: creates tables, seeds default settings and schedules
+- **`schedule.repository.ts`** - Schedule CRUD, `addMissingDays()`, `syncUserMappingsToSchedules()`, pagination
+- **`scrim.repository.ts`** - Scrim CRUD, stats aggregation, date range queries
+- **`user-mapping.repository.ts`** - Roster CRUD with auto-`sortOrder` calculation and reordering on role changes
+
+### Services Layer
+
+Services provide business logic on top of repositories:
+
+- **`schedule.service.ts`** - Schedule analysis, availability validation (users can only edit their own unless admin), pagination
+- **`scrim.service.ts`** - Scrim CRUD, stats, recent scrims with date sorting
+- **`user-mapping.service.ts`** - Roster CRUD with automatic `syncUserMappingsToSchedules()` after changes
+
+Services are class-based with singleton exports (e.g., `export const scheduleService = new ScheduleService()`)
+
+### Discord Bot Structure
+
+- **Commands** are defined in `src/bot/commands/definitions.ts` and registered on bot ready
+- **Command handlers** are split by feature: schedule, availability, poll, scrim, admin, user-management
+- **`src/bot/commands/index.ts`** routes incoming interactions to the correct handler
+- **Event handlers** are in `src/bot/events/` (ready.event.ts, interaction.event.ts)
+- **Interactive components** (buttons, modals, polls) are in `src/bot/interactions/`
+- **All schedule posting logic** is centralized in `src/bot/utils/schedule-poster.ts`
+
+Commands use discord.js `SlashCommandBuilder` and are automatically registered on startup.
 
 ### Running in Development
 
@@ -921,6 +1245,62 @@ cd dashboard
 npm run build
 npm start
 ```
+
+### Important Development Notes
+
+#### Module System
+This project uses **ES modules** (`"type": "module"` in package.json):
+- All imports must include `.js` extension even for `.ts` files (TypeScript requirement)
+- Use `import` syntax, not `require()`
+- `__dirname` not available - use `fileURLToPath(import.meta.url)`
+
+#### Date Format Consistency
+Always use **DD.MM.YYYY** format (e.g., "24.01.2026") when working with dates:
+- Database stores dates as TEXT in this format
+- `dateFormatter.ts` provides `getTodayFormatted()` and `formatDateToDDMMYYYY()`
+- Never use JavaScript Date ISO strings directly in queries
+
+#### User Mappings vs Schedule Players
+- **`user_mappings` table** = master roster (who is on the team)
+- **`schedule_players` table** = daily snapshots (copied from user_mappings when schedule is seeded)
+- Changing a user's display name in mappings affects **future schedules only**
+- After roster changes, call `syncUserMappingsToSchedules()` to update future entries
+- The `UserMappingService` handles this automatically on add/update/remove
+
+#### Settings Reload Pattern
+When settings change:
+1. Save to PostgreSQL via `saveSettings()`
+2. Call `reloadConfig()` to update in-memory config
+3. Call `restartScheduler()` to apply new cron times
+4. API endpoint `/api/settings` handles this flow automatically
+
+#### Availability Format
+Player availability is stored as a string with three possible formats:
+- `""` (empty) = no response yet
+- `"x"` or `"X"` = unavailable for the day
+- `"HH:MM-HH:MM"` = available during time window (e.g., "14:00-20:00")
+
+#### Schedule Analysis
+The analyzer (`src/shared/utils/analyzer.ts`) calculates roster status from availability data:
+- **OFF_DAY**: Schedule reason indicates no training
+- **FULL_ROSTER**: 5+ main players available
+- **WITH_SUBS**: 4 mains available (subs fill)
+- **NOT_ENOUGH**: Cannot proceed with training
+- Calculates common time window (intersection of all available player windows)
+- Returns `canProceed` boolean used by training start poll
+
+#### Schedule Details
+Provides frontend-friendly schedule analysis (`src/shared/utils/scheduleDetails.ts`):
+- `getScheduleDetails(date)` - Single date analysis (status string, time window, player lists)
+- `getScheduleDetailsBatch(dates)` - Batch multi-date analysis
+- Returns status strings: "Able to play", "Almost there", "More players needed", "Insufficient players", "Off-Day", "Unknown"
+
+#### Logger
+In-memory log store (`src/shared/utils/logger.ts`):
+- **Storage**: Last 500 entries accessible via `GET /api/logs`
+- **Levels**: info, warn, error, success
+- **Usage**: `logger.info()`, `logger.error()` etc.
+- **Output**: Color-coded console output in development
 
 ---
 
@@ -1002,6 +1382,27 @@ npm start
 3. **Check cron logs** in console
 4. **Test manual post**: `curl -X POST http://localhost:3001/api/actions/schedule`
 
+### Commands not auto-registering
+
+1. **Check bot intents** in Discord Developer Portal (GUILDS and GUILD_MEMBERS required)
+2. **Verify bot has APPLICATION_COMMANDS scope** when invited
+3. **Check console logs** for registration errors
+4. **Commands register on bot startup** - look for "Registered X commands" message
+
+### Circular Dependency Issues
+
+If you encounter circular dependency issues:
+- Bot client is used in multiple modules (scheduler, API actions, interactions)
+- Use dynamic `await import()` to break circular dependencies
+- `schedule-poster.ts` re-exports from `client.ts` for backward compatibility
+
+### TypeScript Build Errors
+
+1. **Verify Node.js version** is 20+
+2. **Check tsconfig.json** - strict mode is disabled, target is ES2022
+3. **Ensure all imports use .js extension** even for .ts files (ES modules requirement)
+4. **Run `npx prisma generate`** after any schema changes
+
 ---
 
 ## 🤝 Contributing
@@ -1016,7 +1417,16 @@ Contributions are welcome! Please follow these steps:
 
 ### Development Guidelines
 
-- Follow existing code style (TypeScript strict mode)
+- **Code Style**: TypeScript strict mode is DISABLED (`strict: false`, `noImplicitAny: false` in tsconfig.json)
+- **Target**: ES2022, Module: NodeNext, ModuleResolution: NodeNext
+- **Async/Await**: Use for all database operations
+- **Error Handling**: try/catch with console.error + logger.error
+- **Discord Embeds**: Use `EmbedBuilder` from discord.js
+- **API Responses**: Follow pattern: `res.json({ success: true, data: ... })` or `res.status(400).json({ error: "message" })`
+- **Frontend API**: Use `apiGet<T>()`, `apiPost<T>()` etc. from `dashboard/lib/api.ts` (auto-attaches JWT, handles 401 redirect)
+- **Toasts**: Via `sonner` library (`toast.success()`, `toast.error()`)
+- **Barrel Exports**: Each component directory has an `index.ts` for centralized imports
+- **Services**: Class-based with singleton exports
 - Add comments for complex logic
 - Update documentation for new features
 - Test thoroughly before submitting PR
