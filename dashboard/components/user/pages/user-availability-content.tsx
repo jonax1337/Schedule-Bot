@@ -735,13 +735,13 @@ export function UserAvailabilityContent() {
                         <TableCell colSpan={2}>
                           <div className="flex items-center gap-2">
                             <PlaneTakeoff className="w-4 h-4 text-purple-500" />
-                            <span className="text-purple-500 font-medium">Abwesend</span>
+                            <span className="text-purple-500 font-medium">Absent</span>
                           </div>
                         </TableCell>
                         <TableCell>
                           <span className="flex items-center gap-2 text-purple-500">
                             <PlaneTakeoff className="w-4 h-4" />
-                            Abwesend
+                            Absent
                           </span>
                         </TableCell>
                         <TableCell></TableCell>

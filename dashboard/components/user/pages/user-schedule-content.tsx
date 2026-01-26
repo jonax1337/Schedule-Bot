@@ -789,7 +789,7 @@ export function UserScheduleContent() {
                           {player.status === 'absent' ? (
                             <span className="text-xs text-purple-500 font-medium flex items-center gap-1">
                               <PlaneTakeoff className="w-3 h-3" />
-                              Abwesend
+                              Absent
                             </span>
                           ) : player.time ? (
                             <span className="text-xs text-muted-foreground">{player.time}</span>

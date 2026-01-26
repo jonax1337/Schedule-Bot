@@ -25,7 +25,6 @@ router.use('/settings', settingsRoutes);
 router.use('/actions', actionsRoutes);
 router.use('/admin', adminRoutes);
 router.use('/absences', absenceRoutes);
-console.log('  ✓ Absence routes mounted at /api/absences');
 
 // Schedule details routes (defined directly to avoid path issues)
 router.get('/schedule-details-batch', optionalAuth, async (req: AuthRequest, res) => {
