@@ -454,7 +454,7 @@ export default function AdminDashboardHome() {
       icon: Clock,
       value: statusLoading ? '...' : formatUptime(botStatus?.uptime),
       description: 'Time since last restart',
-      color: 'default',
+      color: statusLoading ? 'muted' : isOnline ? 'green' : 'red',
     },
     {
       title: 'API Server',
