@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardAction } from '@/components/ui/card';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import {
   Select,
   SelectContent,
@@ -23,11 +24,13 @@ import {
   Cell,
   BarChart,
   Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
 } from 'recharts';
-import { Target, Map, BarChart3, TrendingUp, Swords, Loader2 } from 'lucide-react';
+import { Target, Map, BarChart3, Calendar, Swords, Loader2, ChevronDown } from 'lucide-react';
 import { stagger, cn } from '@/lib/animations';
 
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
@@ -110,12 +113,8 @@ const mapStatsConfig: ChartConfig = {
   losses: { label: 'Losses', color: 'oklch(0.577 0.245 27.325)' },
 };
 
-const SCORE_US_COLOR = 'oklch(0.488 0.243 264.376)';
-const SCORE_THEM_COLOR = 'oklch(0.645 0.246 16.439)';
-
-const recentResultsConfig: ChartConfig = {
-  scoreUs: { label: 'Our Score', color: SCORE_US_COLOR },
-  scoreThem: { label: 'Opponent', color: SCORE_THEM_COLOR },
+const matchFrequencyConfig: ChartConfig = {
+  matches: { label: 'Matches', color: 'oklch(0.769 0.188 70.08)' },
 };
 
 function parseDDMMYYYY(dateStr: string): Date {
@@ -324,10 +323,10 @@ export default function StatisticsPanel() {
 
   const availabilityData = useMemo(() => {
     return availabilitySchedules.map(schedule => {
-      const mainPlayers = schedule.players.filter(p => p.role === 'MAIN');
-      const available = mainPlayers.filter(p => p.availability && p.availability !== 'x' && p.availability !== 'X').length;
-      const unavailable = mainPlayers.filter(p => p.availability === 'x' || p.availability === 'X').length;
-      const noResponse = mainPlayers.filter(p => !p.availability).length;
+      const activePlayers = schedule.players.filter(p => p.role === 'MAIN' || p.role === 'SUB');
+      const available = activePlayers.filter(p => p.availability && p.availability !== 'x' && p.availability !== 'X').length;
+      const unavailable = activePlayers.filter(p => p.availability === 'x' || p.availability === 'X').length;
+      const noResponse = activePlayers.filter(p => !p.availability).length;
 
       const [day, month] = schedule.date.split('.');
       return {
@@ -335,7 +334,7 @@ export default function StatisticsPanel() {
         available,
         unavailable,
         noResponse,
-        total: mainPlayers.length,
+        total: activePlayers.length,
       };
     });
   }, [availabilitySchedules]);
@@ -354,54 +353,76 @@ export default function StatisticsPanel() {
       .slice(0, 8);
   }, [filteredStats]);
 
-  const recentResultsData = useMemo(() => {
-    return [...allScrims]
-      .slice(0, 10)
-      .reverse()
-      .slice(-8)
-      .map(scrim => ({
-        opponent: scrim.opponent.length > 12 ? scrim.opponent.slice(0, 12) + '..' : scrim.opponent,
-        scoreUs: scrim.scoreUs,
-        scoreThem: scrim.scoreThem,
-        result: scrim.result,
-      }));
-  }, [allScrims]);
+  const matchFrequencyData = useMemo(() => {
+    if (filteredScrims.length === 0) return [];
 
-  const agentUsageData = useMemo(() => {
-    const agentCounts: Record<string, { picks: number; wins: number }> = {};
+    const sorted = [...filteredScrims].sort((a, b) => {
+      return parseDDMMYYYY(a.date).getTime() - parseDDMMYYYY(b.date).getTime();
+    });
 
-    for (const scrim of filteredScrims) {
-      if (scrim.ourAgents && scrim.ourAgents.length > 0) {
-        for (const agent of scrim.ourAgents) {
-          if (!agent || !agent.trim()) continue;
-          const name = agent.trim();
-          if (!agentCounts[name]) {
-            agentCounts[name] = { picks: 0, wins: 0 };
-          }
-          agentCounts[name].picks++;
-          if (scrim.result === 'win') agentCounts[name].wins++;
-        }
+    // Group matches by calendar week
+    const weekBuckets: Record<string, { label: string; matches: number }> = {};
+
+    for (const scrim of sorted) {
+      const date = parseDDMMYYYY(scrim.date);
+      // Get Monday of that week
+      const day = date.getDay();
+      const monday = new Date(date);
+      monday.setDate(date.getDate() - ((day + 6) % 7));
+      const key = monday.toISOString().slice(0, 10);
+      const [d, m] = scrim.date.split('.');
+
+      if (!weekBuckets[key]) {
+        const md = String(monday.getDate()).padStart(2, '0');
+        const mm = String(monday.getMonth() + 1).padStart(2, '0');
+        weekBuckets[key] = { label: `${md}.${mm}`, matches: 0 };
       }
+      weekBuckets[key].matches++;
     }
 
-    return Object.entries(agentCounts)
-      .map(([agent, data]) => ({
-        agent,
-        picks: data.picks,
-        wins: data.wins,
-        winRate: data.picks > 0 ? Math.round((data.wins / data.picks) * 100) : 0,
-      }))
-      .sort((a, b) => b.picks - a.picks)
-      .slice(0, 10);
+    return Object.entries(weekBuckets)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([, data]) => data);
   }, [filteredScrims]);
 
-  const maxAgentPicks = useMemo(() => {
-    return agentUsageData.length > 0 ? agentUsageData[0].picks : 0;
-  }, [agentUsageData]);
+  const mapCompositionsData = useMemo(() => {
+    const mapComps: Record<string, Record<string, { played: number; wins: number; agents: string[] }>> = {};
+
+    for (const scrim of filteredScrims) {
+      if (!scrim.map || !scrim.ourAgents || scrim.ourAgents.length === 0) continue;
+      const agents = scrim.ourAgents.map(a => a.trim()).filter(Boolean);
+      if (agents.length === 0) continue;
+
+      const compKey = [...agents].sort().join(',');
+      if (!mapComps[scrim.map]) mapComps[scrim.map] = {};
+      if (!mapComps[scrim.map][compKey]) {
+        mapComps[scrim.map][compKey] = { played: 0, wins: 0, agents };
+      }
+      mapComps[scrim.map][compKey].played++;
+      if (scrim.result === 'win') mapComps[scrim.map][compKey].wins++;
+    }
+
+    return Object.entries(mapComps)
+      .map(([map, comps]) => {
+        const topComps = Object.values(comps)
+          .sort((a, b) => b.played - a.played || (b.played > 0 ? b.wins / b.played : 0) - (a.played > 0 ? a.wins / a.played : 0))
+          .slice(0, 3)
+          .map(c => ({
+            agents: c.agents,
+            played: c.played,
+            wins: c.wins,
+            winRate: c.played > 0 ? Math.round((c.wins / c.played) * 100) : 0,
+          }));
+        const totalPlayed = Object.values(comps).reduce((sum, c) => sum + c.played, 0);
+        return { map, comps: topComps, totalPlayed };
+      })
+      .sort((a, b) => b.totalPlayed - a.totalPlayed);
+  }, [filteredScrims]);
+
+  const hasCompData = mapCompositionsData.length > 0;
 
   const hasScrimData = filteredStats.totalScrims > 0;
   const hasAvailabilityData = availabilitySchedules.length > 0;
-  const hasAgentData = agentUsageData.length > 0;
   const selectedRangeLabel = AVAILABILITY_RANGES.find(r => r.value === availabilityRange)?.label || '';
   const isFiltered = scrimMatchType !== '__all__' || scrimTimeRange !== 'all';
 
@@ -417,14 +438,163 @@ export default function StatisticsPanel() {
 
   return (
     <div className="space-y-6">
-      {/* Charts Row 1: Scrim Results + Availability */}
+      {/* Charts Row 1: Team Availability + Match Frequency */}
       <div className="grid gap-4 md:grid-cols-2">
-        {/* Scrim Results Pie Chart */}
+        {/* Team Availability Bar Chart */}
         <Card className={stagger(0, 'slow', 'slideUpScale')}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
+              <BarChart3 className="h-4 w-4" />
+              Team Availability
+            </CardTitle>
+            <CardAction>
+              <Select value={availabilityRange} onValueChange={handleAvailabilityRangeChange}>
+                <SelectTrigger size="sm" className="w-[140px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent position="popper" side="bottom" align="end">
+                  {AVAILABILITY_RANGES.map(range => (
+                    <SelectItem key={range.value} value={range.value}>
+                      {range.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </CardAction>
+            <CardDescription>
+              {availabilityLoading
+                ? 'Loading...'
+                : hasAvailabilityData
+                  ? `Player availability (excl. Coach) — ${selectedRangeLabel}`
+                  : 'No schedule data available'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex-1">
+            {!availabilityLoading && hasAvailabilityData && availabilityData.length > 0 ? (
+              <ChartContainer config={availabilityConfig} className="aspect-auto h-[300px] w-full">
+                <BarChart data={availabilityData} margin={{ top: 5, right: 5, bottom: 5, left: -15 }}>
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis
+                    dataKey="date"
+                    tickLine={false}
+                    axisLine={false}
+                    fontSize={10}
+                    tickMargin={8}
+                    interval={availabilityData.length > 20 ? Math.floor(availabilityData.length / 10) : 0}
+                  />
+                  <YAxis
+                    tickLine={false}
+                    axisLine={false}
+                    fontSize={11}
+                    tickMargin={4}
+                    allowDecimals={false}
+                  />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <ChartLegend content={<ChartLegendContent />} />
+                  <Bar
+                    dataKey="available"
+                    stackId="a"
+                    fill="oklch(0.723 0.219 149.579)"
+                    radius={[0, 0, 0, 0]}
+                  />
+                  <Bar
+                    dataKey="unavailable"
+                    stackId="a"
+                    fill="oklch(0.577 0.245 27.325)"
+                    radius={[0, 0, 0, 0]}
+                  />
+                  <Bar
+                    dataKey="noResponse"
+                    stackId="a"
+                    fill="oklch(0.708 0 0)"
+                    radius={[4, 4, 0, 0]}
+                  />
+                </BarChart>
+              </ChartContainer>
+            ) : availabilityLoading ? (
+              <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+                <Loader2 className="h-5 w-5 animate-spin" />
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-[300px] text-muted-foreground text-sm">
+                Schedule data will appear here
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Match Frequency Bar Chart */}
+        <Card className={stagger(1, 'slow', 'slideUpScale')}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="h-4 w-4" />
+              Match Frequency
+            </CardTitle>
+            <CardAction>
+              <ScrimFilters
+                matchType={scrimMatchType}
+                onMatchTypeChange={setScrimMatchType}
+                timeRange={scrimTimeRange}
+                onTimeRangeChange={(v) => setScrimTimeRange(v as ScrimTimeRange)}
+                matchTypes={availableMatchTypes}
+              />
+            </CardAction>
+            <CardDescription>
+              {matchFrequencyData.length > 0
+                ? `Matches per week${isFiltered ? ' (filtered)' : ''}`
+                : allScrims.length > 0
+                  ? 'No matches match the current filters'
+                  : 'No match data available yet'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex-1">
+            {matchFrequencyData.length > 0 ? (
+              <ChartContainer config={matchFrequencyConfig} className="aspect-auto h-[300px] w-full">
+                <LineChart data={matchFrequencyData} margin={{ top: 5, right: 5, bottom: 5, left: -15 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis
+                    dataKey="label"
+                    tickLine={false}
+                    axisLine={false}
+                    fontSize={10}
+                    tickMargin={8}
+                    interval={matchFrequencyData.length > 20 ? Math.floor(matchFrequencyData.length / 10) : 0}
+                  />
+                  <YAxis
+                    tickLine={false}
+                    axisLine={false}
+                    fontSize={11}
+                    tickMargin={4}
+                    allowDecimals={false}
+                  />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Line
+                    type="monotone"
+                    dataKey="matches"
+                    stroke="oklch(0.769 0.188 70.08)"
+                    strokeWidth={2}
+                    dot={{ r: 3, fill: 'oklch(0.769 0.188 70.08)' }}
+                    activeDot={{ r: 5 }}
+                  />
+                </LineChart>
+              </ChartContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[300px] text-muted-foreground text-sm">
+                {allScrims.length > 0 ? 'No matches match the current filters' : 'Play some matches to see frequency'}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Charts Row 2: Match Results + Map Performance */}
+      <div className="grid gap-4 md:grid-cols-2">
+        {/* Match Results Pie Chart */}
+        <Card className={stagger(2, 'slow', 'slideUpScale')}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
               <Target className="h-4 w-4" />
-              Scrim Results
+              Match Results
             </CardTitle>
             <CardAction>
               <ScrimFilters
@@ -492,94 +662,8 @@ export default function StatisticsPanel() {
           </CardContent>
         </Card>
 
-        {/* Availability Overview Bar Chart */}
-        <Card className={stagger(1, 'slow', 'slideUpScale')}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BarChart3 className="h-4 w-4" />
-              Team Availability
-            </CardTitle>
-            <CardAction>
-              <Select value={availabilityRange} onValueChange={handleAvailabilityRangeChange}>
-                <SelectTrigger size="sm" className="w-[140px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent position="popper" side="bottom" align="end">
-                  {AVAILABILITY_RANGES.map(range => (
-                    <SelectItem key={range.value} value={range.value}>
-                      {range.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </CardAction>
-            <CardDescription>
-              {availabilityLoading
-                ? 'Loading...'
-                : hasAvailabilityData
-                  ? `Main player availability — ${selectedRangeLabel}`
-                  : 'No schedule data available'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex-1">
-            {!availabilityLoading && hasAvailabilityData && availabilityData.length > 0 ? (
-              <ChartContainer config={availabilityConfig} className="aspect-auto h-[300px] w-full">
-                <BarChart data={availabilityData} margin={{ top: 5, right: 5, bottom: 5, left: -15 }}>
-                  <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis
-                    dataKey="date"
-                    tickLine={false}
-                    axisLine={false}
-                    fontSize={10}
-                    tickMargin={8}
-                    interval={availabilityData.length > 20 ? Math.floor(availabilityData.length / 10) : 0}
-                  />
-                  <YAxis
-                    tickLine={false}
-                    axisLine={false}
-                    fontSize={11}
-                    tickMargin={4}
-                    allowDecimals={false}
-                  />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <ChartLegend content={<ChartLegendContent />} />
-                  <Bar
-                    dataKey="available"
-                    stackId="a"
-                    fill="oklch(0.723 0.219 149.579)"
-                    radius={[0, 0, 0, 0]}
-                  />
-                  <Bar
-                    dataKey="unavailable"
-                    stackId="a"
-                    fill="oklch(0.577 0.245 27.325)"
-                    radius={[0, 0, 0, 0]}
-                  />
-                  <Bar
-                    dataKey="noResponse"
-                    stackId="a"
-                    fill="oklch(0.708 0 0)"
-                    radius={[4, 4, 0, 0]}
-                  />
-                </BarChart>
-              </ChartContainer>
-            ) : availabilityLoading ? (
-              <div className="flex items-center justify-center h-[300px] text-muted-foreground">
-                <Loader2 className="h-5 w-5 animate-spin" />
-              </div>
-            ) : (
-              <div className="flex items-center justify-center h-[300px] text-muted-foreground text-sm">
-                Schedule data will appear here
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Charts Row 2: Map Performance + Recent Results */}
-      <div className="grid gap-4 md:grid-cols-2">
         {/* Map Performance Bar Chart */}
-        <Card className={stagger(2, 'slow', 'slideUpScale')}>
+        <Card className={stagger(3, 'slow', 'slideUpScale')}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Map className="h-4 w-4" />
@@ -630,63 +714,14 @@ export default function StatisticsPanel() {
             )}
           </CardContent>
         </Card>
-
-        {/* Recent Match Results */}
-        <Card className={stagger(3, 'slow', 'slideUpScale')}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" />
-              Recent Matches
-            </CardTitle>
-            <CardDescription>
-              {recentResultsData.length > 0
-                ? 'Score comparison for recent matches'
-                : 'No recent match data'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex-1">
-            {recentResultsData.length > 0 ? (
-              <ChartContainer config={recentResultsConfig} className="aspect-auto h-[300px] w-full">
-                <BarChart data={recentResultsData} margin={{ top: 5, right: 5, bottom: 5, left: -15 }}>
-                  <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis
-                    dataKey="opponent"
-                    tickLine={false}
-                    axisLine={false}
-                    fontSize={10}
-                    tickMargin={8}
-                    angle={-30}
-                    textAnchor="end"
-                    height={50}
-                  />
-                  <YAxis
-                    tickLine={false}
-                    axisLine={false}
-                    fontSize={11}
-                    tickMargin={4}
-                    allowDecimals={false}
-                  />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <ChartLegend content={<ChartLegendContent />} />
-                  <Bar dataKey="scoreUs" fill={SCORE_US_COLOR} radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="scoreThem" fill={SCORE_THEM_COLOR} radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ChartContainer>
-            ) : (
-              <div className="flex items-center justify-center h-[300px] text-muted-foreground text-sm">
-                Recent match scores will appear here
-              </div>
-            )}
-          </CardContent>
-        </Card>
       </div>
 
-      {/* Agent Usage */}
+      {/* Map Compositions */}
       <Card className={stagger(4, 'slow', 'slideUpScale')}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Swords className="h-4 w-4" />
-            Agent Usage
+            Map Compositions
           </CardTitle>
           <CardAction>
             <ScrimFilters
@@ -698,91 +733,118 @@ export default function StatisticsPanel() {
             />
           </CardAction>
           <CardDescription>
-            {hasAgentData
-              ? `Most picked agents across ${filteredScrims.filter(s => s.ourAgents && s.ourAgents.length > 0).length} matches with agent data${isFiltered ? ' (filtered)' : ''}`
+            {hasCompData
+              ? `Most played team compositions per map${isFiltered ? ' (filtered)' : ''}`
               : allScrims.length > 0
-                ? 'No agent data available for the current filters'
-                : 'No agent data available yet'}
+                ? 'No composition data for the current filters'
+                : 'Add agents to your scrims to see compositions'}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {hasAgentData ? (
-            <div className="space-y-2">
-              {agentUsageData.map((entry, index) => {
-                const losses = entry.picks - entry.wins;
-                const barWidth = maxAgentPicks > 0 ? (entry.picks / maxAgentPicks) * 100 : 0;
-                const winPortion = entry.picks > 0 ? (entry.wins / entry.picks) * 100 : 0;
+          {hasCompData ? (
+            <div className="space-y-3">
+              {mapCompositionsData.map((mapEntry, mapIndex) => {
+                const bestComp = mapEntry.comps[0];
+                const otherComps = mapEntry.comps.slice(1);
 
                 return (
-                  <div
-                    key={entry.agent}
-                    className={cn(
-                      'flex items-center gap-3 py-1.5',
-                      stagger(index, 'fast', 'fadeIn')
-                    )}
-                  >
-                    <img
-                      src={`/assets/agents/${entry.agent}_icon.webp`}
-                      alt={entry.agent}
-                      className="w-7 h-7 rounded-md shrink-0"
-                      title={entry.agent}
-                    />
-                    <div className="w-16 text-sm font-medium truncate shrink-0">
-                      {entry.agent}
-                    </div>
-                    <div className="flex-1 flex items-center gap-3">
-                      <div className="flex-1 h-5 bg-muted/50 rounded overflow-hidden" style={{ maxWidth: `${barWidth}%`, minWidth: '20px' }}>
-                        <div className="h-full flex">
-                          {entry.wins > 0 && (
-                            <div
-                              className="h-full transition-all duration-500"
-                              style={{
-                                width: `${winPortion}%`,
-                                backgroundColor: 'oklch(0.723 0.219 149.579)',
-                              }}
-                            />
-                          )}
-                          {losses > 0 && (
-                            <div
-                              className="h-full transition-all duration-500"
-                              style={{
-                                width: `${100 - winPortion}%`,
-                                backgroundColor: 'oklch(0.577 0.245 27.325)',
-                              }}
-                            />
-                          )}
+                  <Collapsible key={mapEntry.map}>
+                    <div
+                      className={cn(
+                        'rounded-lg border bg-card p-4',
+                        stagger(mapIndex, 'fast', 'fadeIn')
+                      )}
+                    >
+                      {/* Map header + best comp (always visible) */}
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={`/assets/maps/Loading_Screen_${mapEntry.map}.webp`}
+                          alt={mapEntry.map}
+                          className="w-24 h-14 rounded-md object-cover shrink-0"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold">{mapEntry.map}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {mapEntry.totalPlayed} {mapEntry.totalPlayed === 1 ? 'match' : 'matches'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 mt-1.5">
+                            <div className="flex items-center gap-1">
+                              {bestComp.agents.map((agent) => (
+                                <img
+                                  key={agent}
+                                  src={`/assets/agents/${agent}_icon.webp`}
+                                  alt={agent}
+                                  className="w-8 h-8 rounded-md"
+                                  title={agent}
+                                />
+                              ))}
+                            </div>
+                            <div className="flex items-center gap-2 ml-1">
+                              <span className="text-sm text-muted-foreground tabular-nums">
+                                {bestComp.played}x
+                              </span>
+                              <span className={cn(
+                                'text-sm font-medium tabular-nums',
+                                bestComp.winRate >= 50 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                              )}>
+                                {bestComp.winRate}% WR
+                              </span>
+                            </div>
+                          </div>
                         </div>
+                        {otherComps.length > 0 && (
+                          <CollapsibleTrigger className="shrink-0 rounded-md p-1.5 hover:bg-muted transition-colors group">
+                            <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+                          </CollapsibleTrigger>
+                        )}
                       </div>
+
+                      {/* Other comps (collapsible) */}
+                      {otherComps.length > 0 && (
+                        <CollapsibleContent>
+                          <div className="mt-3 pt-3 border-t space-y-2.5">
+                            {otherComps.map((comp, compIndex) => (
+                              <div
+                                key={compIndex}
+                                className="flex items-center gap-2 pl-[108px]"
+                              >
+                                <div className="flex items-center gap-1">
+                                  {comp.agents.map((agent) => (
+                                    <img
+                                      key={agent}
+                                      src={`/assets/agents/${agent}_icon.webp`}
+                                      alt={agent}
+                                      className="w-7 h-7 rounded-md"
+                                      title={agent}
+                                    />
+                                  ))}
+                                </div>
+                                <div className="flex items-center gap-2 ml-1">
+                                  <span className="text-xs text-muted-foreground tabular-nums">
+                                    {comp.played}x
+                                  </span>
+                                  <span className={cn(
+                                    'text-xs font-medium tabular-nums',
+                                    comp.winRate >= 50 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                                  )}>
+                                    {comp.winRate}% WR
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </CollapsibleContent>
+                      )}
                     </div>
-                    <div className="text-xs text-muted-foreground tabular-nums shrink-0 text-right w-20">
-                      <span className="font-medium text-foreground">{entry.picks}</span>
-                      {' '}{entry.picks === 1 ? 'pick' : 'picks'}
-                    </div>
-                    <div className="w-12 text-right tabular-nums shrink-0">
-                      <span className={cn(
-                        'text-xs font-medium',
-                        entry.winRate >= 50 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
-                      )}>
-                        {entry.winRate}%
-                      </span>
-                    </div>
-                  </div>
+                  </Collapsible>
                 );
               })}
-              <div className="flex items-center gap-4 pt-2 text-xs text-muted-foreground border-t">
-                <div className="flex items-center gap-1.5">
-                  <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: 'oklch(0.723 0.219 149.579)' }} />
-                  Wins
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: 'oklch(0.577 0.245 27.325)' }} />
-                  Losses
-                </div>
-              </div>
             </div>
           ) : (
             <div className="flex items-center justify-center h-[200px] text-muted-foreground text-sm">
-              {allScrims.length > 0 ? 'No agent data available for the current filters' : 'Add agents to your scrims to see usage statistics'}
+              {allScrims.length > 0 ? 'No composition data for the current filters' : 'Add agents to your scrims to see compositions'}
             </div>
           )}
         </CardContent>

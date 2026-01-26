@@ -581,6 +581,45 @@
 }
 
 /* ============================================
+   COLLAPSIBLE ANIMATIONS
+   ============================================ */
+
+[data-slot="collapsible-content"][data-state="open"] {
+  animation: collapsible-expand var(--anim-duration-normal) var(--anim-ease-smooth);
+}
+
+[data-slot="collapsible-content"][data-state="closed"] {
+  animation: collapsible-collapse var(--anim-duration-fast) var(--anim-ease-smooth);
+  overflow: hidden;
+}
+
+@keyframes collapsible-expand {
+  from {
+    opacity: 0;
+    max-height: 0;
+    overflow: hidden;
+  }
+  to {
+    opacity: 1;
+    max-height: 500px;
+    overflow: hidden;
+  }
+}
+
+@keyframes collapsible-collapse {
+  from {
+    opacity: 1;
+    max-height: 500px;
+    overflow: hidden;
+  }
+  to {
+    opacity: 0;
+    max-height: 0;
+    overflow: hidden;
+  }
+}
+
+/* ============================================
    PAGE TRANSITION UTILITIES
    ============================================ */
 
