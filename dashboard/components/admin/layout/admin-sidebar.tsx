@@ -16,7 +16,6 @@ import {
 } from "lucide-react"
 
 import { NavUser } from "@/components/shared"
-import { ThemeSwitcherSidebar } from "@/components/theme"
 import {
   Sidebar,
   SidebarContent,
@@ -190,7 +189,6 @@ export function AdminSidebar({ userName, onLogout, ...props }: AdminSidebarProps
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
-        <ThemeSwitcherSidebar />
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton

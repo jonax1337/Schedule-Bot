@@ -6,6 +6,7 @@ import { UserSidebar } from "./user-sidebar"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage } from "@/components/ui/breadcrumb"
+import { ThemeToggle } from "@/components/theme"
 
 interface UserLayoutWrapperProps {
   children: React.ReactNode
@@ -62,6 +63,9 @@ export function UserLayoutWrapper({ children, breadcrumbs = [] }: UserLayoutWrap
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
+          <div className="ml-auto">
+            <ThemeToggle />
+          </div>
         </header>
         <div className="flex flex-1 flex-col gap-4 p-4">
           {children}

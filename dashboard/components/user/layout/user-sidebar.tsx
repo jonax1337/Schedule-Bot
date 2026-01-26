@@ -13,7 +13,6 @@ import {
 } from "lucide-react"
 
 import { NavUser } from "@/components/shared"
-import { ThemeSwitcherSidebar } from "@/components/theme"
 import {
   Sidebar,
   SidebarContent,
@@ -124,7 +123,7 @@ export function UserSidebar({ userName, onLogout, ...props }: UserSidebarProps) 
     // Check if admin is already logged in
     const { getUser } = await import('@/lib/auth')
     const user = getUser()
-    
+
     if (user && user.role === 'admin') {
       // Already logged in as admin, go directly to admin dashboard
       router.push('/admin?tab=dashboard')
@@ -133,13 +132,6 @@ export function UserSidebar({ userName, onLogout, ...props }: UserSidebarProps) 
       router.push('/admin/login')
     }
   }
-
-  const adminItems = [
-    {
-      title: "Admin Panel",
-      icon: Shield,
-    },
-  ]
 
   const user = userName ? {
     name: userName,
@@ -195,27 +187,19 @@ export function UserSidebar({ userName, onLogout, ...props }: UserSidebarProps) 
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-        <SidebarGroup>
-          <SidebarGroupLabel>Admin</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {adminItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton 
-                    tooltip={item.title}
-                    onClick={handleAdminNavigation}
-                  >
-                    <item.icon />
-                    <span>{item.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
-        <ThemeSwitcherSidebar />
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              tooltip="Admin Panel"
+              onClick={handleAdminNavigation}
+            >
+              <Shield />
+              <span>Admin Panel</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
         {user && <NavUser user={user} onLogout={onLogout} role={userRole} />}
       </SidebarFooter>
       <SidebarRail />
