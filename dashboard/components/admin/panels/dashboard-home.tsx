@@ -1,9 +1,26 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Activity, Users, Calendar, Trophy, TrendingUp, Clock, Loader2 } from 'lucide-react';
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+  type ChartConfig,
+} from '@/components/ui/chart';
+import {
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+} from 'recharts';
+import { Activity, Users, Calendar, Trophy, TrendingUp, Clock, Target, Map, BarChart3, Percent } from 'lucide-react';
 import { stagger, microInteractions, cn } from '@/lib/animations';
 
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
@@ -22,16 +39,88 @@ interface BotStatus {
   uptime?: number;
 }
 
+interface ScrimStats {
+  totalScrims: number;
+  wins: number;
+  losses: number;
+  draws: number;
+  winRate: number;
+  mapStats: {
+    [mapName: string]: {
+      played: number;
+      wins: number;
+      losses: number;
+    };
+  };
+}
+
+interface ScheduleDay {
+  date: string;
+  players: {
+    userId: string;
+    displayName: string;
+    role: string;
+    availability: string;
+    sortOrder: number;
+  }[];
+  reason: string;
+  focus: string;
+}
+
+interface ScrimEntry {
+  id: string;
+  date: string;
+  opponent: string;
+  result: 'win' | 'loss' | 'draw';
+  scoreUs: number;
+  scoreThem: number;
+  map: string;
+  matchType?: string;
+}
+
+interface UserMapping {
+  discordId: string;
+  displayName: string;
+  role: string;
+}
+
+// Chart configurations
+const scrimResultsConfig: ChartConfig = {
+  wins: { label: 'Wins', color: 'oklch(0.723 0.219 149.579)' },
+  losses: { label: 'Losses', color: 'oklch(0.577 0.245 27.325)' },
+  draws: { label: 'Draws', color: 'oklch(0.708 0 0)' },
+};
+
+const availabilityConfig: ChartConfig = {
+  available: { label: 'Available', color: 'oklch(0.723 0.219 149.579)' },
+  unavailable: { label: 'Unavailable', color: 'oklch(0.577 0.245 27.325)' },
+  noResponse: { label: 'No Response', color: 'oklch(0.708 0 0)' },
+};
+
+const mapStatsConfig: ChartConfig = {
+  wins: { label: 'Wins', color: 'oklch(0.723 0.219 149.579)' },
+  losses: { label: 'Losses', color: 'oklch(0.577 0.245 27.325)' },
+};
+
+const recentResultsConfig: ChartConfig = {
+  scoreUs: { label: 'Our Score', color: 'var(--chart-1)' },
+  scoreThem: { label: 'Opponent', color: 'var(--chart-5)' },
+};
+
 export default function AdminDashboardHome() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [botStatus, setBotStatus] = useState<BotStatus | null>(null);
   const [statusLoading, setStatusLoading] = useState(true);
+  const [scrimStats, setScrimStats] = useState<ScrimStats | null>(null);
+  const [schedules, setSchedules] = useState<ScheduleDay[]>([]);
+  const [recentScrims, setRecentScrims] = useState<ScrimEntry[]>([]);
+  const [userMappings, setUserMappings] = useState<UserMapping[]>([]);
 
   useEffect(() => {
     loadStats();
     checkBotStatus();
-    const interval = setInterval(checkBotStatus, 10000); // Check bot status every 10 seconds
+    const interval = setInterval(checkBotStatus, 10000);
     return () => clearInterval(interval);
   }, []);
 
@@ -40,33 +129,38 @@ export default function AdminDashboardHome() {
     try {
       const { getAuthHeaders } = await import('@/lib/auth');
 
-      // Load user mappings
-      const usersRes = await fetch(`${BOT_API_URL}/api/user-mappings`, {
-        headers: getAuthHeaders(),
-      });
-      const usersData = await usersRes.json();
+      const [usersRes, schedulesRes, scrimsRes, scrimStatsRes] = await Promise.all([
+        fetch(`${BOT_API_URL}/api/user-mappings`, { headers: getAuthHeaders() }),
+        fetch(`${BOT_API_URL}/api/schedule/next14`, { headers: getAuthHeaders() }),
+        fetch(`${BOT_API_URL}/api/scrims`, { headers: getAuthHeaders() }),
+        fetch(`${BOT_API_URL}/api/scrims/stats/summary`, { headers: getAuthHeaders() }),
+      ]);
 
-      // Load schedules
-      const schedulesRes = await fetch(`${BOT_API_URL}/api/schedule/next14`, {
-        headers: getAuthHeaders(),
-      });
-      const schedulesData = await schedulesRes.json();
+      const [usersData, schedulesData, scrimsData, scrimStatsData] = await Promise.all([
+        usersRes.json(),
+        schedulesRes.json(),
+        scrimsRes.json(),
+        scrimStatsRes.json(),
+      ]);
 
-      // Load scrims
-      const scrimsRes = await fetch(`${BOT_API_URL}/api/scrims`, {
-        headers: getAuthHeaders(),
-      });
-      const scrimsData = await scrimsRes.json();
+      const mappings = usersData.mappings || [];
+      const schedulesList = schedulesData.schedules || [];
+      const scrimsList = scrimsData.scrims || [];
+
+      setUserMappings(mappings);
+      setSchedules(schedulesList);
+      setRecentScrims(scrimsList.slice(0, 10));
+      setScrimStats(scrimStatsData);
 
       setStats({
-        totalUsers: usersData.mappings?.length || 0,
-        totalSchedules: schedulesData.schedules?.length || 0,
-        totalScrims: scrimsData.scrims?.length || 0,
-        upcomingSchedules: schedulesData.schedules?.filter((s: any) => {
+        totalUsers: mappings.length,
+        totalSchedules: schedulesList.length,
+        totalScrims: scrimsList.length,
+        upcomingSchedules: schedulesList.filter((s: ScheduleDay) => {
           const [day, month, year] = s.date.split('.');
           const scheduleDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
           return scheduleDate >= new Date();
-        }).length || 0,
+        }).length,
         recentActivity: [],
       });
     } catch (error) {
@@ -97,6 +191,68 @@ export default function AdminDashboardHome() {
     }
     return `${minutes}m`;
   };
+
+  // Compute chart data
+  const scrimResultsData = useMemo(() => {
+    if (!scrimStats) return [];
+    return [
+      { name: 'wins', value: scrimStats.wins, fill: 'oklch(0.723 0.219 149.579)' },
+      { name: 'losses', value: scrimStats.losses, fill: 'oklch(0.577 0.245 27.325)' },
+      { name: 'draws', value: scrimStats.draws, fill: 'oklch(0.708 0 0)' },
+    ].filter(d => d.value > 0);
+  }, [scrimStats]);
+
+  const availabilityData = useMemo(() => {
+    return schedules.map(schedule => {
+      const mainPlayers = schedule.players.filter(p => p.role === 'MAIN');
+      const available = mainPlayers.filter(p => p.availability && p.availability !== 'x' && p.availability !== 'X').length;
+      const unavailable = mainPlayers.filter(p => p.availability === 'x' || p.availability === 'X').length;
+      const noResponse = mainPlayers.filter(p => !p.availability).length;
+
+      const [day, month] = schedule.date.split('.');
+      return {
+        date: `${day}.${month}`,
+        available,
+        unavailable,
+        noResponse,
+        total: mainPlayers.length,
+      };
+    });
+  }, [schedules]);
+
+  const mapStatsData = useMemo(() => {
+    if (!scrimStats?.mapStats) return [];
+    return Object.entries(scrimStats.mapStats)
+      .map(([map, data]) => ({
+        map,
+        wins: data.wins,
+        losses: data.losses,
+        played: data.played,
+        winRate: data.played > 0 ? Math.round((data.wins / data.played) * 100) : 0,
+      }))
+      .sort((a, b) => b.played - a.played)
+      .slice(0, 8);
+  }, [scrimStats]);
+
+  const recentResultsData = useMemo(() => {
+    return [...recentScrims]
+      .reverse()
+      .slice(-8)
+      .map(scrim => ({
+        opponent: scrim.opponent.length > 10 ? scrim.opponent.slice(0, 10) + '..' : scrim.opponent,
+        scoreUs: scrim.scoreUs,
+        scoreThem: scrim.scoreThem,
+        result: scrim.result,
+        fill: scrim.result === 'win' ? 'oklch(0.723 0.219 149.579)' : scrim.result === 'loss' ? 'oklch(0.577 0.245 27.325)' : 'oklch(0.708 0 0)',
+      }));
+  }, [recentScrims]);
+
+  const rosterBreakdown = useMemo(() => {
+    const mains = userMappings.filter(u => u.role === 'MAIN').length;
+    const subs = userMappings.filter(u => u.role === 'SUB').length;
+    const coaches = userMappings.filter(u => u.role === 'COACH').length;
+    return { mains, subs, coaches };
+  }, [userMappings]);
 
   const isOnline = botStatus && botStatus.status === 'running' && botStatus.botReady;
 
@@ -131,9 +287,12 @@ export default function AdminDashboardHome() {
     },
   ];
 
+  const hasScrimData = scrimStats && scrimStats.totalScrims > 0;
+  const hasScheduleData = schedules.length > 0;
+
   return (
     <div className="space-y-6">
-      {/* Bot Status Cards with Stagger Animation */}
+      {/* Bot Status Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {statusCards.map((card, index) => {
           const Icon = card.icon;
@@ -167,14 +326,14 @@ export default function AdminDashboardHome() {
         })}
       </div>
 
-      {/* Stats Grid with Stagger Animation */}
+      {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {[
           {
             title: 'Total Users',
             icon: Users,
             value: loading ? '...' : stats?.totalUsers || 0,
-            description: 'Registered team members',
+            description: `${rosterBreakdown.mains} Main, ${rosterBreakdown.subs} Sub, ${rosterBreakdown.coaches} Coach`,
           },
           {
             title: 'Upcoming Schedules',
@@ -186,13 +345,13 @@ export default function AdminDashboardHome() {
             title: 'Total Scrims',
             icon: Trophy,
             value: loading ? '...' : stats?.totalScrims || 0,
-            description: 'Match history records',
+            description: hasScrimData ? `Win Rate: ${scrimStats!.winRate.toFixed(1)}%` : 'Match history records',
           },
           {
-            title: 'Active Schedules',
-            icon: Activity,
-            value: loading ? '...' : stats?.totalSchedules || 0,
-            description: 'Total schedule entries',
+            title: 'Win Rate',
+            icon: Percent,
+            value: loading ? '...' : hasScrimData ? `${scrimStats!.winRate.toFixed(1)}%` : 'N/A',
+            description: hasScrimData ? `${scrimStats!.wins}W / ${scrimStats!.losses}L / ${scrimStats!.draws}D` : 'No match data',
           },
         ].map((stat, index) => {
           const Icon = stat.icon;
@@ -217,7 +376,228 @@ export default function AdminDashboardHome() {
         })}
       </div>
 
-      {/* Quick Actions with Stagger Animation */}
+      {/* Charts Row 1: Scrim Results + Availability */}
+      <div className="grid gap-4 md:grid-cols-2">
+        {/* Scrim Results Pie Chart */}
+        <Card className={cn('animate-slideUp', microInteractions.hoverLift)}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Target className="h-4 w-4" />
+              Scrim Results
+            </CardTitle>
+            <CardDescription>
+              {hasScrimData
+                ? `Win/Loss distribution across ${scrimStats!.totalScrims} matches`
+                : 'No scrim data available yet'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {hasScrimData && scrimResultsData.length > 0 ? (
+              <ChartContainer config={scrimResultsConfig} className="mx-auto aspect-square max-h-[280px]">
+                <PieChart>
+                  <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+                  <Pie
+                    data={scrimResultsData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={100}
+                    strokeWidth={2}
+                    stroke="hsl(var(--background))"
+                  >
+                    {scrimResultsData.map((entry) => (
+                      <Cell key={entry.name} fill={entry.fill} />
+                    ))}
+                  </Pie>
+                  <ChartLegend content={<ChartLegendContent />} />
+                  <text
+                    x="50%"
+                    y="45%"
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    className="fill-foreground text-2xl font-bold"
+                  >
+                    {scrimStats!.winRate.toFixed(0)}%
+                  </text>
+                  <text
+                    x="50%"
+                    y="55%"
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    className="fill-muted-foreground text-xs"
+                  >
+                    Win Rate
+                  </text>
+                </PieChart>
+              </ChartContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[280px] text-muted-foreground text-sm">
+                Play some matches to see statistics
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Availability Overview Bar Chart */}
+        <Card className={cn('animate-slideUp', microInteractions.hoverLift)}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart3 className="h-4 w-4" />
+              Team Availability
+            </CardTitle>
+            <CardDescription>
+              {hasScheduleData
+                ? 'Main player availability for the next 14 days'
+                : 'No schedule data available'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {hasScheduleData && availabilityData.length > 0 ? (
+              <ChartContainer config={availabilityConfig} className="max-h-[280px]">
+                <BarChart data={availabilityData} margin={{ top: 0, right: 0, bottom: 0, left: -20 }}>
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis
+                    dataKey="date"
+                    tickLine={false}
+                    axisLine={false}
+                    fontSize={11}
+                    tickMargin={8}
+                  />
+                  <YAxis
+                    tickLine={false}
+                    axisLine={false}
+                    fontSize={11}
+                    tickMargin={4}
+                    allowDecimals={false}
+                  />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <ChartLegend content={<ChartLegendContent />} />
+                  <Bar
+                    dataKey="available"
+                    stackId="a"
+                    fill="oklch(0.723 0.219 149.579)"
+                    radius={[0, 0, 0, 0]}
+                  />
+                  <Bar
+                    dataKey="unavailable"
+                    stackId="a"
+                    fill="oklch(0.577 0.245 27.325)"
+                    radius={[0, 0, 0, 0]}
+                  />
+                  <Bar
+                    dataKey="noResponse"
+                    stackId="a"
+                    fill="oklch(0.708 0 0)"
+                    radius={[4, 4, 0, 0]}
+                  />
+                </BarChart>
+              </ChartContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[280px] text-muted-foreground text-sm">
+                Schedule data will appear here
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Charts Row 2: Map Performance + Recent Results */}
+      <div className="grid gap-4 md:grid-cols-2">
+        {/* Map Performance Bar Chart */}
+        <Card className={cn('animate-slideUp', microInteractions.hoverLift)}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Map className="h-4 w-4" />
+              Map Performance
+            </CardTitle>
+            <CardDescription>
+              {mapStatsData.length > 0
+                ? 'Win/Loss breakdown by map'
+                : 'No map data available yet'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {mapStatsData.length > 0 ? (
+              <ChartContainer config={mapStatsConfig} className="max-h-[300px]">
+                <BarChart data={mapStatsData} layout="vertical" margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+                  <CartesianGrid horizontal={false} strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis type="number" tickLine={false} axisLine={false} fontSize={11} allowDecimals={false} />
+                  <YAxis
+                    dataKey="map"
+                    type="category"
+                    tickLine={false}
+                    axisLine={false}
+                    fontSize={11}
+                    width={80}
+                    tickMargin={4}
+                  />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <ChartLegend content={<ChartLegendContent />} />
+                  <Bar dataKey="wins" stackId="a" fill="oklch(0.723 0.219 149.579)" radius={[0, 0, 0, 0]} />
+                  <Bar dataKey="losses" stackId="a" fill="oklch(0.577 0.245 27.325)" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ChartContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[300px] text-muted-foreground text-sm">
+                Play matches on different maps to see performance
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Recent Match Results */}
+        <Card className={cn('animate-slideUp', microInteractions.hoverLift)}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-4 w-4" />
+              Recent Matches
+            </CardTitle>
+            <CardDescription>
+              {recentResultsData.length > 0
+                ? 'Score comparison for recent matches'
+                : 'No recent match data'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {recentResultsData.length > 0 ? (
+              <ChartContainer config={recentResultsConfig} className="max-h-[300px]">
+                <BarChart data={recentResultsData} margin={{ top: 0, right: 0, bottom: 0, left: -20 }}>
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis
+                    dataKey="opponent"
+                    tickLine={false}
+                    axisLine={false}
+                    fontSize={10}
+                    tickMargin={8}
+                    angle={-30}
+                    textAnchor="end"
+                    height={50}
+                  />
+                  <YAxis
+                    tickLine={false}
+                    axisLine={false}
+                    fontSize={11}
+                    tickMargin={4}
+                    allowDecimals={false}
+                  />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <ChartLegend content={<ChartLegendContent />} />
+                  <Bar dataKey="scoreUs" fill="var(--chart-1)" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="scoreThem" fill="var(--chart-5)" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ChartContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[300px] text-muted-foreground text-sm">
+                Recent match scores will appear here
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Quick Actions */}
       <Card className="animate-slideUp">
         <CardHeader>
           <CardTitle>Quick Actions</CardTitle>
