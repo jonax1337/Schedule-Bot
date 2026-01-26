@@ -433,9 +433,9 @@ export default function AdminDashboardHome() {
   }, [allScrims]);
 
   const rosterBreakdown = useMemo(() => {
-    const mains = userMappings.filter(u => u.role === 'MAIN').length;
-    const subs = userMappings.filter(u => u.role === 'SUB').length;
-    const coaches = userMappings.filter(u => u.role === 'COACH').length;
+    const mains = userMappings.filter(u => u.role.toLowerCase() === 'main').length;
+    const subs = userMappings.filter(u => u.role.toLowerCase() === 'sub').length;
+    const coaches = userMappings.filter(u => u.role.toLowerCase() === 'coach').length;
     return { mains, subs, coaches };
   }, [userMappings]);
 
