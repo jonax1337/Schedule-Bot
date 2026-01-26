@@ -27,7 +27,7 @@ import {
   YAxis,
   CartesianGrid,
 } from 'recharts';
-import { Target, Map, BarChart3, TrendingUp, Swords } from 'lucide-react';
+import { Target, Map, BarChart3, TrendingUp, Swords, Loader2 } from 'lucide-react';
 import { stagger, cn } from '@/lib/animations';
 
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
@@ -408,7 +408,7 @@ export default function StatisticsPanel() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64 text-muted-foreground">
-        Loading statistics...
+        <Loader2 className="h-6 w-6 animate-spin" />
       </div>
     );
   }
@@ -418,7 +418,7 @@ export default function StatisticsPanel() {
       {/* Charts Row 1: Scrim Results + Availability */}
       <div className="grid gap-4 md:grid-cols-2">
         {/* Scrim Results Pie Chart */}
-        <Card className="animate-slideUp">
+        <Card className={stagger(0, 'slow', 'slideUpScale')}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Target className="h-4 w-4" />
@@ -491,7 +491,7 @@ export default function StatisticsPanel() {
         </Card>
 
         {/* Availability Overview Bar Chart */}
-        <Card className="animate-slideUp">
+        <Card className={stagger(1, 'slow', 'slideUpScale')}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <BarChart3 className="h-4 w-4" />
@@ -562,8 +562,8 @@ export default function StatisticsPanel() {
                 </BarChart>
               </ChartContainer>
             ) : availabilityLoading ? (
-              <div className="flex items-center justify-center h-[300px] text-muted-foreground text-sm">
-                Loading availability data...
+              <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+                <Loader2 className="h-5 w-5 animate-spin" />
               </div>
             ) : (
               <div className="flex items-center justify-center h-[300px] text-muted-foreground text-sm">
@@ -577,7 +577,7 @@ export default function StatisticsPanel() {
       {/* Charts Row 2: Map Performance + Recent Results */}
       <div className="grid gap-4 md:grid-cols-2">
         {/* Map Performance Bar Chart */}
-        <Card className="animate-slideUp">
+        <Card className={stagger(2, 'slow', 'slideUpScale')}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Map className="h-4 w-4" />
@@ -630,7 +630,7 @@ export default function StatisticsPanel() {
         </Card>
 
         {/* Recent Match Results */}
-        <Card className="animate-slideUp">
+        <Card className={stagger(3, 'slow', 'slideUpScale')}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
@@ -680,7 +680,7 @@ export default function StatisticsPanel() {
       </div>
 
       {/* Agent Usage */}
-      <Card className="animate-slideUp">
+      <Card className={stagger(4, 'slow', 'slideUpScale')}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Swords className="h-4 w-4" />
