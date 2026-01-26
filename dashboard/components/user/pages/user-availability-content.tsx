@@ -732,10 +732,24 @@ export function UserAvailabilityContent() {
                     <TableCell className="text-muted-foreground">{getWeekdayName(entry.date)}</TableCell>
                     {isAbsent ? (
                       <>
-                        <TableCell colSpan={2}>
-                          <div className="flex items-center gap-2">
-                            <PlaneTakeoff className="w-4 h-4 text-purple-500" />
-                            <span className="text-purple-500 font-medium">Absent</span>
+                        <TableCell>
+                          <div className="relative">
+                            <Input
+                              type="time"
+                              value=""
+                              className="w-32 opacity-40 cursor-not-allowed"
+                              disabled
+                            />
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="relative">
+                            <Input
+                              type="time"
+                              value=""
+                              className="w-32 opacity-40 cursor-not-allowed"
+                              disabled
+                            />
                           </div>
                         </TableCell>
                         <TableCell>
