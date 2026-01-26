@@ -23,6 +23,8 @@ import {
   Cell,
   BarChart,
   Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -110,12 +112,8 @@ const mapStatsConfig: ChartConfig = {
   losses: { label: 'Losses', color: 'oklch(0.577 0.245 27.325)' },
 };
 
-const SCORE_US_COLOR = 'oklch(0.488 0.243 264.376)';
-const SCORE_THEM_COLOR = 'oklch(0.645 0.246 16.439)';
-
-const recentResultsConfig: ChartConfig = {
-  scoreUs: { label: 'Our Score', color: SCORE_US_COLOR },
-  scoreThem: { label: 'Opponent', color: SCORE_THEM_COLOR },
+const performanceTrendConfig: ChartConfig = {
+  winRate: { label: 'Win Rate (Last 5)', color: 'oklch(0.488 0.243 264.376)' },
 };
 
 function parseDDMMYYYY(dateStr: string): Date {
@@ -354,18 +352,28 @@ export default function StatisticsPanel() {
       .slice(0, 8);
   }, [filteredStats]);
 
-  const recentResultsData = useMemo(() => {
-    return [...allScrims]
-      .slice(0, 10)
-      .reverse()
-      .slice(-8)
-      .map(scrim => ({
-        opponent: scrim.opponent.length > 12 ? scrim.opponent.slice(0, 12) + '..' : scrim.opponent,
-        scoreUs: scrim.scoreUs,
-        scoreThem: scrim.scoreThem,
-        result: scrim.result,
-      }));
-  }, [allScrims]);
+  const performanceTrendData = useMemo(() => {
+    const sorted = [...filteredScrims].sort((a, b) => {
+      return parseDDMMYYYY(a.date).getTime() - parseDDMMYYYY(b.date).getTime();
+    });
+
+    if (sorted.length === 0) return [];
+
+    const windowSize = 5;
+
+    return sorted.map((scrim, index) => {
+      const windowStart = Math.max(0, index - windowSize + 1);
+      const window = sorted.slice(windowStart, index + 1);
+      const windowWins = window.filter(s => s.result === 'win').length;
+      const rollingWinRate = Math.round((windowWins / window.length) * 100);
+
+      const [day, month] = scrim.date.split('.');
+      return {
+        label: `${day}.${month}`,
+        winRate: rollingWinRate,
+      };
+    });
+  }, [filteredScrims]);
 
   const agentUsageData = useMemo(() => {
     const agentCounts: Record<string, { picks: number; wins: number }> = {};
@@ -417,83 +425,10 @@ export default function StatisticsPanel() {
 
   return (
     <div className="space-y-6">
-      {/* Charts Row 1: Scrim Results + Availability */}
+      {/* Charts Row 1: Team Availability + Performance Trend */}
       <div className="grid gap-4 md:grid-cols-2">
-        {/* Scrim Results Pie Chart */}
+        {/* Team Availability Bar Chart */}
         <Card className={stagger(0, 'slow', 'slideUpScale')}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Target className="h-4 w-4" />
-              Scrim Results
-            </CardTitle>
-            <CardAction>
-              <ScrimFilters
-                matchType={scrimMatchType}
-                onMatchTypeChange={setScrimMatchType}
-                timeRange={scrimTimeRange}
-                onTimeRangeChange={(v) => setScrimTimeRange(v as ScrimTimeRange)}
-                matchTypes={availableMatchTypes}
-              />
-            </CardAction>
-            <CardDescription>
-              {hasScrimData
-                ? `Win/Loss distribution across ${filteredStats.totalScrims} matches${isFiltered ? ' (filtered)' : ''}`
-                : allScrims.length > 0
-                  ? 'No matches match the current filters'
-                  : 'No scrim data available yet'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex-1">
-            {hasScrimData && scrimResultsData.length > 0 ? (
-              <ChartContainer config={scrimResultsConfig} className="mx-auto aspect-square max-h-[300px] w-full">
-                <PieChart>
-                  <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-                  <Pie
-                    data={scrimResultsData}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={100}
-                    strokeWidth={2}
-                    stroke="hsl(var(--background))"
-                  >
-                    {scrimResultsData.map((entry) => (
-                      <Cell key={entry.name} fill={entry.fill} />
-                    ))}
-                  </Pie>
-                  <ChartLegend content={<ChartLegendContent />} />
-                  <text
-                    x="50%"
-                    y="45%"
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    className="fill-foreground text-2xl font-bold"
-                  >
-                    {filteredStats.winRate.toFixed(0)}%
-                  </text>
-                  <text
-                    x="50%"
-                    y="55%"
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    className="fill-muted-foreground text-xs"
-                  >
-                    Win Rate
-                  </text>
-                </PieChart>
-              </ChartContainer>
-            ) : (
-              <div className="flex items-center justify-center h-[300px] text-muted-foreground text-sm">
-                {allScrims.length > 0 ? 'No matches match the current filters' : 'Play some matches to see statistics'}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Availability Overview Bar Chart */}
-        <Card className={stagger(1, 'slow', 'slideUpScale')}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <BarChart3 className="h-4 w-4" />
@@ -574,12 +509,151 @@ export default function StatisticsPanel() {
             )}
           </CardContent>
         </Card>
+
+        {/* Performance Trend Line Chart */}
+        <Card className={stagger(1, 'slow', 'slideUpScale')}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-4 w-4" />
+              Performance Trend
+            </CardTitle>
+            <CardAction>
+              <ScrimFilters
+                matchType={scrimMatchType}
+                onMatchTypeChange={setScrimMatchType}
+                timeRange={scrimTimeRange}
+                onTimeRangeChange={(v) => setScrimTimeRange(v as ScrimTimeRange)}
+                matchTypes={availableMatchTypes}
+              />
+            </CardAction>
+            <CardDescription>
+              {performanceTrendData.length > 0
+                ? `Rolling win rate (last 5 matches)${isFiltered ? ' — filtered' : ''}`
+                : allScrims.length > 0
+                  ? 'No matches match the current filters'
+                  : 'No match data available yet'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex-1">
+            {performanceTrendData.length > 0 ? (
+              <ChartContainer config={performanceTrendConfig} className="aspect-auto h-[300px] w-full">
+                <LineChart data={performanceTrendData} margin={{ top: 5, right: 5, bottom: 5, left: -15 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis
+                    dataKey="label"
+                    tickLine={false}
+                    axisLine={false}
+                    fontSize={10}
+                    tickMargin={8}
+                    interval={performanceTrendData.length > 20 ? Math.floor(performanceTrendData.length / 10) : 0}
+                  />
+                  <YAxis
+                    tickLine={false}
+                    axisLine={false}
+                    fontSize={11}
+                    tickMargin={4}
+                    domain={[0, 100]}
+                    tickFormatter={(v) => `${v}%`}
+                  />
+                  <ChartTooltip
+                    content={<ChartTooltipContent formatter={(value) => `${value}%`} />}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="winRate"
+                    stroke="oklch(0.488 0.243 264.376)"
+                    strokeWidth={2}
+                    dot={{ r: 3, fill: 'oklch(0.488 0.243 264.376)' }}
+                    activeDot={{ r: 5 }}
+                  />
+                </LineChart>
+              </ChartContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[300px] text-muted-foreground text-sm">
+                {allScrims.length > 0 ? 'No matches match the current filters' : 'Play some matches to see the performance trend'}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Charts Row 2: Map Performance + Recent Results */}
+      {/* Charts Row 2: Match Results + Map Performance */}
       <div className="grid gap-4 md:grid-cols-2">
-        {/* Map Performance Bar Chart */}
+        {/* Match Results Pie Chart */}
         <Card className={stagger(2, 'slow', 'slideUpScale')}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Target className="h-4 w-4" />
+              Match Results
+            </CardTitle>
+            <CardAction>
+              <ScrimFilters
+                matchType={scrimMatchType}
+                onMatchTypeChange={setScrimMatchType}
+                timeRange={scrimTimeRange}
+                onTimeRangeChange={(v) => setScrimTimeRange(v as ScrimTimeRange)}
+                matchTypes={availableMatchTypes}
+              />
+            </CardAction>
+            <CardDescription>
+              {hasScrimData
+                ? `Win/Loss distribution across ${filteredStats.totalScrims} matches${isFiltered ? ' (filtered)' : ''}`
+                : allScrims.length > 0
+                  ? 'No matches match the current filters'
+                  : 'No scrim data available yet'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex-1">
+            {hasScrimData && scrimResultsData.length > 0 ? (
+              <ChartContainer config={scrimResultsConfig} className="mx-auto aspect-square max-h-[300px] w-full">
+                <PieChart>
+                  <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+                  <Pie
+                    data={scrimResultsData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={100}
+                    strokeWidth={2}
+                    stroke="hsl(var(--background))"
+                  >
+                    {scrimResultsData.map((entry) => (
+                      <Cell key={entry.name} fill={entry.fill} />
+                    ))}
+                  </Pie>
+                  <ChartLegend content={<ChartLegendContent />} />
+                  <text
+                    x="50%"
+                    y="45%"
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    className="fill-foreground text-2xl font-bold"
+                  >
+                    {filteredStats.winRate.toFixed(0)}%
+                  </text>
+                  <text
+                    x="50%"
+                    y="55%"
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    className="fill-muted-foreground text-xs"
+                  >
+                    Win Rate
+                  </text>
+                </PieChart>
+              </ChartContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[300px] text-muted-foreground text-sm">
+                {allScrims.length > 0 ? 'No matches match the current filters' : 'Play some matches to see statistics'}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Map Performance Bar Chart */}
+        <Card className={stagger(3, 'slow', 'slideUpScale')}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Map className="h-4 w-4" />
@@ -626,55 +700,6 @@ export default function StatisticsPanel() {
             ) : (
               <div className="flex items-center justify-center h-[300px] text-muted-foreground text-sm">
                 {allScrims.length > 0 ? 'No matches match the current filters' : 'Play matches on different maps to see performance'}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Recent Match Results */}
-        <Card className={stagger(3, 'slow', 'slideUpScale')}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" />
-              Recent Matches
-            </CardTitle>
-            <CardDescription>
-              {recentResultsData.length > 0
-                ? 'Score comparison for recent matches'
-                : 'No recent match data'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex-1">
-            {recentResultsData.length > 0 ? (
-              <ChartContainer config={recentResultsConfig} className="aspect-auto h-[300px] w-full">
-                <BarChart data={recentResultsData} margin={{ top: 5, right: 5, bottom: 5, left: -15 }}>
-                  <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis
-                    dataKey="opponent"
-                    tickLine={false}
-                    axisLine={false}
-                    fontSize={10}
-                    tickMargin={8}
-                    angle={-30}
-                    textAnchor="end"
-                    height={50}
-                  />
-                  <YAxis
-                    tickLine={false}
-                    axisLine={false}
-                    fontSize={11}
-                    tickMargin={4}
-                    allowDecimals={false}
-                  />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <ChartLegend content={<ChartLegendContent />} />
-                  <Bar dataKey="scoreUs" fill={SCORE_US_COLOR} radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="scoreThem" fill={SCORE_THEM_COLOR} radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ChartContainer>
-            ) : (
-              <div className="flex items-center justify-center h-[300px] text-muted-foreground text-sm">
-                Recent match scores will appear here
               </div>
             )}
           </CardContent>
