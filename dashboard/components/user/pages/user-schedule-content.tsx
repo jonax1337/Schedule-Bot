@@ -505,10 +505,6 @@ export function UserScheduleContent() {
             <div className="w-2.5 h-2.5 rounded-full bg-gray-400" />
             <span className="text-xs">Unknown</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <PlaneTakeoff className="w-2.5 h-2.5 text-purple-500" />
-            <span className="text-xs">Absent</span>
-          </div>
         </div>
       </div>
 
