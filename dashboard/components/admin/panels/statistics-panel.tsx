@@ -23,6 +23,8 @@ import {
   Cell,
   BarChart,
   Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -111,7 +113,7 @@ const mapStatsConfig: ChartConfig = {
 };
 
 const matchFrequencyConfig: ChartConfig = {
-  matches: { label: 'Matches', color: 'oklch(0.488 0.243 264.376)' },
+  matches: { label: 'Matches', color: 'oklch(0.769 0.188 70.08)' },
 };
 
 function parseDDMMYYYY(dateStr: string): Date {
@@ -320,10 +322,10 @@ export default function StatisticsPanel() {
 
   const availabilityData = useMemo(() => {
     return availabilitySchedules.map(schedule => {
-      const mainPlayers = schedule.players.filter(p => p.role === 'MAIN');
-      const available = mainPlayers.filter(p => p.availability && p.availability !== 'x' && p.availability !== 'X').length;
-      const unavailable = mainPlayers.filter(p => p.availability === 'x' || p.availability === 'X').length;
-      const noResponse = mainPlayers.filter(p => !p.availability).length;
+      const activePlayers = schedule.players.filter(p => p.role === 'MAIN' || p.role === 'SUB');
+      const available = activePlayers.filter(p => p.availability && p.availability !== 'x' && p.availability !== 'X').length;
+      const unavailable = activePlayers.filter(p => p.availability === 'x' || p.availability === 'X').length;
+      const noResponse = activePlayers.filter(p => !p.availability).length;
 
       const [day, month] = schedule.date.split('.');
       return {
@@ -331,7 +333,7 @@ export default function StatisticsPanel() {
         available,
         unavailable,
         noResponse,
-        total: mainPlayers.length,
+        total: activePlayers.length,
       };
     });
   }, [availabilitySchedules]);
@@ -459,7 +461,7 @@ export default function StatisticsPanel() {
               {availabilityLoading
                 ? 'Loading...'
                 : hasAvailabilityData
-                  ? `Main player availability — ${selectedRangeLabel}`
+                  ? `Player availability (excl. Coach) — ${selectedRangeLabel}`
                   : 'No schedule data available'}
             </CardDescription>
           </CardHeader>
@@ -544,8 +546,8 @@ export default function StatisticsPanel() {
           <CardContent className="flex-1">
             {matchFrequencyData.length > 0 ? (
               <ChartContainer config={matchFrequencyConfig} className="aspect-auto h-[300px] w-full">
-                <BarChart data={matchFrequencyData} margin={{ top: 5, right: 5, bottom: 5, left: -15 }}>
-                  <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border" />
+                <LineChart data={matchFrequencyData} margin={{ top: 5, right: 5, bottom: 5, left: -15 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                   <XAxis
                     dataKey="label"
                     tickLine={false}
@@ -562,12 +564,15 @@ export default function StatisticsPanel() {
                     allowDecimals={false}
                   />
                   <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar
+                  <Line
+                    type="monotone"
                     dataKey="matches"
-                    fill="oklch(0.488 0.243 264.376)"
-                    radius={[4, 4, 0, 0]}
+                    stroke="oklch(0.769 0.188 70.08)"
+                    strokeWidth={2}
+                    dot={{ r: 3, fill: 'oklch(0.769 0.188 70.08)' }}
+                    activeDot={{ r: 5 }}
                   />
-                </BarChart>
+                </LineChart>
               </ChartContainer>
             ) : (
               <div className="flex items-center justify-center h-[300px] text-muted-foreground text-sm">
