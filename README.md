@@ -26,7 +26,7 @@
 
 ---
 
-## 📋 Table of Contents
+## Table of Contents
 
 - [About](#about)
 - [Features](#features)
@@ -39,7 +39,6 @@
 - [Database Setup](#database-setup)
 - [Configuration](#configuration)
 - [Usage](#usage)
-- [Screenshots](#screenshots)
 - [API Documentation](#api-documentation)
 - [Development](#development)
 - [Deployment](#deployment)
@@ -47,7 +46,7 @@
 
 ---
 
-## 🎯 About
+## About
 
 **Valorant Schedule Bot** is a full-stack scheduling solution designed specifically for E-Sports teams. It combines the familiar Discord interface with a powerful web dashboard to manage player availability, coordinate training sessions, and ensure optimal team roster planning.
 
@@ -64,7 +63,7 @@
 
 ---
 
-## ✨ Features
+## Features
 
 ### Discord Bot Features
 - **Interactive Availability Setting**: Button-based UI for quick availability updates
@@ -83,23 +82,26 @@
 - **User Portal**: Self-service availability management with live database updates
 - **Schedule Editor**: Spreadsheet-like editor for schedule entries
 - **Scrim Manager**: Record opponents, results, VOD URLs, and notes with automatic stats
+- **Statistics Panel**: Team availability charts, scrim results visualization, win/loss streaks, and map composition analysis using Recharts
 - **Live Logs**: Stream bot activity, warnings, and errors from the API server
 - **User Management**: Register/unregister Discord users and sync mappings
 - **Manual Actions**: Trigger posts, reminders, notifications, and polls manually
+- **Branding Customization**: Configure team name, tagline, and logo via settings
 - **Responsive Design**: Works on desktop, tablet, and mobile (PWA-ready)
 - **Dark Mode**: Full dark mode support with system preference detection
 
 ### Automation Features
 - **Daily Schedule Posts**: Automatic posting at configured time
 - **Smart Reminders**: DM notifications X hours before post time
+- **Duplicate Reminders**: Optional second reminder closer to post time for stragglers
 - **Schedule Seeding**: Ensures the next 14 days exist in the database
 - **Change Notifications**: Optional channel alerts when roster status improves
 - **Training Polls**: Optional automatic training time voting
-- **Absence Processing**: Hourly job marks absent users as unavailable
+- **Absence Integration**: Absent players excluded from reminders, polls, and marked in daily embeds
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ### System Overview
 
@@ -234,10 +236,11 @@ The main process follows this startup sequence (defined in `src/index.ts`):
 
 ### Scheduler Jobs
 
-The bot runs two scheduled cron jobs (`src/jobs/scheduler.ts`):
+The bot runs up to three scheduled cron jobs (`src/jobs/scheduler.ts`):
 
 1. **Main Post** - Daily at `config.scheduling.dailyPostTime`, posts schedule embed to Discord
 2. **Reminder** - X hours before main post (calculated from `reminderHoursBefore`), DMs players without availability entry
+3. **Duplicate Reminder** (optional) - A second reminder closer to post time, enabled via `duplicateReminderEnabled`. Sends the same DM reminders to players still without availability. Configured via `duplicateReminderHoursBefore` (default: 1 hour before post)
 
 **Important**:
 - Jobs respect `config.scheduling.timezone` for accurate scheduling
@@ -268,18 +271,26 @@ config.discord = {
   allowDiscordAuth     // Enable Discord OAuth
 }
 config.scheduling = {
-  dailyPostTime,              // "HH:MM" format
-  timezone,                   // IANA timezone (e.g., "Europe/Berlin")
-  reminderHoursBefore,        // Send reminders X hours before post
-  trainingStartPollEnabled,   // Toggle training poll feature
-  pollDurationMinutes,        // Poll open duration
-  cleanChannelBeforePost      // Auto-clean before posting
+  dailyPostTime,                    // "HH:MM" format
+  timezone,                         // IANA timezone (e.g., "Europe/Berlin")
+  reminderHoursBefore,              // Send reminders X hours before post
+  duplicateReminderEnabled,         // Toggle second reminder (default: false)
+  duplicateReminderHoursBefore,     // Hours before post for duplicate reminder (default: 1)
+  trainingStartPollEnabled,         // Toggle training poll feature
+  pollDurationMinutes,              // Poll open duration
+  cleanChannelBeforePost,           // Auto-clean before posting
+  changeNotificationsEnabled        // Notify when roster improvements detected
+}
+config.branding = {
+  teamName,                  // Team display name (default: "Valorant Bot")
+  tagline,                   // Optional tagline (default: "Schedule Manager")
+  logoUrl                    // Optional logo URL for sidebar branding
 }
 ```
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 ### Backend
 - **Runtime**: Node.js 20+
@@ -315,7 +326,7 @@ config.scheduling = {
 
 ---
 
-## 📦 Prerequisites
+## Prerequisites
 
 Before installation, ensure you have:
 
@@ -327,7 +338,7 @@ Before installation, ensure you have:
 
 ---
 
-## 🚀 Installation
+## Installation
 
 ### 1. Clone the Repository
 
@@ -385,7 +396,7 @@ npm run dev
 
 ---
 
-## 🤖 Discord Bot Setup
+## Discord Bot Setup
 
 ### Step 1: Create Discord Application
 
@@ -478,7 +489,7 @@ Users without Administrator permission won't see these commands.
 
 ---
 
-## 🔐 Discord OAuth Setup (Optional)
+## Discord OAuth Setup (Optional)
 
 Discord OAuth allows users to log in to the dashboard using their Discord account.
 
@@ -543,7 +554,7 @@ User is logged in to dashboard
 
 ---
 
-## 🗄️ Database Setup
+## Database Setup
 
 ### PostgreSQL Installation
 
@@ -661,13 +672,12 @@ The migration creates the following tables:
 - **Indexes**: `discord_id`, `(role, sort_order)`
 
 **4. absences**
-- `id` (TEXT PRIMARY KEY)
-- `discord_id` (TEXT)
-- `username` (TEXT)
+- `id` (SERIAL PRIMARY KEY)
+- `user_id` (TEXT) - Discord ID
 - `start_date`, `end_date` (TEXT) - Format: DD.MM.YYYY
 - `reason` (TEXT)
 - `created_at`, `updated_at` (TIMESTAMP)
-- **Indexes**: `discord_id`, `start_date`, `end_date`
+- **Indexes**: `user_id`, `(start_date, end_date)`
 
 **5. scrims**
 - `id` (TEXT PRIMARY KEY)
@@ -707,7 +717,7 @@ psql -U schedule_bot_user schedule_bot < backup.sql
 
 ---
 
-## ⚙️ Configuration
+## Configuration
 
 ### Environment Variables (.env)
 
@@ -752,7 +762,6 @@ NEXT_PUBLIC_BOT_API_URL=http://localhost:3001  # Backend API URL for client-side
 - **DASHBOARD_URL**: Dashboard URL for production CORS (defaults to localhost:3000)
 - **BOT_API_URL**: Backend API URL for dashboard server-side proxy (defaults to http://localhost:3001)
 - **NEXT_PUBLIC_BOT_API_URL**: Backend API URL for dashboard client-side (defaults to http://localhost:3001)
-```
 
 ### Generate Password Hash
 
@@ -774,16 +783,22 @@ Settings are stored in the `settings` table and can be modified via:
 - `discord.channelId`: Discord channel for automated posts
 - `discord.pingRoleId`: Role to mention in posts (optional)
 - `discord.allowDiscordAuth`: Enable Discord OAuth login
-- `discord.cleanChannelBeforePost`: Delete previous bot messages
 - `scheduling.dailyPostTime`: Time for daily schedule post (HH:MM)
 - `scheduling.timezone`: IANA timezone (e.g., "Europe/Berlin")
 - `scheduling.reminderHoursBefore`: Hours before post to send reminders
+- `scheduling.duplicateReminderEnabled`: Enable second reminder (default: false)
+- `scheduling.duplicateReminderHoursBefore`: Hours before post for second reminder (default: 1)
 - `scheduling.trainingStartPollEnabled`: Auto-create training polls
+- `scheduling.pollDurationMinutes`: Poll open duration (Discord-compatible values only)
+- `scheduling.cleanChannelBeforePost`: Delete previous bot messages before posting
 - `scheduling.changeNotificationsEnabled`: Enable roster improvement alerts
+- `branding.teamName`: Team display name (default: "Valorant Bot")
+- `branding.tagline`: Subtitle text (default: "Schedule Manager")
+- `branding.logoUrl`: Custom logo URL for sidebar branding
 
 ---
 
-## 📖 Usage
+## Usage
 
 ### Common Development Commands
 
@@ -850,6 +865,8 @@ node dist/generateHash.js YOUR_PASSWORD
 | `/set-week` | Set availability for next 7 days | `/set-week` |
 | `/schedule-week` | Show next 7 days overview | `/schedule-week` |
 | `/my-schedule` | Your personal 14-day schedule | `/my-schedule` |
+| `/view-scrims [limit]` | View recent match results | `/view-scrims limit:5` |
+| `/scrim-stats` | View win/loss statistics | `/scrim-stats` |
 
 #### Admin Commands (Require Administrator Permission)
 
@@ -869,85 +886,43 @@ node dist/generateHash.js YOUR_PASSWORD
 
 #### Admin Dashboard (`/admin`)
 
-1. **Settings Tab**: Configure all bot settings
-2. **Users Tab**: Manage player registrations
-3. **Schedule Tab**: Spreadsheet-like editor
-4. **Scrims Tab**: Track scrim results and VOD reviews
-5. **Actions Tab**: Trigger manual bot actions
-6. **Security Tab**: Manage authentication settings
-7. **Logs Tab**: View real-time bot logs
+Sidebar is organized into three groups:
+
+**Overview:**
+1. **Dashboard**: Bot status, uptime, and quick actions
+2. **Statistics**: Team availability charts, scrim results, win/loss streaks, map compositions
+
+**Team:**
+3. **Schedule**: Spreadsheet-like editor for schedule entries
+4. **Users**: Manage player registrations and roster
+5. **Matches**: Track scrim results, VOD links, and agent compositions
+
+**System:**
+6. **Settings**: Configure Discord, scheduling, and branding settings
+7. **Actions**: Trigger manual bot actions (posts, reminders, polls, notifications)
+8. **Security**: Password hash and JWT secret generators
+9. **Logs**: View real-time bot logs with level filtering
 
 #### User Portal (`/user`)
 
 1. Select your username from dropdown (or login with Discord)
-2. View your next 14 days availability
-3. Edit entries with time picker
-4. Use checkbox + bulk edit for multiple days
-5. Manage absences in advance
+2. **Schedule**: View 14-day calendar with team availability
+3. **Availability**: Edit your availability with time picker and auto-save
+4. **Absences**: Manage planned absences and vacations with date ranges
+5. **Matches**: View match history with agent compositions and VOD links
 
 #### Home Page (`/`)
 
-1. Calendar view of all players (14 days)
-2. Click any date to see details
-3. Quick edit your own entries
-4. See team status at a glance
+Tab-based interface combining user features:
+1. **Schedule**: Calendar view of all players (14 days) with status indicators
+2. **Availability**: Set your own availability for upcoming days
+3. **Absences**: View and manage planned absences
+4. **Matches**: Browse match history and stats
+5. **Statistics**: Team analytics with charts
 
 ---
 
-## 📸 Screenshots
-
-### User Interface
-
-#### Login Page
-![User Login](screenshots/home-page.png)
-*User login page with player selection dropdown*
-
-![User Dropdown](screenshots/user-login-dropdown.png)
-*Player selection showing Main roster, Substitutes, and Coaches*
-
-#### Schedule Overview
-![Schedule View](screenshots/user-dashboard.png)
-*14-day calendar view showing player availability with status indicators*
-
-### Admin Dashboard
-
-#### Dashboard Home
-![Admin Dashboard](screenshots/admin-dashboard-overview.png)
-*Admin dashboard overview with bot status, uptime, and quick actions*
-
-#### Settings Panel
-![Settings Tab](screenshots/admin-settings-tab.png)
-*Discord and scheduling configuration*
-
-![Settings Branding](screenshots/admin-settings-tab-scrolled.png)
-*Team branding and customization options*
-
-#### User Management
-![User Mappings](screenshots/admin-users-tab.png)
-*Player roster management with Discord user linking*
-
-#### Schedule Editor
-![Schedule Editor](screenshots/admin-schedule-tab.png)
-*14-day schedule editor with player availability matrix*
-
-#### Match Management
-![Scrims Panel](screenshots/admin-scrims-tab.png)
-*Match history tracking with statistics and VOD links*
-
-#### Bot Actions
-![Actions Panel](screenshots/admin-actions-tab.png)
-*Manual trigger controls for schedule posts, reminders, and polls*
-
-![Actions Extended](screenshots/admin-actions-tab-scrolled.png)
-*Additional actions: notifications, pinned messages, and channel management*
-
-#### Security Settings
-![Security Panel](screenshots/admin-security-tab.png)
-*Password hash and JWT secret generators for secure authentication*
-
----
-
-## 🔌 API Documentation
+## API Documentation
 
 The bot runs an Express REST API on port **3001**.
 
@@ -980,18 +955,26 @@ POST /api/admin/login
 POST /api/user/login
 GET /api/auth/discord
 GET /api/auth/discord/callback
+GET /api/auth/user
+POST /api/auth/logout
 
 # Settings
 GET /api/settings
 POST /api/settings (admin)
+POST /api/settings/reload-config (admin)
 
 # Schedule
 GET /api/schedule/next14
+GET /api/schedule/paginated?offset=0     # Paginated schedule (admin)
+POST /api/schedule/update-reason          # Set reason/focus for date (admin)
 POST /api/schedule/update-availability
+GET /api/schedule-details?date=DD.MM.YYYY # Single day analysis
+GET /api/schedule-details-batch?dates=... # Multiple dates analysis
 
 # User Mappings
 GET /api/user-mappings
 POST /api/user-mappings (admin)
+PUT /api/user-mappings/:discordId (admin)
 DELETE /api/user-mappings/:discordId (admin)
 
 # Discord Resources
@@ -1004,28 +987,39 @@ POST /api/actions/schedule (admin)
 POST /api/actions/remind (admin)
 POST /api/actions/poll (admin)
 POST /api/actions/notify (admin)
+POST /api/actions/clear-channel (admin)
+POST /api/actions/pin-message (admin)
 
 # Scrims
 GET /api/scrims
+GET /api/scrims/stats/summary
+GET /api/scrims/range/:startDate/:endDate
+GET /api/scrims/:id
 POST /api/scrims
 PUT /api/scrims/:id
 DELETE /api/scrims/:id
 
 # Absences
-GET /api/absences
-POST /api/absences
-PUT /api/absences/:id
-DELETE /api/absences/:id
+GET /api/absences/my                    # Logged-in user's absences
+GET /api/absences?userId=ID             # Specific user's absences
+GET /api/absences/by-dates?dates=...    # Batch: absent user IDs per date
+POST /api/absences                      # Create absence (own only)
+PUT /api/absences/:id                   # Update (own only unless admin)
+DELETE /api/absences/:id                # Delete (own only unless admin)
+
+# Admin Utilities
+POST /api/admin/generate-password-hash (admin)
+POST /api/admin/generate-jwt-secret (admin)
 
 # Monitoring
 GET /api/health
 GET /api/bot-status
-GET /api/logs (admin)
+GET /api/logs?limit=100&level=info (admin)
 ```
 
 ---
 
-## 🛠️ Development
+## Development
 
 ### Project Structure
 
@@ -1039,6 +1033,7 @@ schedule-bot/
 │   │   │   └── auth.controller.ts  # Auth logic (admin, user, Discord OAuth)
 │   │   └── routes/
 │   │       ├── index.ts            # Route aggregator + health/logs/schedule-details
+│   │       ├── absence.routes.ts   # Absence/vacation CRUD
 │   │       ├── actions.routes.ts   # Manual action triggers
 │   │       ├── admin.routes.ts     # Admin utilities (hash, JWT generation)
 │   │       ├── auth.routes.ts      # Login, logout, OAuth endpoints
@@ -1060,10 +1055,12 @@ schedule-bot/
 │   ├── repositories/        # Data access layer (Prisma queries)
 │   │   ├── database.repository.ts     # Prisma client singleton
 │   │   ├── database-initializer.ts    # First-run DB setup
+│   │   ├── absence.repository.ts      # Absence CRUD + date range checks
 │   │   ├── schedule.repository.ts     # Schedule queries, seeding, sync
 │   │   ├── scrim.repository.ts        # Match tracking CRUD
 │   │   └── user-mapping.repository.ts # Roster management
 │   ├── services/            # Business logic layer
+│   │   ├── absence.service.ts         # Absence CRUD with auth + date validation
 │   │   ├── schedule.service.ts        # Schedule analysis, validation
 │   │   ├── scrim.service.ts           # Scrim CRUD + stats
 │   │   └── user-mapping.service.ts    # Roster CRUD with auto-sync
@@ -1148,6 +1145,16 @@ Components are organized by domain/role:
 
 Admin panels export from `components/admin/panels/index.ts` which also re-exports shared components (ScrimsPanel, AgentSelector) for convenience.
 
+### Statistics Panel
+
+The `StatisticsPanel` (`components/admin/panels/statistics-panel.tsx`) provides team analytics using Recharts:
+
+- **Team Availability Chart** - Stacked bar chart showing available/unavailable/no-response/absent players per day
+- **Scrim Results** - Win/loss/draw visualization with filtering by date range and opponent
+- **Current Form** - Win/loss streak display
+- **Map Compositions** - Agent picks per map with collapsible details
+- Mobile-responsive: uses `useIsMobile` hook, adjusts chart heights (220px mobile, 300px desktop), thins X-axis labels on mobile
+
 ### Dashboard Animation System
 
 The dashboard uses a custom animation utility system (`dashboard/lib/animations.ts`):
@@ -1194,6 +1201,7 @@ Data access is abstracted into repositories (sole data layer):
 
 - **`database.repository.ts`** - Prisma client singleton, `connectDatabase()`, `disconnectDatabase()`
 - **`database-initializer.ts`** - First-run setup: creates tables, seeds default settings and schedules
+- **`absence.repository.ts`** - Absence CRUD, `isUserAbsentOnDate()`, `getAbsentUserIdsForDate()`, `getAbsentUserIdsForDates()` (batch)
 - **`schedule.repository.ts`** - Schedule CRUD, `addMissingDays()`, `syncUserMappingsToSchedules()`, pagination
 - **`scrim.repository.ts`** - Scrim CRUD, stats aggregation, date range queries
 - **`user-mapping.repository.ts`** - Roster CRUD with auto-`sortOrder` calculation and reordering on role changes
@@ -1202,6 +1210,7 @@ Data access is abstracted into repositories (sole data layer):
 
 Services provide business logic on top of repositories:
 
+- **`absence.service.ts`** - Absence CRUD with date validation and authorization (users manage own absences only)
 - **`schedule.service.ts`** - Schedule analysis, availability validation (users can only edit their own unless admin), pagination
 - **`scrim.service.ts`** - Scrim CRUD, stats, recent scrims with date sorting
 - **`user-mapping.service.ts`** - Roster CRUD with automatic `syncUserMappingsToSchedules()` after changes
@@ -1304,7 +1313,7 @@ In-memory log store (`src/shared/utils/logger.ts`):
 
 ---
 
-## 🚀 Deployment
+## Deployment
 
 ### Backend (Railway)
 
@@ -1343,7 +1352,7 @@ In-memory log store (`src/shared/utils/logger.ts`):
 
 ---
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### Bot doesn't respond to commands
 
@@ -1405,7 +1414,7 @@ If you encounter circular dependency issues:
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Please follow these steps:
 
@@ -1420,7 +1429,7 @@ Contributions are welcome! Please follow these steps:
 - **Code Style**: TypeScript strict mode is DISABLED (`strict: false`, `noImplicitAny: false` in tsconfig.json)
 - **Target**: ES2022, Module: NodeNext, ModuleResolution: NodeNext
 - **Async/Await**: Use for all database operations
-- **Error Handling**: try/catch with console.error + logger.error
+- **Error Handling**: try/catch with `logger.error()` (structured logging throughout)
 - **Discord Embeds**: Use `EmbedBuilder` from discord.js
 - **API Responses**: Follow pattern: `res.json({ success: true, data: ... })` or `res.status(400).json({ error: "message" })`
 - **Frontend API**: Use `apiGet<T>()`, `apiPost<T>()` etc. from `dashboard/lib/api.ts` (auto-attaches JWT, handles 401 redirect)
@@ -1433,13 +1442,13 @@ Contributions are welcome! Please follow these steps:
 
 ---
 
-## 📄 License
+## License
 
 This project is licensed under the ISC License.
 
 ---
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - [discord.js](https://discord.js.org/) - Powerful Discord API library
 - [Next.js](https://nextjs.org/) - React framework for production
