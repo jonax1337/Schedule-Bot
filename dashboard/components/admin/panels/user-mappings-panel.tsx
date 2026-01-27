@@ -234,7 +234,7 @@ export function UserMappingsPanel() {
             Add User Mapping
           </CardTitle>
           <CardDescription>
-            Link Discord users to Google Sheets columns
+            Link Discord users to the schedule roster
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

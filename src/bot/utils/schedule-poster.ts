@@ -4,7 +4,8 @@ import { getScheduleForDate } from '../../repositories/schedule.repository.js';
 import { getAbsentUserIdsForDate } from '../../repositories/absence.repository.js';
 import { parseSchedule, analyzeSchedule } from '../../shared/utils/analyzer.js';
 import { buildScheduleEmbed } from '../embeds/embed.js';
-import { formatDateToDDMMYYYY, getTodayFormatted } from '../../shared/utils/dateFormatter.js';
+import { getTodayFormatted } from '../../shared/utils/dateFormatter.js';
+import { logger } from '../../shared/utils/logger.js';
 
 /**
  * Post schedule to configured Discord channel
@@ -15,7 +16,7 @@ export async function postScheduleToChannel(date?: string, clientInstance?: Clie
   const channel = await botClient.channels.fetch(config.discord.channelId);
 
   if (!channel || !(channel instanceof TextChannel)) {
-    console.error('Channel not found or is not a text channel');
+    logger.error('Schedule post failed', 'Channel not found or is not a text channel');
     return;
   }
 
@@ -25,40 +26,39 @@ export async function postScheduleToChannel(date?: string, clientInstance?: Clie
     // Clean channel if enabled in settings
     const { loadSettings } = await import('../../shared/utils/settingsManager.js');
     const settings = loadSettings();
-    
+
     if (settings.scheduling.cleanChannelBeforePost) {
-      console.log('Cleaning channel before posting schedule...');
       try {
         const messages = await channel.messages.fetch({ limit: 100 });
         const messagestoDelete = messages.filter(msg => !msg.pinned);
-        
+
         if (messagestoDelete.size > 0) {
-          const recentMessages = messagestoDelete.filter(msg => 
+          const recentMessages = messagestoDelete.filter(msg =>
             Date.now() - msg.createdTimestamp < 14 * 24 * 60 * 60 * 1000
           );
-          
+
           if (recentMessages.size > 1) {
             await channel.bulkDelete(recentMessages);
-            console.log(`Deleted ${recentMessages.size} messages from channel`);
+            logger.info('Channel cleaned', `Deleted ${recentMessages.size} messages`);
           } else if (recentMessages.size === 1) {
             await recentMessages.first()?.delete();
-            console.log('Deleted 1 message from channel');
+            logger.info('Channel cleaned', 'Deleted 1 message');
           }
-          
-          const oldMessages = messagestoDelete.filter(msg => 
+
+          const oldMessages = messagestoDelete.filter(msg =>
             Date.now() - msg.createdTimestamp >= 14 * 24 * 60 * 60 * 1000
           );
-          
+
           for (const msg of oldMessages.values()) {
             try {
               await msg.delete();
             } catch (err) {
-              console.warn('Could not delete old message:', err);
+              logger.warn('Could not delete old message', err instanceof Error ? err.message : String(err));
             }
           }
         }
       } catch (error) {
-        console.error('Error cleaning channel:', error);
+        logger.error('Channel cleaning failed', error instanceof Error ? error.message : String(error));
       }
     }
 
@@ -84,17 +84,14 @@ export async function postScheduleToChannel(date?: string, clientInstance?: Clie
       ? `<@&${config.discord.pingRoleId}>`
       : undefined;
 
-    console.log('Posting schedule with pingRoleId:', config.discord.pingRoleId);
-    console.log('Ping content:', pingContent);
-
     await channel.send({ content: pingContent, embeds: [embed] });
-    console.log(`Schedule posted to channel for date: ${displayDate}`);
+    logger.success('Schedule posted', `Date: ${displayDate}`);
 
     // Create training start poll if enabled
     const { createTrainingStartPoll } = await import('../interactions/trainingStartPoll.js');
     await createTrainingStartPoll(result, displayDate);
   } catch (error) {
-    console.error('Error posting schedule to channel:', error);
+    logger.error('Schedule post failed', error instanceof Error ? error.message : String(error));
     await channel.send({
       embeds: [
         new EmbedBuilder()

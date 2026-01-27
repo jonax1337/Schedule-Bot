@@ -75,7 +75,6 @@ app.use('/api', apiRoutes);
 // Export startApiServer function
 export function startApiServer(): void {
   app.listen(PORT, () => {
-    console.log(`API Server listening on port ${PORT}`);
     logger.success('API Server started', `Listening on port ${PORT}`);
   });
 }

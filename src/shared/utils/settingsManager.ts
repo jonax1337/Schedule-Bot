@@ -1,4 +1,5 @@
 import { prisma } from '../../repositories/database.repository.js';
+import { logger } from './logger.js';
 
 function flattenSettings(settings: Settings): Record<string, string | number | boolean> {
   return {
@@ -72,41 +73,34 @@ let cachedSettings: Settings | null = null;
 
 
 /**
- * Load settings from Google Sheets (with fallback to settings.json for migration)
+ * Load settings from cache, returning defaults if not yet loaded from PostgreSQL
  */
 export function loadSettings(): Settings {
   if (cachedSettings) {
     return cachedSettings;
   }
 
-  return reloadSettings();
-}
-
-/**
- * Force reload settings from Google Sheets (bypasses cache)
- */
-export function reloadSettings(): Settings {
-  console.log('Using default settings. Call loadSettingsAsync() to load from PostgreSQL.');
+  // Return defaults until loadSettingsAsync() is called during startup
   cachedSettings = { ...DEFAULT_SETTINGS };
   return cachedSettings;
 }
 
 /**
- * Async version of loadSettings that reads from Google Sheets
+ * Load settings from PostgreSQL (async, used during startup and reload)
  */
 export async function loadSettingsAsync(): Promise<Settings> {
   try {
     // Settings from PostgreSQL Settings table
     const settingsRecords = await prisma.setting.findMany();
-    
+
     if (settingsRecords.length === 0) {
-      console.log('No settings found in PostgreSQL. Creating default settings...');
+      logger.info('No settings found in PostgreSQL, creating defaults');
       const defaultSettings = {
         discord: DEFAULT_SETTINGS.discord,
         scheduling: DEFAULT_SETTINGS.scheduling,
         branding: DEFAULT_SETTINGS.branding,
       };
-      
+
       // Save default settings to PostgreSQL
       for (const [key, value] of Object.entries(flattenSettings(defaultSettings))) {
         await prisma.setting.upsert({
@@ -115,18 +109,18 @@ export async function loadSettingsAsync(): Promise<Settings> {
           update: { value: String(value) },
         });
       }
-      console.log('✅ Default settings created in PostgreSQL');
-      
+      logger.success('Default settings created in PostgreSQL');
+
       cachedSettings = { ...defaultSettings };
       return cachedSettings;
     }
-    
+
     // Parse settings from flat key-value pairs
     const settingsMap: Record<string, string> = {};
     for (const record of settingsRecords) {
       settingsMap[record.key] = record.value;
     }
-    
+
     cachedSettings = {
       discord: {
         channelId: settingsMap['discord.channelId'] || DEFAULT_SETTINGS.discord.channelId,
@@ -152,14 +146,14 @@ export async function loadSettingsAsync(): Promise<Settings> {
     };
     return cachedSettings;
   } catch (error) {
-    console.error('Error loading settings:', error);
+    logger.error('Error loading settings', error instanceof Error ? error.message : String(error));
     cachedSettings = { ...DEFAULT_SETTINGS };
     return cachedSettings;
   }
 }
 
 /**
- * Save settings to Google Sheets (does not save admin credentials)
+ * Save settings to PostgreSQL
  */
 export async function saveSettings(settings: Settings): Promise<void> {
   try {
@@ -172,11 +166,11 @@ export async function saveSettings(settings: Settings): Promise<void> {
         update: { value: String(value) },
       });
     }
-    
+
     cachedSettings = { ...settings };
-    console.log('Settings saved to PostgreSQL successfully');
+    logger.success('Settings saved');
   } catch (error) {
-    console.error('Error saving settings:', error);
+    logger.error('Error saving settings', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }

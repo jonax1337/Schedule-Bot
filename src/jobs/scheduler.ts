@@ -2,6 +2,7 @@ import cron from 'node-cron';
 import { config } from '../shared/config/config.js';
 import { postScheduleToChannel, client } from '../bot/client.js';
 import { sendRemindersToUsersWithoutEntry } from '../bot/interactions/reminder.js';
+import { logger } from '../shared/utils/logger.js';
 
 let scheduledTask: cron.ScheduledTask | null = null;
 let reminderTask: cron.ScheduledTask | null = null;
@@ -21,105 +22,93 @@ export function startScheduler(): void {
   // Cron format: minute hour * * * (every day at specified time)
   const cronExpression = `${minute} ${hour} * * *`;
 
-  console.log(`Setting up daily schedule post at ${config.scheduling.dailyPostTime} (${config.scheduling.timezone})`);
-  console.log(`Cron expression: ${cronExpression}`);
+  logger.info('Scheduler configured', `Daily post at ${config.scheduling.dailyPostTime} (${config.scheduling.timezone})`);
 
   scheduledTask = cron.schedule(
     cronExpression,
     async () => {
-      console.log(`[${new Date().toISOString()}] Running scheduled schedule post...`);
+      logger.info('Running scheduled post');
       try {
         await postScheduleToChannel();
-        console.log('Scheduled post completed successfully.');
+        logger.success('Scheduled post completed');
       } catch (error) {
-        console.error('Error during scheduled post:', error);
+        logger.error('Scheduled post failed', error instanceof Error ? error.message : String(error));
       }
     },
     {
       timezone: config.scheduling.timezone,
     }
   );
-
-  console.log('Scheduler started successfully.');
 
   // Reminder job X hours before daily post
   const reminderTime = calculateReminderTime(hour, minute, config.scheduling.reminderHoursBefore);
   const reminderCronExpression = `${reminderTime.minute} ${reminderTime.hour} * * *`;
 
-  console.log(`Setting up daily reminder at ${reminderTime.hour}:${String(reminderTime.minute).padStart(2, '0')} (${config.scheduling.reminderHoursBefore}h before post)`);
-  console.log(`Reminder cron expression: ${reminderCronExpression}`);
+  logger.info('Reminder configured', `At ${reminderTime.hour}:${String(reminderTime.minute).padStart(2, '0')} (${config.scheduling.reminderHoursBefore}h before post)`);
 
   reminderTask = cron.schedule(
     reminderCronExpression,
     async () => {
-      console.log(`[${new Date().toISOString()}] Running scheduled reminders...`);
+      logger.info('Running scheduled reminders');
       try {
         await sendRemindersToUsersWithoutEntry(client);
-        console.log('Reminders sent successfully.');
+        logger.success('Reminders sent');
       } catch (error) {
-        console.error('Error during scheduled reminders:', error);
+        logger.error('Scheduled reminders failed', error instanceof Error ? error.message : String(error));
       }
     },
     {
       timezone: config.scheduling.timezone,
     }
   );
-
-  console.log('Reminder scheduler started successfully.');
 
   // Duplicate reminder job (second reminder, closer to post time)
   if (config.scheduling.duplicateReminderEnabled) {
     const dupReminderTime = calculateReminderTime(hour, minute, config.scheduling.duplicateReminderHoursBefore);
     const dupReminderCronExpression = `${dupReminderTime.minute} ${dupReminderTime.hour} * * *`;
 
-    console.log(`Setting up duplicate reminder at ${dupReminderTime.hour}:${String(dupReminderTime.minute).padStart(2, '0')} (${config.scheduling.duplicateReminderHoursBefore}h before post)`);
-    console.log(`Duplicate reminder cron expression: ${dupReminderCronExpression}`);
+    logger.info('Duplicate reminder configured', `At ${dupReminderTime.hour}:${String(dupReminderTime.minute).padStart(2, '0')} (${config.scheduling.duplicateReminderHoursBefore}h before post)`);
 
     duplicateReminderTask = cron.schedule(
       dupReminderCronExpression,
       async () => {
-        console.log(`[${new Date().toISOString()}] Running duplicate reminders...`);
+        logger.info('Running duplicate reminders');
         try {
           await sendRemindersToUsersWithoutEntry(client);
-          console.log('Duplicate reminders sent successfully.');
+          logger.success('Duplicate reminders sent');
         } catch (error) {
-          console.error('Error during duplicate reminders:', error);
+          logger.error('Duplicate reminders failed', error instanceof Error ? error.message : String(error));
         }
       },
       {
         timezone: config.scheduling.timezone,
       }
     );
-
-    console.log('Duplicate reminder scheduler started successfully.');
-  } else {
-    console.log('Duplicate reminder is disabled.');
   }
+
+  logger.success('Scheduler started');
 }
 
 export function restartScheduler(): void {
-  console.log('Restarting scheduler with new configuration...');
+  logger.info('Restarting scheduler');
   stopScheduler();
   startScheduler();
-  console.log('Scheduler restarted successfully.');
 }
 
 export function stopScheduler(): void {
   if (scheduledTask) {
     scheduledTask.stop();
     scheduledTask = null;
-    console.log('Scheduler stopped.');
   }
   if (reminderTask) {
     reminderTask.stop();
     reminderTask = null;
-    console.log('Reminder scheduler stopped.');
   }
   if (duplicateReminderTask) {
     duplicateReminderTask.stop();
     duplicateReminderTask = null;
-    console.log('Duplicate reminder scheduler stopped.');
   }
+  logger.info('Scheduler stopped');
 }
 
 function calculateReminderTime(postHour: number, postMinute: number, hoursBefore: number): { hour: number; minute: number } {
