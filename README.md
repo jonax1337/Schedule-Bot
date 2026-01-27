@@ -95,7 +95,7 @@
 - **Smart Reminders**: DM notifications X hours before post time
 - **Duplicate Reminders**: Optional second reminder closer to post time for stragglers
 - **Schedule Seeding**: Ensures the next 14 days exist in the database
-- **Change Notifications**: Optional channel alerts when roster status improves
+- **Change Notifications**: Automatic channel alerts when roster status changes (upgrades or downgrades), with role pings and fresh training polls
 - **Training Polls**: Optional automatic training time voting
 - **Absence Integration**: Absent players excluded from reminders, polls, and marked in daily embeds
 
@@ -263,30 +263,41 @@ Settings are stored in PostgreSQL `settings` table as flat key-value pairs:
 - Settings are cached in memory (`settingsManager.ts`) and reloaded via `reloadConfig()`
 - Dashboard changes trigger `POST /api/settings` → saves to DB → calls `reloadConfig()` → restarts scheduler with new times
 
-**Config structure in memory**:
+**Two access patterns exist for settings:**
+
+1. **`config` export** (`src/shared/config/config.ts`) — Subset used by scheduler and core bot logic:
 ```typescript
-config.discord = {
-  channelId,           // Discord channel for posts
-  pingRoleId,          // Role to mention
-  allowDiscordAuth     // Enable Discord OAuth
-}
+config.discord = { token, channelId, guildId, pingRoleId }
 config.scheduling = {
-  dailyPostTime,                    // "HH:MM" format
-  timezone,                         // IANA timezone (e.g., "Europe/Berlin")
-  reminderHoursBefore,              // Send reminders X hours before post
-  duplicateReminderEnabled,         // Toggle second reminder (default: false)
-  duplicateReminderHoursBefore,     // Hours before post for duplicate reminder (default: 1)
-  trainingStartPollEnabled,         // Toggle training poll feature
-  pollDurationMinutes,              // Poll open duration
-  cleanChannelBeforePost,           // Auto-clean before posting
-  changeNotificationsEnabled        // Notify when roster improvements detected
+  dailyPostTime,              // "HH:MM" format
+  timezone,                   // IANA timezone (e.g., "Europe/Berlin")
+  reminderHoursBefore,        // Send reminders X hours before post
+  duplicateReminderEnabled,   // Toggle second reminder (default: false)
+  duplicateReminderHoursBefore, // Hours before post for duplicate reminder (default: 1)
+  trainingStartPollEnabled,   // Toggle training poll feature
 }
-config.branding = {
-  teamName,                  // Team display name (default: "Valorant Bot")
-  tagline,                   // Optional tagline (default: "Schedule Manager")
-  logoUrl                    // Optional logo URL for sidebar branding
+config.admin = { username }
+```
+
+2. **`loadSettings()`** (`src/shared/utils/settingsManager.ts`) — Full settings including all fields:
+```typescript
+settings.discord = { channelId, pingRoleId, allowDiscordAuth }
+settings.scheduling = {
+  dailyPostTime, timezone, reminderHoursBefore,
+  duplicateReminderEnabled, duplicateReminderHoursBefore,
+  trainingStartPollEnabled,
+  pollDurationMinutes,        // Poll open duration (Discord-compatible: 60, 240, 480, 1440, 4320, 10080)
+  cleanChannelBeforePost,     // Auto-clean channel before posting
+  changeNotificationsEnabled  // Notify when roster status changes (default: true)
+}
+settings.branding = {
+  teamName,                   // Team display name (default: "Valorant Bot")
+  tagline,                    // Optional tagline (default: "Schedule Manager")
+  logoUrl                     // Optional logo URL for sidebar branding
 }
 ```
+
+Features like change notifications, channel cleaning, poll duration, branding, and Discord OAuth use `loadSettings()` directly rather than the `config` export.
 
 ---
 
@@ -303,7 +314,7 @@ config.branding = {
 - **Authentication**: JWT (jsonwebtoken 9), bcrypt 6
 - **Security**: Helmet 8, CORS, Rate Limiting (express-rate-limit)
 - **Validation**: Joi 18
-- **Calendar**: ical-generator 10
+- **Calendar**: ical-generator 10 (installed but not yet used)
 - **Config**: dotenv 17
 
 ### Frontend
@@ -791,7 +802,7 @@ Settings are stored in the `settings` table and can be modified via:
 - `scheduling.trainingStartPollEnabled`: Auto-create training polls
 - `scheduling.pollDurationMinutes`: Poll open duration (Discord-compatible values only)
 - `scheduling.cleanChannelBeforePost`: Delete previous bot messages before posting
-- `scheduling.changeNotificationsEnabled`: Enable roster improvement alerts
+- `scheduling.changeNotificationsEnabled`: Enable roster status change alerts (upgrades and downgrades)
 - `branding.teamName`: Team display name (default: "Valorant Bot")
 - `branding.tagline`: Subtitle text (default: "Schedule Manager")
 - `branding.logoUrl`: Custom logo URL for sidebar branding
@@ -1049,7 +1060,7 @@ schedule-bot/
 │   │   ├── interactions/    # Buttons, modals, polls, reminders
 │   │   ├── embeds/          # Discord embed builders
 │   │   └── utils/
-│   │       └── schedule-poster.ts  # Schedule posting logic
+│   │       └── schedule-poster.ts  # Schedule posting + change notifications
 │   ├── jobs/
 │   │   └── scheduler.ts     # node-cron job management
 │   ├── repositories/        # Data access layer (Prisma queries)
@@ -1224,7 +1235,7 @@ Services are class-based with singleton exports (e.g., `export const scheduleSer
 - **`src/bot/commands/index.ts`** routes incoming interactions to the correct handler
 - **Event handlers** are in `src/bot/events/` (ready.event.ts, interaction.event.ts)
 - **Interactive components** (buttons, modals, polls) are in `src/bot/interactions/`
-- **All schedule posting logic** is centralized in `src/bot/utils/schedule-poster.ts`
+- **Schedule posting and change notifications** are centralized in `src/bot/utils/schedule-poster.ts`
 
 Commands use discord.js `SlashCommandBuilder` and are automatically registered on startup.
 
