@@ -1,9 +1,15 @@
 import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
+import { logger } from '../utils/logger.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
+const JWT_SECRET = process.env.JWT_SECRET || (() => {
+  const generated = crypto.randomBytes(32).toString('hex');
+  logger.warn('JWT_SECRET not set', 'Using randomly generated secret - tokens will NOT survive restarts. Set JWT_SECRET in .env for production.');
+  return generated;
+})();
 const JWT_EXPIRES_IN = '24h';
+const JWT_ALGORITHM = 'HS256' as const;
 
 export interface AuthRequest extends Request {
   user?: {
@@ -13,12 +19,12 @@ export interface AuthRequest extends Request {
 }
 
 export function generateToken(username: string, role: 'admin' | 'user' = 'admin'): string {
-  return jwt.sign({ username, role }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+  return jwt.sign({ username, role }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN, algorithm: JWT_ALGORITHM });
 }
 
 export function verifyTokenSync(token: string): { username: string; role: 'admin' | 'user' } | null {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { username: string; role: string };
+    const decoded = jwt.verify(token, JWT_SECRET, { algorithms: [JWT_ALGORITHM] }) as { username: string; role: string };
     return decoded as { username: string; role: 'admin' | 'user' };
   } catch (error) {
     return null;
@@ -36,7 +42,7 @@ export function verifyToken(req: AuthRequest, res: Response, next: NextFunction)
   const token = authHeader.substring(7);
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { username: string; role: string };
+    const decoded = jwt.verify(token, JWT_SECRET, { algorithms: [JWT_ALGORITHM] }) as { username: string; role: string };
     req.user = decoded as { username: string; role: 'admin' | 'user' };
     next();
   } catch (error) {
@@ -69,7 +75,7 @@ export function optionalAuth(req: AuthRequest, res: Response, next: NextFunction
   const token = authHeader.substring(7);
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { username: string; role: string };
+    const decoded = jwt.verify(token, JWT_SECRET, { algorithms: [JWT_ALGORITHM] }) as { username: string; role: string };
     req.user = decoded as { username: string; role: 'admin' | 'user' };
   } catch (error) {
     // Token invalid, but continue without user
