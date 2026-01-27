@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { verifyToken, requireAdmin, AuthRequest } from '../../shared/middleware/auth.js';
+import { verifyToken, requireAdmin, optionalAuth, AuthRequest } from '../../shared/middleware/auth.js';
 import { validate, addUserMappingSchema, updateUserMappingSchema } from '../../shared/middleware/validation.js';
 import { getUserMappings, addUserMapping, updateUserMapping, removeUserMapping } from '../../repositories/user-mapping.repository.js';
 import { syncUserMappingsToSchedules } from '../../repositories/schedule.repository.js';
@@ -7,19 +7,25 @@ import { logger } from '../../shared/utils/logger.js';
 
 const router = Router();
 
-// Get user mappings (public - needed for login dropdown)
-router.get('/', async (req, res) => {
+// Get user mappings
+// Authenticated users get full data (incl. discordId), unauthenticated only get display names
+router.get('/', optionalAuth, async (req: AuthRequest, res) => {
   try {
     const mappings = await getUserMappings();
-    // Only expose display names and roles for the login dropdown, not Discord IDs
-    const safeMappings = mappings.map(m => ({
-      displayName: m.displayName,
-      role: m.role,
-      sortOrder: m.sortOrder,
-      // Only include discordId/discordUsername if request has a valid admin token
-      ...(req.headers.authorization ? { discordId: m.discordId, discordUsername: m.discordUsername } : {}),
-    }));
-    res.json({ success: true, mappings: safeMappings });
+    const isAuthenticated = !!req.user;
+
+    if (isAuthenticated) {
+      // Authenticated users get full mapping data
+      res.json({ success: true, mappings });
+    } else {
+      // Unauthenticated: only expose what's needed for login dropdown
+      const safeMappings = mappings.map(m => ({
+        displayName: m.displayName,
+        role: m.role,
+        sortOrder: m.sortOrder,
+      }));
+      res.json({ success: true, mappings: safeMappings });
+    }
   } catch (error) {
     logger.error('Failed to fetch user mappings', error instanceof Error ? error.message : String(error));
     res.status(500).json({ success: false, error: 'Failed to fetch user mappings' });

@@ -49,7 +49,10 @@ export function UserSidebar({ userName, onLogout, ...props }: UserSidebarProps) 
       
       try {
         const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001'
-        const response = await fetch(`${BOT_API_URL}/api/user-mappings`)
+        const { getAuthHeaders } = await import('@/lib/auth')
+        const response = await fetch(`${BOT_API_URL}/api/user-mappings`, {
+          headers: getAuthHeaders(),
+        })
         if (response.ok) {
           const data = await response.json()
           const userMapping = data.mappings.find((m: any) => m.displayName === userName)

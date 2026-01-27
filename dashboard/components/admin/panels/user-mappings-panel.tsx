@@ -64,7 +64,7 @@ export function UserMappingsPanel() {
       const { getAuthHeaders } = await import('@/lib/auth');
       const [membersRes, mappingsRes] = await Promise.all([
         fetch(`${BOT_API_URL}/api/discord/members`, { headers: getAuthHeaders() }),
-        fetch(`${BOT_API_URL}/api/user-mappings`),
+        fetch(`${BOT_API_URL}/api/user-mappings`, { headers: getAuthHeaders() }),
       ]);
 
       if (membersRes.ok) {

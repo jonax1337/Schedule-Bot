@@ -98,7 +98,10 @@ export function UserAvailabilityContent() {
   const loadData = async (user: string) => {
     setLoading(true);
     try {
-      const mappingsRes = await fetch(`${BOT_API_URL}/api/user-mappings`);
+      const { getAuthHeaders } = await import('@/lib/auth');
+      const mappingsRes = await fetch(`${BOT_API_URL}/api/user-mappings`, {
+        headers: getAuthHeaders(),
+      });
       if (!mappingsRes.ok) {
         toast.error('Failed to load user mappings');
         setLoading(false);
@@ -115,8 +118,6 @@ export function UserAvailabilityContent() {
       }
 
       setUserDiscordId(userMapping.discordId);
-
-      const { getAuthHeaders } = await import('@/lib/auth');
 
       // Fetch absences using discordId (works regardless of admin/user JWT)
       try {

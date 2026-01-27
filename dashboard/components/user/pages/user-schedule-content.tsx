@@ -128,7 +128,9 @@ export function UserScheduleContent() {
       const data = await response.json();
       const schedules = data.schedules || [];
 
-      const mappingsRes = await fetch(`${BOT_API_URL}/api/user-mappings`);
+      const mappingsRes = await fetch(`${BOT_API_URL}/api/user-mappings`, {
+        headers: getAuthHeaders(),
+      });
       if (!mappingsRes.ok) {
         toast.error('Failed to load user mappings');
         setLoading(false);
@@ -384,7 +386,10 @@ export function UserScheduleContent() {
 
     setSaving(true);
     try {
-      const mappingsRes = await fetch(`${BOT_API_URL}/api/user-mappings`);
+      const { getAuthHeaders } = await import('@/lib/auth');
+      const mappingsRes = await fetch(`${BOT_API_URL}/api/user-mappings`, {
+        headers: getAuthHeaders(),
+      });
       const mappingsData = await mappingsRes.json();
       const userMapping = mappingsData.mappings.find((m: any) => m.displayName === loggedInUser);
 
