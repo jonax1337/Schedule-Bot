@@ -430,7 +430,7 @@ export default function StatisticsPanel() {
 
     for (const scrim of filteredScrims) {
       if (!scrim.map || !scrim.ourAgents || scrim.ourAgents.length === 0) continue;
-      const agents = scrim.ourAgents.map(a => a.trim()).filter(Boolean);
+      const agents = scrim.ourAgents.map(a => a.trim()).filter(Boolean).sort();
       if (agents.length === 0) continue;
 
       const compKey = [...agents].sort().join(',');
