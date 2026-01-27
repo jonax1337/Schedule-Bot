@@ -44,14 +44,13 @@ router.post('/admin/login', loginLimiter, async (req, res) => {
       res.status(401).json({ success: false, error: 'Invalid credentials' });
     }
   } catch (error) {
-    console.error('Error during admin login:', error);
     logger.error('Login error', error instanceof Error ? error.message : String(error));
     res.status(500).json({ success: false, error: 'Login failed' });
   }
 });
 
 // User login endpoint
-router.post('/user/login', async (req, res) => {
+router.post('/user/login', loginLimiter, async (req, res) => {
   try {
     const { username } = req.body;
 
@@ -64,14 +63,14 @@ router.post('/user/login', async (req, res) => {
 
     if (!userMapping) {
       logger.warn('User login failed', `User not found: ${username}`);
-      return res.status(401).json({ success: false, error: 'Invalid username' });
+      return res.status(401).json({ success: false, error: 'Invalid credentials' });
     }
 
     const token = generateToken(username, 'user');
-    
+
     logger.success('User login successful', `User: ${username}`);
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       token,
       expiresIn: '24h',
       user: {
@@ -80,7 +79,6 @@ router.post('/user/login', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error during user login:', error);
     logger.error('User login error', error instanceof Error ? error.message : String(error));
     res.status(500).json({ success: false, error: 'Login failed' });
   }

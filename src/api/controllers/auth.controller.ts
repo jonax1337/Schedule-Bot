@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import crypto from 'crypto';
 import { getUserMapping } from '../../repositories/user-mapping.repository.js';
 import { loadSettings } from '../../shared/utils/settingsManager.js';
+import { logger } from '../../shared/utils/logger.js';
 
 interface OAuthState {
   state: string;
@@ -169,11 +170,10 @@ export async function handleDiscordCallback(req: Request, res: Response) {
     // Check if user has mapping
     const mapping = await getUserMapping(discordId);
     if (!mapping) {
-      return res.status(403).json({ 
+      logger.warn('Discord OAuth: unmapped user', `${discordUsername} (${discordId})`);
+      return res.status(403).json({
         error: 'No user mapping found',
         message: 'Your Discord account is not linked to a schedule user. Please contact an admin.',
-        discordId,
-        discordUsername,
       });
     }
 

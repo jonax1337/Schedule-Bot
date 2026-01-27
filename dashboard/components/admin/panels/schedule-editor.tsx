@@ -71,7 +71,7 @@ export function ScheduleEditor() {
 
       // Load user mappings and schedules
       const [mappingsRes, schedulesRes] = await Promise.all([
-        fetch(`${BOT_API_URL}/api/user-mappings`),
+        fetch(`${BOT_API_URL}/api/user-mappings`, { headers: getAuthHeaders() }),
         fetch(`${BOT_API_URL}/api/schedule/paginated?offset=${page}`, { headers: getAuthHeaders() }),
       ]);
 

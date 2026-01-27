@@ -79,7 +79,10 @@ export function UserAbsencesContent() {
         }
 
         // Look up the user mapping to get discordId (same pattern as availability page)
-        const mappingsRes = await fetch(`${BOT_API_URL}/api/user-mappings`);
+        const { getAuthHeaders } = await import('@/lib/auth');
+        const mappingsRes = await fetch(`${BOT_API_URL}/api/user-mappings`, {
+          headers: getAuthHeaders(),
+        });
         if (!mappingsRes.ok) {
           toast.error('Failed to load user mappings');
           setLoading(false);

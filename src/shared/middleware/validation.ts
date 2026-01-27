@@ -19,7 +19,7 @@ export const addScrimSchema = Joi.object({
   matchType: Joi.string().max(50).allow(''),
   ourAgents: Joi.array().items(Joi.string().max(50)).max(5),
   theirAgents: Joi.array().items(Joi.string().max(50)).max(5),
-  vodUrl: Joi.string().uri().allow(''),
+  vodUrl: Joi.string().uri({ scheme: ['http', 'https'] }).allow(''),
   notes: Joi.string().max(1000).allow(''),
 });
 
@@ -33,7 +33,7 @@ export const updateScrimSchema = Joi.object({
   matchType: Joi.string().max(50).allow(''),
   ourAgents: Joi.array().items(Joi.string().max(50)).max(5),
   theirAgents: Joi.array().items(Joi.string().max(50)).max(5),
-  vodUrl: Joi.string().uri().allow(''),
+  vodUrl: Joi.string().uri({ scheme: ['http', 'https'] }).allow(''),
   notes: Joi.string().max(1000).allow(''),
 });
 
@@ -71,7 +71,7 @@ export const settingsSchema = Joi.object({
   branding: Joi.object({
     teamName: Joi.string().min(1).max(50).required(),
     tagline: Joi.string().min(0).max(100).allow(''),
-    logoUrl: Joi.string().uri().allow(''),
+    logoUrl: Joi.string().uri({ scheme: ['http', 'https'] }).allow(''),
   }).required(),
 });
 
@@ -100,10 +100,48 @@ export function validate(schema: Joi.ObjectSchema) {
   };
 }
 
+// Date format validation helper (DD.MM.YYYY)
+const datePattern = /^\d{2}\.\d{2}\.\d{4}$/;
+
+export const absenceCreateSchema = Joi.object({
+  userId: Joi.string().pattern(/^\d{17,19}$/).optional(),
+  startDate: Joi.string().pattern(datePattern).required(),
+  endDate: Joi.string().pattern(datePattern).required(),
+  reason: Joi.string().max(500).allow(''),
+});
+
+export const absenceUpdateSchema = Joi.object({
+  startDate: Joi.string().pattern(datePattern),
+  endDate: Joi.string().pattern(datePattern),
+  reason: Joi.string().max(500).allow(''),
+}).min(1);
+
+export const updateUserMappingSchema = Joi.object({
+  discordId: Joi.string().pattern(/^\d{17,19}$/),
+  discordUsername: Joi.string().min(1).max(32),
+  displayName: Joi.string().min(1).max(100).required(),
+  role: Joi.string().valid('main', 'sub', 'coach').required(),
+  sortOrder: Joi.number().integer().min(0).optional(),
+});
+
+export function isValidDateFormat(date: string): boolean {
+  return datePattern.test(date);
+}
+
 export function sanitizeString(input: string): string {
   return input
+    // Remove HTML tags
+    .replace(/<[^>]*>/g, '')
     .replace(/[<>]/g, '')
-    .replace(/javascript:/gi, '')
-    .replace(/on\w+=/gi, '')
+    // Remove dangerous URI schemes
+    .replace(/javascript\s*:/gi, '')
+    .replace(/vbscript\s*:/gi, '')
+    .replace(/data\s*:/gi, '')
+    // Remove event handlers (on* attributes)
+    .replace(/on\w+\s*=/gi, '')
+    // Remove expression/url patterns used in CSS injection
+    .replace(/expression\s*\(/gi, '')
+    // Remove HTML entities that could bypass filters
+    .replace(/&#x?[0-9a-f]+;?/gi, '')
     .trim();
 }

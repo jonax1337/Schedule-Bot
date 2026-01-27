@@ -2,14 +2,14 @@ import rateLimit from 'express-rate-limit';
 
 export const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // 5 attempts per window
-  message: { 
+  max: 10, // 10 attempts per window (only failed attempts count)
+  message: {
     error: 'Too many login attempts from this IP, please try again after 15 minutes',
     retryAfter: '15 minutes',
   },
   standardHeaders: true,
   legacyHeaders: false,
-  skipSuccessfulRequests: false,
+  skipSuccessfulRequests: true,
   handler: (req, res) => {
     res.status(429).json({
       error: 'Too many login attempts',
@@ -39,11 +39,12 @@ export const apiLimiter = rateLimit({
 export const strictApiLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute
   max: 20, // 20 requests per minute for sensitive operations
-  message: { 
+  message: {
     error: 'Too many requests for this operation',
   },
   standardHeaders: true,
   legacyHeaders: false,
+  skipSuccessfulRequests: true,
   handler: (req, res) => {
     res.status(429).json({
       error: 'Rate limit exceeded',

@@ -1,20 +1,28 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 const BOT_API_URL = process.env.BOT_API_URL || 'http://localhost:3001';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const response = await fetch(`${BOT_API_URL}/api/discord/channels`, {
       method: 'GET',
+      headers: {
+        'Authorization': authHeader,
+      },
     });
-    
+
     if (!response.ok) {
       return NextResponse.json(
         { error: 'Failed to fetch channels' },
         { status: response.status }
       );
     }
-    
+
     const data = await response.json();
     return NextResponse.json(data);
   } catch (error) {

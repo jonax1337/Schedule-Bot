@@ -19,13 +19,28 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'"],
       scriptSrc: ["'self'"],
       imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'"],
+      fontSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      frameSrc: ["'none'"],
+      baseUri: ["'self'"],
+      formAction: ["'self'"],
     },
   },
   hsts: {
     maxAge: 31536000,
     includeSubDomains: true,
+    preload: true,
   },
+  frameguard: { action: 'deny' },
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
 }));
+
+// Additional security headers not covered by Helmet
+app.use((req, res, next) => {
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), interest-cohort=()');
+  next();
+});
 
 // Security: CORS with whitelist
 const allowedOrigins = [
@@ -36,14 +51,16 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, curl, etc.)
+    // Allow requests with no origin only for server-to-server communication
+    // (e.g. Next.js API proxy routes calling backend from server side)
     if (!origin) {
       return callback(null, true);
     }
-    
+
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
+      logger.warn('CORS blocked', `Origin: ${origin}`);
       callback(new Error('Not allowed by CORS'));
     }
   },
