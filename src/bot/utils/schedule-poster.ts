@@ -178,6 +178,28 @@ async function cleanScheduleChannel(channel: TextChannel): Promise<void> {
   }
 }
 
+/**
+ * Check if the current time is at or after the configured daily post time
+ */
+function isAfterDailyPostTime(dailyPostTime: string, timezone: string): boolean {
+  const [postHour, postMinute] = dailyPostTime.split(':').map(Number);
+  const postTotalMinutes = postHour * 60 + postMinute;
+
+  const now = new Date();
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    hour: 'numeric',
+    minute: 'numeric',
+    hour12: false,
+  });
+  const parts = formatter.formatToParts(now);
+  const currentHour = parseInt(parts.find(p => p.type === 'hour')?.value ?? '0');
+  const currentMinute = parseInt(parts.find(p => p.type === 'minute')?.value ?? '0');
+  const currentTotalMinutes = currentHour * 60 + currentMinute;
+
+  return currentTotalMinutes >= postTotalMinutes;
+}
+
 // Deduplication: prevent concurrent duplicate notifications
 let notificationInProgress = false;
 
@@ -187,6 +209,7 @@ let notificationInProgress = false;
  * Cleans the channel before posting so old embeds and polls are removed.
  * Creates a new training start poll when the new status allows training.
  * Uses a concurrency guard to prevent duplicate notifications from parallel API calls.
+ * Only triggers after the configured daily post time has passed.
  */
 export async function checkAndNotifyStatusChange(
   date: string,
@@ -213,6 +236,12 @@ export async function checkAndNotifyStatusChange(
     const settings = loadSettings();
     if (!settings.scheduling.changeNotificationsEnabled) {
       logger.info('Change notification: skipped (feature disabled)');
+      return;
+    }
+
+    // Only notify after the daily post time (before that, the daily post hasn't been sent yet)
+    if (!isAfterDailyPostTime(settings.scheduling.dailyPostTime, settings.scheduling.timezone)) {
+      logger.info('Change notification: skipped (before daily post time)');
       return;
     }
 
@@ -250,11 +279,12 @@ export async function checkAndNotifyStatusChange(
     // Clean channel first (removes old schedule embed, previous updates, and polls)
     await cleanScheduleChannel(channel);
 
-    // Build and send updated schedule embed
+    // Build and send updated schedule embed with role ping
     const embed = buildScheduleEmbed(current.result);
+    const pingContent = config.discord.pingRoleId ? `<@&${config.discord.pingRoleId}>\n` : '';
 
     await channel.send({
-      content: `${emoji} **Schedule Update** — ${getStatusLabel(previousStatus)} → ${getStatusLabel(newStatus)}`,
+      content: `${pingContent}${emoji} **Schedule Update** — ${getStatusLabel(previousStatus)} → ${getStatusLabel(newStatus)}`,
       embeds: [embed],
     });
 
