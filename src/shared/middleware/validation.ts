@@ -62,7 +62,7 @@ export const settingsSchema = Joi.object({
     timezone: Joi.string().min(1).max(50).required(),
     reminderHoursBefore: Joi.number().integer().min(0).max(24).required(),
     trainingStartPollEnabled: Joi.boolean().required(),
-    pollDurationMinutes: Joi.number().integer().min(15).max(180),
+    pollDurationMinutes: Joi.number().integer().valid(60, 240, 480, 1440, 4320, 10080),
     cleanChannelBeforePost: Joi.boolean(),
     changeNotificationsEnabled: Joi.boolean(),
   }).required(),
