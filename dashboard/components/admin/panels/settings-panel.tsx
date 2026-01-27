@@ -438,6 +438,29 @@ export default function SettingsPanel() {
               className={microInteractions.smooth}
             />
           </div>
+
+          <div className="flex items-center justify-between space-x-2">
+            <div className="space-y-0.5">
+              <Label htmlFor="changeNotifications">Change Notifications</Label>
+              <p className="text-sm text-muted-foreground">
+                Send notifications when roster improvements are detected (e.g. additional players become available)
+              </p>
+            </div>
+            <Switch
+              id="changeNotifications"
+              checked={settings.scheduling.changeNotificationsEnabled}
+              onCheckedChange={(checked) =>
+                setSettings({
+                  ...settings,
+                  scheduling: {
+                    ...settings.scheduling,
+                    changeNotificationsEnabled: checked,
+                  },
+                })
+              }
+              className={microInteractions.smooth}
+            />
+          </div>
         </CardContent>
       </Card>
 
