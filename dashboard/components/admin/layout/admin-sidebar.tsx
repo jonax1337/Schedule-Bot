@@ -79,58 +79,64 @@ export function AdminSidebar({ userName, onLogout, ...props }: AdminSidebarProps
     router.push('/')
   }
 
-  const navItems = [
+  const overviewItems = [
     {
       title: "Dashboard",
-      url: "/admin?tab=dashboard",
+      tab: "dashboard",
       icon: LayoutDashboard,
       isActive: currentTab === 'dashboard',
     },
     {
       title: "Statistics",
-      url: "/admin?tab=statistics",
+      tab: "statistics",
       icon: BarChart3,
       isActive: currentTab === 'statistics',
     },
-    {
-      title: "Settings",
-      url: "/admin?tab=settings",
-      icon: Settings,
-      isActive: currentTab === 'settings',
-    },
-    {
-      title: "Users",
-      url: "/admin?tab=users",
-      icon: Users,
-      isActive: currentTab === 'users',
-    },
+  ]
+
+  const teamItems = [
     {
       title: "Schedule",
-      url: "/admin?tab=schedule",
+      tab: "schedule",
       icon: CalendarDays,
       isActive: currentTab === 'schedule',
     },
     {
+      title: "Users",
+      tab: "users",
+      icon: Users,
+      isActive: currentTab === 'users',
+    },
+    {
       title: "Matches",
-      url: "/admin?tab=scrims",
+      tab: "scrims",
       icon: Trophy,
       isActive: currentTab === 'scrims',
     },
+  ]
+
+  const systemItems = [
+    {
+      title: "Settings",
+      tab: "settings",
+      icon: Settings,
+      isActive: currentTab === 'settings',
+    },
     {
       title: "Actions",
-      url: "/admin?tab=actions",
+      tab: "actions",
       icon: Zap,
       isActive: currentTab === 'actions',
     },
     {
       title: "Security",
-      url: "/admin?tab=security",
+      tab: "security",
       icon: Shield,
       isActive: currentTab === 'security',
     },
     {
       title: "Logs",
-      url: "/admin?tab=logs",
+      tab: "logs",
       icon: Terminal,
       isActive: currentTab === 'logs',
     },
@@ -173,24 +179,59 @@ export function AdminSidebar({ userName, onLogout, ...props }: AdminSidebarProps
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Management</SidebarGroupLabel>
+          <SidebarGroupLabel>Overview</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navItems.map((item) => {
-                const tab = item.url.split('tab=')[1]
-                return (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      isActive={item.isActive}
-                      tooltip={item.title}
-                      onClick={() => handleNavigation(tab)}
-                    >
-                      <item.icon />
-                      <span>{item.title}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                )
-              })}
+              {overviewItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton
+                    isActive={item.isActive}
+                    tooltip={item.title}
+                    onClick={() => handleNavigation(item.tab)}
+                  >
+                    <item.icon />
+                    <span>{item.title}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+        <SidebarGroup>
+          <SidebarGroupLabel>Team</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {teamItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton
+                    isActive={item.isActive}
+                    tooltip={item.title}
+                    onClick={() => handleNavigation(item.tab)}
+                  >
+                    <item.icon />
+                    <span>{item.title}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+        <SidebarGroup>
+          <SidebarGroupLabel>System</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {systemItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton
+                    isActive={item.isActive}
+                    tooltip={item.title}
+                    onClick={() => handleNavigation(item.tab)}
+                  >
+                    <item.icon />
+                    <span>{item.title}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
