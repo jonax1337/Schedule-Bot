@@ -7,6 +7,8 @@ export interface Settings {
   scheduling: {
     dailyPostTime: string;
     reminderHoursBefore: number;
+    duplicateReminderEnabled: boolean;
+    duplicateReminderHoursBefore: number;
     trainingStartPollEnabled: boolean;
     pollDurationMinutes: number;
     timezone: string;

@@ -31,6 +31,8 @@ export const config = {
     dailyPostTime: settings.scheduling.dailyPostTime,
     timezone: settings.scheduling.timezone,
     reminderHoursBefore: settings.scheduling.reminderHoursBefore,
+    duplicateReminderEnabled: settings.scheduling.duplicateReminderEnabled,
+    duplicateReminderHoursBefore: settings.scheduling.duplicateReminderHoursBefore,
     trainingStartPollEnabled: settings.scheduling.trainingStartPollEnabled,
   },
   admin: {
@@ -48,6 +50,8 @@ export async function reloadConfig(): Promise<void> {
   config.scheduling.dailyPostTime = settings.scheduling.dailyPostTime;
   config.scheduling.timezone = settings.scheduling.timezone;
   config.scheduling.reminderHoursBefore = settings.scheduling.reminderHoursBefore;
+  config.scheduling.duplicateReminderEnabled = settings.scheduling.duplicateReminderEnabled;
+  config.scheduling.duplicateReminderHoursBefore = settings.scheduling.duplicateReminderHoursBefore;
   config.scheduling.trainingStartPollEnabled = settings.scheduling.trainingStartPollEnabled;
   
   // Admin credentials always come from .env (reload from process.env)

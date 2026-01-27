@@ -5,6 +5,7 @@ import { sendRemindersToUsersWithoutEntry } from '../bot/interactions/reminder.j
 
 let scheduledTask: cron.ScheduledTask | null = null;
 let reminderTask: cron.ScheduledTask | null = null;
+let duplicateReminderTask: cron.ScheduledTask | null = null;
 
 function parseTime(timeStr: string): { hour: number; minute: number } {
   const [hourStr, minuteStr] = timeStr.split(':');
@@ -65,6 +66,35 @@ export function startScheduler(): void {
   );
 
   console.log('Reminder scheduler started successfully.');
+
+  // Duplicate reminder job (second reminder, closer to post time)
+  if (config.scheduling.duplicateReminderEnabled) {
+    const dupReminderTime = calculateReminderTime(hour, minute, config.scheduling.duplicateReminderHoursBefore);
+    const dupReminderCronExpression = `${dupReminderTime.minute} ${dupReminderTime.hour} * * *`;
+
+    console.log(`Setting up duplicate reminder at ${dupReminderTime.hour}:${String(dupReminderTime.minute).padStart(2, '0')} (${config.scheduling.duplicateReminderHoursBefore}h before post)`);
+    console.log(`Duplicate reminder cron expression: ${dupReminderCronExpression}`);
+
+    duplicateReminderTask = cron.schedule(
+      dupReminderCronExpression,
+      async () => {
+        console.log(`[${new Date().toISOString()}] Running duplicate reminders...`);
+        try {
+          await sendRemindersToUsersWithoutEntry(client);
+          console.log('Duplicate reminders sent successfully.');
+        } catch (error) {
+          console.error('Error during duplicate reminders:', error);
+        }
+      },
+      {
+        timezone: config.scheduling.timezone,
+      }
+    );
+
+    console.log('Duplicate reminder scheduler started successfully.');
+  } else {
+    console.log('Duplicate reminder is disabled.');
+  }
 }
 
 export function restartScheduler(): void {
@@ -84,6 +114,11 @@ export function stopScheduler(): void {
     reminderTask.stop();
     reminderTask = null;
     console.log('Reminder scheduler stopped.');
+  }
+  if (duplicateReminderTask) {
+    duplicateReminderTask.stop();
+    duplicateReminderTask = null;
+    console.log('Duplicate reminder scheduler stopped.');
   }
 }
 

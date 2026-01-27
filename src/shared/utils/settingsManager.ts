@@ -7,6 +7,8 @@ function flattenSettings(settings: Settings): Record<string, string | number | b
     'discord.allowDiscordAuth': settings.discord.allowDiscordAuth,
     'scheduling.dailyPostTime': settings.scheduling.dailyPostTime,
     'scheduling.reminderHoursBefore': settings.scheduling.reminderHoursBefore,
+    'scheduling.duplicateReminderEnabled': settings.scheduling.duplicateReminderEnabled,
+    'scheduling.duplicateReminderHoursBefore': settings.scheduling.duplicateReminderHoursBefore,
     'scheduling.timezone': settings.scheduling.timezone,
     'scheduling.cleanChannelBeforePost': settings.scheduling.cleanChannelBeforePost,
     'scheduling.trainingStartPollEnabled': settings.scheduling.trainingStartPollEnabled,
@@ -27,6 +29,8 @@ export interface Settings {
   scheduling: {
     dailyPostTime: string;
     reminderHoursBefore: number;
+    duplicateReminderEnabled: boolean;
+    duplicateReminderHoursBefore: number;
     trainingStartPollEnabled: boolean;
     pollDurationMinutes: number;
     timezone: string;
@@ -49,6 +53,8 @@ const DEFAULT_SETTINGS: Settings = {
   scheduling: {
     dailyPostTime: '12:00',
     reminderHoursBefore: 3,
+    duplicateReminderEnabled: false,
+    duplicateReminderHoursBefore: 1,
     trainingStartPollEnabled: false,
     pollDurationMinutes: 60,
     timezone: 'Europe/Berlin',
@@ -130,6 +136,8 @@ export async function loadSettingsAsync(): Promise<Settings> {
       scheduling: {
         dailyPostTime: settingsMap['scheduling.dailyPostTime'] || DEFAULT_SETTINGS.scheduling.dailyPostTime,
         reminderHoursBefore: parseInt(settingsMap['scheduling.reminderHoursBefore']) || DEFAULT_SETTINGS.scheduling.reminderHoursBefore,
+        duplicateReminderEnabled: settingsMap['scheduling.duplicateReminderEnabled'] === 'true',
+        duplicateReminderHoursBefore: parseInt(settingsMap['scheduling.duplicateReminderHoursBefore']) || DEFAULT_SETTINGS.scheduling.duplicateReminderHoursBefore,
         trainingStartPollEnabled: settingsMap['scheduling.trainingStartPollEnabled'] === 'true',
         pollDurationMinutes: parseInt(settingsMap['scheduling.pollDurationMinutes']) || DEFAULT_SETTINGS.scheduling.pollDurationMinutes,
         timezone: settingsMap['scheduling.timezone'] || DEFAULT_SETTINGS.scheduling.timezone,
