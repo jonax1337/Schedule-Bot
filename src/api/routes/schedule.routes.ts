@@ -40,18 +40,35 @@ router.get('/paginated', verifyToken, requireAdmin, async (req: AuthRequest, res
 router.post('/update-reason', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
   try {
     const { date, reason, focus } = req.body;
-    
+
     if (!date) {
       return res.status(400).json({ error: 'Date is required' });
     }
-    
+
+    // Capture old status before update (for change notification on reason change, e.g. Off Day)
+    let oldStatus: ScheduleStatus | null = null;
+    try {
+      const oldState = await getScheduleStatus(date);
+      oldStatus = oldState?.status ?? null;
+    } catch (err) {
+      logger.warn('Change notification: failed to capture old status (reason)', err instanceof Error ? err.message : String(err));
+    }
+
     const { updateScheduleReason } = await import('../../repositories/schedule.repository.js');
     const sanitizedReason = sanitizeString(reason || '');
     const sanitizedFocus = sanitizeString(focus || '');
     const success = await updateScheduleReason(date, sanitizedReason, sanitizedFocus);
-    
+
     if (success) {
       logger.success('Schedule reason updated', `${date} = ${reason}`);
+
+      // Trigger change notification (fire and forget)
+      if (oldStatus) {
+        checkAndNotifyStatusChange(date, oldStatus).catch(err => {
+          logger.error('Change notification promise rejected', err instanceof Error ? err.message : String(err));
+        });
+      }
+
       res.json({ success: true, message: 'Schedule reason updated successfully' });
     } else {
       res.status(500).json({ error: 'Failed to update schedule reason' });
