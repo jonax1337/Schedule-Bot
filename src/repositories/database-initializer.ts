@@ -14,6 +14,8 @@ const DEFAULT_SETTINGS = {
   'discord.allowDiscordAuth': false,
   'scheduling.dailyPostTime': '18:00',
   'scheduling.reminderHoursBefore': 2,
+  'scheduling.duplicateReminderEnabled': false,
+  'scheduling.duplicateReminderHoursBefore': 1,
   'scheduling.timezone': 'Europe/Berlin',
   'scheduling.cleanChannelBeforePost': false,
   'scheduling.trainingStartPollEnabled': false,

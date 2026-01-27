@@ -304,6 +304,61 @@ export default function SettingsPanel() {
             </p>
           </div>
 
+          <div className="flex items-center justify-between space-x-2">
+            <div className="space-y-0.5">
+              <Label htmlFor="duplicateReminder">Duplicate Reminder</Label>
+              <p className="text-sm text-muted-foreground">
+                Send a second reminder to players who still haven&apos;t set their availability
+              </p>
+            </div>
+            <Switch
+              id="duplicateReminder"
+              checked={settings.scheduling.duplicateReminderEnabled}
+              onCheckedChange={(checked) =>
+                setSettings({
+                  ...settings,
+                  scheduling: {
+                    ...settings.scheduling,
+                    duplicateReminderEnabled: checked,
+                  },
+                })
+              }
+              className={microInteractions.smooth}
+            />
+          </div>
+
+          {settings.scheduling.duplicateReminderEnabled && (
+            <div className="space-y-2 pl-4 border-l-2 border-muted">
+              <Label htmlFor="duplicateReminderHours">Second Reminder Hours Before Post</Label>
+              <Select
+                value={settings.scheduling.duplicateReminderHoursBefore.toString()}
+                onValueChange={(value) =>
+                  setSettings({
+                    ...settings,
+                    scheduling: {
+                      ...settings.scheduling,
+                      duplicateReminderHoursBefore: parseInt(value),
+                    },
+                  })
+                }
+              >
+                <SelectTrigger id="duplicateReminderHours" className={cn("w-full", microInteractions.focusRing)}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent position="popper">
+                  <SelectItem value="1">1 hour before</SelectItem>
+                  <SelectItem value="2">2 hours before</SelectItem>
+                  <SelectItem value="3">3 hours before</SelectItem>
+                  <SelectItem value="4">4 hours before</SelectItem>
+                  <SelectItem value="6">6 hours before</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-sm text-muted-foreground">
+                How many hours before the daily post to send the second reminder (should be less than the first reminder)
+              </p>
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label htmlFor="timezone">Timezone</Label>
             <Popover open={timezoneOpen} onOpenChange={setTimezoneOpen}>

@@ -61,6 +61,8 @@ export const settingsSchema = Joi.object({
     dailyPostTime: Joi.string().pattern(/^\d{2}:\d{2}$/).required(),
     timezone: Joi.string().min(1).max(50).required(),
     reminderHoursBefore: Joi.number().integer().min(0).max(24).required(),
+    duplicateReminderEnabled: Joi.boolean(),
+    duplicateReminderHoursBefore: Joi.number().integer().min(0).max(24),
     trainingStartPollEnabled: Joi.boolean().required(),
     pollDurationMinutes: Joi.number().integer().valid(60, 240, 480, 1440, 4320, 10080),
     cleanChannelBeforePost: Joi.boolean(),
