@@ -17,7 +17,7 @@ const ALL_MAPS = [
   'Haven', 'Icebox', 'Lotus', 'Pearl', 'Split', 'Sunset'
 ];
 
-const DEFAULT_POOL = ['Abyss', 'Ascent', 'Bind', 'Haven', 'Icebox', 'Lotus', 'Split'];
+const DEFAULT_POOL: string[] = [];
 
 type VetoAction = 'BAN' | 'PICK' | 'DECIDER';
 type VetoTeam = 'US' | 'THEM';
@@ -177,10 +177,11 @@ export function MapVetoPlanner() {
     setVetoEntries([]);
   }, []);
 
+  const poolReady = mapPool.length === 7;
+
   const toggleMapInPool = useCallback((map: string) => {
     setMapPool(prev => {
       if (prev.includes(map)) {
-        if (prev.length <= 7) return prev; // Need exactly 7 maps
         return prev.filter(m => m !== map);
       }
       if (prev.length >= 7) return prev; // Max 7
@@ -239,7 +240,7 @@ export function MapVetoPlanner() {
                   key={map}
                   className={cn(
                     "relative overflow-hidden rounded-lg border p-2 text-center transition-opacity",
-                    !inPool && "opacity-40"
+                    poolReady && !inPool && "opacity-40"
                   )}
                 >
                   <div
@@ -309,20 +310,21 @@ export function MapVetoPlanner() {
             {/* Map Pool */}
             <div className="space-y-1.5 flex-1">
               <Label className="text-xs text-muted-foreground">Active Map Pool ({mapPool.length}/7)</Label>
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap gap-2">
                 {ALL_MAPS.map((map) => {
                   const inPool = mapPool.includes(map);
+                  const disabled = vetoEntries.length > 0 || (!inPool && mapPool.length >= 7);
                   return (
                     <button
                       key={map}
                       onClick={() => toggleMapInPool(map)}
-                      disabled={vetoEntries.length > 0}
+                      disabled={disabled}
                       className={cn(
-                        "px-2 py-0.5 rounded-md text-xs border transition-all",
+                        "px-3 py-1.5 rounded-md text-sm border transition-all",
                         inPool
                           ? "bg-primary text-primary-foreground border-primary"
                           : "bg-muted text-muted-foreground border-transparent hover:border-muted-foreground/30",
-                        vetoEntries.length > 0 && "cursor-not-allowed opacity-60"
+                        disabled && "cursor-not-allowed opacity-60"
                       )}
                     >
                       {map}
@@ -335,6 +337,12 @@ export function MapVetoPlanner() {
 
           {/* Veto Process */}
           <div className="border rounded-lg p-4 space-y-4">
+            {!poolReady ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <p className="text-sm">Select exactly 7 maps to start the veto simulation.</p>
+                <p className="text-xs mt-1">{mapPool.length}/7 maps selected</p>
+              </div>
+            ) : (<>
             {/* Header */}
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">
@@ -431,7 +439,7 @@ export function MapVetoPlanner() {
                     ? `Select a map to pick (${steps[currentStep].team === 'US' ? teamName : 'Opponent'}):`
                     : 'Remaining map becomes the decider:'}
                 </p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-2">
                   {availableMaps.map((map) => {
                     const winRate = getMapWinRate(map);
                     return (
@@ -439,7 +447,7 @@ export function MapVetoPlanner() {
                         key={map}
                         onClick={() => handleSelectMap(map)}
                         className={cn(
-                          "relative overflow-hidden rounded-lg border p-3 text-left transition-all hover:ring-2 hover:ring-primary",
+                          "relative overflow-hidden rounded-lg border p-2.5 text-center transition-all hover:ring-2 hover:ring-primary",
                           microInteractions.activePress
                         )}
                       >
@@ -508,6 +516,7 @@ export function MapVetoPlanner() {
                 </Button>
               </div>
             )}
+            </>)}
           </div>
         </CardContent>
       </Card>
