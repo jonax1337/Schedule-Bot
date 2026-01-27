@@ -96,45 +96,6 @@ model Setting {
   @@map("settings")
 }
 
-model MapVetoSession {
-  id          String          @id
-  title       String
-  opponent    String          @default("")
-  date        String          @default("")
-  notes       String          @default("")
-  createdBy   String          @map("created_by")
-  createdAt   DateTime        @default(now()) @map("created_at")
-  updatedAt   DateTime        @updatedAt @map("updated_at")
-  entries     MapVetoEntry[]
-
-  @@index([date])
-  @@map("map_veto_sessions")
-}
-
-model MapVetoEntry {
-  id        Int            @id @default(autoincrement())
-  sessionId String         @map("session_id")
-  step      Int
-  action    VetoAction
-  map       String
-  team      VetoTeam
-  session   MapVetoSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-
-  @@index([sessionId])
-  @@map("map_veto_entries")
-}
-
-enum VetoAction {
-  BAN
-  PICK
-  DECIDER
-}
-
-enum VetoTeam {
-  OUR_TEAM
-  OPPONENT
-}
-
 enum UserRole {
   MAIN
   SUB
