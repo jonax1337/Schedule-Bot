@@ -13,7 +13,7 @@ All components run from a single Node.js process that starts the bot, API server
 
 ### Technology Stack
 **Backend:** TypeScript 5.9, discord.js 14.25, Express 5.2, Prisma 7.3 (with @prisma/adapter-pg + pg native driver), node-cron 4.2, bcrypt 6, jsonwebtoken 9, Helmet 8, dotenv 17, ical-generator 10, Joi 18
-**Frontend:** Next.js 16.1, React 19.2, TailwindCSS 4, Radix UI primitives, next-themes, sonner (toasts), lucide-react (icons), cmdk (command palette)
+**Frontend:** Next.js 16.1, React 19.2, TailwindCSS 4, Radix UI primitives, Recharts 3.7 (charts), next-themes, sonner (toasts), lucide-react (icons), cmdk (command palette)
 **Database:** PostgreSQL via Prisma ORM
 
 ## Common Commands
@@ -105,6 +105,7 @@ src/
 │   │   └── auth.controller.ts  # Auth logic (admin, user, Discord OAuth)
 │   └── routes/
 │       ├── index.ts            # Route aggregator + health/logs/schedule-details
+│       ├── absence.routes.ts   # Absence/vacation CRUD
 │       ├── actions.routes.ts   # Manual action triggers (post, remind, poll, notify)
 │       ├── admin.routes.ts     # Admin utilities (hash, JWT generation)
 │       ├── auth.routes.ts      # Login, logout, OAuth endpoints
@@ -141,10 +142,12 @@ src/
 ├── repositories/               # Data access layer (Prisma queries)
 │   ├── database.repository.ts  # Prisma client singleton + connect/disconnect
 │   ├── database-initializer.ts # First-run DB setup (default settings, tables)
+│   ├── absence.repository.ts   # Absence CRUD + date range checks
 │   ├── schedule.repository.ts  # Schedule + player queries, seeding, sync
 │   ├── scrim.repository.ts     # Match tracking CRUD + stats
 │   └── user-mapping.repository.ts # Roster management with auto-sort
 ├── services/                   # Business logic layer
+│   ├── absence.service.ts      # Absence CRUD with auth + date validation
 │   ├── schedule.service.ts     # Schedule analysis, availability validation
 │   ├── scrim.service.ts        # Scrim CRUD + stats + recent scrims
 │   └── user-mapping.service.ts # Roster CRUD with auto-sync to schedules
@@ -194,6 +197,7 @@ dashboard/
 │   │   └── panels/             # Admin feature panels
 │   │       ├── index.ts        # Barrel export (also re-exports shared panels)
 │   │       ├── dashboard-home.tsx      # Admin dashboard home with stats cards
+│   │       ├── statistics-panel.tsx    # Charts & analytics (Recharts, mobile-friendly)
 │   │       ├── schedule-editor.tsx     # Edit schedule reason/focus
 │   │       ├── settings-panel.tsx      # Bot configuration UI
 │   │       ├── actions-panel.tsx       # Manual action triggers
@@ -229,6 +233,7 @@ dashboard/
 │           ├── index.ts
 │           ├── user-schedule-content.tsx    # Calendar view for users
 │           ├── user-availability-content.tsx # Set availability (auto-save)
+│           ├── user-absences-content.tsx    # Absence/vacation management
 │           └── user-matches-content.tsx     # Match history (uses shared ScrimsPanel)
 ├── hooks/
 │   └── use-mobile.ts           # Mobile breakpoint hook (768px)
@@ -318,6 +323,21 @@ Provides frontend-friendly schedule analysis:
 - `getScheduleDetailsBatch(dates)` - Batch multi-date analysis
 - Returns status strings: "Able to play", "Almost there", "More players needed", "Insufficient players", "Off-Day", "Unknown"
 
+### Absence System
+Players can register planned absences (vacations, travel, etc.) with date ranges:
+- **Database**: `absences` table with `user_id`, `start_date`, `end_date` (DD.MM.YYYY), `reason`
+- **Repository** (`absence.repository.ts`): CRUD + `isUserAbsentOnDate()`, `getAbsentUserIdsForDate()`, `getAbsentUserIdsForDates()` (batch)
+- **Service** (`absence.service.ts`): Validates dates, enforces authorization (users can only manage own absences unless admin)
+- **API Routes** (`absence.routes.ts`): Full REST API at `/api/absences`
+- **Dashboard**: `UserAbsencesContent` page with table + create/edit dialog
+- **Discord Bot Integration**:
+  - `interactive.ts` - Prevents setting availability during active absence, shows "✈️ You have an active absence"
+  - `schedule.commands.ts` - Filters absent players from `/schedule` display
+  - `schedule-poster.ts` - Shows separate "Absent" count in daily embed
+  - `reminder.ts` - Skips reminders for absent players
+  - `poll.commands.ts` - Excludes absent players from training polls
+- **Statistics**: Team Availability chart shows absent players as a separate purple bar segment
+
 ## Discord Bot Commands
 
 ### Public Commands
@@ -375,6 +395,14 @@ Provides frontend-friendly schedule analysis:
 - `PUT /api/scrims/:id` - Update (auth required, validated)
 - `DELETE /api/scrims/:id` - Delete (auth required)
 
+### Absences
+- `GET /api/absences/my` - Get logged-in user's absences (auth required)
+- `GET /api/absences?userId=ID` - Get absences for specific user (auth required)
+- `GET /api/absences/by-dates?dates=DD.MM.YYYY,...` - Batch: absent user IDs per date (auth required)
+- `POST /api/absences` - Create absence (auth required, users create own only)
+- `PUT /api/absences/:id` - Update absence (auth required, own only unless admin)
+- `DELETE /api/absences/:id` - Delete absence (auth required, own only unless admin)
+
 ### Settings & Actions
 - `GET /api/settings` - Load all settings (public)
 - `POST /api/settings` - Save settings (admin, strict rate limit, validated)
@@ -420,12 +448,14 @@ Provides frontend-friendly schedule analysis:
 Data access is abstracted into repositories (sole data layer, no legacy alternatives):
 - `database.repository.ts` - Prisma client singleton, `connectDatabase()`, `disconnectDatabase()`
 - `database-initializer.ts` - First-run setup: creates tables, seeds default settings and schedules
+- `absence.repository.ts` - Absence CRUD, `isUserAbsentOnDate()`, `getAbsentUserIdsForDate()`, `getAbsentUserIdsForDates()` (batch)
 - `schedule.repository.ts` - Schedule CRUD, `addMissingDays()`, `syncUserMappingsToSchedules()`, pagination
 - `scrim.repository.ts` - Scrim CRUD, stats aggregation, date range queries
 - `user-mapping.repository.ts` - Roster CRUD with auto-`sortOrder` calculation and reordering on role changes
 
 ### Services Layer
 Services provide business logic on top of repositories:
+- `absence.service.ts` - Absence CRUD with date validation and authorization (users manage own absences only)
 - `schedule.service.ts` - Schedule analysis, availability validation (users can only edit their own unless admin), pagination
 - `scrim.service.ts` - Scrim CRUD, stats, recent scrims with date sorting
 - `user-mapping.service.ts` - Roster CRUD with automatic `syncUserMappingsToSchedules()` after changes
@@ -451,10 +481,10 @@ Two auth modes:
 
 ### Dashboard Routing
 Next.js App Router structure:
-- `/` - Home page (calendar view of all players)
+- `/` - Home page (tab-based: schedule, availability, absences, matches, statistics)
 - `/login` - User login page
 - `/admin/login` - Admin login page
-- `/admin` - Admin dashboard (protected, admin role)
+- `/admin` - Admin dashboard (tab-based: dashboard, statistics, settings, users, schedule, scrims, actions, security, logs)
 - `/user` - User portal for setting own availability
 - `/auth/callback` - Discord OAuth callback handler
 
@@ -468,15 +498,25 @@ The dashboard includes Next.js API routes (`app/api/`) that proxy requests to th
 ### Dashboard Component Organization
 Components are organized by domain/role:
 - `components/admin/` - Admin-only features (panels, layout)
+  - `panels/` - Feature panels: dashboard-home, statistics, settings, schedule-editor, user-mappings, actions, logs, security
+  - `layout/` - Admin layout wrapper and sidebar
 - `components/user/` - User portal features (layout + pages subdirectories)
   - `layout/` - User layout wrapper and sidebar
-  - `pages/` - User content pages (schedule, availability, matches)
+  - `pages/` - User content pages (schedule, availability, absences, matches)
 - `components/auth/` - Authentication UI
 - `components/shared/` - Shared across admin/user (agent-picker, scrims-panel, nav-user)
 - `components/theme/` - Theme system (theme-toggle, theme-provider, theme-switcher-sidebar)
 - `components/ui/` - Radix UI primitives (29 components)
 
 Admin panels export from `components/admin/panels/index.ts` which also re-exports shared components (ScrimsPanel, AgentSelector) for convenience.
+
+### Statistics Panel
+The `StatisticsPanel` (`components/admin/panels/statistics-panel.tsx`) provides team analytics using Recharts:
+- **Team Availability Chart** - Stacked bar chart showing available/unavailable/no-response/absent players per day
+- **Scrim Results** - Win/loss/draw visualization with filtering by date range and opponent
+- **Current Form** - Win/loss streak display
+- **Map Compositions** - Agent picks per map with collapsible details
+- Mobile-responsive: uses `useIsMobile` hook, adjusts chart heights (220px mobile, 300px desktop), thins X-axis labels on mobile
 
 ### Dashboard Animation System
 The dashboard uses a custom animation utility system (`lib/animations.ts`):
@@ -605,6 +645,7 @@ curl -X POST http://localhost:3001/api/actions/remind \
 - **schedule_players** - Many rows per schedule, one per player per date, stores availability and sort_order
 - **user_mappings** - Master roster with discord_id, discord_username, display_name, role, sort_order
 - **scrims** - Match history (opponent, result, score_us, score_them, map, match_type, our_agents, their_agents as comma-separated strings, vod_url, notes)
+- **absences** - Player absence periods (user_id, start_date, end_date in DD.MM.YYYY, reason)
 - **settings** - Key-value store for bot configuration (dot-notation keys)
 
 ### Enums
@@ -616,14 +657,16 @@ curl -X POST http://localhost:3001/api/actions/remind \
 - `schedule_players.schedule_id` and `schedule_players.user_id` - Join optimization
 - `user_mappings.discord_id` - Unique constraint prevents duplicates
 - `user_mappings.(role, sort_order)` - Compound index for sorted roster queries
+- `absences.user_id` - User lookup optimization
+- `absences.(start_date, end_date)` - Date range query optimization
 
 ### Scrim ID Format
 Scrims use custom IDs: `scrim_${timestamp}_${random}` (string, not auto-increment)
 
 ## Code Style
 
-- TypeScript strict mode is DISABLED (`strict: false`, `noImplicitAny: false` in tsconfig.json)
-- Target: ES2022, Module: NodeNext, ModuleResolution: NodeNext
+- **Backend** TypeScript strict mode is DISABLED (`strict: false`, `noImplicitAny: false` in tsconfig.json), Target: ES2022, Module: NodeNext
+- **Dashboard** TypeScript strict mode is ENABLED (full strict), Target: ES2017, Module: esnext, Path alias: `@/*` → `./*`
 - Use async/await for all database operations
 - Error handling: try/catch with console.error + logger.error
 - Discord embeds use `EmbedBuilder` from discord.js
