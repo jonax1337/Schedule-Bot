@@ -6,6 +6,7 @@ import { updatePlayerAvailability } from '../../repositories/schedule.repository
 import { getScheduleDetails, getScheduleDetailsBatch } from '../../shared/utils/scheduleDetails.js';
 import { isUserAbsentOnDate } from '../../repositories/absence.repository.js';
 import { logger } from '../../shared/utils/logger.js';
+import type { ScheduleStatus } from '../../shared/types/types.js';
 
 const router = Router();
 
@@ -87,12 +88,32 @@ router.post('/update-availability', verifyToken, async (req: AuthRequest, res) =
       return res.status(403).json({ error: 'Cannot edit availability during an absence period' });
     }
 
+    // Capture old status before update (for change notification)
+    let oldStatus: ScheduleStatus | null = null;
+    try {
+      const { getScheduleStatus } = await import('../../bot/utils/schedule-poster.js');
+      const oldState = await getScheduleStatus(date);
+      oldStatus = oldState?.status ?? null;
+    } catch {
+      // Non-critical: change notification won't fire but availability update still proceeds
+    }
+
     const sanitizedValue = sanitizeString(availability);
     const success = await updatePlayerAvailability(date, userId, sanitizedValue);
-    
+
     if (success) {
       logger.success('Availability updated', `${userId} for ${date} = ${availability}`);
       res.json({ success: true, message: 'Availability updated successfully' });
+
+      // Check and notify status change (fire and forget)
+      if (oldStatus) {
+        try {
+          const { checkAndNotifyStatusChange } = await import('../../bot/utils/schedule-poster.js');
+          checkAndNotifyStatusChange(date, oldStatus).catch(() => {});
+        } catch {
+          // Non-critical
+        }
+      }
     } else {
       res.status(500).json({ error: 'Failed to update availability' });
     }

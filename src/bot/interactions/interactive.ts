@@ -19,6 +19,8 @@ import { isUserAbsentOnDate, getAbsentUserIdsForDate } from '../../repositories/
 import { parseSchedule, analyzeSchedule } from '../../shared/utils/analyzer.js';
 import { buildScheduleEmbed } from '../embeds/embed.js';
 import { getTodayFormatted, addDays, normalizeDateFormat, isDateAfterOrEqual } from '../../shared/utils/dateFormatter.js';
+import { getScheduleStatus, checkAndNotifyStatusChange } from '../utils/schedule-poster.js';
+import type { ScheduleStatus } from '../../shared/types/types.js';
 // Week operations removed - use individual updatePlayerAvailability calls
 import { client } from '../client.js';
 
@@ -211,12 +213,21 @@ export async function handleAvailabilityButton(
       return;
     }
 
+    // Capture old status before update (for change notification)
+    const oldState = await getScheduleStatus(date);
+    const oldStatus = oldState?.status;
+
     const success = await updatePlayerAvailability(date, userMapping.discordId, 'x');
 
     if (success) {
       await interaction.editReply({
         content: `✅ You have been marked as not available for ${date}.`,
       });
+
+      // Check and notify status change (fire and forget)
+      if (oldStatus) {
+        checkAndNotifyStatusChange(date, oldStatus).catch(() => {});
+      }
     } else {
       await interaction.editReply({
         content: `❌ Error updating. Please try again later.`,
@@ -261,6 +272,11 @@ export async function handleTimeModal(
   }
 
   const timeRange = `${startTime}-${endTime}`;
+
+  // Capture old status before update (for change notification)
+  const oldState = await getScheduleStatus(date);
+  const oldStatus = oldState?.status;
+
   const success = await updatePlayerAvailability(date, userMapping.discordId, timeRange);
 
   if (success) {
@@ -268,6 +284,11 @@ export async function handleTimeModal(
     await interaction.editReply({
       content: `✅ Your availability for ${normalizedDate} has been set to ${timeRange}.`,
     });
+
+    // Check and notify status change (fire and forget)
+    if (oldStatus) {
+      checkAndNotifyStatusChange(date, oldStatus).catch(() => {});
+    }
   } else {
     await interaction.editReply({
       content: `❌ Error updating. Please try again later.`,
@@ -543,6 +564,14 @@ export async function handleWeekModal(
     return;
   }
 
+  // Capture today's old status before updates (for change notification)
+  const today = getTodayFormatted();
+  let todayOldStatus: ScheduleStatus | undefined;
+  if (weekData[today] !== undefined) {
+    const oldState = await getScheduleStatus(today);
+    todayOldStatus = oldState?.status;
+  }
+
   // Update all entries
   // Update each day individually
   let successCount = 0;
@@ -550,7 +579,7 @@ export async function handleWeekModal(
     const success = await updatePlayerAvailability(date, userMapping.discordId, value);
     if (success) successCount++;
   }
-  
+
   const result = { success: successCount === Object.keys(weekData).length, updated: successCount };
 
   if (result.success) {
@@ -561,6 +590,11 @@ export async function handleWeekModal(
     await interaction.editReply({
       content: `⚠️ Partially updated. ${result.updated}/${Object.keys(weekData).length} days updated successfully.`,
     });
+  }
+
+  // Check and notify status change for today (fire and forget)
+  if (todayOldStatus !== undefined) {
+    checkAndNotifyStatusChange(today, todayOldStatus).catch(() => {});
   }
 }
 
