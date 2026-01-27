@@ -8,7 +8,8 @@ import {
   UserScheduleContent,
   UserAvailabilityContent,
   UserMatchesContent,
-  UserAbsencesContent
+  UserAbsencesContent,
+  UserMapVetoContent
 } from '@/components/user';
 import { StatisticsPanel } from '@/components/admin/panels';
 
@@ -53,6 +54,7 @@ function HomeContent() {
       availability: 'My Availability',
       absences: 'Absences',
       matches: 'Match History',
+      'map-veto': 'Map Veto',
       statistics: 'Statistics',
     };
     
@@ -67,6 +69,7 @@ function HomeContent() {
         {currentTab === 'availability' && <UserAvailabilityContent />}
         {currentTab === 'absences' && <UserAbsencesContent />}
         {currentTab === 'matches' && <UserMatchesContent />}
+        {currentTab === 'map-veto' && <UserMapVetoContent />}
         {currentTab === 'statistics' && <StatisticsPanel />}
       </div>
     </UserLayoutWrapper>

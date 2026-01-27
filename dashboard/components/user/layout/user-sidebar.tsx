@@ -12,6 +12,7 @@ import {
   Home,
   BarChart3,
   PlaneTakeoff,
+  Map,
 } from "lucide-react"
 
 import { NavUser } from "@/components/shared"
@@ -130,6 +131,12 @@ export function UserSidebar({ userName, onLogout, ...props }: UserSidebarProps) 
       tab: "matches",
       icon: Trophy,
       isActive: currentTab === 'matches',
+    },
+    {
+      title: "Map Veto",
+      tab: "map-veto",
+      icon: Map,
+      isActive: currentTab === 'map-veto',
     },
     {
       title: "Statistics",

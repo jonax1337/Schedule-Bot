@@ -14,6 +14,7 @@ import {
   ArrowLeft,
   LayoutDashboard,
   BarChart3,
+  Map,
 } from "lucide-react"
 
 import { NavUser } from "@/components/shared"
@@ -112,6 +113,12 @@ export function AdminSidebar({ userName, onLogout, ...props }: AdminSidebarProps
       tab: "scrims",
       icon: Trophy,
       isActive: currentTab === 'scrims',
+    },
+    {
+      title: "Map Veto",
+      tab: "map-veto",
+      icon: Map,
+      isActive: currentTab === 'map-veto',
     },
   ]
 

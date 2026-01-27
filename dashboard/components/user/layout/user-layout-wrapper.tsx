@@ -30,7 +30,9 @@ export function UserLayoutWrapper({ children, breadcrumbs = [] }: UserLayoutWrap
   const tabLabels: Record<string, string> = {
     schedule: 'Schedule',
     availability: 'My Availability',
+    absences: 'Absences',
     matches: 'Match History',
+    'map-veto': 'Map Veto',
     statistics: 'Statistics',
   }
 
