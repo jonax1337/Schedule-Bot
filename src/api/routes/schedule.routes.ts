@@ -5,6 +5,7 @@ import { getUserMappings } from '../../repositories/user-mapping.repository.js';
 import { updatePlayerAvailability } from '../../repositories/schedule.repository.js';
 import { getScheduleDetails, getScheduleDetailsBatch } from '../../shared/utils/scheduleDetails.js';
 import { isUserAbsentOnDate } from '../../repositories/absence.repository.js';
+import { getScheduleStatus, checkAndNotifyStatusChange } from '../../bot/utils/schedule-poster.js';
 import { logger } from '../../shared/utils/logger.js';
 import type { ScheduleStatus } from '../../shared/types/types.js';
 
@@ -91,11 +92,11 @@ router.post('/update-availability', verifyToken, async (req: AuthRequest, res) =
     // Capture old status before update (for change notification)
     let oldStatus: ScheduleStatus | null = null;
     try {
-      const { getScheduleStatus } = await import('../../bot/utils/schedule-poster.js');
       const oldState = await getScheduleStatus(date);
       oldStatus = oldState?.status ?? null;
-    } catch {
-      // Non-critical: change notification won't fire but availability update still proceeds
+      logger.info('Change notification: captured old status', `${date}: ${oldStatus}`);
+    } catch (err) {
+      logger.warn('Change notification: failed to capture old status', err instanceof Error ? err.message : String(err));
     }
 
     const sanitizedValue = sanitizeString(availability);
@@ -103,17 +104,17 @@ router.post('/update-availability', verifyToken, async (req: AuthRequest, res) =
 
     if (success) {
       logger.success('Availability updated', `${userId} for ${date} = ${availability}`);
-      res.json({ success: true, message: 'Availability updated successfully' });
 
-      // Check and notify status change (fire and forget)
+      // Trigger change notification check (fire and forget)
       if (oldStatus) {
-        try {
-          const { checkAndNotifyStatusChange } = await import('../../bot/utils/schedule-poster.js');
-          checkAndNotifyStatusChange(date, oldStatus).catch(() => {});
-        } catch {
-          // Non-critical
-        }
+        checkAndNotifyStatusChange(date, oldStatus).catch(err => {
+          logger.error('Change notification promise rejected', err instanceof Error ? err.message : String(err));
+        });
+      } else {
+        logger.info('Change notification: skipped (no old status captured)');
       }
+
+      res.json({ success: true, message: 'Availability updated successfully' });
     } else {
       res.status(500).json({ error: 'Failed to update availability' });
     }

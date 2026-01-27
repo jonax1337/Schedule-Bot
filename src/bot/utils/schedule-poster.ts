@@ -154,23 +154,37 @@ export async function checkAndNotifyStatusChange(
   try {
     // Only notify for today's schedule
     const today = getTodayFormatted();
-    if (date !== today) return;
+    if (date !== today) {
+      logger.info('Change notification: skipped (not today)', `date=${date}, today=${today}`);
+      return;
+    }
 
     // Check if feature is enabled
     const { loadSettings } = await import('../../shared/utils/settingsManager.js');
     const settings = loadSettings();
-    if (!settings.scheduling.changeNotificationsEnabled) return;
+    if (!settings.scheduling.changeNotificationsEnabled) {
+      logger.info('Change notification: skipped (feature disabled)');
+      return;
+    }
 
     // Get current status after update
     const current = await getScheduleStatus(date);
-    if (!current) return;
+    if (!current) {
+      logger.warn('Change notification: skipped (could not fetch current status)');
+      return;
+    }
 
     const newStatus = current.status;
 
     // Only notify on status improvements
     const oldPriority = STATUS_PRIORITY[previousStatus];
     const newPriority = STATUS_PRIORITY[newStatus];
-    if (newPriority <= oldPriority) return;
+    if (newPriority <= oldPriority) {
+      logger.info('Change notification: no improvement', `${previousStatus}(${oldPriority}) → ${newStatus}(${newPriority})`);
+      return;
+    }
+
+    logger.info('Change notification: status improved', `${previousStatus} → ${newStatus}`);
 
     // Get Discord channel
     const botClient = clientInstance || (await import('../client.js')).client;
