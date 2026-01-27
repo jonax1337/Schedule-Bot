@@ -119,7 +119,7 @@ export async function getScheduleStatus(date: string): Promise<{ status: Schedul
 }
 
 /**
- * Status priority for detecting improvements
+ * Status priority for comparison
  */
 const STATUS_PRIORITY: Record<ScheduleStatus, number> = {
   'OFF_DAY': -1,
@@ -141,16 +141,65 @@ function getStatusLabel(status: ScheduleStatus): string {
 }
 
 /**
- * Check if schedule status improved after an availability change and send notification.
- * Only triggers for today's date when changeNotificationsEnabled is true.
- * Sends a training start poll only when transitioning FROM NOT_ENOUGH to a playable status,
- * to avoid duplicate polls when a poll was already created (e.g. WITH_SUBS → FULL_ROSTER).
+ * Clean all non-pinned messages from the schedule channel
+ */
+async function cleanScheduleChannel(channel: TextChannel): Promise<void> {
+  try {
+    const messages = await channel.messages.fetch({ limit: 100 });
+    const messagesToDelete = messages.filter(msg => !msg.pinned);
+
+    if (messagesToDelete.size === 0) return;
+
+    const recentMessages = messagesToDelete.filter(msg =>
+      Date.now() - msg.createdTimestamp < 14 * 24 * 60 * 60 * 1000
+    );
+
+    if (recentMessages.size > 1) {
+      await channel.bulkDelete(recentMessages);
+    } else if (recentMessages.size === 1) {
+      await recentMessages.first()?.delete();
+    }
+
+    const oldMessages = messagesToDelete.filter(msg =>
+      Date.now() - msg.createdTimestamp >= 14 * 24 * 60 * 60 * 1000
+    );
+
+    for (const msg of oldMessages.values()) {
+      try {
+        await msg.delete();
+      } catch (err) {
+        logger.warn('Could not delete old message', err instanceof Error ? err.message : String(err));
+      }
+    }
+
+    logger.info('Channel cleaned for status update', `Removed ${messagesToDelete.size} message(s)`);
+  } catch (error) {
+    logger.error('Channel cleaning failed', error instanceof Error ? error.message : String(error));
+  }
+}
+
+// Deduplication: prevent concurrent duplicate notifications
+let notificationInProgress = false;
+
+/**
+ * Check if schedule status changed after an availability update and send notification.
+ * Handles both upgrades (📈) and downgrades (📉).
+ * Cleans the channel before posting so old embeds and polls are removed.
+ * Creates a new training start poll when the new status allows training.
+ * Uses a concurrency guard to prevent duplicate notifications from parallel API calls.
  */
 export async function checkAndNotifyStatusChange(
   date: string,
   previousStatus: ScheduleStatus,
   clientInstance?: Client
 ): Promise<void> {
+  // Guard against concurrent duplicate notifications (e.g. dashboard sending two requests)
+  if (notificationInProgress) {
+    logger.info('Change notification: skipped (already in progress)');
+    return;
+  }
+  notificationInProgress = true;
+
   try {
     // Only notify for today's schedule
     const today = getTodayFormatted();
@@ -175,16 +224,19 @@ export async function checkAndNotifyStatusChange(
     }
 
     const newStatus = current.status;
-
-    // Only notify on status improvements
     const oldPriority = STATUS_PRIORITY[previousStatus];
     const newPriority = STATUS_PRIORITY[newStatus];
-    if (newPriority <= oldPriority) {
-      logger.info('Change notification: no improvement', `${previousStatus}(${oldPriority}) → ${newStatus}(${newPriority})`);
+
+    // No change = no notification
+    if (newPriority === oldPriority) {
+      logger.info('Change notification: no change', `${previousStatus}(${oldPriority}) → ${newStatus}(${newPriority})`);
       return;
     }
 
-    logger.info('Change notification: status improved', `${previousStatus} → ${newStatus}`);
+    const isUpgrade = newPriority > oldPriority;
+    const direction = isUpgrade ? 'improved' : 'downgraded';
+    const emoji = isUpgrade ? '📈' : '📉';
+    logger.info(`Change notification: status ${direction}`, `${previousStatus} → ${newStatus}`);
 
     // Get Discord channel
     const botClient = clientInstance || (await import('../client.js')).client;
@@ -195,24 +247,28 @@ export async function checkAndNotifyStatusChange(
       return;
     }
 
-    // Build and send the updated schedule embed (NO channel clearing)
+    // Clean channel first (removes old schedule embed, previous updates, and polls)
+    await cleanScheduleChannel(channel);
+
+    // Build and send updated schedule embed
     const embed = buildScheduleEmbed(current.result);
 
     await channel.send({
-      content: `📢 **Schedule Update** — ${getStatusLabel(previousStatus)} → ${getStatusLabel(newStatus)}`,
+      content: `${emoji} **Schedule Update** — ${getStatusLabel(previousStatus)} → ${getStatusLabel(newStatus)}`,
       embeds: [embed],
     });
 
     logger.success('Schedule change notification sent', `${date}: ${previousStatus} → ${newStatus}`);
 
-    // Send training start poll ONLY when transitioning FROM NOT_ENOUGH.
-    // If previous status was already WITH_SUBS or FULL_ROSTER, a poll was already created
-    // during the daily post — don't send a duplicate and don't delete the existing one.
-    if (previousStatus === 'NOT_ENOUGH' && current.result.canProceed) {
+    // Create training start poll if training can proceed with new status.
+    // Since channel was cleaned, any old poll is gone — always create a fresh one.
+    if (current.result.canProceed) {
       const { createTrainingStartPoll } = await import('../interactions/trainingStartPoll.js');
       await createTrainingStartPoll(current.result, date);
     }
   } catch (error) {
     logger.error('Schedule change notification error', error instanceof Error ? error.message : String(error));
+  } finally {
+    notificationInProgress = false;
   }
 }
