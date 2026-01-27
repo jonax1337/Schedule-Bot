@@ -286,11 +286,33 @@ config.scheduling = {
   dailyPostTime,              // "HH:MM" format
   timezone,                   // IANA timezone (e.g., "Europe/Berlin")
   reminderHoursBefore,        // Send reminders X hours before post
+  duplicateReminderEnabled,   // Toggle second reminder closer to post time
+  duplicateReminderHoursBefore, // Hours before post for duplicate reminder
   trainingStartPollEnabled,   // Toggle training poll feature
-  pollDurationMinutes,        // Poll open duration
-  cleanChannelBeforePost      // Auto-clean before posting
+  pollDurationMinutes,        // Poll open duration (Discord-compatible: 60, 240, 480, 1440, 4320, 10080)
+  cleanChannelBeforePost,     // Auto-clean channel before posting
+  changeNotificationsEnabled  // Notify when roster improvements detected
+}
+config.branding = {
+  teamName,                   // Team display name (default: "Valorant Bot")
+  tagline,                    // Optional tagline (default: "Schedule Manager")
+  logoUrl                     // Optional logo URL for sidebar branding
 }
 ```
+
+### Branding Configuration
+The `branding` settings group allows customizing the team identity in the dashboard:
+- `branding.teamName` (string, default: "Valorant Bot") - Displayed in sidebar header
+- `branding.tagline` (string, optional, default: "Schedule Manager") - Subtitle in sidebar
+- `branding.logoUrl` (string, optional) - Custom logo URL for sidebar branding
+- Configured via the dashboard Settings panel under a dedicated Branding card
+
+### Duplicate Reminder System
+An optional second reminder can be sent closer to the daily post time:
+- `scheduling.duplicateReminderEnabled` (boolean, default: false) - Toggle the feature
+- `scheduling.duplicateReminderHoursBefore` (number, default: 1) - Hours before post time
+- When enabled, creates a third cron job in the scheduler that sends the same DM reminders to players who still haven't set their availability
+- Useful for catching players who missed the first reminder
 
 ### User Mapping System
 The `user_mappings` table is the single source of truth for player rosters:
@@ -428,6 +450,7 @@ Players can register planned absences (vacations, travel, etc.) with date ranges
 
 ### Prisma with PostgreSQL
 - Schema is in `prisma/schema.prisma` with explicit table mappings (`@@map`)
+- Generator uses `prisma-client` provider (Prisma 7.x style, not `prisma-client-js`)
 - Migrations are in `prisma/migrations/` and must be run on deploy
 - Date format is DD.MM.YYYY stored as TEXT (not DATE type) for consistency with legacy system
 - Cascade deletes: deleting a Schedule deletes all its SchedulePlayers
@@ -467,7 +490,8 @@ Services are class-based with singleton exports (e.g., `export const scheduleSer
 - **CORS** - Whitelist: localhost:3000, Railway URLs, custom DASHBOARD_URL
 - **Rate limiting** - `strictApiLimiter` on settings endpoints, `loginLimiter` on auth, general `apiLimiter` on all `/api`
 - **Input sanitization** - `sanitizeString()` removes `<>`, `javascript:`, event handlers
-- **Validation** - Joi schemas with `validate()` middleware on: user mappings, scrims, settings, polls, notifications
+- **Validation** - Joi schemas with `validate()` middleware on: user mappings, scrims, settings, polls, notifications, branding
+- Poll duration validated against Discord-compatible values only: 60, 240, 480, 1440, 4320, 10080 minutes
 - No caching headers on API responses
 
 ### API Authentication
@@ -487,6 +511,11 @@ Next.js App Router structure:
 - `/admin` - Admin dashboard (tab-based: dashboard, statistics, settings, users, schedule, scrims, actions, security, logs)
 - `/user` - User portal for setting own availability
 - `/auth/callback` - Discord OAuth callback handler
+
+Admin sidebar navigation is organized into three logical groups:
+- **Overview:** Dashboard, Statistics
+- **Team:** Schedule, Users, Matches
+- **System:** Settings, Actions, Security, Logs
 
 ### Dashboard API Proxy Layer
 The dashboard includes Next.js API routes (`app/api/`) that proxy requests to the backend Express API. This avoids CORS issues for server-side operations:
@@ -535,9 +564,10 @@ The dashboard aggressively disables caching for live data:
 - All API proxy routes use `force-dynamic` export
 
 ### Scheduler Jobs (src/jobs/scheduler.ts)
-Two scheduled cron jobs:
+Up to three scheduled cron jobs:
 1. **Main Post** - Daily at `config.scheduling.dailyPostTime`, posts schedule embed to Discord
 2. **Reminder** - X hours before main post (calculated from `reminderHoursBefore`), DMs players without availability entry
+3. **Duplicate Reminder** (optional) - A second reminder closer to post time, enabled via `duplicateReminderEnabled`. Sends the same DM reminders to players still without availability. Configured via `duplicateReminderHoursBefore` (default: 1 hour before post)
 
 Jobs respect `config.scheduling.timezone` and are restarted on settings change via `restartScheduler()`.
 
@@ -610,6 +640,7 @@ Optional for CORS/URLs:
 - Levels: info, warn, error, success
 - Use `logger.info()`, `logger.error()` etc. from `src/shared/utils/logger.ts`
 - Color-coded console output in development
+- All backend modules use the structured logger (no raw `console.log` calls)
 
 ## Testing Changes
 
@@ -668,7 +699,7 @@ Scrims use custom IDs: `scrim_${timestamp}_${random}` (string, not auto-incremen
 - **Backend** TypeScript strict mode is DISABLED (`strict: false`, `noImplicitAny: false` in tsconfig.json), Target: ES2022, Module: NodeNext
 - **Dashboard** TypeScript strict mode is ENABLED (full strict), Target: ES2017, Module: esnext, Path alias: `@/*` → `./*`
 - Use async/await for all database operations
-- Error handling: try/catch with console.error + logger.error
+- Error handling: try/catch with `logger.error()` (structured logging throughout)
 - Discord embeds use `EmbedBuilder` from discord.js
 - API responses follow pattern: `res.json({ success: true, data: ... })` or `res.status(400).json({ error: "message" })`
 - Frontend uses `apiGet<T>()`, `apiPost<T>()` etc. from `dashboard/lib/api.ts` (auto-attaches JWT, handles 401 redirect)
