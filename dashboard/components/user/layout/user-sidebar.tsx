@@ -100,7 +100,7 @@ export function UserSidebar({ userName, onLogout, ...props }: UserSidebarProps) 
     router.push(`/?tab=${tab}`, { scroll: false })
   }
 
-  const navItems = [
+  const scheduleItems = [
     {
       title: "Schedule",
       tab: "schedule",
@@ -119,6 +119,9 @@ export function UserSidebar({ userName, onLogout, ...props }: UserSidebarProps) 
       icon: PlaneTakeoff,
       isActive: currentTab === 'absences',
     },
+  ]
+
+  const competitiveItems = [
     {
       title: "Match History",
       tab: "matches",
@@ -183,10 +186,29 @@ export function UserSidebar({ userName, onLogout, ...props }: UserSidebarProps) 
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          <SidebarGroupLabel>Schedule</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navItems.map((item) => (
+              {scheduleItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton
+                    isActive={item.isActive}
+                    tooltip={item.title}
+                    onClick={() => handleNavigation(item.tab)}
+                  >
+                    <item.icon />
+                    <span>{item.title}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+        <SidebarGroup>
+          <SidebarGroupLabel>Competitive</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {competitiveItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     isActive={item.isActive}
