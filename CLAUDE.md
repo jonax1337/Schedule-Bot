@@ -12,7 +12,7 @@ This is a Discord bot with web dashboard for managing E-Sports team scheduling a
 All components run from a single Node.js process that starts the bot, API server, and scheduler together.
 
 ### Technology Stack
-**Backend:** TypeScript 5.9, discord.js 14.25, Express 5.2, Prisma 7.3 (with @prisma/adapter-pg + pg native driver), node-cron 4.2, bcrypt 6, jsonwebtoken 9, Helmet 8, dotenv 17, ical-generator 10, Joi 18
+**Backend:** TypeScript 5.9, discord.js 14.25, Express 5.2, Prisma 7.3 (with @prisma/adapter-pg + pg native driver), node-cron 4.2, bcrypt 6, jsonwebtoken 9, Helmet 8, dotenv 17, Joi 18, ical-generator 10 (installed but not yet used)
 **Frontend:** Next.js 16.1, React 19.2, TailwindCSS 4, Radix UI primitives, Recharts 3.7 (charts), next-themes, sonner (toasts), lucide-react (icons), cmdk (command palette)
 **Database:** PostgreSQL via Prisma ORM
 
@@ -136,7 +136,7 @@ src/
 │   ├── embeds/
 │   │   └── embed.ts            # Discord embed builders
 │   └── utils/
-│       └── schedule-poster.ts  # Schedule posting logic
+│       └── schedule-poster.ts  # Schedule posting + change notifications
 ├── jobs/
 │   └── scheduler.ts            # node-cron job management
 ├── repositories/               # Data access layer (Prisma queries)
@@ -279,9 +279,11 @@ Settings are stored in PostgreSQL `settings` table as flat key-value pairs:
 - Settings are cached in memory (`settingsManager.ts`) and reloaded via `reloadConfig()`
 - Dashboard changes trigger `POST /api/settings` → saves to DB → calls `reloadConfig()` → restarts scheduler with new times
 
-**Config structure in memory:**
+**Two access patterns exist for settings:**
+
+1. **`config` export** (`src/shared/config/config.ts`) - Subset used by scheduler and core bot logic:
 ```typescript
-config.discord = { channelId, pingRoleId, allowDiscordAuth }
+config.discord = { token, channelId, guildId, pingRoleId }
 config.scheduling = {
   dailyPostTime,              // "HH:MM" format
   timezone,                   // IANA timezone (e.g., "Europe/Berlin")
@@ -289,16 +291,29 @@ config.scheduling = {
   duplicateReminderEnabled,   // Toggle second reminder closer to post time
   duplicateReminderHoursBefore, // Hours before post for duplicate reminder
   trainingStartPollEnabled,   // Toggle training poll feature
+}
+config.admin = { username }
+```
+
+2. **`loadSettings()` / `Settings` interface** (`src/shared/utils/settingsManager.ts`) - Full settings including all fields:
+```typescript
+settings.discord = { channelId, pingRoleId, allowDiscordAuth }
+settings.scheduling = {
+  dailyPostTime, timezone, reminderHoursBefore,
+  duplicateReminderEnabled, duplicateReminderHoursBefore,
+  trainingStartPollEnabled,
   pollDurationMinutes,        // Poll open duration (Discord-compatible: 60, 240, 480, 1440, 4320, 10080)
   cleanChannelBeforePost,     // Auto-clean channel before posting
-  changeNotificationsEnabled  // Notify when roster improvements detected
+  changeNotificationsEnabled  // Notify when roster status changes (default: true)
 }
-config.branding = {
+settings.branding = {
   teamName,                   // Team display name (default: "Valorant Bot")
   tagline,                    // Optional tagline (default: "Schedule Manager")
   logoUrl                     // Optional logo URL for sidebar branding
 }
 ```
+
+Features like change notifications, channel cleaning, poll duration, branding, and Discord OAuth use `loadSettings()` directly rather than the `config` export. Both are updated when `reloadConfig()` is called, but only the `config` fields are explicitly reassigned in `reloadConfig()`.
 
 ### Branding Configuration
 The `branding` settings group allows customizing the team identity in the dashboard:
@@ -359,6 +374,23 @@ Players can register planned absences (vacations, travel, etc.) with date ranges
   - `reminder.ts` - Skips reminders for absent players
   - `poll.commands.ts` - Excludes absent players from training polls
 - **Statistics**: Team Availability chart shows absent players as a separate purple bar segment
+
+### Change Notification System
+When a player's availability or a schedule reason changes, the bot can automatically detect roster status changes and post an updated schedule embed to Discord:
+- **Function**: `checkAndNotifyStatusChange(date, previousStatus, clientInstance?)` in `src/bot/utils/schedule-poster.ts`
+- **Trigger points**: Called fire-and-forget (`.catch()`) from:
+  - `schedule.routes.ts` - After reason update (`POST /api/schedule/update-reason`) and availability update (`POST /api/schedule/update-availability`)
+  - `interactive.ts` - After Discord button clicks (unavailable, time modal, week modal)
+- **Behavior**:
+  1. Captures the old `ScheduleStatus` before the update
+  2. After the update, fetches the new status and compares priority (`NOT_ENOUGH=0 < WITH_SUBS=1 < FULL_ROSTER=2`)
+  3. If status changed: cleans channel (removes old embeds/polls), posts updated embed with `📈`/`📉` direction indicator and role ping
+  4. If new status allows training (`canProceed`), creates a fresh training start poll
+- **Guards**:
+  - Only triggers for today's date (not future dates)
+  - Only triggers after the configured daily post time has passed
+  - Requires `scheduling.changeNotificationsEnabled` setting to be `true` (default: `true`)
+  - Deduplication: `notificationInProgress` flag prevents concurrent duplicate notifications from parallel API calls
 
 ## Discord Bot Commands
 
