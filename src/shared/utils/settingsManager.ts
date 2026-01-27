@@ -11,6 +11,7 @@ function flattenSettings(settings: Settings): Record<string, string | number | b
     'scheduling.cleanChannelBeforePost': settings.scheduling.cleanChannelBeforePost,
     'scheduling.trainingStartPollEnabled': settings.scheduling.trainingStartPollEnabled,
     'scheduling.pollDurationMinutes': settings.scheduling.pollDurationMinutes,
+    'scheduling.changeNotificationsEnabled': settings.scheduling.changeNotificationsEnabled,
     'branding.teamName': settings.branding.teamName,
     'branding.tagline': settings.branding.tagline || DEFAULT_SETTINGS.branding.tagline!,
     'branding.logoUrl': settings.branding.logoUrl || '',
