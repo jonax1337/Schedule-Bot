@@ -414,7 +414,6 @@ export function UserScheduleContent() {
         availability = `${editTimeFrom}-${editTimeTo}`;
       }
 
-      const { getAuthHeaders } = await import('@/lib/auth');
       const response = await fetch(`${BOT_API_URL}/api/schedule/update-availability`, {
         method: 'POST',
         headers: getAuthHeaders(),
