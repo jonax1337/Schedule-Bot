@@ -129,6 +129,20 @@ export async function updateUserMapping(discordId: string, updates: Partial<User
   }
 }
 
+export async function reorderUserMappingsBatch(
+  orderings: Array<{ discordId: string; sortOrder: number }>
+): Promise<void> {
+  // Update each mapping's sortOrder in a transaction
+  await prisma.$transaction(
+    orderings.map(({ discordId, sortOrder }) =>
+      prisma.userMapping.update({
+        where: { discordId },
+        data: { sortOrder },
+      })
+    )
+  );
+}
+
 export async function removeUserMapping(discordId: string): Promise<boolean> {
   try {
     await prisma.userMapping.delete({
