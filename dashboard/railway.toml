@@ -1,0 +1,11 @@
+# Railway deployment config for Schedule-Bot dashboard (Next.js)
+# https://docs.railway.app/reference/config-as-code
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+healthcheckPath = "/"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 5

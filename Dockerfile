@@ -28,9 +28,9 @@ WORKDIR /app
 
 RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
-# Copy production dependencies
+# Copy production dependencies (skip postinstall since we copy generated client from builder)
 COPY package.json package-lock.json* ./
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev --ignore-scripts
 
 # Copy prisma schema + generated client
 COPY prisma ./prisma
