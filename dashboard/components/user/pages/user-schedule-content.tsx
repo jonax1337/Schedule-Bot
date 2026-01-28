@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { CheckCircle2, XCircle, Clock, Loader2, Edit2, Save, X, Palmtree, PlaneTakeoff, Download } from 'lucide-react';
+import { CheckCircle2, XCircle, Clock, Loader2, Edit2, Save, X, Palmtree, PlaneTakeoff } from 'lucide-react';
 import Image from 'next/image';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
@@ -63,7 +63,6 @@ export function UserScheduleContent() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [editingReason, setEditingReason] = useState(false);
   const [reasonValue, setReasonValue] = useState('');
-  const [icalLoading, setIcalLoading] = useState(false);
 
   const PREDEFINED_SUGGESTIONS = [
     'Training',
@@ -472,29 +471,6 @@ export function UserScheduleContent() {
     }
   };
 
-  const handleIcalDownload = async () => {
-    setIcalLoading(true);
-    try {
-      const response = await fetch(`${BOT_API_URL}/api/schedule/export-ical`);
-      if (!response.ok) { toast.error('Failed to download calendar'); return; }
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'schedule.ics';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-      toast.success('Calendar downloaded!');
-    } catch (error) {
-      console.error('iCal download failed:', error);
-      toast.error('Failed to download calendar');
-    } finally {
-      setIcalLoading(false);
-    }
-  };
-
   if (loading) {
     return (
       <div className="min-h-[400px] flex items-center justify-center">
@@ -508,43 +484,31 @@ export function UserScheduleContent() {
   return (
     <div className="space-y-4">
       <div className="p-3 bg-muted/50 rounded-lg border animate-fadeIn">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            <div className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-full bg-purple-500" />
-              <span className="text-xs">Off-Day</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
-              <span className="text-xs">Able to play</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-full bg-cyan-400" />
-              <span className="text-xs">Almost there</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-full bg-yellow-500" />
-              <span className="text-xs">More players needed</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
-              <span className="text-xs">Insufficient players</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-full bg-gray-400" />
-              <span className="text-xs">Unknown</span>
-            </div>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-2.5 h-2.5 rounded-full bg-purple-500" />
+            <span className="text-xs">Off-Day</span>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 text-xs gap-1.5"
-            onClick={handleIcalDownload}
-            disabled={icalLoading}
-          >
-            {icalLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
-            Export Calendar
-          </Button>
+          <div className="flex items-center gap-1.5">
+            <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
+            <span className="text-xs">Able to play</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-2.5 h-2.5 rounded-full bg-cyan-400" />
+            <span className="text-xs">Almost there</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-2.5 h-2.5 rounded-full bg-yellow-500" />
+            <span className="text-xs">More players needed</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
+            <span className="text-xs">Insufficient players</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-2.5 h-2.5 rounded-full bg-gray-400" />
+            <span className="text-xs">Unknown</span>
+          </div>
         </div>
       </div>
 

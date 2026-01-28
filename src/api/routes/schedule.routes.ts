@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { verifyToken, requireAdmin, optionalAuth, AuthRequest } from '../../shared/middleware/auth.js';
+import { verifyToken, requireAdmin, AuthRequest } from '../../shared/middleware/auth.js';
 import { sanitizeString } from '../../shared/middleware/validation.js';
 import { getUserMappings } from '../../repositories/user-mapping.repository.js';
 import { updatePlayerAvailability } from '../../repositories/schedule.repository.js';
@@ -7,8 +7,6 @@ import { getScheduleDetails, getScheduleDetailsBatch } from '../../shared/utils/
 import { isUserAbsentOnDate } from '../../repositories/absence.repository.js';
 import { getScheduleStatus, checkAndNotifyStatusChange } from '../../bot/utils/schedule-poster.js';
 import { logger } from '../../shared/utils/logger.js';
-import { loadSettings } from '../../shared/utils/settingsManager.js';
-import { getNextNDates, parseDDMMYYYY } from '../../shared/utils/dateFormatter.js';
 import type { ScheduleStatus } from '../../shared/types/types.js';
 
 const router = Router();
@@ -141,80 +139,6 @@ router.post('/update-availability', verifyToken, async (req: AuthRequest, res) =
     console.error('Error updating availability:', error);
     logger.error('Failed to update availability', error instanceof Error ? error.message : String(error));
     res.status(500).json({ error: 'Failed to update availability' });
-  }
-});
-
-// Export schedule as iCal (.ics) file
-router.get('/export-ical', optionalAuth, async (req: AuthRequest, res) => {
-  try {
-    const ical = await import('ical-generator');
-    const { getNext14DaysSchedule } = await import('../../repositories/schedule.repository.js');
-    const { getAbsentUserIdsForDates } = await import('../../repositories/absence.repository.js');
-    const { parseSchedule, analyzeSchedule } = await import('../../shared/utils/analyzer.js');
-
-    const settings = loadSettings();
-    const teamName = settings.branding?.teamName || 'Valorant Bot';
-
-    const schedules = await getNext14DaysSchedule();
-    const dates = schedules.map((s: any) => s.date);
-    const absentByDate = await getAbsentUserIdsForDates(dates);
-
-    const calendar = ical.default({
-      name: `${teamName} Schedule`,
-      prodId: { company: teamName, product: 'Schedule Bot' },
-      timezone: settings.scheduling?.timezone || 'Europe/Berlin',
-    });
-
-    for (const schedule of schedules) {
-      const dateStr = schedule.date;
-      const reason = schedule.reason || 'Training';
-      const absentUserIds = absentByDate[dateStr] || [];
-
-      // Skip off-days
-      if (reason === 'Off-Day') continue;
-
-      const dateObj = parseDDMMYYYY(dateStr);
-
-      // Parse schedule to get time window
-      const parsed = parseSchedule(schedule, absentUserIds);
-      const analysis = analyzeSchedule(parsed);
-
-      let startHour = 18, startMin = 0;
-      let endHour = 22, endMin = 0;
-
-      if (analysis.commonTimeRange) {
-        const [sH, sM] = analysis.commonTimeRange.start.split(':').map(Number);
-        const [eH, eM] = analysis.commonTimeRange.end.split(':').map(Number);
-        startHour = sH; startMin = sM;
-        endHour = eH; endMin = eM;
-      }
-
-      const start = new Date(dateObj);
-      start.setHours(startHour, startMin, 0, 0);
-      const end = new Date(dateObj);
-      end.setHours(endHour, endMin, 0, 0);
-
-      const availableCount = analysis.availableMainCount + analysis.availableSubCount;
-      const statusText = analysis.status === 'FULL_ROSTER' ? 'Full Roster' :
-                         analysis.status === 'WITH_SUBS' ? `${availableCount} available` :
-                         analysis.status === 'NOT_ENOUGH' ? 'Not enough players' : reason;
-
-      calendar.createEvent({
-        start,
-        end,
-        summary: `${teamName} - ${reason}`,
-        description: `Status: ${statusText}\nAvailable players: ${availableCount}`,
-        location: 'Discord',
-      });
-    }
-
-    const icsContent = calendar.toString();
-    res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="${teamName.replace(/[^a-zA-Z0-9]/g, '_')}_schedule.ics"`);
-    res.send(icsContent);
-  } catch (error) {
-    logger.error('Failed to generate iCal export', error instanceof Error ? error.message : String(error));
-    res.status(500).json({ error: 'Failed to generate calendar export' });
   }
 });
 

@@ -510,10 +510,6 @@ export function MapVetoPlanner() {
                     </div>
                   ))}
                 </div>
-                <Button variant="outline" size="sm" onClick={handleReset} className="mt-2">
-                  <RefreshCw className="w-3.5 h-3.5 mr-2" />
-                  Start New Simulation
-                </Button>
               </div>
             )}
             </>)}
