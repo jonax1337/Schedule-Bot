@@ -55,7 +55,7 @@ function isAbsenceCurrent(absence: Absence): boolean {
   return today >= startDate && today <= endDate;
 }
 
-export function UserAbsencesContent() {
+export function UserAbsences() {
   const router = useRouter();
   const [absences, setAbsences] = useState<Absence[]>([]);
   const [loading, setLoading] = useState(true);

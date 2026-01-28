@@ -191,7 +191,7 @@ function ScrimFilters({
   );
 }
 
-export default function StatisticsPanel() {
+export function Statistics() {
   const [loading, setLoading] = useState(true);
   const [allScrims, setAllScrims] = useState<ScrimEntry[]>([]);
   const [schedules, setSchedules] = useState<ScheduleDay[]>([]);

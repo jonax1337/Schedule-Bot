@@ -53,7 +53,7 @@ interface DateEntry {
   justSaved?: boolean;
 }
 
-export function UserAvailabilityContent() {
+export function UserAvailability() {
   const router = useRouter();
   const [userName, setUserName] = useState('');
   const [userDiscordId, setUserDiscordId] = useState('');

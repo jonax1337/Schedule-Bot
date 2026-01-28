@@ -31,7 +31,7 @@ interface UserMapping {
 
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
 
-export function UserMappingsPanel() {
+export function UserMappings() {
   const [members, setMembers] = useState<DiscordMember[]>([]);
   const [mappings, setMappings] = useState<UserMapping[]>([]);
   const [loading, setLoading] = useState(true);

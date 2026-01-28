@@ -24,7 +24,7 @@ interface DiscordMember {
   avatar: string | null;
 }
 
-export default function ActionsPanel() {
+export function Actions() {
   const [loading, setLoading] = useState<string | null>(null);
   const [members, setMembers] = useState<DiscordMember[]>([]);
   const [clearDialogOpen, setClearDialogOpen] = useState(false);

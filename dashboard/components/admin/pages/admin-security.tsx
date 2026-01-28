@@ -11,7 +11,7 @@ import { stagger, microInteractions, cn } from "@/lib/animations";
 
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
 
-export default function SecurityPanel() {
+export function Security() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [generatedHash, setGeneratedHash] = useState('');

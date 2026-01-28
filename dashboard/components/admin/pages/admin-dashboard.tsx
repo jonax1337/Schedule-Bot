@@ -50,7 +50,7 @@ function parseDDMMYYYY(dateStr: string): Date {
   return new Date(year, month - 1, day);
 }
 
-export default function AdminDashboardHome() {
+export function AdminDashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [botStatus, setBotStatus] = useState<BotStatus | null>(null);

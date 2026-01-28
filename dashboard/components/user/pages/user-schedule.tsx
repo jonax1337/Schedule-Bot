@@ -47,7 +47,7 @@ interface DateEntry {
 
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
 
-export function UserScheduleContent() {
+export function UserSchedule() {
   const router = useRouter();
   const [entries, setEntries] = useState<DateEntry[]>([]);
   const [loading, setLoading] = useState(true);

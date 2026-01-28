@@ -1,3 +1,3 @@
-export { UserScheduleContent } from './user-schedule';
-export { UserAvailabilityContent } from './user-availability';
-export { UserAbsencesContent } from './user-absences';
+export { UserSchedule } from './user-schedule';
+export { UserAvailability } from './user-availability';
+export { UserAbsences } from './user-absences';

@@ -5,11 +5,11 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import {
   UserLayoutWrapper,
-  UserScheduleContent,
-  UserAvailabilityContent,
-  UserAbsencesContent
+  UserSchedule,
+  UserAvailability,
+  UserAbsences
 } from '@/components/user';
-import { MapVetoPlanner, ScrimsPanel, StatisticsPanel } from '@/components/admin/pages';
+import { MapVetoPlanner, Matches, Statistics } from '@/components/admin/pages';
 
 function HomeContent() {
   const router = useRouter();
@@ -20,16 +20,16 @@ function HomeContent() {
     const checkAuth = async () => {
       try {
         const { validateToken, removeAuthToken } = await import('@/lib/auth');
-        
+
         const user = localStorage.getItem('selectedUser');
-        
+
         if (!user) {
           router.replace('/login');
           return;
         }
-        
+
         const isValid = await validateToken();
-        
+
         if (!isValid) {
           removeAuthToken();
           localStorage.removeItem('selectedUser');
@@ -55,7 +55,7 @@ function HomeContent() {
       'map-veto': 'Map Veto',
       statistics: 'Statistics',
     };
-    
+
     const pageTitle = titles[currentTab] || 'Team Calendar';
     document.title = `${pageTitle} - Valorant Schedule Bot`;
   }, [currentTab]);
@@ -63,12 +63,12 @@ function HomeContent() {
   return (
     <UserLayoutWrapper>
       <div className="animate-fadeIn">
-        {currentTab === 'schedule' && <UserScheduleContent />}
-        {currentTab === 'availability' && <UserAvailabilityContent />}
-        {currentTab === 'absences' && <UserAbsencesContent />}
-        {currentTab === 'matches' && <ScrimsPanel />}
+        {currentTab === 'schedule' && <UserSchedule />}
+        {currentTab === 'availability' && <UserAvailability />}
+        {currentTab === 'absences' && <UserAbsences />}
+        {currentTab === 'matches' && <Matches />}
         {currentTab === 'map-veto' && <MapVetoPlanner />}
-        {currentTab === 'statistics' && <StatisticsPanel />}
+        {currentTab === 'statistics' && <Statistics />}
       </div>
     </UserLayoutWrapper>
   );

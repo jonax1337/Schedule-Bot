@@ -86,7 +86,7 @@ interface ScrimStats {
   };
 }
 
-export function ScrimsPanel() {
+export function Matches() {
   const [scrims, setScrims] = useState<ScrimEntry[]>([]);
   const [stats, setStats] = useState<ScrimStats | null>(null);
   const [loading, setLoading] = useState(true);

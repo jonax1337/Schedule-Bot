@@ -20,7 +20,7 @@ interface LogEntry {
   details?: string;
 }
 
-export default function LogsPanel() {
+export function Logs() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(true);

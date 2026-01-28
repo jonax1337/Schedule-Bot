@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Settings } from "@/lib/types";
+import type { Settings as SettingsType } from "@/lib/types";
 import { Loader2, Save, Hash, AtSign, ChevronsUpDown, Check } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -26,8 +26,8 @@ interface DiscordRole {
   color: string;
 }
 
-export default function SettingsPanel() {
-  const [settings, setSettings] = useState<Settings | null>(null);
+export function Settings() {
+  const [settings, setSettings] = useState<SettingsType | null>(null);
   const [channels, setChannels] = useState<DiscordChannel[]>([]);
   const [roles, setRoles] = useState<DiscordRole[]>([]);
   const [loading, setLoading] = useState(true);
