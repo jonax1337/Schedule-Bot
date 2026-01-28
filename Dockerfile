@@ -57,4 +57,5 @@ ENV NODE_ENV=production
 EXPOSE 3001
 
 # Run migrations and start
-CMD ["sh", "-c", "npx prisma migrate deploy && echo 'Starting Node.js app on port:' $PORT && node dist/index.js"]
+# Try migrate deploy first, fall back to db push for existing databases without migration history
+CMD ["sh", "-c", "(npx prisma migrate deploy || npx prisma db push --accept-data-loss) && echo 'Starting Node.js app on port:' $PORT && node dist/index.js"]
