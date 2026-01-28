@@ -32,6 +32,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 
 interface DiscordMember {
   id: string;
@@ -639,6 +640,7 @@ export function UserMappings() {
               sensors={sensors}
               collisionDetection={closestCenter}
               onDragEnd={handleDragEnd}
+              modifiers={[restrictToVerticalAxis]}
             >
               <div className="space-y-6">
                 {(['main', 'sub', 'coach'] as RoleType[]).map((roleKey, index) => (
