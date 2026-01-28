@@ -46,9 +46,9 @@ COPY --from=builder /app/src/generated ./src/generated
 COPY --from=builder /app/dist ./dist
 
 ENV NODE_ENV=production
-ENV PORT=3001
+# PORT is provided by Railway at runtime
 
 EXPOSE 3001
 
 # Run migrations and start
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/index.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && echo 'Starting Node.js app on port:' $PORT && node dist/index.js"]
