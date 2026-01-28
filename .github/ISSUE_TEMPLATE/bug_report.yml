@@ -1,0 +1,77 @@
+name: Bug Report
+description: Report a bug or unexpected behavior
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug! Please fill out the details below.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Which part of the application is affected?
+      options:
+        - Discord Bot (commands, interactions)
+        - Dashboard (admin panel)
+        - Dashboard (user portal)
+        - API Server
+        - Scheduler (cron jobs)
+        - Database
+        - Docker / Deployment
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened? What did you expect to happen?
+      placeholder: |
+        **What happened:**
+        ...
+
+        **What I expected:**
+        ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: How can we reproduce this issue?
+      placeholder: |
+        1. Go to '...'
+        2. Click on '...'
+        3. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Logs
+      description: Paste any error messages or logs (from console or the dashboard Logs panel)
+      render: shell
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Which version are you running? (check package.json or git commit)
+      placeholder: "e.g., 1.0.0 or commit hash"
+
+  - type: dropdown
+    id: hosting
+    attributes:
+      label: Hosting Environment
+      options:
+        - Local development
+        - Docker
+        - Railway
+        - Render
+        - VPS / Dedicated Server
+        - Other

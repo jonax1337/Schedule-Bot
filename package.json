@@ -17,11 +17,24 @@
   },
   "keywords": [
     "discord",
+    "discord-bot",
+    "esports",
     "valorant",
-    "schedule"
+    "schedule",
+    "team-management",
+    "availability",
+    "dashboard"
   ],
-  "author": "",
-  "license": "ISC",
+  "author": "jonax1337",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jonax1337/Schedule-Bot.git"
+  },
+  "bugs": {
+    "url": "https://github.com/jonax1337/Schedule-Bot/issues"
+  },
+  "homepage": "https://github.com/jonax1337/Schedule-Bot#readme",
   "dependencies": {
     "@prisma/adapter-pg": "^7.3.0",
     "@prisma/client": "^7.3.0",
