@@ -49,7 +49,7 @@ export function UserSidebar({ userName, onLogout, ...props }: UserSidebarProps) 
       if (!userName) return
       
       try {
-        const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001'
+        const { BOT_API_URL } = await import('@/lib/config')
         const { getAuthHeaders } = await import('@/lib/auth')
         const response = await fetch(`${BOT_API_URL}/api/user-mappings`, {
           headers: getAuthHeaders(),
@@ -72,7 +72,7 @@ export function UserSidebar({ userName, onLogout, ...props }: UserSidebarProps) 
   React.useEffect(() => {
     const fetchBranding = async () => {
       try {
-        const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001'
+        const { BOT_API_URL } = await import('@/lib/config')
         const response = await fetch(`${BOT_API_URL}/api/settings`)
         if (response.ok) {
           const data = await response.json()

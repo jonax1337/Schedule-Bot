@@ -31,8 +31,7 @@ import {
 import { Target, Map, BarChart3, Flame, Swords, Loader2, ChevronDown } from 'lucide-react';
 import { stagger, cn } from '@/lib/animations';
 import { useIsMobile } from '@/hooks/use-mobile';
-
-const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
+import { BOT_API_URL } from '@/lib/config';
 
 interface ScheduleDay {
   date: string;

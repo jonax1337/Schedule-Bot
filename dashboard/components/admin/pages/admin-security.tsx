@@ -8,8 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Loader2, Key, Copy, Check, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { stagger, microInteractions, cn } from "@/lib/animations";
-
-const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
+import { BOT_API_URL } from "@/lib/config";
 
 export function Security() {
   const [newPassword, setNewPassword] = useState('');

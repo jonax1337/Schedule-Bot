@@ -4,8 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Activity, Users, Calendar, Trophy, TrendingUp, Clock, Percent, BarChart3, Zap, Settings, Terminal } from 'lucide-react';
 import { stagger, microInteractions, cn } from '@/lib/animations';
-
-const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
+import { BOT_API_URL } from '@/lib/config';
 
 interface DashboardStats {
   totalUsers: number;

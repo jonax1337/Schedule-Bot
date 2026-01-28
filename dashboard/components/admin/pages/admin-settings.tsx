@@ -49,7 +49,7 @@ export function Settings() {
 
   const loadSettings = async () => {
     try {
-      const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
+      const { BOT_API_URL } = await import('@/lib/config');
       const response = await fetch(`${BOT_API_URL}/api/settings`);
       const data = await response.json();
 
@@ -80,7 +80,7 @@ export function Settings() {
         return;
       }
 
-      const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
+      const { BOT_API_URL } = await import('@/lib/config');
       const [channelsRes, rolesRes] = await Promise.all([
         fetch(`${BOT_API_URL}/api/discord/channels`, { headers: getAuthHeaders() }),
         fetch(`${BOT_API_URL}/api/discord/roles`, { headers: getAuthHeaders() }),
@@ -106,7 +106,7 @@ export function Settings() {
   const saveSettings = async () => {
     setSaving(true);
     try {
-      const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
+      const { BOT_API_URL } = await import('@/lib/config');
       const { getAuthHeaders } = await import('@/lib/auth');
 
       await fetch(`${BOT_API_URL}/api/settings`, {

@@ -83,7 +83,7 @@ export async function validateToken(): Promise<boolean> {
   }
 
   try {
-    const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
+    const { BOT_API_URL } = await import('./config');
     const response = await fetch(`${BOT_API_URL}/api/auth/user`, {
       headers: {
         'Authorization': `Bearer ${token}`,

@@ -21,14 +21,13 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, UserCircle } from "lucide-react";
 import { toast } from "sonner";
+import { BOT_API_URL } from "@/lib/config";
 
 interface Settings {
   discord: {
     allowDiscordAuth: boolean;
   };
 }
-
-const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
 
 export function LoginForm({
   className,
