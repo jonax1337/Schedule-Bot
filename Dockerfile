@@ -13,9 +13,10 @@ COPY package.json package-lock.json* ./
 RUN npm ci --ignore-scripts
 
 # Copy prisma schema + config and generate client
+# Dummy DATABASE_URL satisfies prisma.config.ts validation during codegen (no actual connection made)
 COPY prisma ./prisma
 COPY prisma.config.ts ./
-RUN npx prisma generate
+RUN DATABASE_URL="postgresql://build:build@localhost:5432/build" npx prisma generate
 
 # Copy source and build
 COPY tsconfig.json ./
