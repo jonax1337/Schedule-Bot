@@ -40,6 +40,9 @@ async function main(): Promise<void> {
     logger.error('Schedule verification failed', error instanceof Error ? error.message : String(error));
   }
 
+  // Start API server early so healthchecks pass while bot connects
+  startApiServer();
+
   logger.info('Starting Discord bot');
   await startBot();
 
@@ -54,7 +57,6 @@ async function main(): Promise<void> {
       logger.info('Next scheduled post', nextRun.toLocaleString('de-DE'));
     }
 
-    startApiServer();
     logger.success('Startup complete');
   });
 }
