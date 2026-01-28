@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { verifyToken, requireAdmin, optionalAuth, AuthRequest } from '../../shared/middleware/auth.js';
-import { validate, addUserMappingSchema, updateUserMappingSchema } from '../../shared/middleware/validation.js';
-import { getUserMappings, addUserMapping, updateUserMapping, removeUserMapping } from '../../repositories/user-mapping.repository.js';
+import { validate, addUserMappingSchema, updateUserMappingSchema, reorderUserMappingsSchema } from '../../shared/middleware/validation.js';
+import { getUserMappings, addUserMapping, updateUserMapping, removeUserMapping, reorderUserMappingsBatch } from '../../repositories/user-mapping.repository.js';
 import { syncUserMappingsToSchedules } from '../../repositories/schedule.repository.js';
 import { logger } from '../../shared/utils/logger.js';
 
@@ -45,6 +45,22 @@ router.post('/', verifyToken, requireAdmin, validate(addUserMappingSchema), asyn
   } catch (error) {
     logger.error('Failed to add user mapping', error instanceof Error ? error.message : String(error));
     res.status(500).json({ error: 'Failed to add user mapping' });
+  }
+});
+
+// Reorder user mappings (drag-and-drop)
+router.put('/reorder', verifyToken, requireAdmin, validate(reorderUserMappingsSchema), async (req: AuthRequest, res) => {
+  try {
+    const { orderings } = req.body;
+
+    await reorderUserMappingsBatch(orderings);
+    await syncUserMappingsToSchedules();
+
+    logger.success('User mappings reordered', `${orderings.length} mappings by ${req.user?.username}`);
+    res.json({ success: true, message: 'User mappings reordered successfully' });
+  } catch (error) {
+    logger.error('Failed to reorder user mappings', error instanceof Error ? error.message : String(error));
+    res.status(500).json({ error: 'Failed to reorder user mappings' });
   }
 });
 

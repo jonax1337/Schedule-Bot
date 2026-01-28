@@ -116,6 +116,15 @@ export const absenceUpdateSchema = Joi.object({
   reason: Joi.string().max(500).allow(''),
 }).min(1);
 
+export const reorderUserMappingsSchema = Joi.object({
+  orderings: Joi.array().items(
+    Joi.object({
+      discordId: Joi.string().min(1).required(),
+      sortOrder: Joi.number().integer().min(0).required(),
+    })
+  ).min(1).required(),
+});
+
 export const updateUserMappingSchema = Joi.object({
   discordId: Joi.string().pattern(/^\d{17,19}$/),
   discordUsername: Joi.string().min(1).max(32),

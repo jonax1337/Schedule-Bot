@@ -1,18 +1,38 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Loader2, Trash2, UserPlus, Search, Users, Edit3, Edit } from 'lucide-react';
+import { Loader2, Trash2, UserPlus, Search, Users, Edit3, Edit, GripVertical, Shield, UserCheck, Headset } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { stagger, microInteractions, loadingStates, cn } from '@/lib/animations';
+import { stagger, microInteractions, cn } from '@/lib/animations';
+
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 
 interface DiscordMember {
   id: string;
@@ -29,8 +49,155 @@ interface UserMapping {
   sortOrder: number;
 }
 
+type RoleType = 'main' | 'sub' | 'coach';
+
+const ROLE_CONFIG: Record<RoleType, { label: string; pluralLabel: string; icon: typeof Shield }> = {
+  main: {
+    label: 'Main Player',
+    pluralLabel: 'Main Players',
+    icon: Shield,
+  },
+  sub: {
+    label: 'Substitute',
+    pluralLabel: 'Substitutes',
+    icon: UserCheck,
+  },
+  coach: {
+    label: 'Coach',
+    pluralLabel: 'Coaches',
+    icon: Headset,
+  },
+};
+
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
 
+// --- Sortable Item Component ---
+function SortableUserItem({
+  mapping,
+  onEdit,
+  onRemove,
+}: {
+  mapping: UserMapping;
+  onEdit: (mapping: UserMapping) => void;
+  onRemove: (discordId: string) => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: mapping.discordId });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 50 : undefined,
+    position: isDragging ? 'relative' as const : undefined,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "flex items-center gap-3 p-3 border rounded-lg bg-background",
+        isDragging && "shadow-lg border-primary/50 scale-[1.02]",
+        !isDragging && "hover:bg-accent/50",
+        microInteractions.smooth
+      )}
+    >
+      <button
+        {...attributes}
+        {...listeners}
+        className="cursor-grab active:cursor-grabbing touch-none p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+        aria-label={`Drag to reorder ${mapping.displayName}`}
+      >
+        <GripVertical className="w-4 h-4" />
+      </button>
+      <div className="flex-1 min-w-0">
+        <div className="font-medium truncate">{mapping.displayName}</div>
+        <div className="text-sm text-muted-foreground truncate">
+          @{mapping.discordUsername}
+        </div>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => onEdit(mapping)}
+          className={cn("h-8 w-8 p-0", microInteractions.hoverScale, microInteractions.smooth)}
+        >
+          <Edit className="w-4 h-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => onRemove(mapping.discordId)}
+          className={cn("h-8 w-8 p-0", microInteractions.hoverScale, microInteractions.smooth)}
+        >
+          <Trash2 className="w-4 h-4 text-destructive" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// --- Role Group Component ---
+function RoleGroup({
+  role,
+  mappings,
+  onEdit,
+  onRemove,
+  index,
+}: {
+  role: RoleType;
+  mappings: UserMapping[];
+  onEdit: (mapping: UserMapping) => void;
+  onRemove: (discordId: string) => void;
+  index: number;
+}) {
+  const config = ROLE_CONFIG[role];
+  const Icon = config.icon;
+
+  return (
+    <div className={cn("space-y-3", stagger(index, 'fast', 'fadeIn'))}>
+      <div className="flex items-center gap-2 px-1">
+        <Icon className="w-4 h-4 text-muted-foreground" />
+        <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          {config.pluralLabel}
+        </h3>
+        <Badge variant="secondary" className="text-xs">
+          {mappings.length}
+        </Badge>
+      </div>
+      <SortableContext
+        items={mappings.map(m => m.discordId)}
+        strategy={verticalListSortingStrategy}
+      >
+        <div className="space-y-1.5">
+          {mappings.length === 0 ? (
+            <div className="text-sm text-muted-foreground italic px-1 py-3 border border-dashed rounded-lg text-center">
+              No {config.pluralLabel.toLowerCase()} added yet
+            </div>
+          ) : (
+            mappings.map((mapping) => (
+              <SortableUserItem
+                key={mapping.discordId}
+                mapping={mapping}
+                onEdit={onEdit}
+                onRemove={onRemove}
+              />
+            ))
+          )}
+        </div>
+      </SortableContext>
+    </div>
+  );
+}
+
+// --- Main Component ---
 export function UserMappings() {
   const [members, setMembers] = useState<DiscordMember[]>([]);
   const [mappings, setMappings] = useState<UserMapping[]>([]);
@@ -38,21 +205,46 @@ export function UserMappings() {
   const [saving, setSaving] = useState(false);
   const [open, setOpen] = useState(false);
   const [inputMode, setInputMode] = useState<'search' | 'manual'>('search');
-  
+
   const [selectedUserId, setSelectedUserId] = useState('');
   const [manualUserId, setManualUserId] = useState('');
   const [manualUsername, setManualUsername] = useState('');
   const [displayName, setDisplayName] = useState('');
-  const [role, setRole] = useState<'main' | 'sub' | 'coach'>('main');
-  
+  const [role, setRole] = useState<RoleType>('main');
+
   // Edit mode state
   const [editingMapping, setEditingMapping] = useState<UserMapping | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editDiscordId, setEditDiscordId] = useState('');
   const [editUsername, setEditUsername] = useState('');
   const [editDisplayName, setEditDisplayName] = useState('');
-  const [editRole, setEditRole] = useState<'main' | 'sub' | 'coach'>('main');
-  const [editSortOrder, setEditSortOrder] = useState(0);
+  const [editRole, setEditRole] = useState<RoleType>('main');
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Group mappings by role
+  const groupedMappings = useMemo(() => {
+    const groups: Record<RoleType, UserMapping[]> = {
+      main: [],
+      sub: [],
+      coach: [],
+    };
+    for (const mapping of mappings) {
+      groups[mapping.role]?.push(mapping);
+    }
+    // Sort within each group by sortOrder
+    for (const role of Object.keys(groups) as RoleType[]) {
+      groups[role].sort((a, b) => a.sortOrder - b.sortOrder);
+    }
+    return groups;
+  }, [mappings]);
 
   useEffect(() => {
     loadData();
@@ -103,7 +295,6 @@ export function UserMappings() {
       discordId = selectedUserId;
       discordUsername = selectedMember.username;
     } else {
-      // Manual mode
       if (!manualUserId || !manualUsername || !displayName || !role) {
         toast.error('Please fill all fields');
         return;
@@ -113,7 +304,6 @@ export function UserMappings() {
       discordUsername = manualUsername;
     }
 
-    // Check if user already has a mapping
     if (mappings.some(m => m.discordId === discordId)) {
       toast.error('This user already has a mapping');
       return;
@@ -128,7 +318,7 @@ export function UserMappings() {
         body: JSON.stringify({
           discordId,
           discordUsername,
-          displayName: displayName,
+          displayName,
           role,
         }),
       });
@@ -182,7 +372,6 @@ export function UserMappings() {
     setEditUsername(mapping.discordUsername);
     setEditDisplayName(mapping.displayName);
     setEditRole(mapping.role);
-    setEditSortOrder(mapping.sortOrder);
     setEditDialogOpen(true);
   };
 
@@ -203,7 +392,6 @@ export function UserMappings() {
           discordUsername: editUsername,
           displayName: editDisplayName,
           role: editRole,
-          sortOrder: editSortOrder,
         }),
       });
 
@@ -222,6 +410,73 @@ export function UserMappings() {
       setSaving(false);
     }
   };
+
+  // --- Drag and Drop Handler ---
+  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) return;
+
+    const activeMapping = mappings.find(m => m.discordId === active.id);
+    const overMapping = mappings.find(m => m.discordId === over.id);
+
+    if (!activeMapping || !overMapping) return;
+
+    // Only allow reorder within the same role group
+    if (activeMapping.role !== overMapping.role) return;
+
+    const roleGroup = groupedMappings[activeMapping.role];
+    const oldIndex = roleGroup.findIndex(m => m.discordId === active.id);
+    const newIndex = roleGroup.findIndex(m => m.discordId === over.id);
+
+    if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return;
+
+    // Reorder within the role group
+    const reordered = arrayMove(roleGroup, oldIndex, newIndex);
+
+    // Calculate base offset for this role group
+    let baseOffset = 0;
+    const roles: RoleType[] = ['main', 'sub', 'coach'];
+    for (const r of roles) {
+      if (r === activeMapping.role) break;
+      baseOffset += groupedMappings[r].length;
+    }
+
+    // Build new orderings for the entire group
+    const orderings = reordered.map((m, i) => ({
+      discordId: m.discordId,
+      sortOrder: baseOffset + i,
+    }));
+
+    // Optimistic update: update local state immediately
+    const updatedMappings = mappings.map(m => {
+      const ordering = orderings.find(o => o.discordId === m.discordId);
+      if (ordering) {
+        return { ...m, sortOrder: ordering.sortOrder };
+      }
+      return m;
+    });
+    setMappings(updatedMappings);
+
+    // Persist to backend
+    try {
+      const { getAuthHeaders } = await import('@/lib/auth');
+      const response = await fetch(`${BOT_API_URL}/api/user-mappings/reorder`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ orderings }),
+      });
+
+      if (!response.ok) {
+        toast.error('Failed to save new order');
+        loadData(); // Revert on error
+      }
+    } catch (error) {
+      console.error('Failed to reorder:', error);
+      toast.error('Failed to save new order');
+      loadData(); // Revert on error
+    }
+  }, [mappings, groupedMappings]);
 
   const selectedMember = members.find(m => m.id === selectedUserId);
 
@@ -249,7 +504,7 @@ export function UserMappings() {
                 Manual Input
               </TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="search" className="space-y-2 mt-4">
               <Label htmlFor="user-select">Discord User</Label>
               <Popover open={open} onOpenChange={setOpen}>
@@ -295,7 +550,7 @@ export function UserMappings() {
                 </PopoverContent>
               </Popover>
             </TabsContent>
-            
+
             <TabsContent value="manual" className="space-y-4 mt-4">
               <div className="space-y-2">
                 <Label htmlFor="manualUserId">Discord User ID</Label>
@@ -333,7 +588,7 @@ export function UserMappings() {
 
           <div className="space-y-2">
             <Label htmlFor="role">Role</Label>
-            <Select value={role} onValueChange={(value: 'main' | 'sub' | 'coach') => setRole(value)}>
+            <Select value={role} onValueChange={(value: RoleType) => setRole(value)}>
               <SelectTrigger id="role" className="w-full">
                 <SelectValue />
               </SelectTrigger>
@@ -365,59 +620,41 @@ export function UserMappings() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Users className="w-5 h-5" />
-            Current Mappings ({mappings.length})
+            Current Roster ({mappings.length})
           </CardTitle>
           <CardDescription>
-            Manage existing user-to-column mappings
+            Drag and drop to reorder players within each role group
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {mappings.length === 0 ? (
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : mappings.length === 0 ? (
             <p className="text-center text-muted-foreground py-8 animate-fadeIn">
               No user mappings yet. Add one above to get started.
             </p>
           ) : (
-            <div className="space-y-2">
-              {mappings.map((mapping, index) => (
-                <div
-                  key={mapping.discordId}
-                  className={cn(
-                    "flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50",
-                    stagger(index, 'fast', 'fadeIn'),
-                    microInteractions.smooth
-                  )}
-                >
-                  <div className="flex-1">
-                    <div className="font-medium">{mapping.discordUsername}</div>
-                    <div className="text-sm text-muted-foreground">
-                      Display: <span className="font-semibold">{mapping.displayName}</span>
-                      {' • '}
-                      Role: <span className="capitalize">{mapping.role}</span>
-                      {' • '}
-                      Order: <span className="font-mono">{mapping.sortOrder}</span>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleEdit(mapping)}
-                      className={cn(microInteractions.hoverScale, microInteractions.smooth)}
-                    >
-                      <Edit className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeMapping(mapping.discordId)}
-                      className={cn(microInteractions.hoverScale, microInteractions.smooth)}
-                    >
-                      <Trash2 className="w-4 h-4 text-destructive" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+              modifiers={[restrictToVerticalAxis]}
+            >
+              <div className="space-y-6">
+                {(['main', 'sub', 'coach'] as RoleType[]).map((roleKey, index) => (
+                  <RoleGroup
+                    key={roleKey}
+                    role={roleKey}
+                    mappings={groupedMappings[roleKey]}
+                    onEdit={handleEdit}
+                    onRemove={removeMapping}
+                    index={index}
+                  />
+                ))}
+              </div>
+            </DndContext>
           )}
         </CardContent>
       </Card>
@@ -464,7 +701,7 @@ export function UserMappings() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit-role">Role</Label>
-              <Select value={editRole} onValueChange={(value: 'main' | 'sub' | 'coach') => setEditRole(value)}>
+              <Select value={editRole} onValueChange={(value: RoleType) => setEditRole(value)}>
                 <SelectTrigger id="edit-role" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
@@ -474,20 +711,6 @@ export function UserMappings() {
                   <SelectItem value="coach">Coach</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-sort-order">Sort Order (Manual Override)</Label>
-              <Input
-                id="edit-sort-order"
-                type="number"
-                value={editSortOrder}
-                onChange={(e) => setEditSortOrder(parseInt(e.target.value) || 0)}
-                placeholder="0"
-                className={microInteractions.focusRing}
-              />
-              <p className="text-xs text-muted-foreground">
-                Leave as is for automatic ordering, or set manually to override
-              </p>
             </div>
           </div>
           <DialogFooter className="animate-fadeIn stagger-4">
