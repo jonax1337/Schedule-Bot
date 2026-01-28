@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { CheckCircle2, XCircle, Clock, Loader2, Edit2, Save, X, Palmtree, PlaneTakeoff, Download, CalendarPlus, Check } from 'lucide-react';
+import { CheckCircle2, XCircle, Clock, Loader2, Edit2, Save, X, Palmtree, PlaneTakeoff, Download } from 'lucide-react';
 import Image from 'next/image';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
@@ -63,10 +63,6 @@ export function UserScheduleContent() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [editingReason, setEditingReason] = useState(false);
   const [reasonValue, setReasonValue] = useState('');
-  const [quickFrom, setQuickFrom] = useState('');
-  const [quickTo, setQuickTo] = useState('');
-  const [quickSaving, setQuickSaving] = useState(false);
-  const [quickSaved, setQuickSaved] = useState(false);
   const [icalLoading, setIcalLoading] = useState(false);
 
   const PREDEFINED_SUGGESTIONS = [
@@ -476,54 +472,6 @@ export function UserScheduleContent() {
     }
   };
 
-  const handleQuickAvailability = async (type: 'available' | 'unavailable') => {
-    if (!loggedInUser) return;
-    if (type === 'available' && (!quickFrom || !quickTo)) {
-      toast.error('Please enter both start and end time');
-      return;
-    }
-    if (type === 'available' && quickTo <= quickFrom) {
-      toast.error('End time must be after start time');
-      return;
-    }
-
-    setQuickSaving(true);
-    try {
-      const { getAuthHeaders } = await import('@/lib/auth');
-      const mappingsRes = await fetch(`${BOT_API_URL}/api/user-mappings`, { headers: getAuthHeaders() });
-      const mappingsData = await mappingsRes.json();
-      const userMapping = mappingsData.mappings.find((m: any) => m.displayName === loggedInUser);
-      if (!userMapping) { toast.error('User mapping not found'); return; }
-
-      const today = new Date();
-      const day = String(today.getDate()).padStart(2, '0');
-      const month = String(today.getMonth() + 1).padStart(2, '0');
-      const year = today.getFullYear();
-      const todayStr = `${day}.${month}.${year}`;
-
-      const availability = type === 'available' ? `${quickFrom}-${quickTo}` : 'x';
-      const response = await fetch(`${BOT_API_URL}/api/schedule/update-availability`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ date: todayStr, userId: userMapping.discordId, availability }),
-      });
-
-      if (response.ok) {
-        setQuickSaved(true);
-        setTimeout(() => setQuickSaved(false), 2000);
-        await loadScheduleData();
-      } else {
-        const data = await response.json();
-        toast.error(data.error || 'Failed to update availability');
-      }
-    } catch (error) {
-      console.error('Quick availability save failed:', error);
-      toast.error('Failed to save availability');
-    } finally {
-      setQuickSaving(false);
-    }
-  };
-
   const handleIcalDownload = async () => {
     setIcalLoading(true);
     try {
@@ -547,15 +495,6 @@ export function UserScheduleContent() {
     }
   };
 
-  const getTodayEntry = (): DateEntry | undefined => {
-    const today = new Date();
-    const day = String(today.getDate()).padStart(2, '0');
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const year = today.getFullYear();
-    const todayStr = `${day}.${month}.${year}`;
-    return entries.find(e => e.date === todayStr);
-  };
-
   if (loading) {
     return (
       <div className="min-h-[400px] flex items-center justify-center">
@@ -566,72 +505,8 @@ export function UserScheduleContent() {
     );
   }
 
-  const todayEntry = getTodayEntry();
-  const todayUserPlayer = todayEntry?.players.find(p => p.name === loggedInUser);
-  const todayIsAbsent = todayUserPlayer?.status === 'absent';
-  const todayIsOffDay = todayEntry?.isOffDay;
-
   return (
     <div className="space-y-4">
-      {/* Quick Availability for Today */}
-      {loggedInUser && todayEntry && !todayIsOffDay && !todayIsAbsent && (
-        <Card className="animate-fadeIn border-blue-500/30 bg-blue-500/5">
-          <CardContent className="pt-4 pb-3">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-              <div className="flex items-center gap-2 min-w-0">
-                <CalendarPlus className="w-4 h-4 text-blue-500 flex-shrink-0" />
-                <span className="text-sm font-medium truncate">
-                  Today ({todayEntry.date})
-                  {todayUserPlayer?.status === 'available' && todayUserPlayer.time && (
-                    <Badge variant="outline" className="ml-2 text-green-600 border-green-600/30">{todayUserPlayer.time}</Badge>
-                  )}
-                  {todayUserPlayer?.status === 'unavailable' && (
-                    <Badge variant="outline" className="ml-2 text-red-600 border-red-600/30">Unavailable</Badge>
-                  )}
-                  {todayUserPlayer?.status === 'not-set' && (
-                    <Badge variant="outline" className="ml-2 text-muted-foreground">Not set</Badge>
-                  )}
-                </span>
-              </div>
-              <div className="flex items-center gap-2 sm:ml-auto">
-                <Input
-                  type="time"
-                  value={quickFrom}
-                  onChange={(e) => setQuickFrom(e.target.value)}
-                  className="h-8 w-[110px]"
-                  placeholder="From"
-                />
-                <span className="text-xs text-muted-foreground">-</span>
-                <Input
-                  type="time"
-                  value={quickTo}
-                  onChange={(e) => setQuickTo(e.target.value)}
-                  className="h-8 w-[110px]"
-                  placeholder="To"
-                />
-                <Button
-                  size="sm"
-                  className="h-8"
-                  disabled={quickSaving}
-                  onClick={() => handleQuickAvailability('available')}
-                >
-                  {quickSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : quickSaved ? <Check className="w-3 h-3" /> : <Check className="w-3 h-3" />}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  className="h-8"
-                  disabled={quickSaving}
-                  onClick={() => handleQuickAvailability('unavailable')}
-                >
-                  <X className="w-3 h-3" />
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       <div className="p-3 bg-muted/50 rounded-lg border animate-fadeIn">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
