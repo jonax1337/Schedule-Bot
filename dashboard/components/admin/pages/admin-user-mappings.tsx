@@ -14,6 +14,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { stagger, microInteractions, cn } from '@/lib/animations';
+import { BOT_API_URL } from '@/lib/config';
 
 import {
   DndContext,
@@ -68,8 +69,6 @@ const ROLE_CONFIG: Record<RoleType, { label: string; pluralLabel: string; icon: 
     icon: Headset,
   },
 };
-
-const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
 
 // --- Sortable Item Component ---
 function SortableUserItem({

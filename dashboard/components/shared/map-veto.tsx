@@ -9,8 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Ban, MapPin, Swords, ChevronRight, RotateCcw, RefreshCw } from 'lucide-react';
 import { stagger, microInteractions, cn } from '@/lib/animations';
-
-const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
+import { BOT_API_URL } from '@/lib/config';
 
 const ALL_MAPS = [
   'Abyss', 'Ascent', 'Bind', 'Breeze', 'Corrode', 'Fracture',

@@ -38,7 +38,7 @@ export function Logs() {
 
   const loadLogs = async () => {
     try {
-      const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
+      const { BOT_API_URL } = await import('@/lib/config');
       const { getAuthHeaders } = await import('@/lib/auth');
       const levelParam = filter !== "all" ? `&level=${filter}` : "";
       const response = await fetch(`${BOT_API_URL}/api/logs?limit=${limit}${levelParam}`, {

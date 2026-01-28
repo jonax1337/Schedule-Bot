@@ -11,6 +11,7 @@ import Image from 'next/image';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { stagger, microInteractions, cn } from '@/lib/animations';
+import { BOT_API_URL } from '@/lib/config';
 
 interface PlayerStatus {
   name: string;
@@ -44,8 +45,6 @@ interface DateEntry {
   userStatus?: 'available' | 'unavailable' | 'not-set' | 'absent';
   scheduleDetails?: ScheduleDetails;
 }
-
-const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
 
 export function UserSchedule() {
   const router = useRouter();
@@ -115,37 +114,56 @@ export function UserSchedule() {
     setLoading(true);
     try {
       const { getAuthHeaders } = await import('@/lib/auth');
-      const response = await fetch(`${BOT_API_URL}/api/schedule/next14`, {
-        headers: getAuthHeaders(),
-      });
+      const headers = getAuthHeaders();
 
-      if (!response.ok) {
+      // Build date strings for next 14 days (needed for absences API)
+      const today = new Date();
+      const dateStrings: string[] = [];
+      for (let i = 0; i < 14; i++) {
+        const date = new Date(today);
+        date.setDate(today.getDate() + i);
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        dateStrings.push(`${day}.${month}.${year}`);
+      }
+
+      // Fetch schedule, mappings, and absences in parallel
+      const [scheduleRes, mappingsRes, absencesRes] = await Promise.all([
+        fetch(`${BOT_API_URL}/api/schedule/next14`, { headers }),
+        fetch(`${BOT_API_URL}/api/user-mappings`, { headers }),
+        fetch(`${BOT_API_URL}/api/absences/by-dates?dates=${dateStrings.join(',')}`, { headers }),
+      ]);
+
+      if (!scheduleRes.ok) {
         toast.error('Failed to load schedule data');
         setLoading(false);
         return;
       }
 
-      const data = await response.json();
-      const schedules = data.schedules || [];
-
-      const mappingsRes = await fetch(`${BOT_API_URL}/api/user-mappings`, {
-        headers: getAuthHeaders(),
-      });
       if (!mappingsRes.ok) {
         toast.error('Failed to load user mappings');
         setLoading(false);
         return;
       }
 
-      const mappingsData = await mappingsRes.json();
+      // Parse responses (with safe JSON handling)
+      const [scheduleData, mappingsData, absencesData] = await Promise.all([
+        scheduleRes.json().catch(() => ({ schedules: [] })),
+        mappingsRes.json().catch(() => ({ mappings: [] })),
+        absencesRes.ok ? absencesRes.json().catch(() => ({ absentByDate: {} })) : Promise.resolve({ absentByDate: {} }),
+      ]);
+
+      const schedules = scheduleData.schedules || [];
       const mappings = mappingsData.mappings || [];
+      const absentByDate: Record<string, string[]> = absencesData.absentByDate || {};
+
       setUserMappings(mappings.map((m: any) => m.displayName));
 
       const loggedUser = localStorage.getItem('selectedUser');
       const userMapping = mappings.find((m: any) => m.displayName === loggedUser);
       const userDiscordId = userMapping?.discordId;
 
-      const today = new Date();
       const dateEntries: DateEntry[] = [];
 
       const formatDate = (d: Date): string => {
@@ -159,29 +177,6 @@ export function UserSchedule() {
         const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
         return weekdays[d.getDay()];
       };
-
-      // Build date strings for next 14 days
-      const dateStrings: string[] = [];
-      for (let i = 0; i < 14; i++) {
-        const date = new Date(today);
-        date.setDate(today.getDate() + i);
-        dateStrings.push(formatDate(date));
-      }
-
-      // Fetch absence data for all 14 dates
-      let absentByDate: Record<string, string[]> = {};
-      try {
-        const absencesRes = await fetch(
-          `${BOT_API_URL}/api/absences/by-dates?dates=${dateStrings.join(',')}`,
-          { headers: getAuthHeaders() }
-        );
-        if (absencesRes.ok) {
-          const absencesData = await absencesRes.json();
-          absentByDate = absencesData.absentByDate || {};
-        }
-      } catch (e) {
-        console.error('Failed to load absences:', e);
-      }
 
       for (let i = 0; i < 14; i++) {
         const date = new Date(today);

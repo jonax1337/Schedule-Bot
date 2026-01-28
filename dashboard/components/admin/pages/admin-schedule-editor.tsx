@@ -10,8 +10,7 @@ import { Loader2, Calendar, Save, RefreshCw, ChevronLeft, ChevronRight, X, Plane
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import Image from 'next/image';
 import { stagger, microInteractions, loadingStates, cn } from '@/lib/animations';
-
-const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
+import { BOT_API_URL } from '@/lib/config';
 
 interface UserMapping {
   discordId: string;

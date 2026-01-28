@@ -16,8 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { stagger, microInteractions, loadingStates, cn } from '@/lib/animations';
-
-const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
+import { BOT_API_URL } from '@/lib/config';
 
 // Helper to extract YouTube video ID from URL
 function getYouTubeVideoId(url: string): string | null {
@@ -126,7 +125,6 @@ export function Matches() {
   useEffect(() => {
     const fetchTeamName = async () => {
       try {
-        const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001'
         const response = await fetch(`${BOT_API_URL}/api/settings`)
         if (response.ok) {
           const data = await response.json()

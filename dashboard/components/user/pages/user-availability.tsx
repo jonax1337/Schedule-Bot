@@ -10,6 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2, XCircle, Clock, CheckSquare, Square, Check, PlaneTakeoff } from 'lucide-react';
 import { toast } from 'sonner';
 import { stagger, microInteractions, cn } from '@/lib/animations';
+import { BOT_API_URL } from '@/lib/config';
 
 interface AbsenceData {
   id: number;
@@ -32,8 +33,6 @@ function isDateInAbsence(date: string, absences: AbsenceData[]): boolean {
     return d >= start && d <= end;
   });
 }
-
-const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
 
 function getWeekdayName(dateStr: string): string {
   const [day, month, year] = dateStr.split('.');
@@ -99,16 +98,17 @@ export function UserAvailability() {
     setLoading(true);
     try {
       const { getAuthHeaders } = await import('@/lib/auth');
-      const mappingsRes = await fetch(`${BOT_API_URL}/api/user-mappings`, {
-        headers: getAuthHeaders(),
-      });
+      const headers = getAuthHeaders();
+
+      // First fetch mappings to get the user's Discord ID
+      const mappingsRes = await fetch(`${BOT_API_URL}/api/user-mappings`, { headers });
       if (!mappingsRes.ok) {
         toast.error('Failed to load user mappings');
         setLoading(false);
         return;
       }
 
-      const mappingsData = await mappingsRes.json();
+      const mappingsData = await mappingsRes.json().catch(() => ({ mappings: [] }));
       const userMapping = mappingsData.mappings.find((m: any) => m.displayName === user);
 
       if (!userMapping) {
@@ -119,22 +119,19 @@ export function UserAvailability() {
 
       setUserDiscordId(userMapping.discordId);
 
-      // Fetch absences using discordId (works regardless of admin/user JWT)
-      try {
-        const absencesRes = await fetch(`${BOT_API_URL}/api/absences?userId=${userMapping.discordId}`, {
-          headers: getAuthHeaders(),
-        });
-        if (absencesRes.ok) {
-          const absencesData = await absencesRes.json();
-          setAbsences(absencesData.absences || []);
-        }
-      } catch (e) {
-        console.error('Failed to load absences:', e);
-      }
+      // Fetch absences and schedule in parallel
+      const [absencesRes, scheduleRes] = await Promise.all([
+        fetch(`${BOT_API_URL}/api/absences?userId=${userMapping.discordId}`, { headers }),
+        fetch(`${BOT_API_URL}/api/schedule/next14`, { headers }),
+      ]);
 
-      const scheduleRes = await fetch(`${BOT_API_URL}/api/schedule/next14`, {
-        headers: getAuthHeaders(),
-      });
+      // Parse responses with safe JSON handling
+      const [absencesData, scheduleData] = await Promise.all([
+        absencesRes.ok ? absencesRes.json().catch(() => ({ absences: [] })) : Promise.resolve({ absences: [] }),
+        scheduleRes.ok ? scheduleRes.json().catch(() => ({ schedules: [] })) : Promise.resolve({ schedules: [] }),
+      ]);
+
+      setAbsences(absencesData.absences || []);
 
       if (!scheduleRes.ok) {
         toast.error('Failed to load schedule');
@@ -142,7 +139,6 @@ export function UserAvailability() {
         return;
       }
 
-      const scheduleData = await scheduleRes.json();
       const schedules = scheduleData.schedules || [];
       const dateEntries: DateEntry[] = [];
 

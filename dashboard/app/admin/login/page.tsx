@@ -10,8 +10,7 @@ import { Shield, Loader2, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { setAuthToken, setUser } from '@/lib/auth';
 import { microInteractions, cn } from '@/lib/animations';
-
-const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
+import { BOT_API_URL } from '@/lib/config';
 
 export default function AdminLogin() {
   const router = useRouter();

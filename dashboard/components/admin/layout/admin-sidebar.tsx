@@ -54,7 +54,7 @@ export function AdminSidebar({ userName, onLogout, ...props }: AdminSidebarProps
   React.useEffect(() => {
     const fetchBranding = async () => {
       try {
-        const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001'
+        const { BOT_API_URL } = await import('@/lib/config')
         const response = await fetch(`${BOT_API_URL}/api/settings`)
         if (response.ok) {
           const data = await response.json()
