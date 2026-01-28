@@ -12,13 +12,16 @@ RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists
 COPY package.json package-lock.json* ./
 RUN npm ci --ignore-scripts
 
+# Dummy DATABASE_URL for entire build stage - satisfies prisma.config.ts validation
+# (no actual database connection is made during build)
+ENV DATABASE_URL="postgresql://build:build@localhost:5432/build"
+
 # Copy prisma schema + config and generate client
-# Dummy DATABASE_URL satisfies prisma.config.ts validation during codegen (no actual connection made)
 COPY prisma ./prisma
 COPY prisma.config.ts ./
-RUN DATABASE_URL="postgresql://build:build@localhost:5432/build" npx prisma generate
+RUN npx prisma generate
 
-# Copy source and build
+# Copy source and build (npm run build = prisma generate && tsc)
 COPY tsconfig.json ./
 COPY src ./src
 RUN npm run build
