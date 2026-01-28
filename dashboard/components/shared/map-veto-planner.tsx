@@ -289,7 +289,7 @@ export function MapVetoPlanner() {
                 <SelectTrigger className="w-[100px] h-9">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent position="popper" side="bottom" align="start">
                   <SelectItem value="BO1">BO1</SelectItem>
                   <SelectItem value="BO3">BO3</SelectItem>
                   <SelectItem value="BO5">BO5</SelectItem>
