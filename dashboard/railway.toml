@@ -4,6 +4,8 @@
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
+# Force fresh build to clear corrupted cache
+dockerfileArgs = { CACHEBUST = "2026-01-28-v2" }
 
 [deploy]
 healthcheckPath = "/"

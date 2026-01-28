@@ -1,12 +1,18 @@
 # ---- Dashboard: Next.js ----
+# This is the DASHBOARD Dockerfile - NOT the backend
+# Cache bust: 2026-01-28-v2
 
 # Build stage
 FROM node:20-slim AS builder
 
+# Force cache invalidation for dashboard builds
+ARG CACHEBUST=1
+LABEL service="dashboard"
+
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
-RUN npm ci
+RUN npm ci --ignore-scripts
 
 COPY . .
 
