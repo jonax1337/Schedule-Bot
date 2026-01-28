@@ -34,7 +34,6 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { restrictToVerticalAxis, restrictToParentElement } from '@dnd-kit/modifiers';
 
 interface DiscordMember {
   id: string;
@@ -53,27 +52,21 @@ interface UserMapping {
 
 type RoleType = 'main' | 'sub' | 'coach';
 
-const ROLE_CONFIG: Record<RoleType, { label: string; pluralLabel: string; icon: typeof Shield; color: string; badgeClass: string }> = {
+const ROLE_CONFIG: Record<RoleType, { label: string; pluralLabel: string; icon: typeof Shield }> = {
   main: {
     label: 'Main Player',
     pluralLabel: 'Main Players',
     icon: Shield,
-    color: 'text-blue-500',
-    badgeClass: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
   },
   sub: {
     label: 'Substitute',
     pluralLabel: 'Substitutes',
     icon: UserCheck,
-    color: 'text-amber-500',
-    badgeClass: 'bg-amber-500/10 text-amber-500 border-amber-500/20',
   },
   coach: {
     label: 'Coach',
     pluralLabel: 'Coaches',
     icon: Headset,
-    color: 'text-emerald-500',
-    badgeClass: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
   },
 };
 
@@ -175,11 +168,11 @@ function RoleGroup({
   return (
     <div className={cn("space-y-3", stagger(index, 'fast', 'fadeIn'))}>
       <div className="flex items-center gap-2 px-1">
-        <Icon className={cn("w-4 h-4", config.color)} />
+        <Icon className="w-4 h-4 text-muted-foreground" />
         <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
           {config.pluralLabel}
         </h3>
-        <Badge variant="outline" className={cn("text-xs", config.badgeClass)}>
+        <Badge variant="secondary" className="text-xs">
           {mappings.length}
         </Badge>
       </div>
@@ -671,7 +664,6 @@ export function UserMappings() {
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
               onDragCancel={handleDragCancel}
-              modifiers={[restrictToVerticalAxis]}
             >
               <div className="space-y-6">
                 {(['main', 'sub', 'coach'] as RoleType[]).map((roleKey, index) => (
