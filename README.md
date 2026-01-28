@@ -23,7 +23,7 @@
   <img src="https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL" />
   <img src="https://img.shields.io/badge/Prisma-2D3748?style=for-the-badge&logo=prisma&logoColor=white" alt="Prisma" />
 
-  <br /><br />
+  <br />
 
   <a href="https://render.com/deploy?repo=https://github.com/jonax1337/Schedule-Bot">
     <img src="https://img.shields.io/badge/Deploy_to-Render-46E3B7?style=for-the-badge&logo=render&logoColor=white" alt="Deploy to Render" />
@@ -1548,3 +1548,4 @@ This project is licensed under the ISC License.
   <p>Made with ❤️ for E-Sports teams</p>
   <p>⭐ Star this repo if you find it helpful!</p>
 </div>
+
