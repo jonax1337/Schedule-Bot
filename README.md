@@ -89,6 +89,7 @@
 - **Schedule Editor**: Spreadsheet-like editor for schedule entries
 - **Scrim Manager**: Record opponents, results, VOD URLs, and notes with automatic stats
 - **Statistics Panel**: Team availability charts, scrim results visualization, win/loss streaks, and map composition analysis using Recharts
+- **Map Veto Planner**: Drag-and-drop interface for planning competitive match pick/ban sequences
 - **Live Logs**: Stream bot activity, warnings, and errors from the API server
 - **User Management**: Register/unregister Discord users and sync mappings
 - **Manual Actions**: Trigger posts, reminders, notifications, and polls manually
@@ -327,7 +328,8 @@ Features like change notifications, channel cleaning, poll duration, branding, a
 - **Framework**: Next.js 16+ (App Router)
 - **UI Library**: React 19+
 - **Styling**: TailwindCSS 4
-- **Components**: Radix UI Primitives (29 components)
+- **Components**: Radix UI Primitives (31 components)
+- **Drag & Drop**: @dnd-kit
 - **Icons**: Lucide React
 - **Theme**: next-themes (Dark Mode)
 - **Notifications**: Sonner (toasts)
@@ -913,29 +915,25 @@ Sidebar is organized into three groups:
 3. **Schedule**: Spreadsheet-like editor for schedule entries
 4. **Users**: Manage player registrations and roster
 5. **Matches**: Track scrim results, VOD links, and agent compositions
+6. **Map Veto**: Plan pick/ban sequences for competitive matches
 
 **System:**
-6. **Settings**: Configure Discord, scheduling, and branding settings
-7. **Actions**: Trigger manual bot actions (posts, reminders, polls, notifications)
-8. **Security**: Password hash and JWT secret generators
-9. **Logs**: View real-time bot logs with level filtering
-
-#### User Portal (`/user`)
-
-1. Select your username from dropdown (or login with Discord)
-2. **Schedule**: View 14-day calendar with team availability
-3. **Availability**: Edit your availability with time picker and auto-save
-4. **Absences**: Manage planned absences and vacations with date ranges
-5. **Matches**: View match history with agent compositions and VOD links
+7. **Settings**: Configure Discord, scheduling, and branding settings
+8. **Actions**: Trigger manual bot actions (posts, reminders, polls, notifications)
+9. **Security**: Password hash and JWT secret generators
+10. **Logs**: View real-time bot logs with level filtering
 
 #### Home Page (`/`)
 
-Tab-based interface combining user features:
+Tab-based interface for users:
 1. **Schedule**: Calendar view of all players (14 days) with status indicators
 2. **Availability**: Set your own availability for upcoming days
 3. **Absences**: View and manage planned absences
 4. **Matches**: Browse match history and stats
-5. **Statistics**: Team analytics with charts
+5. **Map Veto**: Plan pick/ban sequences with drag-and-drop
+6. **Statistics**: Team analytics with charts
+
+Select your username from dropdown (or login with Discord) to access personalized features.
 
 ---
 
@@ -1098,13 +1096,12 @@ schedule-bot/
 ├── dashboard/               # Next.js frontend
 │   ├── app/                 # Next.js App Router
 │   │   ├── layout.tsx       # Root layout (theme, fonts, toaster)
-│   │   ├── page.tsx         # Home (calendar view)
+│   │   ├── page.tsx         # Home (tab-based user view)
 │   │   ├── globals.css      # Global styles + animation tokens
 │   │   ├── login/           # User login
 │   │   ├── admin/
 │   │   │   ├── login/       # Admin login
-│   │   │   └── page.tsx     # Admin dashboard
-│   │   ├── user/page.tsx    # User availability portal
+│   │   │   └── page.tsx     # Admin dashboard (tab-based)
 │   │   ├── auth/callback/   # Discord OAuth handler
 │   │   └── api/             # Next.js API proxy routes
 │   │       ├── bot-status/  # Proxies to /api/health
@@ -1115,17 +1112,19 @@ schedule-bot/
 │   ├── components/
 │   │   ├── admin/           # Admin-specific components
 │   │   │   ├── layout/      # admin-layout-wrapper, admin-sidebar
-│   │   │   └── panels/      # Dashboard panels (settings, actions, etc.)
+│   │   │   └── pages/       # Feature pages (admin-dashboard, admin-settings, etc.)
 │   │   ├── shared/          # Shared across admin/user
 │   │   │   ├── agent-picker.tsx      # Valorant agent selector
 │   │   │   ├── nav-user.tsx          # User navigation menu
-│   │   │   └── scrims-panel.tsx      # Match history panel
+│   │   │   ├── matches.tsx           # Match history component
+│   │   │   ├── statistics.tsx        # Charts & analytics
+│   │   │   └── map-veto.tsx          # Map veto planner (drag-and-drop)
 │   │   ├── auth/            # Auth components (login-form)
-│   │   ├── theme/           # Theme system (provider, toggle, switcher)
-│   │   ├── ui/              # Radix UI primitives (29 components)
+│   │   ├── theme/           # Theme system (provider, toggle)
+│   │   ├── ui/              # Radix UI primitives (31 components)
 │   │   └── user/            # User portal components
 │   │       ├── layout/      # user-layout-wrapper, user-sidebar
-│   │       └── pages/       # User content pages
+│   │       └── pages/       # User content pages (user-schedule, user-availability, user-absences)
 │   ├── hooks/
 │   │   └── use-mobile.ts    # Mobile breakpoint hook (768px)
 │   ├── lib/
@@ -1151,26 +1150,47 @@ schedule-bot/
 
 Components are organized by domain/role:
 
-- **`components/admin/`** - Admin-only features (panels, layout)
+- **`components/admin/`** - Admin-only features (pages, layout)
+  - `pages/` - Feature pages: admin-dashboard, admin-settings, admin-actions, admin-user-mappings, admin-schedule-editor, admin-security, admin-logs
+  - `layout/` - Admin layout wrapper and sidebar
 - **`components/user/`** - User portal features
   - `layout/` - User layout wrapper and sidebar
-  - `pages/` - User content pages (schedule, availability, matches)
+  - `pages/` - User content pages (user-schedule, user-availability, user-absences)
 - **`components/auth/`** - Authentication UI
-- **`components/shared/`** - Shared across admin/user (agent-picker, scrims-panel, nav-user)
-- **`components/theme/`** - Theme system (theme-toggle, theme-provider, theme-switcher-sidebar)
-- **`components/ui/`** - Radix UI primitives (29 components)
+- **`components/shared/`** - Shared across admin/user (agent-picker, matches, statistics, map-veto, nav-user)
+- **`components/theme/`** - Theme system (theme-toggle, theme-provider)
+- **`components/ui/`** - Radix UI primitives (31 components including chart)
 
-Admin panels export from `components/admin/panels/index.ts` which also re-exports shared components (ScrimsPanel, AgentSelector) for convenience.
+Admin pages export from `components/admin/pages/index.ts` which also re-exports shared components (Matches, AgentSelector, MapVetoPlanner, Statistics) for convenience.
 
-### Statistics Panel
+### Statistics Component
 
-The `StatisticsPanel` (`components/admin/panels/statistics-panel.tsx`) provides team analytics using Recharts:
+The `Statistics` component (`components/shared/statistics.tsx`) provides team analytics using Recharts:
 
 - **Team Availability Chart** - Stacked bar chart showing available/unavailable/no-response/absent players per day
 - **Scrim Results** - Win/loss/draw visualization with filtering by date range and opponent
 - **Current Form** - Win/loss streak display
 - **Map Compositions** - Agent picks per map with collapsible details
 - Mobile-responsive: uses `useIsMobile` hook, adjusts chart heights (220px mobile, 300px desktop), thins X-axis labels on mobile
+
+### Matches Component
+
+The `Matches` component (`components/shared/matches.tsx`) provides match history management:
+
+- **Match Table** - Displays scrims with date, opponent, result, score, map, and VOD links
+- **Agent Compositions** - Shows agent picks for both teams using agent icons from `public/assets/agents/`
+- **Create/Edit Dialog** - Form for adding or editing match records with agent picker
+- **Filtering** - Filter by date range and opponent
+- Used in both admin dashboard (Matches tab) and user portal (Matches tab)
+
+### Map Veto Planner
+
+The `MapVetoPlanner` component (`components/shared/map-veto.tsx`) provides a drag-and-drop interface for map veto planning:
+
+- **Map Pool Management** - Visual drag-and-drop using @dnd-kit library
+- **Veto Process Simulation** - Plan pick/ban sequences for competitive matches
+- **Map Images** - Uses Valorant map images from `public/assets/maps/`
+- Available in both user portal and admin dashboard via the "Map Veto" tab
 
 ### Dashboard Animation System
 
