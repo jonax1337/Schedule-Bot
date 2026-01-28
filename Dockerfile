@@ -32,10 +32,9 @@ RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists
 COPY package.json package-lock.json* ./
 RUN npm ci --omit=dev --ignore-scripts
 
-# Copy prisma schema + generated client
+# Copy prisma schema + generated client (Prisma 7.x outputs to custom path only)
 COPY prisma ./prisma
 COPY --from=builder /app/src/generated ./src/generated
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
 # Copy built application
 COPY --from=builder /app/dist ./dist

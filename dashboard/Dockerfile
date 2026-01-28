@@ -1,40 +1,42 @@
-# ---- Dashboard: Next.js ----
-# This is the DASHBOARD Dockerfile - NOT the backend
-# Cache bust: 2026-01-28-v2
+# ===============================================
+# Dashboard: Next.js Frontend
+# This is NOT the backend - uses Alpine base image
+# ===============================================
 
-# Build stage
-FROM node:20-slim AS builder
+# Build stage - use Alpine to avoid cache sharing with backend (which uses slim)
+FROM node:20-alpine AS nextjs-builder
 
-# Force cache invalidation for dashboard builds
-ARG CACHEBUST=1
-LABEL service="dashboard"
+# Install libc6-compat for Alpine
+RUN apk add --no-cache libc6-compat
 
-WORKDIR /app
+WORKDIR /dashboard
 
+# Copy package files and install dependencies
 COPY package.json package-lock.json* ./
 RUN npm ci --ignore-scripts
 
+# Copy source files
 COPY . .
 
-# Build arguments for Next.js (available at build time)
+# Build arguments for Next.js
 ARG NEXT_PUBLIC_BOT_API_URL=http://localhost:3001
-
 ENV NEXT_PUBLIC_BOT_API_URL=$NEXT_PUBLIC_BOT_API_URL
 
+# Build the Next.js application
 RUN npm run build
 
 # Production stage
-FROM node:20-slim AS runner
+FROM node:20-alpine AS nextjs-runner
 
-WORKDIR /app
+WORKDIR /dashboard
 
 ENV NODE_ENV=production
 ENV PORT=3000
 
-# Copy standalone output
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/public ./public
+# Copy standalone output from builder
+COPY --from=nextjs-builder /dashboard/.next/standalone ./
+COPY --from=nextjs-builder /dashboard/.next/static ./.next/static
+COPY --from=nextjs-builder /dashboard/public ./public
 
 EXPOSE 3000
 
