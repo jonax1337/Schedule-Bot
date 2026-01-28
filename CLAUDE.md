@@ -13,7 +13,7 @@ All components run from a single Node.js process that starts the bot, API server
 
 ### Technology Stack
 **Backend:** TypeScript 5.9, discord.js 14.25, Express 5.2, Prisma 7.3 (with @prisma/adapter-pg + pg native driver), node-cron 4.2, bcrypt 6, jsonwebtoken 9, Helmet 8, dotenv 17, Joi 18, ical-generator 10 (installed but not yet used)
-**Frontend:** Next.js 16.1, React 19.2, TailwindCSS 4, Radix UI primitives, Recharts 3.7 (charts), next-themes, sonner (toasts), lucide-react (icons), cmdk (command palette)
+**Frontend:** Next.js 16.1, React 19.2, TailwindCSS 4, Radix UI primitives, Recharts 3.7 (charts), next-themes, sonner (toasts), lucide-react (icons), cmdk (command palette), @dnd-kit (drag and drop)
 **Database:** PostgreSQL via Prisma ORM
 
 ## Common Commands
@@ -169,13 +169,12 @@ src/
 dashboard/
 ├── app/                        # Next.js App Router
 │   ├── layout.tsx              # Root layout (theme, fonts, toaster)
-│   ├── page.tsx                # Home (calendar view)
+│   ├── page.tsx                # Home (tab-based user view)
 │   ├── globals.css             # Global styles + animation tokens
 │   ├── login/                  # User login
 │   ├── admin/
 │   │   ├── login/              # Admin login
-│   │   └── page.tsx            # Admin dashboard
-│   ├── user/page.tsx           # User availability portal
+│   │   └── page.tsx            # Admin dashboard (tab-based)
 │   ├── auth/callback/          # Discord OAuth handler
 │   └── api/                    # Next.js API proxy routes (→ backend)
 │       ├── bot-status/         # Proxies to /api/health
@@ -194,32 +193,32 @@ dashboard/
 │   │   ├── layout/
 │   │   │   ├── admin-layout-wrapper.tsx
 │   │   │   └── admin-sidebar.tsx
-│   │   └── panels/             # Admin feature panels
-│   │       ├── index.ts        # Barrel export (also re-exports shared panels)
-│   │       ├── dashboard-home.tsx      # Admin dashboard home with stats cards
-│   │       ├── statistics-panel.tsx    # Charts & analytics (Recharts, mobile-friendly)
-│   │       ├── schedule-editor.tsx     # Edit schedule reason/focus
-│   │       ├── settings-panel.tsx      # Bot configuration UI
-│   │       ├── actions-panel.tsx       # Manual action triggers
-│   │       ├── user-mappings-panel.tsx # Player roster manager
-│   │       ├── logs-panel.tsx          # Application logs viewer
-│   │       └── security-panel.tsx      # Security settings
+│   │   └── pages/              # Admin feature pages
+│   │       ├── index.ts        # Barrel export (also re-exports shared components)
+│   │       ├── admin-dashboard.tsx     # Admin dashboard home with stats cards
+│   │       ├── admin-settings.tsx      # Bot configuration UI
+│   │       ├── admin-actions.tsx       # Manual action triggers
+│   │       ├── admin-user-mappings.tsx # Player roster manager
+│   │       ├── admin-schedule-editor.tsx # Edit schedule reason/focus
+│   │       ├── admin-security.tsx      # Security settings
+│   │       └── admin-logs.tsx          # Application logs viewer
 │   ├── shared/                 # Shared across admin/user portals
 │   │   ├── index.ts            # Barrel export
-│   │   ├── agent-picker.tsx    # Valorant agent selector
+│   │   ├── agent-picker.tsx    # Valorant agent selector (AgentSelector)
 │   │   ├── nav-user.tsx        # User navigation (sidebar user menu)
-│   │   └── scrims-panel.tsx    # Match history (maps, agents, VOD)
+│   │   ├── matches.tsx         # Match history (maps, agents, VOD)
+│   │   ├── statistics.tsx      # Charts & analytics (Recharts, mobile-friendly)
+│   │   └── map-veto.tsx        # Map veto planner with drag-and-drop
 │   ├── auth/                   # Auth components
 │   │   ├── index.ts
 │   │   └── login-form.tsx
 │   ├── theme/                  # Theme system
 │   │   ├── index.ts
 │   │   ├── theme-provider.tsx
-│   │   ├── theme-switcher-sidebar.tsx
 │   │   └── theme-toggle.tsx
-│   ├── ui/                     # Radix UI primitives (29 components)
+│   ├── ui/                     # Radix UI primitives (31 components)
 │   │   └── accordion, alert-dialog, avatar, badge, breadcrumb,
-│   │       button, card, checkbox, collapsible, command, dialog,
+│   │       button, card, chart, checkbox, collapsible, command, dialog,
 │   │       dropdown-menu, field, input, label, popover, scroll-area,
 │   │       select, separator, sheet, sidebar, skeleton, slider,
 │   │       sonner, switch, table, tabs, textarea, tooltip
@@ -231,10 +230,9 @@ dashboard/
 │       │   └── user-sidebar.tsx
 │       └── pages/
 │           ├── index.ts
-│           ├── user-schedule-content.tsx    # Calendar view for users
-│           ├── user-availability-content.tsx # Set availability (auto-save)
-│           ├── user-absences-content.tsx    # Absence/vacation management
-│           └── user-matches-content.tsx     # Match history (uses shared ScrimsPanel)
+│           ├── user-schedule.tsx       # Calendar view for users
+│           ├── user-availability.tsx   # Set availability (auto-save)
+│           └── user-absences.tsx       # Absence/vacation management
 ├── hooks/
 │   └── use-mobile.ts           # Mobile breakpoint hook (768px)
 ├── lib/
@@ -537,16 +535,15 @@ Two auth modes:
 
 ### Dashboard Routing
 Next.js App Router structure:
-- `/` - Home page (tab-based: schedule, availability, absences, matches, statistics)
+- `/` - Home page (tab-based: schedule, availability, absences, matches, map-veto, statistics)
 - `/login` - User login page
 - `/admin/login` - Admin login page
-- `/admin` - Admin dashboard (tab-based: dashboard, statistics, settings, users, schedule, scrims, actions, security, logs)
-- `/user` - User portal for setting own availability
+- `/admin` - Admin dashboard (tab-based: dashboard, statistics, settings, users, schedule, scrims, map-veto, actions, security, logs)
 - `/auth/callback` - Discord OAuth callback handler
 
 Admin sidebar navigation is organized into three logical groups:
 - **Overview:** Dashboard, Statistics
-- **Team:** Schedule, Users, Matches
+- **Team:** Schedule, Users, Matches, Map Veto
 - **System:** Settings, Actions, Security, Logs
 
 ### Dashboard API Proxy Layer
@@ -558,26 +555,41 @@ The dashboard includes Next.js API routes (`app/api/`) that proxy requests to th
 
 ### Dashboard Component Organization
 Components are organized by domain/role:
-- `components/admin/` - Admin-only features (panels, layout)
-  - `panels/` - Feature panels: dashboard-home, statistics, settings, schedule-editor, user-mappings, actions, logs, security
+- `components/admin/` - Admin-only features (pages, layout)
+  - `pages/` - Feature pages: admin-dashboard, admin-settings, admin-actions, admin-user-mappings, admin-schedule-editor, admin-security, admin-logs
   - `layout/` - Admin layout wrapper and sidebar
 - `components/user/` - User portal features (layout + pages subdirectories)
   - `layout/` - User layout wrapper and sidebar
-  - `pages/` - User content pages (schedule, availability, absences, matches)
+  - `pages/` - User content pages (user-schedule, user-availability, user-absences)
 - `components/auth/` - Authentication UI
-- `components/shared/` - Shared across admin/user (agent-picker, scrims-panel, nav-user)
-- `components/theme/` - Theme system (theme-toggle, theme-provider, theme-switcher-sidebar)
-- `components/ui/` - Radix UI primitives (29 components)
+- `components/shared/` - Shared across admin/user (agent-picker, matches, statistics, map-veto, nav-user)
+- `components/theme/` - Theme system (theme-toggle, theme-provider)
+- `components/ui/` - Radix UI primitives (31 components including chart)
 
-Admin panels export from `components/admin/panels/index.ts` which also re-exports shared components (ScrimsPanel, AgentSelector) for convenience.
+Admin pages export from `components/admin/pages/index.ts` which also re-exports shared components (Matches, AgentSelector, MapVetoPlanner, Statistics) for convenience.
 
-### Statistics Panel
-The `StatisticsPanel` (`components/admin/panels/statistics-panel.tsx`) provides team analytics using Recharts:
+### Statistics Component
+The `Statistics` component (`components/shared/statistics.tsx`) provides team analytics using Recharts:
 - **Team Availability Chart** - Stacked bar chart showing available/unavailable/no-response/absent players per day
 - **Scrim Results** - Win/loss/draw visualization with filtering by date range and opponent
 - **Current Form** - Win/loss streak display
 - **Map Compositions** - Agent picks per map with collapsible details
 - Mobile-responsive: uses `useIsMobile` hook, adjusts chart heights (220px mobile, 300px desktop), thins X-axis labels on mobile
+
+### Matches Component
+The `Matches` component (`components/shared/matches.tsx`) provides match history management:
+- **Match Table** - Displays scrims with date, opponent, result, score, map, and VOD links
+- **Agent Compositions** - Shows agent picks for both teams using agent icons from `public/assets/agents/`
+- **Create/Edit Dialog** - Form for adding or editing match records with agent picker
+- **Filtering** - Filter by date range and opponent
+- Used in both admin dashboard (Matches tab) and user portal (Matches tab)
+
+### Map Veto Planner
+The `MapVetoPlanner` component (`components/shared/map-veto.tsx`) provides a drag-and-drop interface for map veto planning:
+- **Map Pool Management** - Visual drag-and-drop using @dnd-kit library
+- **Veto Process Simulation** - Plan pick/ban sequences for competitive matches
+- **Map Images** - Uses Valorant map images from `public/assets/maps/`
+- Available in both user portal and admin dashboard via the "Map Veto" tab
 
 ### Dashboard Animation System
 The dashboard uses a custom animation utility system (`lib/animations.ts`):
