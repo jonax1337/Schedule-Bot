@@ -23,8 +23,6 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
-  type DragStartEvent,
-  DragOverlay,
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -75,16 +73,12 @@ const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:300
 // --- Sortable Item Component ---
 function SortableUserItem({
   mapping,
-  roleConfig,
   onEdit,
   onRemove,
-  isOverlay = false,
 }: {
   mapping: UserMapping;
-  roleConfig: typeof ROLE_CONFIG[RoleType];
   onEdit: (mapping: UserMapping) => void;
   onRemove: (discordId: string) => void;
-  isOverlay?: boolean;
 }) {
   const {
     attributes,
@@ -98,6 +92,8 @@ function SortableUserItem({
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
+    zIndex: isDragging ? 50 : undefined,
+    position: isDragging ? 'relative' as const : undefined,
   };
 
   return (
@@ -106,9 +102,8 @@ function SortableUserItem({
       style={style}
       className={cn(
         "flex items-center gap-3 p-3 border rounded-lg bg-background",
-        isDragging && "opacity-50 shadow-lg z-50",
-        isOverlay && "shadow-xl border-primary/50 bg-background",
-        !isDragging && !isOverlay && "hover:bg-accent/50",
+        isDragging && "shadow-lg border-primary/50 scale-[1.02]",
+        !isDragging && "hover:bg-accent/50",
         microInteractions.smooth
       )}
     >
@@ -190,7 +185,6 @@ function RoleGroup({
               <SortableUserItem
                 key={mapping.discordId}
                 mapping={mapping}
-                roleConfig={config}
                 onEdit={onEdit}
                 onRemove={onRemove}
               />
@@ -225,9 +219,6 @@ export function UserMappings() {
   const [editDisplayName, setEditDisplayName] = useState('');
   const [editRole, setEditRole] = useState<RoleType>('main');
 
-  // Drag state
-  const [activeId, setActiveId] = useState<string | null>(null);
-
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 8 },
@@ -253,11 +244,6 @@ export function UserMappings() {
     }
     return groups;
   }, [mappings]);
-
-  const activeMapping = useMemo(
-    () => mappings.find(m => m.discordId === activeId) ?? null,
-    [mappings, activeId]
-  );
 
   useEffect(() => {
     loadData();
@@ -424,14 +410,9 @@ export function UserMappings() {
     }
   };
 
-  // --- Drag and Drop Handlers ---
-  const handleDragStart = useCallback((event: DragStartEvent) => {
-    setActiveId(event.active.id as string);
-  }, []);
-
+  // --- Drag and Drop Handler ---
   const handleDragEnd = useCallback(async (event: DragEndEvent) => {
     const { active, over } = event;
-    setActiveId(null);
 
     if (!over || active.id === over.id) return;
 
@@ -495,10 +476,6 @@ export function UserMappings() {
       loadData(); // Revert on error
     }
   }, [mappings, groupedMappings]);
-
-  const handleDragCancel = useCallback(() => {
-    setActiveId(null);
-  }, []);
 
   const selectedMember = members.find(m => m.id === selectedUserId);
 
@@ -661,9 +638,7 @@ export function UserMappings() {
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}
-              onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
-              onDragCancel={handleDragCancel}
             >
               <div className="space-y-6">
                 {(['main', 'sub', 'coach'] as RoleType[]).map((roleKey, index) => (
@@ -677,17 +652,6 @@ export function UserMappings() {
                   />
                 ))}
               </div>
-              <DragOverlay>
-                {activeMapping ? (
-                  <SortableUserItem
-                    mapping={activeMapping}
-                    roleConfig={ROLE_CONFIG[activeMapping.role]}
-                    onEdit={() => {}}
-                    onRemove={() => {}}
-                    isOverlay
-                  />
-                ) : null}
-              </DragOverlay>
             </DndContext>
           )}
         </CardContent>

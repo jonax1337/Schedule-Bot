@@ -119,7 +119,7 @@ export const absenceUpdateSchema = Joi.object({
 export const reorderUserMappingsSchema = Joi.object({
   orderings: Joi.array().items(
     Joi.object({
-      discordId: Joi.string().pattern(/^\d{17,19}$/).required(),
+      discordId: Joi.string().min(1).required(),
       sortOrder: Joi.number().integer().min(0).required(),
     })
   ).min(1).required(),
