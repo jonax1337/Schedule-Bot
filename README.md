@@ -1,12 +1,12 @@
 <div align="center">
   <img src="assets/logo.png" alt="Schedule Bot Logo" width="128" />
-  
+
   <h1>Valorant Schedule Bot</h1>
-  
+
   <p>
     <strong>A comprehensive Discord bot system for managing E-Sports team availability and scheduling</strong>
   </p>
-  
+
   <p>
     <a href="#features">Features</a> •
     <a href="#architecture">Architecture</a> •
@@ -15,7 +15,7 @@
     <a href="#database">Database</a> •
     <a href="#usage">Usage</a>
   </p>
-  
+
   <img src="https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
   <img src="https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white" alt="Node.js" />
   <img src="https://img.shields.io/badge/Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord" />
@@ -23,18 +23,10 @@
   <img src="https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL" />
   <img src="https://img.shields.io/badge/Prisma-2D3748?style=for-the-badge&logo=prisma&logoColor=white" alt="Prisma" />
 
-  <br />
+  <br /><br />
 
-  <a href="https://render.com/deploy?repo=https://github.com/jonax1337/Schedule-Bot">
-    <img src="https://img.shields.io/badge/Deploy_to-Render-46E3B7?style=for-the-badge&logo=render&logoColor=white" alt="Deploy to Render" />
-  </a>
-  &nbsp;&nbsp;
-  <a href="https://railway.com/deploy?template=https://github.com/jonax1337/Schedule-Bot">
-    <img src="https://img.shields.io/badge/Deploy_to-Railway-0B0D0E?style=for-the-badge&logo=railway&logoColor=white" alt="Deploy on Railway" />
-  </a>
-  &nbsp;&nbsp;
-  <a href="https://vercel.com/new/clone?repository-url=https://github.com/jonax1337/Schedule-Bot&project-name=schedule-bot-dashboard&root-directory=dashboard&env=BOT_API_URL,NEXT_PUBLIC_BOT_API_URL">
-    <img src="https://img.shields.io/badge/Deploy_to-Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white" alt="Deploy to Vercel" />
+  <a href="https://railway.com/deploy/3UR9Zd?referralCode=r1hhQd&utm_medium=integration&utm_source=template&utm_campaign=generic">
+    <img src="https://railway.com/button.svg" alt="Deploy on Railway" />
   </a>
 </div>
 
@@ -1340,72 +1332,38 @@ In-memory log store (`src/shared/utils/logger.ts`):
 
 ## Deployment
 
-### One-Click Deploy
+### One-Click Deploy on Railway
 
-Use the buttons below to deploy with minimal configuration:
+Deploy the complete stack (Backend + Frontend + PostgreSQL) with one click:
 
-| Platform | What it deploys | Button |
-|----------|----------------|--------|
-| **Render** | Backend + Dashboard + PostgreSQL | [![Deploy to Render](https://img.shields.io/badge/Deploy_to-Render-46E3B7?style=for-the-badge&logo=render&logoColor=white)](https://render.com/deploy?repo=https://github.com/jonax1337/Schedule-Bot) |
-| **Railway** | Backend + PostgreSQL | [![Deploy on Railway](https://img.shields.io/badge/Deploy_to-Railway-0B0D0E?style=for-the-badge&logo=railway&logoColor=white)](https://railway.com/deploy?template=https://github.com/jonax1337/Schedule-Bot) |
-| **Vercel** | Dashboard only | [![Deploy to Vercel](https://img.shields.io/badge/Deploy_to-Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://vercel.com/new/clone?repository-url=https://github.com/jonax1337/Schedule-Bot&project-name=schedule-bot-dashboard&root-directory=dashboard&env=BOT_API_URL,NEXT_PUBLIC_BOT_API_URL) |
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/3UR9Zd?referralCode=r1hhQd&utm_medium=integration&utm_source=template&utm_campaign=generic)
 
-> **Recommended combination:** Railway (backend + database) + Vercel (dashboard), or Render for an all-in-one setup.
+**What gets deployed:**
+- **Backend** — Discord bot + Express API (Dockerfile)
+- **Frontend** — Next.js dashboard (Railpack)
+- **PostgreSQL** — Managed database
 
----
+**After clicking Deploy:**
 
-### Option A: Deploy to Render (All-in-One)
-
-Render deploys backend, dashboard, and database together using the included `render.yaml` Blueprint.
-
-1. Click the **Deploy to Render** button above
-2. Connect your GitHub account and select the repository
-3. Fill in the required environment variables:
+1. Railway will prompt you to fill in the required environment variables:
    - `DISCORD_TOKEN` — Bot token from Discord Developer Portal
    - `DISCORD_GUILD_ID` — Your Discord server ID
+   - `ADMIN_USERNAME` — Admin dashboard username (default: `admin`)
    - `ADMIN_PASSWORD_HASH` — Bcrypt hash of your admin password
-4. Render auto-generates `JWT_SECRET` and provisions the PostgreSQL database
-5. After the first deploy, copy the service URLs and update:
-   - `DASHBOARD_URL` on the backend → your dashboard's Render URL (e.g., `https://schedule-bot-dashboard.onrender.com`)
-   - `BOT_API_URL` and `NEXT_PUBLIC_BOT_API_URL` on the dashboard → your backend's Render URL (e.g., `https://schedule-bot-backend.onrender.com`)
-6. Redeploy both services to pick up the URL changes
+   - `JWT_SECRET` — Random 32+ character string for JWT signing
+
+2. Railway auto-provisions the PostgreSQL database and links it to your services
+
+3. After deployment completes:
+   - Copy the **Frontend URL** and set it as `DASHBOARD_URL` in the Backend service
+   - Copy the **Backend URL** and set it as `NEXT_PUBLIC_BOT_API_URL` in the Frontend service
+   - Redeploy both services to pick up the URL changes
+
+4. If using Discord OAuth, add your Frontend URL + `/auth/callback` as a redirect URI in the Discord Developer Portal
 
 ---
 
-### Option B: Railway (Backend) + Vercel (Dashboard)
-
-#### Step 1: Deploy Backend on Railway
-
-1. Click the **Deploy on Railway** button above
-2. Add a **PostgreSQL** plugin to your project
-3. Set the following environment variables:
-   - `DISCORD_TOKEN`
-   - `DISCORD_GUILD_ID`
-   - `ADMIN_USERNAME` (default: `admin`)
-   - `ADMIN_PASSWORD_HASH`
-   - `JWT_SECRET` (min 32 characters)
-   - `DASHBOARD_URL` — set to your Vercel URL after Step 2 (e.g., `https://schedule-bot.vercel.app`)
-   - `DATABASE_URL` — auto-filled by Railway when you link the PostgreSQL plugin
-4. Deploy and note your backend URL (e.g., `https://schedule-bot-production.up.railway.app`)
-
-#### Step 2: Deploy Dashboard on Vercel
-
-1. Click the **Deploy to Vercel** button above
-2. Set **Root Directory** to `dashboard` (pre-filled by the button)
-3. Set environment variables:
-   - `NEXT_PUBLIC_BOT_API_URL` — your Railway backend URL
-   - `BOT_API_URL` — your Railway backend URL
-4. Deploy
-
-#### Step 3: Link Services
-
-1. Go back to Railway and update `DASHBOARD_URL` to your Vercel URL
-2. If using Discord OAuth, update the redirect URI in the Discord Developer Portal to `https://your-vercel-url.vercel.app/auth/callback`
-3. Redeploy the Railway service
-
----
-
-### Option C: Docker Compose (Self-Hosted)
+### Docker Compose (Self-Hosted)
 
 For self-hosting on your own server using the included `docker-compose.yml`:
 
