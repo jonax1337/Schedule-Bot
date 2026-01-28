@@ -25,7 +25,7 @@
 
   <br /><br />
 
-  <a href="https://railway.com/deploy/3UR9Zd?referralCode=r1hhQd&utm_medium=integration&utm_source=template&utm_campaign=generic">
+  <a href="https://railway.com/deploy/qEGSS2?referralCode=r1hhQd&utm_medium=integration&utm_source=template&utm_campaign=generic">
     <img src="https://railway.com/button.svg" alt="Deploy on Railway" />
   </a>
 </div>
@@ -1506,4 +1506,5 @@ This project is licensed under the ISC License.
   <p>Made with ❤️ for E-Sports teams</p>
   <p>⭐ Star this repo if you find it helpful!</p>
 </div>
+
 
