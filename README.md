@@ -26,15 +26,15 @@
   <br /><br />
 
   <a href="https://render.com/deploy?repo=https://github.com/jonax1337/Schedule-Bot">
-    <img src="https://render.com/images/deploy-to-render-button.svg" alt="Deploy to Render" />
+    <img src="https://img.shields.io/badge/Deploy_to-Render-46E3B7?style=for-the-badge&logo=render&logoColor=white" alt="Deploy to Render" />
   </a>
   &nbsp;&nbsp;
   <a href="https://railway.com/deploy?template=https://github.com/jonax1337/Schedule-Bot">
-    <img src="https://railway.com/button.svg" alt="Deploy on Railway" />
+    <img src="https://img.shields.io/badge/Deploy_to-Railway-0B0D0E?style=for-the-badge&logo=railway&logoColor=white" alt="Deploy on Railway" />
   </a>
   &nbsp;&nbsp;
   <a href="https://vercel.com/new/clone?repository-url=https://github.com/jonax1337/Schedule-Bot&project-name=schedule-bot-dashboard&root-directory=dashboard&env=BOT_API_URL,NEXT_PUBLIC_BOT_API_URL">
-    <img src="https://vercel.com/button" alt="Deploy Dashboard to Vercel" />
+    <img src="https://img.shields.io/badge/Deploy_to-Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white" alt="Deploy to Vercel" />
   </a>
 </div>
 
@@ -1346,9 +1346,9 @@ Use the buttons below to deploy with minimal configuration:
 
 | Platform | What it deploys | Button |
 |----------|----------------|--------|
-| **Render** | Backend + Dashboard + PostgreSQL | [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/jonax1337/Schedule-Bot) |
-| **Railway** | Backend + PostgreSQL | [![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy?template=https://github.com/jonax1337/Schedule-Bot) |
-| **Vercel** | Dashboard only | [![Deploy to Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/jonax1337/Schedule-Bot&project-name=schedule-bot-dashboard&root-directory=dashboard&env=BOT_API_URL,NEXT_PUBLIC_BOT_API_URL) |
+| **Render** | Backend + Dashboard + PostgreSQL | [![Deploy to Render](https://img.shields.io/badge/Deploy_to-Render-46E3B7?style=for-the-badge&logo=render&logoColor=white)](https://render.com/deploy?repo=https://github.com/jonax1337/Schedule-Bot) |
+| **Railway** | Backend + PostgreSQL | [![Deploy on Railway](https://img.shields.io/badge/Deploy_to-Railway-0B0D0E?style=for-the-badge&logo=railway&logoColor=white)](https://railway.com/deploy?template=https://github.com/jonax1337/Schedule-Bot) |
+| **Vercel** | Dashboard only | [![Deploy to Vercel](https://img.shields.io/badge/Deploy_to-Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://vercel.com/new/clone?repository-url=https://github.com/jonax1337/Schedule-Bot&project-name=schedule-bot-dashboard&root-directory=dashboard&env=BOT_API_URL,NEXT_PUBLIC_BOT_API_URL) |
 
 > **Recommended combination:** Railway (backend + database) + Vercel (dashboard), or Render for an all-in-one setup.
 
