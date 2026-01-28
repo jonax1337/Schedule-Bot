@@ -4,6 +4,8 @@
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
+# Force rebuild with new code on each deploy
+dockerfileArgs = { CACHEBUST = "2026-01-28-v3" }
 
 [deploy]
 healthcheckPath = "/api/health"
