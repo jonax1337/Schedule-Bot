@@ -1,0 +1,53 @@
+# Render Blueprint – one-click deploy for Schedule-Bot
+# https://render.com/docs/blueprint-spec
+
+databases:
+  - name: schedule-bot-db
+    databaseName: schedule_bot
+    user: schedule_bot_user
+
+services:
+  # Backend: Discord Bot + Express API
+  - type: web
+    name: schedule-bot-backend
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: schedule-bot-db
+          property: connectionString
+      - key: DISCORD_TOKEN
+        sync: false
+      - key: DISCORD_GUILD_ID
+        sync: false
+      - key: DISCORD_CLIENT_ID
+        sync: false
+      - key: DISCORD_CLIENT_SECRET
+        sync: false
+      - key: DISCORD_REDIRECT_URI
+        sync: false
+      - key: ADMIN_USERNAME
+        value: admin
+      - key: ADMIN_PASSWORD_HASH
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DASHBOARD_URL
+        sync: false
+      - key: NODE_ENV
+        value: production
+
+  # Dashboard: Next.js frontend
+  - type: web
+    name: schedule-bot-dashboard
+    runtime: docker
+    dockerfilePath: ./dashboard/Dockerfile
+    dockerContext: ./dashboard
+    envVars:
+      - key: BOT_API_URL
+        sync: false
+      - key: NEXT_PUBLIC_BOT_API_URL
+        sync: false
+      - key: NODE_ENV
+        value: production
