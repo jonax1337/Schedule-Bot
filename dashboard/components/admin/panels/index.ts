@@ -8,4 +8,4 @@ export { default as SecurityPanel } from './security-panel';
 export { default as LogsPanel } from './logs-panel';
 
 // Re-export shared components for convenience
-export { ScrimsPanel, AgentSelector } from '@/components/shared';
+export { ScrimsPanel, AgentSelector, MapVetoPlanner } from '@/components/shared';

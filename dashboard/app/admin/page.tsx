@@ -11,7 +11,8 @@ import {
   ScrimsPanel,
   SecurityPanel,
   AdminDashboardHome,
-  StatisticsPanel
+  StatisticsPanel,
+  MapVetoPlanner
 } from "@/components/admin/panels";
 import { AdminLayoutWrapper } from "@/components/admin/layout";
 import { Loader2 } from "lucide-react";
@@ -55,6 +56,7 @@ function AdminContent() {
       users: 'User Management',
       schedule: 'Schedule Editor',
       scrims: 'Match Management',
+      'map-veto': 'Map Veto Planner',
       actions: 'Bot Actions',
       security: 'Security',
       logs: 'Logs',
@@ -73,6 +75,7 @@ function AdminContent() {
         {currentTab === 'users' && <UserMappingsPanel />}
         {currentTab === 'schedule' && <ScheduleEditor />}
         {currentTab === 'scrims' && <ScrimsPanel />}
+        {currentTab === 'map-veto' && <MapVetoPlanner />}
         {currentTab === 'actions' && <ActionsPanel />}
         {currentTab === 'security' && <SecurityPanel />}
         {currentTab === 'logs' && <LogsPanel />}

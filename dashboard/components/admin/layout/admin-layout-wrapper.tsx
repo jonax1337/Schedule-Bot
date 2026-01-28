@@ -50,6 +50,7 @@ export function AdminLayoutWrapper({ children }: AdminLayoutWrapperProps) {
     users: 'Users',
     schedule: 'Schedule',
     scrims: 'Scrims',
+    'map-veto': 'Map Veto',
     actions: 'Actions',
     security: 'Security',
     logs: 'Logs',

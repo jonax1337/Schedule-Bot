@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { verifyToken, requireAdmin, optionalAuth, AuthRequest } from '../../shared/middleware/auth.js';
+import { verifyToken, requireAdmin, AuthRequest } from '../../shared/middleware/auth.js';
 import { sanitizeString } from '../../shared/middleware/validation.js';
 import { getUserMappings } from '../../repositories/user-mapping.repository.js';
 import { updatePlayerAvailability } from '../../repositories/schedule.repository.js';
