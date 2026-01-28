@@ -1,7 +1,11 @@
 # ---- Backend: Discord Bot + API Server ----
+# Cache bust: 2026-01-28-v3
 
 # Build stage
 FROM node:20-slim AS builder
+
+# Force cache invalidation when this changes
+ARG CACHEBUST=1
 
 WORKDIR /app
 
@@ -22,6 +26,8 @@ COPY prisma.config.ts ./
 RUN npx prisma generate
 
 # Copy source and build (npm run build = prisma generate && tsc)
+# Cache bust to ensure new code is always rebuilt
+ARG CACHEBUST=1
 COPY tsconfig.json ./
 COPY src ./src
 RUN npm run build
