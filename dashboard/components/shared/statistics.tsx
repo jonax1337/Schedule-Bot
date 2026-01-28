@@ -1,0 +1,937 @@
+'use client';
+
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardAction } from '@/components/ui/card';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+  type ChartConfig,
+} from '@/components/ui/chart';
+import {
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+} from 'recharts';
+import { Target, Map, BarChart3, Flame, Swords, Loader2, ChevronDown } from 'lucide-react';
+import { stagger, cn } from '@/lib/animations';
+import { useIsMobile } from '@/hooks/use-mobile';
+
+const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001';
+
+interface ScheduleDay {
+  date: string;
+  players: {
+    userId: string;
+    displayName: string;
+    role: string;
+    availability: string;
+    sortOrder: number;
+  }[];
+  reason: string;
+  focus: string;
+}
+
+interface ScrimEntry {
+  id: string;
+  date: string;
+  opponent: string;
+  result: 'win' | 'loss' | 'draw';
+  scoreUs: number;
+  scoreThem: number;
+  map: string;
+  matchType?: string;
+  ourAgents?: string[];
+  theirAgents?: string[];
+}
+
+interface ScrimStats {
+  totalScrims: number;
+  wins: number;
+  losses: number;
+  draws: number;
+  winRate: number;
+  mapStats: {
+    [mapName: string]: {
+      played: number;
+      wins: number;
+      losses: number;
+    };
+  };
+}
+
+type AvailabilityRange = 'next14' | 'last14' | 'last30' | 'last60';
+
+const AVAILABILITY_RANGES: { value: AvailabilityRange; label: string; offsets: number[] }[] = [
+  { value: 'next14', label: 'Next 14 Days', offsets: [0] },
+  { value: 'last14', label: 'Last 14 Days', offsets: [-1] },
+  { value: 'last30', label: 'Last 30 Days', offsets: [-2, -1] },
+  { value: 'last60', label: 'Last 60 Days', offsets: [-4, -3, -2, -1] },
+];
+
+type ScrimTimeRange = 'all' | 'last30' | 'last90' | 'last180' | 'last365';
+
+const SCRIM_TIME_RANGES: { value: ScrimTimeRange; label: string; days: number | null }[] = [
+  { value: 'all', label: 'All Time', days: null },
+  { value: 'last30', label: 'Last 30 Days', days: 30 },
+  { value: 'last90', label: 'Last 90 Days', days: 90 },
+  { value: 'last180', label: 'Last 6 Months', days: 180 },
+  { value: 'last365', label: 'Last Year', days: 365 },
+];
+
+// Chart configurations
+const scrimResultsConfig: ChartConfig = {
+  wins: { label: 'Wins', color: 'oklch(0.723 0.219 149.579)' },
+  losses: { label: 'Losses', color: 'oklch(0.577 0.245 27.325)' },
+  draws: { label: 'Draws', color: 'oklch(0.708 0 0)' },
+};
+
+const availabilityConfig: ChartConfig = {
+  available: { label: 'Available', color: 'oklch(0.723 0.219 149.579)' },
+  unavailable: { label: 'Unavailable', color: 'oklch(0.577 0.245 27.325)' },
+  absent: { label: 'Absent', color: 'oklch(0.702 0.183 293.541)' },
+  noResponse: { label: 'No Response', color: 'oklch(0.708 0 0)' },
+};
+
+const mapStatsConfig: ChartConfig = {
+  wins: { label: 'Wins', color: 'oklch(0.723 0.219 149.579)' },
+  losses: { label: 'Losses', color: 'oklch(0.577 0.245 27.325)' },
+};
+
+function parseDDMMYYYY(dateStr: string): Date {
+  const [day, month, year] = dateStr.split('.').map(Number);
+  return new Date(year, month - 1, day);
+}
+
+function computeStatsFromScrims(scrims: ScrimEntry[]): ScrimStats {
+  const stats: ScrimStats = {
+    totalScrims: scrims.length,
+    wins: 0,
+    losses: 0,
+    draws: 0,
+    winRate: 0,
+    mapStats: {},
+  };
+
+  for (const scrim of scrims) {
+    if (scrim.result === 'win') stats.wins++;
+    else if (scrim.result === 'loss') stats.losses++;
+    else if (scrim.result === 'draw') stats.draws++;
+
+    if (scrim.map) {
+      if (!stats.mapStats[scrim.map]) {
+        stats.mapStats[scrim.map] = { played: 0, wins: 0, losses: 0 };
+      }
+      stats.mapStats[scrim.map].played++;
+      if (scrim.result === 'win') stats.mapStats[scrim.map].wins++;
+      else if (scrim.result === 'loss') stats.mapStats[scrim.map].losses++;
+    }
+  }
+
+  stats.winRate = stats.totalScrims > 0 ? (stats.wins / stats.totalScrims) * 100 : 0;
+  return stats;
+}
+
+function ScrimFilters({
+  matchType,
+  onMatchTypeChange,
+  timeRange,
+  onTimeRangeChange,
+  matchTypes,
+}: {
+  matchType: string;
+  onMatchTypeChange: (v: string) => void;
+  timeRange: ScrimTimeRange;
+  onTimeRangeChange: (v: string) => void;
+  matchTypes: string[];
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <Select value={matchType} onValueChange={onMatchTypeChange}>
+        <SelectTrigger size="sm" className="w-[110px]">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent position="popper" side="bottom" align="end">
+          <SelectItem value="__all__">All Types</SelectItem>
+          {matchTypes.map(type => (
+            <SelectItem key={type} value={type}>
+              {type}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Select value={timeRange} onValueChange={onTimeRangeChange}>
+        <SelectTrigger size="sm" className="w-[120px]">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent position="popper" side="bottom" align="end">
+          {SCRIM_TIME_RANGES.map(range => (
+            <SelectItem key={range.value} value={range.value}>
+              {range.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
+export default function StatisticsPanel() {
+  const [loading, setLoading] = useState(true);
+  const [allScrims, setAllScrims] = useState<ScrimEntry[]>([]);
+  const [schedules, setSchedules] = useState<ScheduleDay[]>([]);
+  const [availabilityRange, setAvailabilityRange] = useState<AvailabilityRange>('next14');
+  const [availabilitySchedules, setAvailabilitySchedules] = useState<ScheduleDay[]>([]);
+  const [availabilityLoading, setAvailabilityLoading] = useState(false);
+  const [absentByDate, setAbsentByDate] = useState<Record<string, string[]>>({});
+  const [scrimMatchType, setScrimMatchType] = useState('__all__');
+  const [scrimTimeRange, setScrimTimeRange] = useState<ScrimTimeRange>('all');
+  const isMobile = useIsMobile();
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const fetchAbsencesForSchedules = async (schedulesList: ScheduleDay[], headers: Record<string, string>) => {
+    if (schedulesList.length === 0) return;
+    try {
+      const dates = schedulesList.map(s => s.date).join(',');
+      const res = await fetch(`${BOT_API_URL}/api/absences/by-dates?dates=${dates}`, { headers });
+      if (res.ok) {
+        const data = await res.json();
+        setAbsentByDate(prev => ({ ...prev, ...(data.absentByDate || {}) }));
+      }
+    } catch (err) {
+      console.error('Failed to load absences:', err);
+    }
+  };
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const { getAuthHeaders } = await import('@/lib/auth');
+      const headers = getAuthHeaders();
+
+      const [schedulesRes, scrimsRes] = await Promise.all([
+        fetch(`${BOT_API_URL}/api/schedule/next14`, { headers }),
+        fetch(`${BOT_API_URL}/api/scrims`, { headers }),
+      ]);
+
+      const [schedulesData, scrimsData] = await Promise.all([
+        schedulesRes.json(),
+        scrimsRes.json(),
+      ]);
+
+      const schedulesList = schedulesData.schedules || [];
+      const scrimsList: ScrimEntry[] = scrimsData.scrims || [];
+
+      setSchedules(schedulesList);
+      setAvailabilitySchedules(schedulesList);
+      setAllScrims(scrimsList);
+
+      await fetchAbsencesForSchedules(schedulesList, headers);
+    } catch (error) {
+      console.error('Failed to load statistics data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadAvailabilityForRange = useCallback(async (range: AvailabilityRange) => {
+    if (range === 'next14') {
+      setAvailabilitySchedules(schedules);
+      return;
+    }
+
+    setAvailabilityLoading(true);
+    try {
+      const { getAuthHeaders } = await import('@/lib/auth');
+      const headers = getAuthHeaders();
+      const rangeConfig = AVAILABILITY_RANGES.find(r => r.value === range)!;
+
+      const responses = await Promise.all(
+        rangeConfig.offsets.map(offset =>
+          fetch(`${BOT_API_URL}/api/schedule/paginated?offset=${offset}`, { headers })
+        )
+      );
+
+      const dataArray = await Promise.all(responses.map(r => r.json()));
+      const allSchedules: ScheduleDay[] = dataArray.flatMap(d => d.schedules || []);
+
+      allSchedules.sort((a, b) => {
+        const [ad, am, ay] = a.date.split('.').map(Number);
+        const [bd, bm, by] = b.date.split('.').map(Number);
+        return (ay - by) || (am - bm) || (ad - bd);
+      });
+
+      setAvailabilitySchedules(allSchedules);
+      await fetchAbsencesForSchedules(allSchedules, headers);
+    } catch (error) {
+      console.error('Failed to load availability data:', error);
+    } finally {
+      setAvailabilityLoading(false);
+    }
+  }, [schedules]);
+
+  const handleAvailabilityRangeChange = useCallback((value: string) => {
+    const range = value as AvailabilityRange;
+    setAvailabilityRange(range);
+    loadAvailabilityForRange(range);
+  }, [loadAvailabilityForRange]);
+
+  // Extract unique match types from all scrims
+  const availableMatchTypes = useMemo(() => {
+    const types = new Set<string>();
+    for (const scrim of allScrims) {
+      if (scrim.matchType && scrim.matchType.trim()) {
+        types.add(scrim.matchType.trim());
+      }
+    }
+    return Array.from(types).sort();
+  }, [allScrims]);
+
+  // Filter scrims by match type and time range
+  const filteredScrims = useMemo(() => {
+    let filtered = allScrims;
+
+    if (scrimMatchType !== '__all__') {
+      filtered = filtered.filter(s => s.matchType === scrimMatchType);
+    }
+
+    const rangeConfig = SCRIM_TIME_RANGES.find(r => r.value === scrimTimeRange);
+    if (rangeConfig?.days) {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - rangeConfig.days);
+      filtered = filtered.filter(s => parseDDMMYYYY(s.date) >= cutoff);
+    }
+
+    return filtered;
+  }, [allScrims, scrimMatchType, scrimTimeRange]);
+
+  // Compute stats from filtered scrims (client-side)
+  const filteredStats = useMemo(() => computeStatsFromScrims(filteredScrims), [filteredScrims]);
+
+  // Compute chart data from filtered stats
+  const scrimResultsData = useMemo(() => {
+    if (filteredStats.totalScrims === 0) return [];
+    return [
+      { name: 'wins', value: filteredStats.wins, fill: 'oklch(0.723 0.219 149.579)' },
+      { name: 'losses', value: filteredStats.losses, fill: 'oklch(0.577 0.245 27.325)' },
+      { name: 'draws', value: filteredStats.draws, fill: 'oklch(0.708 0 0)' },
+    ].filter(d => d.value > 0);
+  }, [filteredStats]);
+
+  const availabilityData = useMemo(() => {
+    return availabilitySchedules.map(schedule => {
+      const absentUserIds = absentByDate[schedule.date] || [];
+      const activePlayers = schedule.players.filter(p => p.role === 'MAIN' || p.role === 'SUB');
+      const absent = activePlayers.filter(p => absentUserIds.includes(p.userId)).length;
+      const nonAbsentPlayers = activePlayers.filter(p => !absentUserIds.includes(p.userId));
+      const available = nonAbsentPlayers.filter(p => p.availability && p.availability !== 'x' && p.availability !== 'X').length;
+      const unavailable = nonAbsentPlayers.filter(p => p.availability === 'x' || p.availability === 'X').length;
+      const noResponse = nonAbsentPlayers.filter(p => !p.availability).length;
+
+      const [day, month] = schedule.date.split('.');
+      return {
+        date: `${day}.${month}`,
+        available,
+        unavailable,
+        absent,
+        noResponse,
+        total: activePlayers.length,
+      };
+    });
+  }, [availabilitySchedules, absentByDate]);
+
+  const mapStatsData = useMemo(() => {
+    if (!filteredStats.mapStats) return [];
+    return Object.entries(filteredStats.mapStats)
+      .map(([map, data]) => ({
+        map,
+        wins: data.wins,
+        losses: data.losses,
+        played: data.played,
+        winRate: data.played > 0 ? Math.round((data.wins / data.played) * 100) : 0,
+      }))
+      .sort((a, b) => b.played - a.played)
+      .slice(0, 8);
+  }, [filteredStats]);
+
+  const currentFormData = useMemo(() => {
+    if (filteredScrims.length === 0) return null;
+
+    const sorted = [...filteredScrims].sort((a, b) => {
+      return parseDDMMYYYY(b.date).getTime() - parseDDMMYYYY(a.date).getTime();
+    });
+
+    const recent = sorted.slice(0, 10);
+
+    // Current streak
+    let streakType = recent[0]?.result || 'draw';
+    let streakCount = 0;
+    for (const scrim of recent) {
+      if (scrim.result === streakType) {
+        streakCount++;
+      } else {
+        break;
+      }
+    }
+
+    // Best streak (wins) across all filtered
+    let bestWinStreak = 0;
+    let currentWinStreak = 0;
+    const chronological = [...sorted].reverse();
+    for (const scrim of chronological) {
+      if (scrim.result === 'win') {
+        currentWinStreak++;
+        bestWinStreak = Math.max(bestWinStreak, currentWinStreak);
+      } else {
+        currentWinStreak = 0;
+      }
+    }
+
+    const recentWins = recent.filter(s => s.result === 'win').length;
+    const recentLosses = recent.filter(s => s.result === 'loss').length;
+    const recentDraws = recent.filter(s => s.result === 'draw').length;
+
+    return {
+      matches: recent.map(s => ({
+        result: s.result,
+        opponent: s.opponent,
+        date: s.date,
+        score: `${s.scoreUs}-${s.scoreThem}`,
+      })),
+      streakType,
+      streakCount,
+      bestWinStreak,
+      recentWins,
+      recentLosses,
+      recentDraws,
+    };
+  }, [filteredScrims]);
+
+  const mapCompositionsData = useMemo(() => {
+    const mapComps: Record<string, Record<string, { played: number; wins: number; agents: string[] }>> = {};
+
+    for (const scrim of filteredScrims) {
+      if (!scrim.map || !scrim.ourAgents || scrim.ourAgents.length === 0) continue;
+      const agents = scrim.ourAgents.map(a => a.trim()).filter(Boolean).sort();
+      if (agents.length === 0) continue;
+
+      const compKey = [...agents].sort().join(',');
+      if (!mapComps[scrim.map]) mapComps[scrim.map] = {};
+      if (!mapComps[scrim.map][compKey]) {
+        mapComps[scrim.map][compKey] = { played: 0, wins: 0, agents };
+      }
+      mapComps[scrim.map][compKey].played++;
+      if (scrim.result === 'win') mapComps[scrim.map][compKey].wins++;
+    }
+
+    return Object.entries(mapComps)
+      .map(([map, comps]) => {
+        const topComps = Object.values(comps)
+          .sort((a, b) => b.played - a.played || (b.played > 0 ? b.wins / b.played : 0) - (a.played > 0 ? a.wins / a.played : 0))
+          .slice(0, 3)
+          .map(c => ({
+            agents: c.agents,
+            played: c.played,
+            wins: c.wins,
+            winRate: c.played > 0 ? Math.round((c.wins / c.played) * 100) : 0,
+          }));
+        const totalPlayed = Object.values(comps).reduce((sum, c) => sum + c.played, 0);
+        return { map, comps: topComps, totalPlayed };
+      })
+      .sort((a, b) => b.totalPlayed - a.totalPlayed);
+  }, [filteredScrims]);
+
+  const hasCompData = mapCompositionsData.length > 0;
+
+  const hasScrimData = filteredStats.totalScrims > 0;
+  const hasAvailabilityData = availabilitySchedules.length > 0;
+  const selectedRangeLabel = AVAILABILITY_RANGES.find(r => r.value === availabilityRange)?.label || '';
+  const isFiltered = scrimMatchType !== '__all__' || scrimTimeRange !== 'all';
+
+  if (loading) {
+    return (
+      <div className="min-h-[400px] flex items-center justify-center">
+        <div className="animate-scaleIn">
+          <Loader2 className="w-8 h-8 animate-spin" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Charts Row 1: Team Availability + Current Form */}
+      <div className="grid gap-4 md:grid-cols-2">
+        {/* Team Availability Bar Chart */}
+        <Card className={stagger(0, 'slow', 'slideUpScale')}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart3 className="h-4 w-4" />
+              Team Availability
+            </CardTitle>
+            <CardAction>
+              <Select value={availabilityRange} onValueChange={handleAvailabilityRangeChange}>
+                <SelectTrigger size="sm" className="w-[140px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent position="popper" side="bottom" align="end">
+                  {AVAILABILITY_RANGES.map(range => (
+                    <SelectItem key={range.value} value={range.value}>
+                      {range.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </CardAction>
+            <CardDescription>
+              {availabilityLoading
+                ? 'Loading...'
+                : hasAvailabilityData
+                  ? `Player availability (excl. Coach) — ${selectedRangeLabel}`
+                  : 'No schedule data available'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex-1">
+            {!availabilityLoading && hasAvailabilityData && availabilityData.length > 0 ? (
+              <ChartContainer config={availabilityConfig} className="aspect-auto h-[220px] md:h-[300px] w-full">
+                <BarChart data={availabilityData} margin={{ top: 5, right: 5, bottom: 5, left: -15 }}>
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis
+                    dataKey="date"
+                    tickLine={false}
+                    axisLine={false}
+                    fontSize={10}
+                    tickMargin={8}
+                    interval={
+                      availabilityData.length > 20
+                        ? Math.floor(availabilityData.length / 10)
+                        : isMobile ? 1 : 0
+                    }
+                  />
+                  <YAxis
+                    tickLine={false}
+                    axisLine={false}
+                    fontSize={11}
+                    tickMargin={4}
+                    allowDecimals={false}
+                  />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <ChartLegend content={<ChartLegendContent />} />
+                  <Bar
+                    dataKey="available"
+                    stackId="a"
+                    fill="oklch(0.723 0.219 149.579)"
+                    radius={[0, 0, 0, 0]}
+                  />
+                  <Bar
+                    dataKey="unavailable"
+                    stackId="a"
+                    fill="oklch(0.577 0.245 27.325)"
+                    radius={[0, 0, 0, 0]}
+                  />
+                  <Bar
+                    dataKey="absent"
+                    stackId="a"
+                    fill="oklch(0.702 0.183 293.541)"
+                    radius={[0, 0, 0, 0]}
+                  />
+                  <Bar
+                    dataKey="noResponse"
+                    stackId="a"
+                    fill="oklch(0.708 0 0)"
+                    radius={[4, 4, 0, 0]}
+                  />
+                </BarChart>
+              </ChartContainer>
+            ) : availabilityLoading ? (
+              <div className="flex items-center justify-center h-[220px] md:h-[300px] text-muted-foreground">
+                <Loader2 className="h-5 w-5 animate-spin" />
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-[220px] md:h-[300px] text-muted-foreground text-sm">
+                Schedule data will appear here
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Current Form */}
+        <Card className={stagger(1, 'slow', 'slideUpScale')}>
+          <CardHeader className="max-md:flex max-md:flex-col max-md:items-start">
+            <CardTitle className="flex items-center gap-2">
+              <Flame className="h-4 w-4" />
+              Current Form
+            </CardTitle>
+            <CardAction>
+              <ScrimFilters
+                matchType={scrimMatchType}
+                onMatchTypeChange={setScrimMatchType}
+                timeRange={scrimTimeRange}
+                onTimeRangeChange={(v) => setScrimTimeRange(v as ScrimTimeRange)}
+                matchTypes={availableMatchTypes}
+              />
+            </CardAction>
+            <CardDescription>
+              {currentFormData
+                ? `Last ${currentFormData.matches.length} matches${isFiltered ? ' (filtered)' : ''}`
+                : allScrims.length > 0
+                  ? 'No matches match the current filters'
+                  : 'No match data available yet'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex-1">
+            {currentFormData ? (
+              <div className="flex flex-col justify-center h-[220px] md:h-[300px] gap-4 md:gap-6">
+                {/* Streak display */}
+                <div className="flex items-center justify-center gap-3">
+                  <div className={cn(
+                    'text-3xl md:text-4xl font-bold tabular-nums',
+                    currentFormData.streakType === 'win' ? 'text-green-600 dark:text-green-400'
+                      : currentFormData.streakType === 'loss' ? 'text-red-600 dark:text-red-400'
+                      : 'text-muted-foreground'
+                  )}>
+                    {currentFormData.streakCount}{currentFormData.streakType === 'win' ? 'W' : currentFormData.streakType === 'loss' ? 'L' : 'D'}
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    Current Streak
+                  </div>
+                </div>
+
+                {/* Result dots */}
+                <div className="flex items-center justify-center gap-1.5 md:gap-2 flex-wrap">
+                  {currentFormData.matches.map((match, index) => (
+                    <div
+                      key={index}
+                      className="group relative"
+                    >
+                      <div
+                        className={cn(
+                          'w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-[10px] md:text-xs font-bold text-white transition-transform hover:scale-110',
+                          match.result === 'win' ? 'bg-green-600 dark:bg-green-500'
+                            : match.result === 'loss' ? 'bg-red-600 dark:bg-red-500'
+                            : 'bg-neutral-400 dark:bg-neutral-500'
+                        )}
+                      >
+                        {match.result === 'win' ? 'W' : match.result === 'loss' ? 'L' : 'D'}
+                      </div>
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 rounded bg-popover border text-xs text-popover-foreground opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10 shadow-md">
+                        <div className="font-medium">{match.opponent}</div>
+                        <div className="text-muted-foreground">{match.score} · {match.date}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Stats row */}
+                <div className="flex items-center justify-center gap-6 text-sm">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 rounded-full bg-green-600 dark:bg-green-500" />
+                    <span className="tabular-nums font-medium">{currentFormData.recentWins}W</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 rounded-full bg-red-600 dark:bg-red-500" />
+                    <span className="tabular-nums font-medium">{currentFormData.recentLosses}L</span>
+                  </div>
+                  {currentFormData.recentDraws > 0 && (
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-3 h-3 rounded-full bg-neutral-400 dark:bg-neutral-500" />
+                      <span className="tabular-nums font-medium">{currentFormData.recentDraws}D</span>
+                    </div>
+                  )}
+                  <div className="border-l pl-4 text-muted-foreground">
+                    Best: <span className="font-medium text-foreground">{currentFormData.bestWinStreak}W</span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-[220px] md:h-[300px] text-muted-foreground text-sm">
+                {allScrims.length > 0 ? 'No matches match the current filters' : 'Play some matches to see your form'}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Charts Row 2: Match Results + Map Performance */}
+      <div className="grid gap-4 md:grid-cols-2">
+        {/* Match Results Pie Chart */}
+        <Card className={stagger(2, 'slow', 'slideUpScale')}>
+          <CardHeader className="max-md:flex max-md:flex-col max-md:items-start">
+            <CardTitle className="flex items-center gap-2">
+              <Target className="h-4 w-4" />
+              Match Results
+            </CardTitle>
+            <CardAction>
+              <ScrimFilters
+                matchType={scrimMatchType}
+                onMatchTypeChange={setScrimMatchType}
+                timeRange={scrimTimeRange}
+                onTimeRangeChange={(v) => setScrimTimeRange(v as ScrimTimeRange)}
+                matchTypes={availableMatchTypes}
+              />
+            </CardAction>
+            <CardDescription>
+              {hasScrimData
+                ? `Win/Loss distribution across ${filteredStats.totalScrims} matches${isFiltered ? ' (filtered)' : ''}`
+                : allScrims.length > 0
+                  ? 'No matches match the current filters'
+                  : 'No scrim data available yet'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex-1">
+            {hasScrimData && scrimResultsData.length > 0 ? (
+              <ChartContainer config={scrimResultsConfig} className="mx-auto aspect-square max-h-[220px] md:max-h-[300px] w-full">
+                <PieChart>
+                  <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+                  <Pie
+                    data={scrimResultsData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={100}
+                    strokeWidth={2}
+                    stroke="hsl(var(--background))"
+                  >
+                    {scrimResultsData.map((entry) => (
+                      <Cell key={entry.name} fill={entry.fill} />
+                    ))}
+                  </Pie>
+                  <ChartLegend content={<ChartLegendContent />} />
+                  <text
+                    x="50%"
+                    y="45%"
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    className="fill-foreground text-2xl font-bold"
+                  >
+                    {filteredStats.winRate.toFixed(0)}%
+                  </text>
+                  <text
+                    x="50%"
+                    y="55%"
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    className="fill-muted-foreground text-xs"
+                  >
+                    Win Rate
+                  </text>
+                </PieChart>
+              </ChartContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[220px] md:h-[300px] text-muted-foreground text-sm">
+                {allScrims.length > 0 ? 'No matches match the current filters' : 'Play some matches to see statistics'}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Map Performance Bar Chart */}
+        <Card className={stagger(3, 'slow', 'slideUpScale')}>
+          <CardHeader className="max-md:flex max-md:flex-col max-md:items-start">
+            <CardTitle className="flex items-center gap-2">
+              <Map className="h-4 w-4" />
+              Map Performance
+            </CardTitle>
+            <CardAction>
+              <ScrimFilters
+                matchType={scrimMatchType}
+                onMatchTypeChange={setScrimMatchType}
+                timeRange={scrimTimeRange}
+                onTimeRangeChange={(v) => setScrimTimeRange(v as ScrimTimeRange)}
+                matchTypes={availableMatchTypes}
+              />
+            </CardAction>
+            <CardDescription>
+              {mapStatsData.length > 0
+                ? `Win/Loss breakdown by map${isFiltered ? ' (filtered)' : ''}`
+                : allScrims.length > 0
+                  ? 'No matches match the current filters'
+                  : 'No map data available yet'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex-1">
+            {mapStatsData.length > 0 ? (
+              <ChartContainer config={mapStatsConfig} className="aspect-auto h-[220px] md:h-[300px] w-full">
+                <BarChart data={mapStatsData} layout="vertical" margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
+                  <CartesianGrid horizontal={false} strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis type="number" tickLine={false} axisLine={false} fontSize={11} allowDecimals={false} />
+                  <YAxis
+                    dataKey="map"
+                    type="category"
+                    tickLine={false}
+                    axisLine={false}
+                    fontSize={isMobile ? 10 : 11}
+                    width={isMobile ? 60 : 80}
+                    tickMargin={4}
+                  />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <ChartLegend content={<ChartLegendContent />} />
+                  <Bar dataKey="wins" stackId="a" fill="oklch(0.723 0.219 149.579)" radius={[0, 0, 0, 0]} />
+                  <Bar dataKey="losses" stackId="a" fill="oklch(0.577 0.245 27.325)" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ChartContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[220px] md:h-[300px] text-muted-foreground text-sm">
+                {allScrims.length > 0 ? 'No matches match the current filters' : 'Play matches on different maps to see performance'}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Map Compositions */}
+      <Card className={stagger(4, 'slow', 'slideUpScale')}>
+        <CardHeader className="max-md:flex max-md:flex-col max-md:items-start">
+          <CardTitle className="flex items-center gap-2">
+            <Swords className="h-4 w-4" />
+            Map Compositions
+          </CardTitle>
+          <CardAction>
+            <ScrimFilters
+              matchType={scrimMatchType}
+              onMatchTypeChange={setScrimMatchType}
+              timeRange={scrimTimeRange}
+              onTimeRangeChange={(v) => setScrimTimeRange(v as ScrimTimeRange)}
+              matchTypes={availableMatchTypes}
+            />
+          </CardAction>
+          <CardDescription>
+            {hasCompData
+              ? `Most played team compositions per map${isFiltered ? ' (filtered)' : ''}`
+              : allScrims.length > 0
+                ? 'No composition data for the current filters'
+                : 'Add agents to your scrims to see compositions'}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {hasCompData ? (
+            <div className="space-y-3">
+              {mapCompositionsData.map((mapEntry, mapIndex) => {
+                const bestComp = mapEntry.comps[0];
+                const otherComps = mapEntry.comps.slice(1);
+
+                return (
+                  <Collapsible key={mapEntry.map}>
+                    <div
+                      className={cn(
+                        'rounded-lg border bg-card p-4',
+                        stagger(mapIndex, 'fast', 'fadeIn')
+                      )}
+                    >
+                      {/* Map header + best comp (always visible) */}
+                      <div className="flex items-center gap-2 md:gap-3">
+                        <img
+                          src={`/assets/maps/Loading_Screen_${mapEntry.map}.webp`}
+                          alt={mapEntry.map}
+                          className="w-16 h-10 md:w-24 md:h-14 rounded-md object-cover shrink-0"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold">{mapEntry.map}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {mapEntry.totalPlayed} {mapEntry.totalPlayed === 1 ? 'match' : 'matches'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                            <div className="flex items-center gap-0.5 md:gap-1">
+                              {bestComp.agents.map((agent) => (
+                                <img
+                                  key={agent}
+                                  src={`/assets/agents/${agent}_icon.webp`}
+                                  alt={agent}
+                                  className="w-6 h-6 md:w-8 md:h-8 rounded-md"
+                                  title={agent}
+                                />
+                              ))}
+                            </div>
+                            <div className="flex items-center gap-2 ml-1">
+                              <span className="text-xs md:text-sm text-muted-foreground tabular-nums">
+                                {bestComp.played}x
+                              </span>
+                              <span className={cn(
+                                'text-xs md:text-sm font-medium tabular-nums',
+                                bestComp.winRate >= 50 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                              )}>
+                                {bestComp.winRate}% WR
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        {otherComps.length > 0 && (
+                          <CollapsibleTrigger className="shrink-0 rounded-md p-1.5 hover:bg-muted transition-colors group">
+                            <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+                          </CollapsibleTrigger>
+                        )}
+                      </div>
+
+                      {/* Other comps (collapsible) */}
+                      {otherComps.length > 0 && (
+                        <CollapsibleContent>
+                          <div className="mt-3 pt-3 border-t space-y-2.5">
+                            {otherComps.map((comp, compIndex) => (
+                              <div
+                                key={compIndex}
+                                className="flex items-center gap-2 pl-[72px] md:pl-[108px]"
+                              >
+                                <div className="flex items-center gap-0.5 md:gap-1">
+                                  {comp.agents.map((agent) => (
+                                    <img
+                                      key={agent}
+                                      src={`/assets/agents/${agent}_icon.webp`}
+                                      alt={agent}
+                                      className="w-6 h-6 md:w-7 md:h-7 rounded-md"
+                                      title={agent}
+                                    />
+                                  ))}
+                                </div>
+                                <div className="flex items-center gap-2 ml-1">
+                                  <span className="text-xs text-muted-foreground tabular-nums">
+                                    {comp.played}x
+                                  </span>
+                                  <span className={cn(
+                                    'text-xs font-medium tabular-nums',
+                                    comp.winRate >= 50 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                                  )}>
+                                    {comp.winRate}% WR
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </CollapsibleContent>
+                      )}
+                    </div>
+                  </Collapsible>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-[200px] text-muted-foreground text-sm">
+              {allScrims.length > 0 ? 'No composition data for the current filters' : 'Add agents to your scrims to see compositions'}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

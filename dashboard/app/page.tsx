@@ -7,10 +7,9 @@ import {
   UserLayoutWrapper,
   UserScheduleContent,
   UserAvailabilityContent,
-  UserMatchesContent,
   UserAbsencesContent
 } from '@/components/user';
-import { MapVetoPlanner, StatisticsPanel } from '@/components/admin/panels';
+import { MapVetoPlanner, ScrimsPanel, StatisticsPanel } from '@/components/admin/pages';
 
 function HomeContent() {
   const router = useRouter();
@@ -67,7 +66,7 @@ function HomeContent() {
         {currentTab === 'schedule' && <UserScheduleContent />}
         {currentTab === 'availability' && <UserAvailabilityContent />}
         {currentTab === 'absences' && <UserAbsencesContent />}
-        {currentTab === 'matches' && <UserMatchesContent />}
+        {currentTab === 'matches' && <ScrimsPanel />}
         {currentTab === 'map-veto' && <MapVetoPlanner />}
         {currentTab === 'statistics' && <StatisticsPanel />}
       </div>

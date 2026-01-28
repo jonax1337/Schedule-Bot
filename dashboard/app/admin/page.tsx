@@ -13,7 +13,7 @@ import {
   AdminDashboardHome,
   StatisticsPanel,
   MapVetoPlanner
-} from "@/components/admin/panels";
+} from "@/components/admin/pages";
 import { AdminLayoutWrapper } from "@/components/admin/layout";
 import { Loader2 } from "lucide-react";
 
