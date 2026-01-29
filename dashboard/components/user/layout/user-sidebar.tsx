@@ -40,6 +40,7 @@ export function UserSidebar({ userName, onLogout, ...props }: UserSidebarProps) 
   const pathname = usePathname()
   const router = useRouter()
   const [userRole, setUserRole] = React.useState<string | undefined>(undefined)
+  const [avatarUrl, setAvatarUrl] = React.useState("")
   const [teamName, setTeamName] = React.useState<string>('Valorant Bot')
   const [tagline, setTagline] = React.useState<string>('Schedule Manager')
   const [logoUrl, setLogoUrl] = React.useState<string>('')
@@ -47,7 +48,7 @@ export function UserSidebar({ userName, onLogout, ...props }: UserSidebarProps) 
   React.useEffect(() => {
     const fetchUserRole = async () => {
       if (!userName) return
-      
+
       try {
         const { BOT_API_URL } = await import('@/lib/config')
         const { getAuthHeaders } = await import('@/lib/auth')
@@ -59,13 +60,16 @@ export function UserSidebar({ userName, onLogout, ...props }: UserSidebarProps) 
           const userMapping = data.mappings.find((m: any) => m.displayName === userName)
           if (userMapping) {
             setUserRole(userMapping.role.toLowerCase())
+            if (userMapping.avatarUrl) {
+              setAvatarUrl(userMapping.avatarUrl)
+            }
           }
         }
       } catch (error) {
         console.error('Failed to fetch user role:', error)
       }
     }
-    
+
     fetchUserRole()
   }, [userName])
 
@@ -159,19 +163,6 @@ export function UserSidebar({ userName, onLogout, ...props }: UserSidebarProps) 
       router.push('/admin/login')
     }
   }
-
-  const [avatarUrl, setAvatarUrl] = React.useState("")
-
-  React.useEffect(() => {
-    const loadAvatar = async () => {
-      const { getUser } = await import('@/lib/auth')
-      const storedUser = getUser()
-      if (storedUser?.avatar) {
-        setAvatarUrl(storedUser.avatar)
-      }
-    }
-    loadAvatar()
-  }, [])
 
   const user = userName ? {
     name: userName,

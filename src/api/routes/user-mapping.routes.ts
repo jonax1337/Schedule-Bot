@@ -4,6 +4,8 @@ import { validate, addUserMappingSchema, updateUserMappingSchema, reorderUserMap
 import { getUserMappings, addUserMapping, updateUserMapping, removeUserMapping, reorderUserMappingsBatch } from '../../repositories/user-mapping.repository.js';
 import { syncUserMappingsToSchedules } from '../../repositories/schedule.repository.js';
 import { logger } from '../../shared/utils/logger.js';
+import { client } from '../../bot/client.js';
+import { config } from '../../shared/config/config.js';
 
 const router = Router();
 
@@ -15,8 +17,25 @@ router.get('/', optionalAuth, async (req: AuthRequest, res) => {
     const isAuthenticated = !!req.user;
 
     if (isAuthenticated) {
-      // Authenticated users get full mapping data
-      res.json({ success: true, mappings });
+      // Enrich mappings with Discord avatar URLs
+      let enrichedMappings = mappings;
+      try {
+        if (client.isReady()) {
+          const guild = await client.guilds.fetch(config.discord.guildId);
+          const members = await guild.members.fetch({ user: mappings.map(m => m.discordId) });
+          enrichedMappings = mappings.map(m => {
+            const member = members.get(m.discordId);
+            const avatar = member?.user.avatar;
+            const avatarUrl = avatar
+              ? `https://cdn.discordapp.com/avatars/${m.discordId}/${avatar}.${avatar.startsWith('a_') ? 'gif' : 'png'}?size=128`
+              : null;
+            return { ...m, avatarUrl };
+          });
+        }
+      } catch {
+        // If avatar enrichment fails, return mappings without avatars
+      }
+      res.json({ success: true, mappings: enrichedMappings });
     } else {
       // Unauthenticated: only expose what's needed for login dropdown
       const safeMappings = mappings.map(m => ({
