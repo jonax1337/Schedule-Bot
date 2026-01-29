@@ -15,7 +15,6 @@ router.get('/', async (req, res) => {
     const settings = await loadSettingsAsync();
     res.json(settings);
   } catch (error) {
-    console.error('Error fetching settings:', error);
     logger.error('Failed to load settings', error instanceof Error ? error.message : String(error));
     res.status(500).json({ error: 'Failed to fetch settings' });
   }
@@ -33,7 +32,6 @@ router.post('/', verifyToken, requireAdmin, strictApiLimiter, validate(settingsS
     logger.success('Settings updated', `By: ${req.user?.username}`);
     res.json({ success: true, message: 'Settings updated successfully' });
   } catch (error) {
-    console.error('Error updating settings:', error);
     logger.error('Failed to update settings', error instanceof Error ? error.message : String(error));
     res.status(500).json({ error: 'Failed to update settings' });
   }
@@ -48,7 +46,6 @@ router.post('/reload-config', verifyToken, requireAdmin, strictApiLimiter, async
     logger.success('Config reloaded', `By: ${req.user?.username}`);
     res.json({ success: true, message: 'Configuration reloaded successfully' });
   } catch (error) {
-    console.error('Error reloading config:', error);
     logger.error('Failed to reload config', error instanceof Error ? error.message : String(error));
     res.status(500).json({ error: 'Failed to reload configuration' });
   }

@@ -89,6 +89,17 @@ app.use('/api', apiLimiter);
 // Mount all API routes
 app.use('/api', apiRoutes);
 
+// 404 handler for unknown routes
+app.use((req, res) => {
+  res.status(404).json({ error: 'Not found' });
+});
+
+// Global error handler
+app.use((err: Error, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  logger.error('Unhandled error', err.message);
+  res.status(500).json({ error: 'Internal server error' });
+});
+
 // Export startApiServer function
 export function startApiServer(): void {
   app.listen(PORT, () => {

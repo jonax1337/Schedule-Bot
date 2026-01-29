@@ -37,5 +37,6 @@ export async function connectDatabase(): Promise<void> {
 
 export async function disconnectDatabase(): Promise<void> {
   await prisma.$disconnect();
+  await pool.end();
   logger.info('Database disconnected');
 }

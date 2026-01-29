@@ -169,8 +169,8 @@ export function LoginForm({
                       <SelectValue placeholder="Select your name" />
                     </SelectTrigger>
                     <SelectContent position="popper">
-                      {columns.map((user) => (
-                        <SelectItem key={user.discordId} value={user.displayName}>
+                      {columns.map((user, index) => (
+                        <SelectItem key={user.discordId || index} value={user.displayName}>
                           {user.displayName}
                         </SelectItem>
                       ))}
