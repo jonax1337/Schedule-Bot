@@ -12,7 +12,7 @@ This is a Discord bot with web dashboard for managing E-Sports team scheduling a
 All components run from a single Node.js process that starts the bot, API server, and scheduler together.
 
 ### Technology Stack
-**Backend:** TypeScript 5.9, discord.js 14.25, Express 5.2, Prisma 7.3 (with @prisma/adapter-pg + pg native driver), node-cron 4.2, bcrypt 6, jsonwebtoken 9, Helmet 8, dotenv 17, Joi 18, ical-generator 10 (installed but not yet used)
+**Backend:** TypeScript 5.9, discord.js 14.25, Express 5.2, Prisma 7.3 (with @prisma/adapter-pg + pg native driver), node-cron 4.2, bcrypt 6, jsonwebtoken 9, Helmet 8, dotenv 17, Joi 18
 **Frontend:** Next.js 16.1, React 19.2, TailwindCSS 4, Radix UI primitives, Recharts 3.7 (charts), next-themes, sonner (toasts), lucide-react (icons), cmdk (command palette), @dnd-kit (drag and drop)
 **Database:** PostgreSQL via Prisma ORM
 
