@@ -1,13 +1,12 @@
 import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
-import crypto from 'crypto';
 import { logger } from '../utils/logger.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || (() => {
-  const generated = crypto.randomBytes(32).toString('hex');
-  logger.warn('JWT_SECRET not set', 'Using randomly generated secret - tokens will NOT survive restarts. Set JWT_SECRET in .env for production.');
-  return generated;
-})();
+if (!process.env.JWT_SECRET) {
+  logger.error('JWT_SECRET not set', 'Set JWT_SECRET in .env before starting the server.');
+  process.exit(1);
+}
+const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = '24h';
 const JWT_ALGORITHM = 'HS256' as const;
 

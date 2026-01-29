@@ -1,6 +1,6 @@
 import { startBot, client } from './bot/client.js';
 import { startScheduler, stopScheduler, getNextScheduledTime } from './jobs/scheduler.js';
-import { connectDatabase } from './repositories/database.repository.js';
+import { connectDatabase, disconnectDatabase } from './repositories/database.repository.js';
 import { config, reloadConfig } from './shared/config/config.js';
 import { startApiServer } from './api/server.js';
 import { logger } from './shared/utils/logger.js';
@@ -62,17 +62,19 @@ async function main(): Promise<void> {
 }
 
 // Handle graceful shutdown
-process.on('SIGINT', () => {
+process.on('SIGINT', async () => {
   logger.info('Shutting down (SIGINT)');
   stopScheduler();
   client.destroy();
+  await disconnectDatabase();
   process.exit(0);
 });
 
-process.on('SIGTERM', () => {
+process.on('SIGTERM', async () => {
   logger.info('Shutting down (SIGTERM)');
   stopScheduler();
   client.destroy();
+  await disconnectDatabase();
   process.exit(0);
 });
 

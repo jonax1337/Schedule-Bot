@@ -16,13 +16,27 @@ function parseTime(timeStr: string): { hour: number; minute: number } {
   };
 }
 
+const DEFAULT_TIMEZONE = 'Europe/Berlin';
+
+function validateTimezone(tz: string): string {
+  try {
+    const supported = Intl.supportedValuesOf('timeZone');
+    if (supported.includes(tz)) return tz;
+  } catch {
+    // Intl.supportedValuesOf not available in older runtimes
+  }
+  logger.warn('Invalid timezone', `"${tz}" is not a valid IANA timezone. Falling back to ${DEFAULT_TIMEZONE}.`);
+  return DEFAULT_TIMEZONE;
+}
+
 export function startScheduler(): void {
   const { hour, minute } = parseTime(config.scheduling.dailyPostTime);
+  const timezone = validateTimezone(config.scheduling.timezone);
 
   // Cron format: minute hour * * * (every day at specified time)
   const cronExpression = `${minute} ${hour} * * *`;
 
-  logger.info('Scheduler configured', `Daily post at ${config.scheduling.dailyPostTime} (${config.scheduling.timezone})`);
+  logger.info('Scheduler configured', `Daily post at ${config.scheduling.dailyPostTime} (${timezone})`);
 
   scheduledTask = cron.schedule(
     cronExpression,
@@ -36,7 +50,7 @@ export function startScheduler(): void {
       }
     },
     {
-      timezone: config.scheduling.timezone,
+      timezone,
     }
   );
 
@@ -58,7 +72,7 @@ export function startScheduler(): void {
       }
     },
     {
-      timezone: config.scheduling.timezone,
+      timezone,
     }
   );
 
@@ -81,7 +95,7 @@ export function startScheduler(): void {
         }
       },
       {
-        timezone: config.scheduling.timezone,
+        timezone,
       }
     );
   }

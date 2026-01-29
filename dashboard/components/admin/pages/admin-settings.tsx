@@ -109,7 +109,7 @@ export function Settings() {
       const { BOT_API_URL } = await import('@/lib/config');
       const { getAuthHeaders } = await import('@/lib/auth');
 
-      await fetch(`${BOT_API_URL}/api/settings`, {
+      const response = await fetch(`${BOT_API_URL}/api/settings`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -117,6 +117,14 @@ export function Settings() {
         },
         body: JSON.stringify(settings),
       });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        const msg = data.details?.map((d: { field: string; message: string }) => d.message).join(', ') || data.error || 'Save failed';
+        toast.error(msg);
+        return;
+      }
+
       toast.success('Settings saved and applied successfully!');
     } catch (error) {
       console.error('Failed to save settings:', error);

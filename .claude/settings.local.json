@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run build:*)",
+      "Bash(git checkout:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfix: harden security and reliability for production readiness\n\n- Require JWT_SECRET env var \\(remove unsafe fallback generation\\)\n- Add graceful DB disconnect + pool.end\\(\\) on shutdown\n- Add rate limiting to Discord OAuth endpoints\n- Restrict CSP unsafe-eval/unsafe-inline to dev mode only\n- Replace all console.error with structured logger\n- Make config reload atomic \\(prevent partial state reads\\)\n- Validate timezone before scheduler start \\(fallback to Europe/Berlin\\)\n- Add global 404 + 500 Express error handlers\n- Fix token validation returning true on network errors\n- Add AbortController timeout to all dashboard fetch requests\n- Fix React key warning in login form select\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push:*)",
+      "Bash(gh pr create:*)",
+      "Bash(where:*)",
+      "Bash(more:*)",
+      "Bash(git commit:*)"
+    ]
+  }
+}

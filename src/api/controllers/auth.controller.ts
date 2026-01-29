@@ -52,7 +52,7 @@ export async function initiateDiscordAuth(req: Request, res: Response) {
     }
 
     if (!CLIENT_ID || !CLIENT_SECRET) {
-      console.error('Discord OAuth credentials not configured');
+      logger.error('Discord OAuth credentials not configured');
       return res.status(500).json({ 
         error: 'OAuth not configured',
         message: 'Discord OAuth credentials missing in environment'
@@ -88,7 +88,7 @@ export async function initiateDiscordAuth(req: Request, res: Response) {
     
     res.json({ url: authUrl });
   } catch (error) {
-    console.error('Error initiating Discord auth:', error);
+    logger.error('Error initiating Discord auth:', error);
     res.status(500).json({ error: 'Failed to initiate authentication' });
   }
 }
@@ -145,7 +145,7 @@ export async function handleDiscordCallback(req: Request, res: Response) {
 
     if (!tokenResponse.ok) {
       const errorData = await tokenResponse.text();
-      console.error('Token exchange failed:', errorData);
+      logger.error('Token exchange failed:', errorData);
       return res.status(500).json({ error: 'Failed to exchange authorization code' });
     }
 
@@ -193,7 +193,7 @@ export async function handleDiscordCallback(req: Request, res: Response) {
       },
     });
   } catch (error) {
-    console.error('Error handling Discord callback:', error);
+    logger.error('Error handling Discord callback:', error);
     res.status(500).json({ error: 'Authentication failed' });
   }
 }
@@ -255,7 +255,7 @@ export async function getUserFromSession(req: Request, res: Response) {
 
     res.status(401).json({ error: 'Invalid token' });
   } catch (error) {
-    console.error('Error getting user from token:', error);
+    logger.error('Error getting user from token:', error);
     res.status(500).json({ error: 'Failed to get user info' });
   }
 }
@@ -273,7 +273,7 @@ export function logout(req: Request, res: Response) {
 
     res.json({ success: true });
   } catch (error) {
-    console.error('Error during logout:', error);
+    logger.error('Error during logout:', error);
     res.status(500).json({ error: 'Logout failed' });
   }
 }

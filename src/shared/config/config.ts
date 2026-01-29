@@ -41,22 +41,24 @@ export const config = {
   },
 };
 
-// Function to reload settings at runtime
+// Function to reload settings at runtime (mutate in place atomically)
 export async function reloadConfig(): Promise<void> {
-  settings = await loadSettingsAsync(); // Force reload from PostgreSQL
+  const s = await loadSettingsAsync(); // Force reload from PostgreSQL
+  settings = s;
 
-  // Update config with new settings
-  config.discord.channelId = settings.discord.channelId;
-  config.discord.pingRoleId = settings.discord.pingRoleId;
-  config.scheduling.dailyPostTime = settings.scheduling.dailyPostTime;
-  config.scheduling.timezone = settings.scheduling.timezone;
-  config.scheduling.reminderHoursBefore = settings.scheduling.reminderHoursBefore;
-  config.scheduling.duplicateReminderEnabled = settings.scheduling.duplicateReminderEnabled;
-  config.scheduling.duplicateReminderHoursBefore = settings.scheduling.duplicateReminderHoursBefore;
-  config.scheduling.trainingStartPollEnabled = settings.scheduling.trainingStartPollEnabled;
-
-  // Admin credentials always come from .env (reload from process.env)
-  config.admin.username = process.env.ADMIN_USERNAME || 'admin';
+  // Update all mutable fields in one batch
+  Object.assign(config.discord, {
+    channelId: s.discord.channelId,
+    pingRoleId: s.discord.pingRoleId,
+  });
+  Object.assign(config.scheduling, {
+    dailyPostTime: s.scheduling.dailyPostTime,
+    timezone: s.scheduling.timezone,
+    reminderHoursBefore: s.scheduling.reminderHoursBefore,
+    duplicateReminderEnabled: s.scheduling.duplicateReminderEnabled,
+    duplicateReminderHoursBefore: s.scheduling.duplicateReminderHoursBefore,
+    trainingStartPollEnabled: s.scheduling.trainingStartPollEnabled,
+  });
 
   logger.info('Configuration reloaded');
 }

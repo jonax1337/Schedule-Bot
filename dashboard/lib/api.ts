@@ -1,5 +1,5 @@
 import { getAuthHeaders, removeAuthToken } from './auth';
-import { BOT_API_URL, API_MAX_RETRIES, API_RETRY_BASE_DELAY } from './config';
+import { BOT_API_URL, API_MAX_RETRIES, API_RETRY_BASE_DELAY, API_TIMEOUT } from './config';
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
@@ -27,10 +27,14 @@ async function fetchWithRetry(
   let lastError: Error | null = null;
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT);
     try {
-      const response = await fetch(url, options);
+      const response = await fetch(url, { ...options, signal: controller.signal });
+      clearTimeout(timeoutId);
       return response;
     } catch (error) {
+      clearTimeout(timeoutId);
       lastError = error instanceof Error ? error : new Error(String(error));
 
       // Only retry on network errors, not on successful responses

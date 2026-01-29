@@ -85,8 +85,8 @@ router.post('/user/login', loginLimiter, async (req, res) => {
 });
 
 // Discord OAuth routes
-router.get('/auth/discord', initiateDiscordAuth);
-router.get('/auth/discord/callback', handleDiscordCallback);
+router.get('/auth/discord', loginLimiter, initiateDiscordAuth);
+router.get('/auth/discord/callback', loginLimiter, handleDiscordCallback);
 router.get('/auth/user', getUserFromSession);
 router.post('/auth/logout', logout);
 

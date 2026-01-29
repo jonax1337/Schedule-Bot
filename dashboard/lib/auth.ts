@@ -98,8 +98,7 @@ export async function validateToken(): Promise<boolean> {
 
     return response.ok;
   } catch (error) {
-    console.error('Token validation error:', error);
-    // On network error, assume token might be valid (don't remove it)
-    return true;
+    // On network error, don't remove token (may be transient) but treat as not validated
+    return false;
   }
 }
