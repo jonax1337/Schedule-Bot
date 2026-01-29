@@ -63,7 +63,7 @@
 - **⏰ Automation**: Daily schedule posts, reminder notifications, and automated jobs
 - **🗄️ Reliable Storage**: PostgreSQL database with Prisma ORM for structured, queryable data
 - **👥 Role Management**: Support for main roster, substitutes, and coaches
-- **🌍 Timezone-Aware**: Properly handles timezones including DST (Daylight Saving Time)
+- **🌍 Timezone-Aware**: Per-user timezone support with automatic time conversion between player and bot timezones
 - **📱 Modern Dashboard**: Next.js 16 with React 19, TailwindCSS 4, and shadcn/ui components
 - **🔒 Secure**: JWT authentication, bcrypt password hashing, rate limiting, CORS protection
 
@@ -77,10 +77,11 @@
 - **Time Window Calculation**: Finds common available time slots for all players
 - **Week Overview**: Display next 7 days at a glance
 - **Personal Schedule**: 14-day personal availability view
-- **Bulk Operations**: Set entire week's availability at once
+- **Per-User Timezone**: Players can set their timezone via `/set-timezone` for automatic time conversion
 - **Reminder System**: Automated DMs to players without availability entry
-- **Quick Polls**: Create custom polls with emoji reactions
-- **Training Start Polls**: Vote on preferred training start times
+- **Quick Polls**: Custom polls with emoji reactions, countdown timer, and auto-recovery on restart
+- **Training Start Polls**: Vote on preferred training start times with reaction-based embeds
+- **Poll Recovery**: Open polls survive bot restarts — automatically recovered from channel messages
 - **Absence Management**: Plan absences in advance with automatic marking
 
 ### Dashboard Features
@@ -103,7 +104,8 @@
 - **Duplicate Reminders**: Optional second reminder closer to post time for stragglers
 - **Schedule Seeding**: Ensures the next 14 days exist in the database
 - **Change Notifications**: Automatic channel alerts when roster status changes (upgrades or downgrades), with role pings and fresh training polls
-- **Training Polls**: Optional automatic training time voting
+- **Training Polls**: Optional automatic training time voting with reaction-based embeds
+- **Poll Recovery**: Open polls are automatically recovered from channel messages after bot restart
 - **Absence Integration**: Absent players excluded from reminders, polls, and marked in daily embeds
 
 ---
@@ -293,7 +295,7 @@ settings.scheduling = {
   dailyPostTime, timezone, reminderHoursBefore,
   duplicateReminderEnabled, duplicateReminderHoursBefore,
   trainingStartPollEnabled,
-  pollDurationMinutes,        // Poll open duration (Discord-compatible: 60, 240, 480, 1440, 4320, 10080)
+  pollDurationMinutes,        // Poll open duration in minutes (free-form, 1-10080)
   cleanChannelBeforePost,     // Auto-clean channel before posting
   changeNotificationsEnabled  // Notify when roster status changes (default: true)
 }
@@ -337,7 +339,7 @@ Features like change notifications, channel cleaning, poll duration, branding, a
 ### Database Schema
 - **schedules**: Daily schedules with date, reason, focus
 - **schedule_players**: Player availability per schedule (with CASCADE delete)
-- **user_mappings**: Discord ID → Dashboard user mapping
+- **user_mappings**: Discord ID → Dashboard user mapping (includes per-user timezone)
 - **scrims**: Match tracking data
 - **absences**: Planned absences
 - **settings**: Persistent bot configuration
@@ -489,9 +491,11 @@ The bot uses the following intents (defined in `src/bot/client.ts`):
 ```typescript
 export const client = new Client({
   intents: [
-    GatewayIntentBits.Guilds,        // Access to guild information
-    GatewayIntentBits.GuildMembers,  // Access to member list (required)
+    GatewayIntentBits.Guilds,              // Access to guild information
+    GatewayIntentBits.GuildMembers,        // Access to member list (required)
+    GatewayIntentBits.GuildMessageReactions, // Reaction-based polls
   ],
+  partials: [Partials.Message, Partials.Reaction],
 });
 ```
 
@@ -686,6 +690,7 @@ The migration creates the following tables:
 - `display_name` (TEXT)
 - `role` (UserRole ENUM)
 - `sort_order` (INTEGER)
+- `user_timezone` (TEXT, nullable) - IANA timezone (e.g., "America/New_York"), null = use bot default
 - `created_at`, `updated_at` (TIMESTAMP)
 - **Indexes**: `discord_id`, `(role, sort_order)`
 
@@ -807,7 +812,7 @@ Settings are stored in the `settings` table and can be modified via:
 - `scheduling.duplicateReminderEnabled`: Enable second reminder (default: false)
 - `scheduling.duplicateReminderHoursBefore`: Hours before post for second reminder (default: 1)
 - `scheduling.trainingStartPollEnabled`: Auto-create training polls
-- `scheduling.pollDurationMinutes`: Poll open duration (Discord-compatible values only)
+- `scheduling.pollDurationMinutes`: Poll open duration in minutes (free-form, 1-10080)
 - `scheduling.cleanChannelBeforePost`: Delete previous bot messages before posting
 - `scheduling.changeNotificationsEnabled`: Enable roster status change alerts (upgrades and downgrades)
 - `branding.teamName`: Team display name (default: "Valorant Bot")
@@ -880,7 +885,8 @@ node dist/generateHash.js YOUR_PASSWORD
 |---------|-------------|---------|
 | `/schedule [date]` | View team availability | `/schedule 20.01.2026` |
 | `/set` | Set your availability interactively | `/set` |
-| `/set-week` | Set availability for next 7 days | `/set-week` |
+| `/set-timezone` | Set your personal timezone | `/set-timezone timezone:America/New_York` |
+| `/remove-timezone` | Remove your timezone (use bot default) | `/remove-timezone` |
 | `/schedule-week` | Show next 7 days overview | `/schedule-week` |
 | `/my-schedule` | Your personal 14-day schedule | `/my-schedule` |
 | `/view-scrims [limit]` | View recent match results | `/view-scrims limit:5` |
@@ -895,7 +901,7 @@ node dist/generateHash.js YOUR_PASSWORD
 | `/unregister` | Remove user mapping from DB | `/unregister @user` |
 | `/remind [date]` | Send reminders manually | `/remind 20.01.2026` |
 | `/notify` | Send notification to players | `/notify type:info target:all` |
-| `/poll` | Create quick poll | `/poll question:"Map?" options:"Bind,Haven"` |
+| `/poll` | Create quick poll (duration in minutes) | `/poll question:"Map?" options:"Bind,Haven" duration:30` |
 | `/training-start-poll` | Toggle auto training polls | `/training-start-poll` |
 | `/send-training-poll [date]` | Send training poll manually | `/send-training-poll` |
 | `/add-scrim` | Add scrim result | `/add-scrim opponent:"Team X" result:win` |
@@ -1092,7 +1098,8 @@ schedule-bot/
 │           ├── dateFormatter.ts       # DD.MM.YYYY formatting
 │           ├── logger.ts              # In-memory log store
 │           ├── scheduleDetails.ts     # Schedule detail queries
-│           └── settingsManager.ts     # Settings load/save/reload
+│           ├── settingsManager.ts     # Settings load/save/reload
+│           └── timezoneConverter.ts   # Per-user timezone conversion utilities
 ├── dashboard/               # Next.js frontend
 │   ├── app/                 # Next.js App Router
 │   │   ├── layout.tsx       # Root layout (theme, fonts, toaster)
