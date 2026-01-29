@@ -7,6 +7,7 @@ export const addUserMappingSchema = Joi.object({
   displayName: Joi.string().min(1).max(100).required(),
   role: Joi.string().valid('main', 'sub', 'coach').required(),
   sortOrder: Joi.number().integer().min(0).optional(), // Optional - wird automatisch berechnet
+  timezone: Joi.string().max(100).allow('', null).optional(),
 });
 
 export const addScrimSchema = Joi.object({
@@ -131,6 +132,7 @@ export const updateUserMappingSchema = Joi.object({
   displayName: Joi.string().min(1).max(100).required(),
   role: Joi.string().valid('main', 'sub', 'coach').required(),
   sortOrder: Joi.number().integer().min(0).optional(),
+  timezone: Joi.string().max(100).allow('', null).optional(),
 });
 
 export function isValidDateFormat(date: string): boolean {

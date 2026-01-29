@@ -89,6 +89,7 @@ export async function addUserMapping(mapping: Omit<UserMapping, 'sortOrder'>): P
       displayName: mapping.displayName,
       role: roleEnum,
       sortOrder,
+      timezone: mapping.timezone || null,
     },
   });
   

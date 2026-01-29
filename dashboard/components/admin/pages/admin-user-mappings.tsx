@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Loader2, Trash2, UserPlus, Search, Users, Edit3, Edit, GripVertical, Shield, UserCheck, Headset } from 'lucide-react';
+import { Loader2, Trash2, UserPlus, Search, Users, Edit3, Edit, GripVertical, Shield, UserCheck, Headset, Globe, Check, ChevronsUpDown } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -48,6 +48,7 @@ interface UserMapping {
   displayName: string;
   role: 'main' | 'sub' | 'coach';
   sortOrder: number;
+  timezone?: string | null;
 }
 
 type RoleType = 'main' | 'sub' | 'coach';
@@ -117,8 +118,14 @@ function SortableUserItem({
       </button>
       <div className="flex-1 min-w-0">
         <div className="font-medium truncate">{mapping.displayName}</div>
-        <div className="text-sm text-muted-foreground truncate">
+        <div className="text-sm text-muted-foreground truncate flex items-center gap-1.5">
           @{mapping.discordUsername}
+          {mapping.timezone && (
+            <span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground/70">
+              <Globe className="w-3 h-3" />
+              {mapping.timezone}
+            </span>
+          )}
         </div>
       </div>
       <div className="flex items-center gap-2 shrink-0">
@@ -210,6 +217,9 @@ export function UserMappings() {
   const [manualUsername, setManualUsername] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [role, setRole] = useState<RoleType>('main');
+  const [timezone, setTimezone] = useState('');
+  const [timezoneOpen, setTimezoneOpen] = useState(false);
+  const [timezoneSearch, setTimezoneSearch] = useState('');
 
   // Edit mode state
   const [editingMapping, setEditingMapping] = useState<UserMapping | null>(null);
@@ -218,6 +228,9 @@ export function UserMappings() {
   const [editUsername, setEditUsername] = useState('');
   const [editDisplayName, setEditDisplayName] = useState('');
   const [editRole, setEditRole] = useState<RoleType>('main');
+  const [editTimezone, setEditTimezone] = useState('');
+  const [editTimezoneOpen, setEditTimezoneOpen] = useState(false);
+  const [editTimezoneSearch, setEditTimezoneSearch] = useState('');
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -227,6 +240,15 @@ export function UserMappings() {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
+
+  // Timezone lists
+  const allTimezones = useMemo(() => Intl.supportedValuesOf('timeZone'), []);
+  const filteredTimezones = timezoneSearch
+    ? allTimezones.filter(tz => tz.toLowerCase().includes(timezoneSearch.toLowerCase()))
+    : allTimezones;
+  const editFilteredTimezones = editTimezoneSearch
+    ? allTimezones.filter(tz => tz.toLowerCase().includes(editTimezoneSearch.toLowerCase()))
+    : allTimezones;
 
   // Group mappings by role
   const groupedMappings = useMemo(() => {
@@ -319,6 +341,7 @@ export function UserMappings() {
           discordUsername,
           displayName,
           role,
+          timezone: timezone || null,
         }),
       });
 
@@ -329,6 +352,7 @@ export function UserMappings() {
         setManualUsername('');
         setDisplayName('');
         setRole('main');
+        setTimezone('');
         loadData();
       } else {
         toast.error('Failed to add user mapping');
@@ -371,6 +395,7 @@ export function UserMappings() {
     setEditUsername(mapping.discordUsername);
     setEditDisplayName(mapping.displayName);
     setEditRole(mapping.role);
+    setEditTimezone(mapping.timezone || '');
     setEditDialogOpen(true);
   };
 
@@ -391,6 +416,7 @@ export function UserMappings() {
           discordUsername: editUsername,
           displayName: editDisplayName,
           role: editRole,
+          timezone: editTimezone || null,
         }),
       });
 
@@ -599,6 +625,67 @@ export function UserMappings() {
             </Select>
           </div>
 
+          <div className="space-y-2">
+            <Label className="flex items-center gap-1.5">
+              <Globe className="w-3.5 h-3.5" />
+              Timezone
+              <span className="text-xs text-muted-foreground">(optional)</span>
+            </Label>
+            <Popover open={timezoneOpen} onOpenChange={setTimezoneOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={timezoneOpen}
+                  className={cn("w-full justify-between font-normal", microInteractions.focusRing)}
+                >
+                  {timezone || <span className="text-muted-foreground">Select timezone...</span>}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                <Command shouldFilter={false}>
+                  <CommandInput
+                    placeholder="Search timezone..."
+                    value={timezoneSearch}
+                    onValueChange={setTimezoneSearch}
+                  />
+                  <CommandList>
+                    <CommandEmpty>No timezone found.</CommandEmpty>
+                    <CommandGroup>
+                      {timezone && (
+                        <CommandItem
+                          value="__clear__"
+                          onSelect={() => {
+                            setTimezone('');
+                            setTimezoneOpen(false);
+                            setTimezoneSearch('');
+                          }}
+                        >
+                          <span className="text-muted-foreground">Clear timezone</span>
+                        </CommandItem>
+                      )}
+                      {filteredTimezones.slice(0, 50).map((tz) => (
+                        <CommandItem
+                          key={tz}
+                          value={tz}
+                          onSelect={() => {
+                            setTimezone(tz);
+                            setTimezoneOpen(false);
+                            setTimezoneSearch('');
+                          }}
+                        >
+                          <Check className={cn("mr-1 h-4 w-4", timezone === tz ? "opacity-100" : "opacity-0")} />
+                          {tz}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
+
           <Button onClick={addMapping} disabled={saving} className={cn("w-full", microInteractions.activePress)}>
             {saving ? (
               <>
@@ -710,6 +797,66 @@ export function UserMappings() {
                   <SelectItem value="coach">Coach</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">
+                <Globe className="w-3.5 h-3.5" />
+                Timezone
+                <span className="text-xs text-muted-foreground">(optional)</span>
+              </Label>
+              <Popover open={editTimezoneOpen} onOpenChange={setEditTimezoneOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={editTimezoneOpen}
+                    className={cn("w-full justify-between font-normal", microInteractions.focusRing)}
+                  >
+                    {editTimezone || <span className="text-muted-foreground">Select timezone...</span>}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                  <Command shouldFilter={false}>
+                    <CommandInput
+                      placeholder="Search timezone..."
+                      value={editTimezoneSearch}
+                      onValueChange={setEditTimezoneSearch}
+                    />
+                    <CommandList>
+                      <CommandEmpty>No timezone found.</CommandEmpty>
+                      <CommandGroup>
+                        {editTimezone && (
+                          <CommandItem
+                            value="__clear__"
+                            onSelect={() => {
+                              setEditTimezone('');
+                              setEditTimezoneOpen(false);
+                              setEditTimezoneSearch('');
+                            }}
+                          >
+                            <span className="text-muted-foreground">Clear timezone</span>
+                          </CommandItem>
+                        )}
+                        {editFilteredTimezones.slice(0, 50).map((tz) => (
+                          <CommandItem
+                            key={tz}
+                            value={tz}
+                            onSelect={() => {
+                              setEditTimezone(tz);
+                              setEditTimezoneOpen(false);
+                              setEditTimezoneSearch('');
+                            }}
+                          >
+                            <Check className={cn("mr-1 h-4 w-4", editTimezone === tz ? "opacity-100" : "opacity-0")} />
+                            {tz}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
           <DialogFooter className="animate-fadeIn stagger-4">
