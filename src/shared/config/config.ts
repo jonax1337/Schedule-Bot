@@ -21,38 +21,44 @@ function requireEnv(name: string): string {
   return value;
 }
 
-// Immutable env values loaded once at startup
-const DISCORD_TOKEN = requireEnv('DISCORD_TOKEN');
-const DISCORD_GUILD_ID = requireEnv('DISCORD_GUILD_ID');
-const ADMIN_USERNAME = requireEnv('ADMIN_USERNAME');
+export const config = {
+  discord: {
+    token: requireEnv('DISCORD_TOKEN'),
+    channelId: settings.discord.channelId,
+    guildId: requireEnv('DISCORD_GUILD_ID'),
+    pingRoleId: settings.discord.pingRoleId,
+  },
+  scheduling: {
+    dailyPostTime: settings.scheduling.dailyPostTime,
+    timezone: settings.scheduling.timezone,
+    reminderHoursBefore: settings.scheduling.reminderHoursBefore,
+    duplicateReminderEnabled: settings.scheduling.duplicateReminderEnabled,
+    duplicateReminderHoursBefore: settings.scheduling.duplicateReminderHoursBefore,
+    trainingStartPollEnabled: settings.scheduling.trainingStartPollEnabled,
+  },
+  admin: {
+    username: requireEnv('ADMIN_USERNAME'),
+  },
+};
 
-function buildConfig(s: typeof settings) {
-  return {
-    discord: {
-      token: DISCORD_TOKEN,
-      channelId: s.discord.channelId,
-      guildId: DISCORD_GUILD_ID,
-      pingRoleId: s.discord.pingRoleId,
-    },
-    scheduling: {
-      dailyPostTime: s.scheduling.dailyPostTime,
-      timezone: s.scheduling.timezone,
-      reminderHoursBefore: s.scheduling.reminderHoursBefore,
-      duplicateReminderEnabled: s.scheduling.duplicateReminderEnabled,
-      duplicateReminderHoursBefore: s.scheduling.duplicateReminderHoursBefore,
-      trainingStartPollEnabled: s.scheduling.trainingStartPollEnabled,
-    },
-    admin: {
-      username: ADMIN_USERNAME,
-    },
-  };
-}
-
-export let config = buildConfig(settings);
-
-// Function to reload settings at runtime (atomic swap)
+// Function to reload settings at runtime (mutate in place atomically)
 export async function reloadConfig(): Promise<void> {
-  settings = await loadSettingsAsync(); // Force reload from PostgreSQL
-  config = buildConfig(settings);
+  const s = await loadSettingsAsync(); // Force reload from PostgreSQL
+  settings = s;
+
+  // Update all mutable fields in one batch
+  Object.assign(config.discord, {
+    channelId: s.discord.channelId,
+    pingRoleId: s.discord.pingRoleId,
+  });
+  Object.assign(config.scheduling, {
+    dailyPostTime: s.scheduling.dailyPostTime,
+    timezone: s.scheduling.timezone,
+    reminderHoursBefore: s.scheduling.reminderHoursBefore,
+    duplicateReminderEnabled: s.scheduling.duplicateReminderEnabled,
+    duplicateReminderHoursBefore: s.scheduling.duplicateReminderHoursBefore,
+    trainingStartPollEnabled: s.scheduling.trainingStartPollEnabled,
+  });
+
   logger.info('Configuration reloaded');
 }
