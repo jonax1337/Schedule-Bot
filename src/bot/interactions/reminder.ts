@@ -1,9 +1,21 @@
-import { Client, EmbedBuilder } from 'discord.js';
+import { Client, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { getScheduleForDate } from '../../repositories/schedule.repository.js';
 import { getUserMappings } from '../../repositories/user-mapping.repository.js';
 import { getAbsentUserIdsForDate } from '../../repositories/absence.repository.js';
 import { getTodayFormatted, normalizeDateFormat } from '../../shared/utils/dateFormatter.js';
 import { createAvailabilityButtons } from './interactive.js';
+
+/**
+ * Create a "Set Timezone" button row for users without a timezone set.
+ */
+function createTimezoneButtonRow(): ActionRowBuilder<ButtonBuilder> {
+  return new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder()
+      .setCustomId('set_timezone_prompt')
+      .setLabel('🌍 Set Timezone')
+      .setStyle(ButtonStyle.Secondary)
+  );
+}
 
 export async function sendRemindersToUsersWithoutEntry(client: Client, date?: string): Promise<void> {
   const targetDate = date || getTodayFormatted();
@@ -51,9 +63,14 @@ export async function sendRemindersToUsersWithoutEntry(client: Client, date?: st
             .setDescription(`You haven't set your availability for **${normalizedDate}** yet.\n\nPlease set your availability using the buttons below.`)
             .setTimestamp();
 
+          const components: any[] = [createAvailabilityButtons(normalizedDate)];
+          if (!mapping.timezone) {
+            components.push(createTimezoneButtonRow());
+          }
+
           await user.send({
             embeds: [embed],
-            components: [createAvailabilityButtons(normalizedDate)],
+            components,
           });
 
           remindersSent++;

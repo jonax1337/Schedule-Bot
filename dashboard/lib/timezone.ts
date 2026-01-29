@@ -16,9 +16,9 @@ export function convertTime(time: string, fromTz: string, toTz: string): string 
   if (!/^\d{2}:\d{2}$/.test(time)) return time;
 
   const [hours, minutes] = time.split(':').map(Number);
-  // Use a fixed reference date (2024-06-15) to get a stable conversion
-  // We create a date string in the source timezone and read it in the target timezone
-  const refDate = new Date(2024, 5, 15, hours, minutes, 0);
+  // Use today's date for correct DST offset calculation
+  const now = new Date();
+  const refDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes, 0);
 
   // Format in source timezone to get the UTC equivalent
   const sourceFormatter = new Intl.DateTimeFormat('en-GB', {

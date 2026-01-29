@@ -6,6 +6,7 @@ export interface UserMapping {
   displayName: string;
   role: 'main' | 'sub' | 'coach';
   sortOrder: number;
+  timezone?: string | null;
 }
 
 export async function getUserMappings(): Promise<UserMapping[]> {
@@ -22,6 +23,7 @@ export async function getUserMappings(): Promise<UserMapping[]> {
     displayName: m.displayName,
     role: m.role.toLowerCase() as 'main' | 'sub' | 'coach',
     sortOrder: m.sortOrder,
+    timezone: m.timezone,
   }));
 }
 
@@ -107,6 +109,7 @@ export async function getUserMapping(discordId: string): Promise<UserMapping | n
     displayName: mapping.displayName,
     role: mapping.role.toLowerCase() as 'main' | 'sub' | 'coach',
     sortOrder: mapping.sortOrder,
+    timezone: mapping.timezone,
   };
 }
 
@@ -117,7 +120,8 @@ export async function updateUserMapping(discordId: string, updates: Partial<User
   if (updates.displayName) data.displayName = updates.displayName;
   if (updates.role) data.role = updates.role.toUpperCase() as 'MAIN' | 'SUB' | 'COACH';
   if (updates.sortOrder !== undefined) data.sortOrder = updates.sortOrder;
-  
+  if (updates.timezone !== undefined) data.timezone = updates.timezone;
+
   await prisma.userMapping.update({
     where: { discordId },
     data,

@@ -31,18 +31,27 @@ export function convertTimeToUnixTimestamp(date: string, time: string, timezone:
   const [day, month, year] = date.split('.').map(Number);
   const [hours, minutes] = time.split(':').map(Number);
 
-  const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
-  const localDate = new Date(dateStr);
-  const timezoneOffset = getTimezoneOffset(localDate, timezone);
-  const utcTimestamp = localDate.getTime() - (timezoneOffset * 60 * 1000);
-  
-  return Math.floor(utcTimestamp / 1000);
-}
+  // Create a reference Date with the desired time
+  const refDate = new Date(year, month - 1, day, hours, minutes, 0);
 
-function getTimezoneOffset(date: Date, timezone: string): number {
-  const tzDate = new Date(date.toLocaleString('en-US', { timeZone: timezone }));
-  const utcDate = new Date(date.toLocaleString('en-US', { timeZone: 'UTC' }));
-  return (tzDate.getTime() - utcDate.getTime()) / (60 * 1000);
+  // Format in the given timezone to see what time it thinks this is
+  const formatter = new Intl.DateTimeFormat('en-GB', {
+    timeZone: timezone,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+  const parts = formatter.formatToParts(refDate);
+  const gotHour = Number(parts.find(p => p.type === 'hour')?.value ?? 0);
+  const gotMinute = Number(parts.find(p => p.type === 'minute')?.value ?? 0);
+
+  // Adjust so that formatting in the given timezone shows our desired time
+  const wantedMinutes = hours * 60 + minutes;
+  const gotMinutes = gotHour * 60 + gotMinute;
+  const diffMinutes = wantedMinutes - gotMinutes;
+  const adjusted = new Date(refDate.getTime() + diffMinutes * 60 * 1000);
+
+  return Math.floor(adjusted.getTime() / 1000);
 }
 
 export function buildScheduleEmbed(result: ScheduleResult): EmbedBuilder {

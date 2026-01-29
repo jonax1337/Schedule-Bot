@@ -246,4 +246,21 @@ export const commands = [
     .setName('scrim-stats')
     .setDescription('View scrim statistics')
     .toJSON(),
+
+  new SlashCommandBuilder()
+    .setName('set-timezone')
+    .setDescription('Set your personal timezone for automatic time conversion')
+    .addStringOption(option =>
+      option
+        .setName('timezone')
+        .setDescription('Your IANA timezone (e.g., America/New_York, Europe/London)')
+        .setRequired(true)
+        .setAutocomplete(true)
+    )
+    .toJSON(),
+
+  new SlashCommandBuilder()
+    .setName('remove-timezone')
+    .setDescription('Remove your personal timezone (revert to bot default)')
+    .toJSON(),
 ];

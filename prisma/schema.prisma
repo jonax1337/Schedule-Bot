@@ -44,6 +44,7 @@ model UserMapping {
   displayName     String   @map("display_name")
   role            UserRole
   sortOrder       Int      @default(0) @map("sort_order")
+  timezone        String?  @map("user_timezone")
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
