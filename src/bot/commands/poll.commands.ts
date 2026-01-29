@@ -15,7 +15,7 @@ export async function handleQuickPollCommand(interaction: ChatInputCommandIntera
   try {
     const question = interaction.options.getString('question', true);
     const optionsStr = interaction.options.getString('options', true);
-    const duration = interaction.options.getInteger('duration') || 1;
+    const duration = interaction.options.getInteger('duration') || 60;
 
     const options = optionsStr.split(',').map(opt => opt.trim()).slice(0, 10);
 
@@ -29,8 +29,11 @@ export async function handleQuickPollCommand(interaction: ChatInputCommandIntera
     const { createQuickPoll } = await import('../interactions/polls.js');
     await createQuickPoll(question, options, interaction.user.id, duration);
 
+    const hours = Math.floor(duration / 60);
+    const mins = duration % 60;
+    const durationText = hours > 0 && mins > 0 ? `${hours}h ${mins}m` : hours > 0 ? `${hours} hour${hours !== 1 ? 's' : ''}` : `${mins} minute${mins !== 1 ? 's' : ''}`;
     await interaction.editReply({
-      content: `✅ Poll created! It will close in ${duration} hour(s).`,
+      content: `✅ Poll created! It will close in ${durationText}.`,
     });
   } catch (error) {
     console.error('Error creating quick poll:', error);
@@ -72,40 +75,39 @@ export async function handleSendTrainingPollCommand(interaction: ChatInputComman
 
   try {
     const dateOption = interaction.options.getString('date');
-    const targetDate = dateOption || undefined;
-    const displayDate = targetDate || getTodayFormatted();
+    const targetDate = dateOption || getTodayFormatted();
 
     // Fetch schedule data for the date
     const sheetData = await getScheduleForDate(targetDate);
 
     if (!sheetData) {
       await interaction.editReply({
-        content: `❌ No schedule data found for ${displayDate}.`,
+        content: `❌ No schedule data found for ${targetDate}.`,
       });
       return;
     }
 
-    const absentUserIds = await getAbsentUserIdsForDate(displayDate);
+    const absentUserIds = await getAbsentUserIdsForDate(targetDate);
     const schedule = parseSchedule(sheetData, absentUserIds);
     const result = analyzeSchedule(schedule);
 
     // Check if training can proceed
     if (!result.canProceed || !result.commonTimeRange) {
       await interaction.editReply({
-        content: `❌ Cannot create training start poll for ${displayDate}.\n\nReason: ${result.statusMessage}`,
+        content: `❌ Cannot create training start poll for ${targetDate}.\n\nReason: ${result.statusMessage}`,
       });
       return;
     }
 
     // Create the poll
     const { createTrainingStartPoll } = await import('../interactions/trainingStartPoll.js');
-    await createTrainingStartPoll(result, displayDate);
+    await createTrainingStartPoll(result, targetDate);
 
     const timeRange = result.commonTimeRange;
-    const startTs = convertTimeToUnixTimestamp(displayDate, timeRange.start, config.scheduling.timezone);
-    const endTs = convertTimeToUnixTimestamp(displayDate, timeRange.end, config.scheduling.timezone);
+    const startTs = convertTimeToUnixTimestamp(targetDate, timeRange.start, config.scheduling.timezone);
+    const endTs = convertTimeToUnixTimestamp(targetDate, timeRange.end, config.scheduling.timezone);
     await interaction.editReply({
-      content: `✅ Training start time poll sent for **${displayDate}**!\n\n⏰ Available time: <t:${startTs}:t> - <t:${endTs}:t>`,
+      content: `✅ Training start time poll sent for **${targetDate}**!\n\n⏰ Available time: <t:${startTs}:t> - <t:${endTs}:t>`,
     });
   } catch (error) {
     console.error('Error sending training start poll:', error);

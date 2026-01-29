@@ -1,9 +1,10 @@
 import { client } from '../client.js';
-import { EmbedBuilder, TextChannel, MessageReaction, User } from 'discord.js';
+import { EmbedBuilder, TextChannel, MessageReaction, User, Message } from 'discord.js';
 import { config } from '../../shared/config/config.js';
 import { updateSetting, getSetting } from '../../shared/utils/settingsManager.js';
 import { convertTimeToUnixTimestamp } from '../embeds/embed.js';
 import type { ScheduleResult } from '../../shared/types/types.js';
+import { logger } from '../../shared/utils/logger.js';
 
 interface TrainingPollOption {
   emoji: string;
@@ -17,9 +18,70 @@ interface TrainingPoll {
   date: string;
   options: TrainingPollOption[];
   expiresAt: Date;
+  closeTimer?: ReturnType<typeof setTimeout>;
+  countdownTimer?: ReturnType<typeof setInterval>;
 }
 
 const activeTrainingPolls = new Map<string, TrainingPoll>();
+
+/**
+ * Format remaining time as a human-readable string.
+ */
+function formatRemainingTime(ms: number): string {
+  if (ms <= 0) return '0 minutes';
+  const totalMinutes = Math.ceil(ms / 60_000);
+  if (totalMinutes < 60) return `${totalMinutes} minute${totalMinutes !== 1 ? 's' : ''}`;
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (minutes === 0) return `${hours} hour${hours !== 1 ? 's' : ''}`;
+  return `${hours}h ${minutes}m`;
+}
+
+/**
+ * Update the footer of a poll embed with remaining time.
+ */
+async function updatePollFooter(poll: TrainingPoll): Promise<void> {
+  try {
+    const remaining = poll.expiresAt.getTime() - Date.now();
+    if (remaining <= 0) return;
+
+    const channel = await client.channels.fetch(config.discord.channelId);
+    if (!channel || !channel.isTextBased()) return;
+
+    const message = await channel.messages.fetch(poll.messageId);
+    const embed = message.embeds[0];
+    if (!embed) return;
+
+    const newEmbed = EmbedBuilder.from(embed);
+    newEmbed.setFooter({ text: `Poll closes in ${formatRemainingTime(remaining)}` });
+
+    await message.edit({ embeds: [newEmbed] });
+  } catch {
+    // Message may have been deleted
+  }
+}
+
+/**
+ * Start close timer and countdown interval for a poll.
+ */
+function startPollTimers(poll: TrainingPoll): void {
+  const remaining = poll.expiresAt.getTime() - Date.now();
+  if (remaining <= 0) {
+    closeTrainingPoll(poll.messageId);
+    return;
+  }
+
+  poll.closeTimer = setTimeout(() => closeTrainingPoll(poll.messageId), remaining);
+  poll.countdownTimer = setInterval(() => updatePollFooter(poll), 60_000);
+}
+
+/**
+ * Clear all timers for a poll.
+ */
+function clearPollTimers(poll: TrainingPoll): void {
+  if (poll.closeTimer) clearTimeout(poll.closeTimer);
+  if (poll.countdownTimer) clearInterval(poll.countdownTimer);
+}
 
 /**
  * Creates a reaction-based poll asking when to start training.
@@ -43,7 +105,7 @@ export async function createTrainingStartPoll(
 
   const channel = await client.channels.fetch(config.discord.channelId);
   if (!channel || !(channel instanceof TextChannel)) {
-    console.error('Could not find text channel for training start poll');
+    logger.error('Could not find text channel for training start poll');
     return;
   }
 
@@ -81,7 +143,7 @@ export async function createTrainingStartPoll(
 
   // If we have less than 3 options, don't create a poll
   if (options.length < 3) {
-    console.log('Not enough time slots for training start poll');
+    logger.info('Not enough time slots for training start poll');
     return;
   }
 
@@ -95,7 +157,7 @@ export async function createTrainingStartPoll(
       .setDescription(
         `⏰ Available window: <t:${startTs}:t> - <t:${endTs}:t>\n\nReact to vote!`
       )
-      .setFooter({ text: `Poll closes in ${pollDurationMinutes} minute(s)` })
+      .setFooter({ text: `Poll closes in ${formatRemainingTime(pollDurationMinutes * 60_000)}` })
       .setTimestamp();
 
     // Layout: divisible by 3 → 3 per row, divisible by 2 → 2 per row (with spacer), else vertical
@@ -122,13 +184,11 @@ export async function createTrainingStartPoll(
     };
 
     activeTrainingPolls.set(message.id, poll);
+    startPollTimers(poll);
 
-    // Auto-close after duration
-    setTimeout(() => closeTrainingPoll(message.id), pollDurationMinutes * 60 * 1000);
-
-    console.log(`Training start poll created for ${date} (duration: ${pollDurationMinutes} minutes)`);
+    logger.info(`Training start poll created for ${date} (duration: ${pollDurationMinutes} minutes)`);
   } catch (error) {
-    console.error('Error creating training start poll:', error);
+    logger.error('Error creating training start poll', error instanceof Error ? error.message : String(error));
   }
 }
 
@@ -182,15 +242,23 @@ async function updateTrainingPollEmbed(poll: TrainingPoll): Promise<void> {
       value: `${opt.votes.length} vote${opt.votes.length !== 1 ? 's' : ''}`,
     })), columnsPerRow);
 
+    // Update footer with remaining time
+    const remaining = poll.expiresAt.getTime() - Date.now();
+    if (remaining > 0) {
+      newEmbed.setFooter({ text: `Poll closes in ${formatRemainingTime(remaining)}` });
+    }
+
     await message.edit({ embeds: [newEmbed] });
   } catch (error) {
-    console.error('Error updating training poll embed:', error);
+    logger.error('Error updating training poll embed', error instanceof Error ? error.message : String(error));
   }
 }
 
 async function closeTrainingPoll(messageId: string): Promise<void> {
   const poll = activeTrainingPolls.get(messageId);
   if (!poll) return;
+
+  clearPollTimers(poll);
 
   try {
     const channel = await client.channels.fetch(config.discord.channelId);
@@ -200,16 +268,27 @@ async function closeTrainingPoll(messageId: string): Promise<void> {
 
     // Sort options by votes
     const sorted = [...poll.options].sort((a, b) => b.votes.length - a.votes.length);
+    const totalVotes = sorted.reduce((sum, opt) => sum + opt.votes.length, 0);
 
     let resultText = '**📊 Results:**\n\n';
-    sorted.forEach((opt, i) => {
-      const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '  ';
-      resultText += `${medal} ${opt.emoji} <t:${opt.timestamp}:t>: ${opt.votes.length} vote${opt.votes.length !== 1 ? 's' : ''}\n`;
-    });
+    let winnerTimestamp: number;
 
-    if (sorted[0].votes.length > 0) {
-      resultText += `\n✅ **Start time:** <t:${sorted[0].timestamp}:t>`;
+    if (totalVotes === 0) {
+      // No votes — pick the middle option
+      const middleIndex = Math.floor(poll.options.length / 2);
+      winnerTimestamp = poll.options[middleIndex].timestamp;
+      resultText += `No votes received — middle time selected.\n`;
+    } else {
+      // Show top 3 (or fewer if they have 0 votes)
+      const medals = ['🥇', '🥈', '🥉'];
+      const shown = sorted.filter((opt, i) => i === 0 || opt.votes.length > 0).slice(0, 3);
+      shown.forEach((opt, i) => {
+        resultText += `${medals[i]} <t:${opt.timestamp}:t> — ${opt.votes.length} vote${opt.votes.length !== 1 ? 's' : ''}\n`;
+      });
+      winnerTimestamp = sorted[0].timestamp;
     }
+
+    resultText += `\n✅ **Start time:** <t:${winnerTimestamp}:t>`;
 
     const embed = new EmbedBuilder()
       .setColor(0xe74c3c)
@@ -218,13 +297,120 @@ async function closeTrainingPoll(messageId: string): Promise<void> {
       .setFooter({ text: 'Poll closed' })
       .setTimestamp();
 
+    await message.reactions.removeAll().catch(() => {});
     await message.edit({ embeds: [embed] });
     activeTrainingPolls.delete(messageId);
 
-    console.log(`Training poll closed for ${poll.date} - Winner: ${sorted[0].timeStr}`);
+    logger.info(`Training poll closed for ${poll.date} - Winner timestamp: ${winnerTimestamp}`);
   } catch (error) {
-    console.error('Error closing training poll:', error);
+    logger.error('Error closing training poll', error instanceof Error ? error.message : String(error));
   }
+}
+
+/**
+ * Recover open training polls from channel after bot restart.
+ * Scans recent messages for open training poll embeds and re-registers them.
+ */
+export async function recoverTrainingPolls(): Promise<void> {
+  try {
+    const channel = await client.channels.fetch(config.discord.channelId);
+    if (!channel || !(channel instanceof TextChannel)) return;
+
+    const messages = await channel.messages.fetch({ limit: 50 });
+    const emojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
+
+    for (const message of messages.values()) {
+      if (!message.author.bot || message.author.id !== client.user?.id) continue;
+
+      const embed = message.embeds[0];
+      if (!embed) continue;
+
+      // Identify open training polls by title
+      if (embed.title !== 'When do you want to start?') continue;
+
+      // Already tracked
+      if (activeTrainingPolls.has(message.id)) continue;
+
+      // Parse expiry from footer — check if already closed
+      const footerText = embed.footer?.text || '';
+      if (footerText === 'Poll closed') continue;
+
+      // Try to recover the expiry time from the embed timestamp + poll duration
+      const pollDurationMinutes = getSetting('scheduling', 'pollDurationMinutes') || 60;
+      const createdAt = message.createdTimestamp;
+      const expiresAt = new Date(createdAt + pollDurationMinutes * 60 * 1000);
+
+      // If already expired, close it now
+      if (expiresAt.getTime() <= Date.now()) {
+        // Reconstruct poll to close it properly
+        const options = reconstructOptionsFromMessage(message, emojis);
+        if (options.length === 0) continue;
+
+        const poll: TrainingPoll = {
+          messageId: message.id,
+          date: '',
+          options,
+          expiresAt,
+        };
+        activeTrainingPolls.set(message.id, poll);
+        await closeTrainingPoll(message.id);
+        logger.info(`Recovered and closed expired training poll: ${message.id}`);
+        continue;
+      }
+
+      // Still active — reconstruct and re-register
+      const options = reconstructOptionsFromMessage(message, emojis);
+      if (options.length === 0) continue;
+
+      const poll: TrainingPoll = {
+        messageId: message.id,
+        date: '',
+        options,
+        expiresAt,
+      };
+
+      activeTrainingPolls.set(message.id, poll);
+      startPollTimers(poll);
+      logger.info(`Recovered active training poll: ${message.id} (closes in ${formatRemainingTime(expiresAt.getTime() - Date.now())})`);
+    }
+  } catch (error) {
+    logger.error('Error recovering training polls', error instanceof Error ? error.message : String(error));
+  }
+}
+
+/**
+ * Reconstruct poll options from a message's reactions and embed fields.
+ */
+function reconstructOptionsFromMessage(message: Message, emojis: string[]): TrainingPollOption[] {
+  const options: TrainingPollOption[] = [];
+  const embed = message.embeds[0];
+  if (!embed || !embed.fields) return options;
+
+  // Filter out spacer fields
+  const realFields = embed.fields.filter(f => f.name !== '\u200b');
+
+  for (let i = 0; i < realFields.length; i++) {
+    const field = realFields[i];
+    const emoji = emojis[i];
+    if (!emoji) break;
+
+    // Extract timestamp from field name like "1️⃣ <t:1234567890:t>"
+    const tsMatch = field.name.match(/<t:(\d+):t>/);
+    const timestamp = tsMatch ? Number(tsMatch[1]) : 0;
+
+    // Get votes from reactions
+    const reaction = message.reactions.cache.find(r => r.emoji.name === emoji);
+    const voteCount = reaction ? Math.max(0, reaction.count - 1) : 0; // -1 for bot's own reaction
+
+    options.push({
+      emoji,
+      timeStr: '',
+      timestamp,
+      votes: Array(voteCount).fill('unknown'), // Placeholder IDs — we can't recover exact user IDs from reactions without fetching them
+    });
+  }
+
+  return options;
 }
 
 /**

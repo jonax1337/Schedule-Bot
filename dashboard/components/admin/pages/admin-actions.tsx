@@ -32,7 +32,7 @@ export function Actions() {
   // Poll state
   const [pollQuestion, setPollQuestion] = useState("");
   const [pollOptions, setPollOptions] = useState("");
-  const [pollDuration, setPollDuration] = useState("1");
+  const [pollDuration, setPollDuration] = useState("60");
 
   // Reminder state
   const [reminderDate, setReminderDate] = useState("");
@@ -283,19 +283,19 @@ export function Actions() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="pollDuration">Duration</Label>
-            <Select value={pollDuration} onValueChange={setPollDuration}>
-              <SelectTrigger id="pollDuration" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent position="popper">
-                <SelectItem value="1">1 hour</SelectItem>
-                <SelectItem value="2">2 hours</SelectItem>
-                <SelectItem value="4">4 hours</SelectItem>
-                <SelectItem value="8">8 hours</SelectItem>
-                <SelectItem value="24">24 hours</SelectItem>
-              </SelectContent>
-            </Select>
+            <Label htmlFor="pollDuration">Duration (minutes)</Label>
+            <Input
+              id="pollDuration"
+              type="number"
+              min={1}
+              max={10080}
+              value={pollDuration}
+              onChange={(e) => setPollDuration(e.target.value)}
+              className="w-full"
+            />
+            <p className="text-sm text-muted-foreground">
+              How long the poll should remain open (1–10080 minutes)
+            </p>
           </div>
 
           <Button

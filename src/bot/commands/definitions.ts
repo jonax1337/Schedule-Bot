@@ -149,7 +149,7 @@ export const commands = [
     .addIntegerOption(option =>
       option
         .setName('duration')
-        .setDescription('Poll duration in hours (default: 1)')
+        .setDescription('Poll duration in minutes (default: 60)')
         .setRequired(false)
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
