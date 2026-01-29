@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Loader2, Trash2, UserPlus, Search, Users, Edit3, Edit, GripVertical, Shield, UserCheck, Headset, Globe, Check, ChevronsUpDown } from 'lucide-react';
+import { Loader2, Trash2, UserPlus, Search, Users, Edit3, Edit, GripVertical, Shield, UserCheck, Headset, Check, ChevronsUpDown } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -117,15 +117,16 @@ function SortableUserItem({
         <GripVertical className="w-4 h-4" />
       </button>
       <div className="flex-1 min-w-0">
-        <div className="font-medium truncate">{mapping.displayName}</div>
-        <div className="text-sm text-muted-foreground truncate flex items-center gap-1.5">
-          @{mapping.discordUsername}
+        <div className="flex items-center gap-2">
+          <span className="font-medium truncate">{mapping.displayName}</span>
           {mapping.timezone && (
-            <span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground/70">
-              <Globe className="w-3 h-3" />
-              {mapping.timezone}
-            </span>
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 font-normal text-muted-foreground shrink-0">
+              {mapping.timezone.replace(/_/g, ' ')}
+            </Badge>
           )}
+        </div>
+        <div className="text-sm text-muted-foreground truncate">
+          @{mapping.discordUsername}
         </div>
       </div>
       <div className="flex items-center gap-2 shrink-0">
@@ -627,7 +628,6 @@ export function UserMappings() {
 
           <div className="space-y-2">
             <Label className="flex items-center gap-1.5">
-              <Globe className="w-3.5 h-3.5" />
               Timezone
               <span className="text-xs text-muted-foreground">(optional)</span>
             </Label>
@@ -800,7 +800,6 @@ export function UserMappings() {
             </div>
             <div className="space-y-2">
               <Label className="flex items-center gap-1.5">
-                <Globe className="w-3.5 h-3.5" />
                 Timezone
                 <span className="text-xs text-muted-foreground">(optional)</span>
               </Label>
