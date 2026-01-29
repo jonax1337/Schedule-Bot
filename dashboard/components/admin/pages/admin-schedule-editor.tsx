@@ -166,7 +166,7 @@ export function ScheduleEditor() {
                 ...schedule,
                 players: schedule.players.map(player => {
                   if (player.userId === userId) {
-                    return { ...player, availability };
+                    return { ...player, availability: botAvailability };
                   }
                   return player;
                 }),
