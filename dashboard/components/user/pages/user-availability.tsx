@@ -11,6 +11,7 @@ import { Loader2, XCircle, Clock, CheckSquare, Square, Check, PlaneTakeoff } fro
 import { toast } from 'sonner';
 import { stagger, microInteractions, cn } from '@/lib/animations';
 import { BOT_API_URL } from '@/lib/config';
+import { useTimezone, getTimezoneAbbr } from '@/lib/timezone';
 
 interface AbsenceData {
   id: number;
@@ -54,6 +55,7 @@ interface DateEntry {
 
 export function UserAvailability() {
   const router = useRouter();
+  const { convertRangeToLocal, convertRangeToBot, isConverting, userTimezone, botTimezoneLoaded, timezoneVersion } = useTimezone();
   const [userName, setUserName] = useState('');
   const [userDiscordId, setUserDiscordId] = useState('');
   const [entries, setEntries] = useState<DateEntry[]>([]);
@@ -66,6 +68,8 @@ export function UserAvailability() {
   const autoSaveTimeoutsRef = useRef<Record<string, NodeJS.Timeout>>({});
 
   useEffect(() => {
+    if (!botTimezoneLoaded) return;
+
     const checkAuthAndLoad = async () => {
       try {
         const savedUser = localStorage.getItem('selectedUser');
@@ -83,7 +87,7 @@ export function UserAvailability() {
     };
 
     checkAuthAndLoad();
-  }, [router]);
+  }, [router, botTimezoneLoaded, timezoneVersion]);
 
   // Cleanup timeouts on unmount
   useEffect(() => {
@@ -163,7 +167,8 @@ export function UserAvailability() {
         let timeTo = '';
 
         if (availability && availability !== 'x' && availability.includes('-')) {
-          const parts = availability.split('-');
+          const localRange = convertRangeToLocal(availability);
+          const parts = localRange.split('-');
           if (parts.length === 2) {
             timeFrom = parts[0].trim();
             timeTo = parts[1].trim();
@@ -210,7 +215,8 @@ export function UserAvailability() {
     ));
 
     try {
-      const value = `${timeFrom}-${timeTo}`;
+      const localValue = `${timeFrom}-${timeTo}`;
+      const botValue = convertRangeToBot(localValue);
       const { getAuthHeaders } = await import('@/lib/auth');
 
       const response = await fetch(`${BOT_API_URL}/api/schedule/update-availability`, {
@@ -219,7 +225,7 @@ export function UserAvailability() {
         body: JSON.stringify({
           date,
           userId: userDiscordId,
-          availability: value,
+          availability: botValue,
         }),
       });
 
@@ -229,11 +235,11 @@ export function UserAvailability() {
           toast.success('Availability updated!');
         }
 
-        // Update local state without reloading everything
+        // Update local state without reloading everything (keep local display values)
         setEntries(prev => prev.map(e =>
           e.date === date ? {
             ...e,
-            value,
+            value: localValue,
             originalTimeFrom: timeFrom,
             originalTimeTo: timeTo,
             isSaving: false,
@@ -450,7 +456,8 @@ export function UserAvailability() {
 
     setSaving(true);
     try {
-      const value = `${bulkTimeFrom}-${bulkTimeTo}`;
+      const localValue = `${bulkTimeFrom}-${bulkTimeTo}`;
+      const botValue = convertRangeToBot(localValue);
       const { getAuthHeaders } = await import('@/lib/auth');
 
       const updates = Array.from(selectedDates).map(date =>
@@ -460,7 +467,7 @@ export function UserAvailability() {
           body: JSON.stringify({
             date,
             userId: userDiscordId,
-            availability: value,
+            availability: botValue,
           }),
         })
       );
@@ -471,11 +478,11 @@ export function UserAvailability() {
       if (allSuccess) {
         toast.success(`Updated ${selectedDates.size} day(s)`);
 
-        // Update local state for all selected dates
+        // Update local state for all selected dates (keep local display values)
         setEntries(prev => prev.map(e =>
           selectedDates.has(e.date) ? {
             ...e,
-            value,
+            value: localValue,
             timeFrom: bulkTimeFrom,
             timeTo: bulkTimeTo,
             originalTimeFrom: bulkTimeFrom,
@@ -796,6 +803,9 @@ export function UserAvailability() {
                             <span className="flex items-center gap-2 text-green-600">
                               <Clock className="w-4 h-4" />
                               {entry.value}
+                              {isConverting && (
+                                <span className="text-xs text-muted-foreground">({getTimezoneAbbr(userTimezone)})</span>
+                              )}
                             </span>
                           ) : (
                             <span className="text-gray-400">Not set</span>

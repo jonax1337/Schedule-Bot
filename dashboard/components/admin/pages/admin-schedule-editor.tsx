@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import Image from 'next/image';
 import { stagger, microInteractions, loadingStates, cn } from '@/lib/animations';
 import { BOT_API_URL } from '@/lib/config';
+import { useTimezone, getTimezoneAbbr } from '@/lib/timezone';
 
 interface UserMapping {
   discordId: string;
@@ -35,6 +36,7 @@ interface ScheduleData {
 }
 
 export function ScheduleEditor() {
+  const { convertRangeToLocal, convertRangeToBot, isConverting, userTimezone, botTimezoneLoaded, timezoneVersion } = useTimezone();
   const [schedules, setSchedules] = useState<ScheduleData[]>([]);
   const [userMappings, setUserMappings] = useState<UserMapping[]>([]);
   const [absentByDate, setAbsentByDate] = useState<Record<string, string[]>>({});
@@ -60,8 +62,9 @@ export function ScheduleEditor() {
   ];
 
   useEffect(() => {
+    if (!botTimezoneLoaded) return;
     loadData();
-  }, []);
+  }, [botTimezoneLoaded, timezoneVersion]);
 
   const loadData = async (page: number = 0) => {
     setLoading(true);
@@ -115,7 +118,10 @@ export function ScheduleEditor() {
 
   const handleCellClick = (date: string, userId: string, currentValue: string) => {
     setEditingCell({ date, userId });
-    setEditValue(currentValue || '');
+    const localValue = currentValue && currentValue !== 'x' && currentValue.includes('-')
+      ? convertRangeToLocal(currentValue)
+      : currentValue;
+    setEditValue(localValue || '');
   };
 
   const handleCellBlur = async () => {
@@ -134,6 +140,9 @@ export function ScheduleEditor() {
   };
 
   const saveCell = async (date: string, userId: string, availability: string) => {
+    const botAvailability = availability && availability !== 'x' && availability.includes('-')
+      ? convertRangeToBot(availability)
+      : availability;
     setSaving(true);
     try {
       const { getAuthHeaders } = await import('@/lib/auth');
@@ -143,7 +152,7 @@ export function ScheduleEditor() {
         body: JSON.stringify({
           date,
           userId,
-          availability,
+          availability: botAvailability,
         }),
       });
 
@@ -346,14 +355,16 @@ export function ScheduleEditor() {
                             onKeyDown={handleKeyDown}
                             autoFocus
                             className={cn("h-8 text-sm", microInteractions.focusRing)}
-                            placeholder="14:00-20:00 or x"
+                            placeholder={isConverting ? `14:00-20:00 (${getTimezoneAbbr(userTimezone)}) or x` : "14:00-20:00 or x"}
                           />
                         ) : (
                           <div
                             onClick={() => handleCellClick(schedule.date, mapping.discordId, availability)}
                             className={cn("h-8 px-2 flex items-center cursor-pointer hover:bg-accent rounded text-sm", microInteractions.smooth)}
                           >
-                            {availability || '-'}
+                            {availability
+                              ? (availability === 'x' ? 'x' : convertRangeToLocal(availability))
+                              : '-'}
                           </div>
                         )}
                       </TableCell>
