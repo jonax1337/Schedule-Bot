@@ -10,6 +10,7 @@ import {
   BarChart3,
   PlaneTakeoff,
   Map,
+  BookOpen,
 } from "lucide-react"
 
 import { NavUser } from "@/components/shared"
@@ -138,6 +139,12 @@ export function UserSidebar({ userName, onLogout, ...props }: UserSidebarProps) 
       tab: "map-veto",
       icon: Map,
       isActive: currentTab === 'map-veto',
+    },
+    {
+      title: "Stratbook",
+      tab: "stratbook",
+      icon: BookOpen,
+      isActive: currentTab === 'stratbook',
     },
     {
       title: "Statistics",

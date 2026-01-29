@@ -13,6 +13,7 @@ import settingsRoutes from './settings.routes.js';
 import actionsRoutes from './actions.routes.js';
 import adminRoutes from './admin.routes.js';
 import absenceRoutes from './absence.routes.js';
+import stratbookRoutes from './stratbook.routes.js';
 
 const router = Router();
 
@@ -26,6 +27,7 @@ router.use('/settings', settingsRoutes);
 router.use('/actions', actionsRoutes);
 router.use('/admin', adminRoutes);
 router.use('/absences', absenceRoutes);
+router.use('/stratbook', stratbookRoutes);
 
 // Schedule details routes (defined directly to avoid path issues)
 router.get('/schedule-details-batch', optionalAuth, async (req: AuthRequest, res) => {

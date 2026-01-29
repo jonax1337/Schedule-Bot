@@ -9,7 +9,7 @@ import {
   UserAvailability,
   UserAbsences
 } from '@/components/user';
-import { MapVetoPlanner, Matches, Statistics } from '@/components/admin/pages';
+import { MapVetoPlanner, Matches, Statistics, Stratbook } from '@/components/admin/pages';
 
 function HomeContent() {
   const router = useRouter();
@@ -53,6 +53,7 @@ function HomeContent() {
       absences: 'Absences',
       matches: 'Match History',
       'map-veto': 'Map Veto',
+      stratbook: 'Stratbook',
       statistics: 'Statistics',
     };
 
@@ -68,6 +69,7 @@ function HomeContent() {
         {currentTab === 'absences' && <UserAbsences />}
         {currentTab === 'matches' && <Matches />}
         {currentTab === 'map-veto' && <MapVetoPlanner />}
+        {currentTab === 'stratbook' && <Stratbook />}
         {currentTab === 'statistics' && <Statistics />}
       </div>
     </UserLayoutWrapper>
