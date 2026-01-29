@@ -160,10 +160,23 @@ export function UserSidebar({ userName, onLogout, ...props }: UserSidebarProps) 
     }
   }
 
+  const [avatarUrl, setAvatarUrl] = React.useState("")
+
+  React.useEffect(() => {
+    const loadAvatar = async () => {
+      const { getUser } = await import('@/lib/auth')
+      const storedUser = getUser()
+      if (storedUser?.avatar) {
+        setAvatarUrl(storedUser.avatar)
+      }
+    }
+    loadAvatar()
+  }, [])
+
   const user = userName ? {
     name: userName,
     email: "",
-    avatar: "",
+    avatar: avatarUrl,
   } : undefined
 
   return (

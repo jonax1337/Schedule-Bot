@@ -180,7 +180,12 @@ export async function handleDiscordCallback(req: Request, res: Response) {
     // Generate JWT token instead of session token
     const { generateToken } = await import('../../shared/middleware/auth.js');
     const token = generateToken(mapping.displayName, 'user');
-    
+
+    // Build Discord avatar URL
+    const avatarUrl = discordUser.avatar
+      ? `https://cdn.discordapp.com/avatars/${discordId}/${discordUser.avatar}.${discordUser.avatar.startsWith('a_') ? 'gif' : 'png'}?size=128`
+      : null;
+
     res.json({
       success: true,
       token,
@@ -190,6 +195,7 @@ export async function handleDiscordCallback(req: Request, res: Response) {
         role: 'user',
         discordId,
         discordUsername,
+        avatar: avatarUrl,
       },
     });
   } catch (error) {

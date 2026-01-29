@@ -4,6 +4,7 @@ const USER_KEY = 'auth_user';
 export interface User {
   username: string;
   role: 'admin' | 'user';
+  avatar?: string;
 }
 
 export function setAuthToken(token: string): void {
