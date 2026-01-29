@@ -435,6 +435,7 @@ When a player's availability or a schedule reason changes, the bot can automatic
 ### User Mappings
 - `GET /api/user-mappings` - Get all players (public)
 - `POST /api/user-mappings` - Add player (admin, validated)
+- `PUT /api/user-mappings/reorder` - Batch reorder players via drag-and-drop (admin, validated)
 - `PUT /api/user-mappings/:discordId` - Update player (admin)
 - `DELETE /api/user-mappings/:discordId` - Remove player (admin)
 

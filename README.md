@@ -988,6 +988,7 @@ GET /api/schedule-details-batch?dates=... # Multiple dates analysis
 # User Mappings
 GET /api/user-mappings
 POST /api/user-mappings (admin)
+PUT /api/user-mappings/reorder (admin) - Batch reorder players
 PUT /api/user-mappings/:discordId (admin)
 DELETE /api/user-mappings/:discordId (admin)
 
