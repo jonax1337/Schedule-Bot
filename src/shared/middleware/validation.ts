@@ -7,6 +7,7 @@ export const addUserMappingSchema = Joi.object({
   displayName: Joi.string().min(1).max(100).required(),
   role: Joi.string().valid('main', 'sub', 'coach').required(),
   sortOrder: Joi.number().integer().min(0).optional(), // Optional - wird automatisch berechnet
+  timezone: Joi.string().max(100).allow('', null).optional(),
 });
 
 export const addScrimSchema = Joi.object({
@@ -40,7 +41,7 @@ export const updateScrimSchema = Joi.object({
 export const createPollSchema = Joi.object({
   question: Joi.string().min(1).max(256).required(),
   options: Joi.array().items(Joi.string().min(1).max(100)).min(2).max(10).required(),
-  duration: Joi.number().integer().min(1).max(168),
+  duration: Joi.number().integer().min(1).max(10080),
 });
 
 export const notificationSchema = Joi.object({
@@ -64,7 +65,7 @@ export const settingsSchema = Joi.object({
     duplicateReminderEnabled: Joi.boolean(),
     duplicateReminderHoursBefore: Joi.number().integer().min(0).max(24),
     trainingStartPollEnabled: Joi.boolean().required(),
-    pollDurationMinutes: Joi.number().integer().valid(60, 240, 480, 1440, 4320, 10080),
+    pollDurationMinutes: Joi.number().integer().min(1).max(10080),
     cleanChannelBeforePost: Joi.boolean(),
     changeNotificationsEnabled: Joi.boolean(),
   }).required(),
@@ -131,6 +132,7 @@ export const updateUserMappingSchema = Joi.object({
   displayName: Joi.string().min(1).max(100).required(),
   role: Joi.string().valid('main', 'sub', 'coach').required(),
   sortOrder: Joi.number().integer().min(0).optional(),
+  timezone: Joi.string().max(100).allow('', null).optional(),
 });
 
 export function isValidDateFormat(date: string): boolean {

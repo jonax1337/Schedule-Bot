@@ -449,33 +449,26 @@ export function Settings() {
 
           {settings.scheduling.trainingStartPollEnabled && (
             <div className="space-y-2 pl-4 border-l-2 border-muted">
-              <Label htmlFor="pollDuration">Poll Duration</Label>
-              <Select
-                value={settings.scheduling.pollDurationMinutes.toString()}
-                onValueChange={(value) =>
+              <Label htmlFor="pollDuration">Poll Duration (minutes)</Label>
+              <Input
+                id="pollDuration"
+                type="number"
+                min={1}
+                max={10080}
+                value={settings.scheduling.pollDurationMinutes}
+                onChange={(e) =>
                   setSettings({
                     ...settings,
                     scheduling: {
                       ...settings.scheduling,
-                      pollDurationMinutes: parseInt(value),
+                      pollDurationMinutes: parseInt(e.target.value) || 60,
                     },
                   })
                 }
-              >
-                <SelectTrigger id="pollDuration" className={cn("w-full", microInteractions.focusRing)}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent position="popper">
-                  <SelectItem value="60">1 hour</SelectItem>
-                  <SelectItem value="240">4 hours</SelectItem>
-                  <SelectItem value="480">8 hours</SelectItem>
-                  <SelectItem value="1440">24 hours</SelectItem>
-                  <SelectItem value="4320">3 days</SelectItem>
-                  <SelectItem value="10080">1 week</SelectItem>
-                </SelectContent>
-              </Select>
+                className={cn("w-full", microInteractions.focusRing)}
+              />
               <p className="text-sm text-muted-foreground">
-                How long the training start poll should remain open
+                How long the training start poll should remain open (1–10080 minutes)
               </p>
             </div>
           )}

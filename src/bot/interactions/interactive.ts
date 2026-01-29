@@ -13,15 +13,15 @@ import {
   ChatInputCommandInteraction,
   MessageFlags,
 } from 'discord.js';
-import { getUserMapping } from '../../repositories/user-mapping.repository.js';
+import { getUserMapping, updateUserMapping } from '../../repositories/user-mapping.repository.js';
 import { updatePlayerAvailability, getScheduleForDate, getNext14Dates } from '../../repositories/schedule.repository.js';
 import { isUserAbsentOnDate, getAbsentUserIdsForDate } from '../../repositories/absence.repository.js';
 import { parseSchedule, analyzeSchedule } from '../../shared/utils/analyzer.js';
-import { buildScheduleEmbed } from '../embeds/embed.js';
+import { buildScheduleEmbed, convertTimeToUnixTimestamp } from '../embeds/embed.js';
 import { getTodayFormatted, addDays, normalizeDateFormat, isDateAfterOrEqual } from '../../shared/utils/dateFormatter.js';
 import { getScheduleStatus, checkAndNotifyStatusChange } from '../utils/schedule-poster.js';
-import type { ScheduleStatus } from '../../shared/types/types.js';
-// Week operations removed - use individual updatePlayerAvailability calls
+import { config } from '../../shared/config/config.js';
+import { convertTimeRangeBetweenTimezones, getTimezoneAbbreviation, isValidTimezone } from '../../shared/utils/timezoneConverter.js';
 import { client } from '../client.js';
 
 export async function createDateNavigationButtons(currentDate: string): Promise<ActionRowBuilder<ButtonBuilder>> {
@@ -67,11 +67,11 @@ export function createAvailabilityButtons(date: string): ActionRowBuilder<Button
   return new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder()
       .setCustomId(`set_custom_${date}`)
-      .setLabel('Available')
+      .setLabel('✅ Available')
       .setStyle(ButtonStyle.Success),
     new ButtonBuilder()
       .setCustomId(`set_unavailable_${date}`)
-      .setLabel('Not Available')
+      .setLabel('❌ Not Available')
       .setStyle(ButtonStyle.Danger)
   );
 }
@@ -271,7 +271,14 @@ export async function handleTimeModal(
     return;
   }
 
-  const timeRange = `${startTime}-${endTime}`;
+  let timeRange = `${startTime}-${endTime}`;
+
+  // Convert from user's timezone to bot timezone if user has a timezone set
+  const userTz = userMapping.timezone;
+  const botTz = config.scheduling.timezone;
+  if (userTz && userTz !== botTz) {
+    timeRange = convertTimeRangeBetweenTimezones(timeRange, date, userTz, botTz);
+  }
 
   // Capture old status before update (for change notification)
   const oldState = await getScheduleStatus(date);
@@ -281,8 +288,12 @@ export async function handleTimeModal(
 
   if (success) {
     const normalizedDate = normalizeDateFormat(date);
+    // Use the converted (bot TZ) times for Discord timestamps
+    const convertedParts = timeRange.split('-');
+    const startTs = convertTimeToUnixTimestamp(date, convertedParts[0], botTz);
+    const endTs = convertTimeToUnixTimestamp(date, convertedParts[1], botTz);
     await interaction.editReply({
-      content: `✅ Your availability for ${normalizedDate} has been set to ${timeRange}.`,
+      content: `✅ Your availability for ${normalizedDate} has been set to <t:${startTs}:t> - <t:${endTs}:t>.`,
     });
 
     // Check and notify status change (fire and forget)
@@ -300,10 +311,25 @@ export async function handleDateSelect(
   interaction: StringSelectMenuInteraction
 ): Promise<void> {
   const selectedDate = interaction.values[0];
-  
+
+  const components: ActionRowBuilder<ButtonBuilder>[] = [createAvailabilityButtons(selectedDate)];
+
+  // Show timezone button if user has no timezone set
+  const userMapping = await getUserMapping(interaction.user.id);
+  if (userMapping && !userMapping.timezone) {
+    components.push(
+      new ActionRowBuilder<ButtonBuilder>().addComponents(
+        new ButtonBuilder()
+          .setCustomId('set_timezone_prompt')
+          .setLabel('🌍 Set Timezone')
+          .setStyle(ButtonStyle.Secondary)
+      )
+    );
+  }
+
   await interaction.reply({
     content: `What is your availability for **${selectedDate}**?`,
-    components: [createAvailabilityButtons(selectedDate)],
+    components,
     flags: MessageFlags.Ephemeral,
   });
 }
@@ -334,9 +360,12 @@ export async function sendWeekOverview(
       else if (result.status === 'WITH_SUBS') statusEmoji = '⚠️';
 
       const availableCount = result.availableMainCount + result.availableSubCount;
-      const timeInfo = result.commonTimeRange 
-        ? `${result.commonTimeRange.start}-${result.commonTimeRange.end}`
-        : 'No common time';
+      let timeInfo = 'No common time';
+      if (result.commonTimeRange) {
+        const startTs = convertTimeToUnixTimestamp(date, result.commonTimeRange.start, config.scheduling.timezone);
+        const endTs = convertTimeToUnixTimestamp(date, result.commonTimeRange.end, config.scheduling.timezone);
+        timeInfo = `<t:${startTs}:t>-<t:${endTs}:t>`;
+      }
 
       embed.addFields({
         name: `${statusEmoji} ${date}`,
@@ -403,7 +432,19 @@ export async function sendMySchedule(
       if (entry.isAbsent) {
         status = '✈️ Absent';
       } else if (entry.value) {
-        status = entry.value === 'x' ? '❌ Not available' : `✅ ${entry.value}`;
+        if (entry.value === 'x') {
+          status = '❌ Not available';
+        } else {
+          // Convert time range to Discord timestamps
+          const parts = entry.value.split('-').map((s: string) => s.trim());
+          if (parts.length === 2) {
+            const startTs = convertTimeToUnixTimestamp(date, parts[0], config.scheduling.timezone);
+            const endTs = convertTimeToUnixTimestamp(date, parts[1], config.scheduling.timezone);
+            status = `✅ <t:${startTs}:t> - <t:${endTs}:t>`;
+          } else {
+            status = `✅ ${entry.value}`;
+          }
+        }
       } else {
         status = '⚪ No entry';
       }
@@ -413,189 +454,6 @@ export async function sendMySchedule(
   }
 
   await interaction.editReply({ embeds: [embed] });
-}
-
-export async function createWeekModal(userId: string): Promise<ModalBuilder> {
-  const dates = getNext14Dates().slice(0, 5); // First 5 days
-  
-  // Get user mapping to fetch current values
-  const userMapping = await getUserMapping(userId);
-  let currentValues: string[] = ['', '', '', '', ''];
-  
-  if (userMapping) {
-    // Fetch current availability for the next 5 days
-    // Fetch availability for first 5 days
-    const availability: Record<string, string> = {};
-    for (let i = 0; i < 5 && i < dates.length; i++) {
-      const schedule = await getScheduleForDate(dates[i]);
-      if (schedule) {
-        const player = schedule.players.find(p => p.userId === userMapping.discordId);
-        if (player) {
-          availability[dates[i]] = player.availability;
-        }
-      }
-    }
-    
-    // Map availability to values array
-    for (let i = 0; i < dates.length && i < 5; i++) {
-      const value = availability[dates[i]];
-      if (value) {
-        currentValues[i] = value;
-      }
-    }
-  }
-  
-  return new ModalBuilder()
-    .setCustomId('week_modal')
-    .setTitle('Set Week Availability')
-    .addComponents(
-      new ActionRowBuilder<TextInputBuilder>().addComponents(
-        new TextInputBuilder()
-          .setCustomId('day_0')
-          .setLabel(`Day 1 (${dates[0]})`)
-          .setStyle(TextInputStyle.Short)
-          .setPlaceholder('14:00-22:00 or x (not available) or leave empty')
-          .setRequired(false)
-          .setMaxLength(20)
-          .setValue(currentValues[0])
-      ),
-      new ActionRowBuilder<TextInputBuilder>().addComponents(
-        new TextInputBuilder()
-          .setCustomId('day_1')
-          .setLabel(`Day 2 (${dates[1]})`)
-          .setStyle(TextInputStyle.Short)
-          .setPlaceholder('14:00-22:00 or x (not available) or leave empty')
-          .setRequired(false)
-          .setMaxLength(20)
-          .setValue(currentValues[1])
-      ),
-      new ActionRowBuilder<TextInputBuilder>().addComponents(
-        new TextInputBuilder()
-          .setCustomId('day_2')
-          .setLabel(`Day 3 (${dates[2]})`)
-          .setStyle(TextInputStyle.Short)
-          .setPlaceholder('14:00-22:00 or x (not available) or leave empty')
-          .setRequired(false)
-          .setMaxLength(20)
-          .setValue(currentValues[2])
-      ),
-      new ActionRowBuilder<TextInputBuilder>().addComponents(
-        new TextInputBuilder()
-          .setCustomId('day_3')
-          .setLabel(`Day 4 (${dates[3]})`)
-          .setStyle(TextInputStyle.Short)
-          .setPlaceholder('14:00-22:00 or x (not available) or leave empty')
-          .setRequired(false)
-          .setMaxLength(20)
-          .setValue(currentValues[3])
-      ),
-      new ActionRowBuilder<TextInputBuilder>().addComponents(
-        new TextInputBuilder()
-          .setCustomId('day_4')
-          .setLabel(`Day 5 (${dates[4]})`)
-          .setStyle(TextInputStyle.Short)
-          .setPlaceholder('14:00-22:00 or x (not available) or leave empty')
-          .setRequired(false)
-          .setMaxLength(20)
-          .setValue(currentValues[4])
-      )
-    );
-}
-
-export async function handleSetWeekCommand(
-  interaction: ChatInputCommandInteraction
-): Promise<void> {
-  const userMapping = await getUserMapping(interaction.user.id);
-  
-  if (!userMapping) {
-    await interaction.reply({
-      content: '❌ You are not registered yet. Please contact an admin to register you.',
-      flags: MessageFlags.Ephemeral,
-    });
-    return;
-  }
-
-  const modal = await createWeekModal(interaction.user.id);
-  await interaction.showModal(modal);
-}
-
-export async function handleWeekModal(
-  interaction: ModalSubmitInteraction
-): Promise<void> {
-  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-
-  const userMapping = await getUserMapping(interaction.user.id);
-  
-  if (!userMapping) {
-    await interaction.editReply({
-      content: '❌ You are not registered yet.',
-    });
-    return;
-  }
-
-  const dates = getNext14Dates().slice(0, 5);
-  const weekData: Record<string, string> = {};
-  const entries: string[] = [];
-
-  // Collect all 7 days (only first 5 are in modal due to Discord limit)
-  for (let i = 0; i < 5; i++) {
-    const value = interaction.fields.getTextInputValue(`day_${i}`).trim();
-    if (value) {
-      // Validate format
-      if (value.toLowerCase() === 'x') {
-        weekData[dates[i]] = 'x';
-        entries.push(`${dates[i]}: Not available`);
-      } else if (validateTimeRangeFormat(value)) {
-        weekData[dates[i]] = value;
-        entries.push(`${dates[i]}: ${value}`);
-      } else {
-        await interaction.editReply({
-          content: `❌ Invalid format for ${dates[i]}. Use HH:MM-HH:MM (e.g., 14:00-22:00) or 'x' for not available.`,
-        });
-        return;
-      }
-    }
-  }
-
-  if (Object.keys(weekData).length === 0) {
-    await interaction.editReply({
-      content: '❌ No availability entered. Please fill at least one day.',
-    });
-    return;
-  }
-
-  // Capture today's old status before updates (for change notification)
-  const today = getTodayFormatted();
-  let todayOldStatus: ScheduleStatus | undefined;
-  if (weekData[today] !== undefined) {
-    const oldState = await getScheduleStatus(today);
-    todayOldStatus = oldState?.status;
-  }
-
-  // Update all entries
-  // Update each day individually
-  let successCount = 0;
-  for (const [date, value] of Object.entries(weekData)) {
-    const success = await updatePlayerAvailability(date, userMapping.discordId, value);
-    if (success) successCount++;
-  }
-
-  const result = { success: successCount === Object.keys(weekData).length, updated: successCount };
-
-  if (result.success) {
-    await interaction.editReply({
-      content: `✅ Week availability updated successfully!\n\n${entries.join('\n')}`,
-    });
-  } else {
-    await interaction.editReply({
-      content: `⚠️ Partially updated. ${result.updated}/${Object.keys(weekData).length} days updated successfully.`,
-    });
-  }
-
-  // Check and notify status change for today (fire and forget)
-  if (todayOldStatus !== undefined) {
-    checkAndNotifyStatusChange(today, todayOldStatus).catch(() => {});
-  }
 }
 
 function validateTimeRangeFormat(value: string): boolean {
@@ -736,4 +594,92 @@ export async function handleInfoModal(
 function validateTimeFormat(time: string): boolean {
   const regex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
   return regex.test(time);
+}
+
+// Common timezones for the quick-select dropdown
+const COMMON_TIMEZONES = [
+  { label: 'US Eastern (New York)', value: 'America/New_York' },
+  { label: 'US Central (Chicago)', value: 'America/Chicago' },
+  { label: 'US Mountain (Denver)', value: 'America/Denver' },
+  { label: 'US Pacific (Los Angeles)', value: 'America/Los_Angeles' },
+  { label: 'UK (London)', value: 'Europe/London' },
+  { label: 'Central Europe (Berlin)', value: 'Europe/Berlin' },
+  { label: 'France (Paris)', value: 'Europe/Paris' },
+  { label: 'Spain (Madrid)', value: 'Europe/Madrid' },
+  { label: 'Italy (Rome)', value: 'Europe/Rome' },
+  { label: 'Netherlands (Amsterdam)', value: 'Europe/Amsterdam' },
+  { label: 'Sweden (Stockholm)', value: 'Europe/Stockholm' },
+  { label: 'Poland (Warsaw)', value: 'Europe/Warsaw' },
+  { label: 'Finland (Helsinki)', value: 'Europe/Helsinki' },
+  { label: 'Romania (Bucharest)', value: 'Europe/Bucharest' },
+  { label: 'Turkey (Istanbul)', value: 'Europe/Istanbul' },
+  { label: 'Russia (Moscow)', value: 'Europe/Moscow' },
+  { label: 'Japan (Tokyo)', value: 'Asia/Tokyo' },
+  { label: 'South Korea (Seoul)', value: 'Asia/Seoul' },
+  { label: 'China (Shanghai)', value: 'Asia/Shanghai' },
+  { label: 'Australia (Sydney)', value: 'Australia/Sydney' },
+  { label: 'Brazil (São Paulo)', value: 'America/Sao_Paulo' },
+  { label: 'India (Kolkata)', value: 'Asia/Kolkata' },
+  { label: 'UTC', value: 'UTC' },
+];
+
+/**
+ * Handle the "Set Timezone" button click from reminder DMs.
+ * Shows a select menu with common timezones.
+ */
+export async function handleTimezoneButton(interaction: ButtonInteraction): Promise<void> {
+  const selectMenu = new StringSelectMenuBuilder()
+    .setCustomId('select_timezone')
+    .setPlaceholder('Select your timezone...')
+    .addOptions(
+      COMMON_TIMEZONES.map(tz => ({
+        label: tz.label,
+        value: tz.value,
+        description: getTimezoneAbbreviation(tz.value),
+      }))
+    );
+
+  const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu);
+
+  await interaction.reply({
+    content: '🌍 **Select your timezone:**\n\nThis will be used to automatically convert times when you set your availability.\n\n*Need a timezone not listed? Use `/set-timezone` on the server.*',
+    components: [row],
+    flags: MessageFlags.Ephemeral,
+  });
+}
+
+/**
+ * Handle timezone selection from the dropdown.
+ */
+export async function handleTimezoneSelect(interaction: StringSelectMenuInteraction): Promise<void> {
+  const selectedTz = interaction.values[0];
+
+  if (!isValidTimezone(selectedTz)) {
+    await interaction.reply({
+      content: '❌ Invalid timezone selected.',
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+
+  const userMapping = await getUserMapping(interaction.user.id);
+  if (!userMapping) {
+    await interaction.reply({
+      content: '❌ You are not registered.',
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+
+  await updateUserMapping(interaction.user.id, { timezone: selectedTz });
+
+  const abbr = getTimezoneAbbreviation(selectedTz);
+  const botTz = config.scheduling.timezone;
+  const botAbbr = getTimezoneAbbreviation(botTz);
+  const isSame = selectedTz === botTz;
+
+  await interaction.update({
+    content: `✅ Timezone set to **${selectedTz}** (${abbr})!${isSame ? '\n\nThis matches the bot timezone — no conversion needed.' : `\n\n⏰ Your inputs will be converted: ${abbr} → ${botAbbr}`}`,
+    components: [],
+  });
 }

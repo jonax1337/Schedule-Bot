@@ -126,13 +126,13 @@ src/
 │   │   ├── admin.commands.ts
 │   │   └── user-management.commands.ts
 │   ├── events/
-│   │   ├── ready.event.ts      # Bot ready handler (command registration)
+│   │   ├── ready.event.ts      # Bot ready handler (command registration + poll recovery)
 │   │   └── interaction.event.ts # Interaction dispatcher
 │   ├── interactions/           # Buttons, modals, polls, reminders
-│   │   ├── interactive.ts      # Date navigation buttons + availability UI
-│   │   ├── polls.ts            # Quick poll with emoji reactions
-│   │   ├── reminder.ts         # DM reminders to players
-│   │   └── trainingStartPoll.ts # Auto training time poll
+│   │   ├── interactive.ts      # Date navigation buttons + availability UI + timezone selection
+│   │   ├── polls.ts            # Quick poll with emoji reactions, countdown, recovery
+│   │   ├── reminder.ts         # DM reminders to players + timezone prompt button
+│   │   └── trainingStartPoll.ts # Training time poll with reactions, countdown, recovery
 │   ├── embeds/
 │   │   └── embed.ts            # Discord embed builders
 │   └── utils/
@@ -164,7 +164,8 @@ src/
         ├── dateFormatter.ts    # DD.MM.YYYY formatting utilities
         ├── logger.ts           # In-memory log store + console output
         ├── scheduleDetails.ts  # Schedule detail queries (single + batch)
-        └── settingsManager.ts  # Settings load/save/reload from DB
+        ├── settingsManager.ts  # Settings load/save/reload from DB
+        └── timezoneConverter.ts # Per-user timezone conversion utilities
 
 dashboard/
 ├── app/                        # Next.js App Router
@@ -300,7 +301,7 @@ settings.scheduling = {
   dailyPostTime, timezone, reminderHoursBefore,
   duplicateReminderEnabled, duplicateReminderHoursBefore,
   trainingStartPollEnabled,
-  pollDurationMinutes,        // Poll open duration (Discord-compatible: 60, 240, 480, 1440, 4320, 10080)
+  pollDurationMinutes,        // Poll open duration in minutes (1-10080, free-form input)
   cleanChannelBeforePost,     // Auto-clean channel before posting
   changeNotificationsEnabled  // Notify when roster status changes (default: true)
 }
@@ -329,7 +330,7 @@ An optional second reminder can be sent closer to the daily post time:
 
 ### User Mapping System
 The `user_mappings` table is the single source of truth for player rosters:
-- Links Discord ID to display name, Discord username, and role (MAIN, SUB, COACH)
+- Links Discord ID to display name, Discord username, role (MAIN, SUB, COACH), and optional timezone
 - When creating schedules, players are copied from `user_mappings` to `schedule_players`
 - `sort_order` determines display order in embeds and dashboard
 - Changes to user mappings affect future schedules but NOT historical ones
@@ -378,7 +379,7 @@ When a player's availability or a schedule reason changes, the bot can automatic
 - **Function**: `checkAndNotifyStatusChange(date, previousStatus, clientInstance?)` in `src/bot/utils/schedule-poster.ts`
 - **Trigger points**: Called fire-and-forget (`.catch()`) from:
   - `schedule.routes.ts` - After reason update (`POST /api/schedule/update-reason`) and availability update (`POST /api/schedule/update-availability`)
-  - `interactive.ts` - After Discord button clicks (unavailable, time modal, week modal)
+  - `interactive.ts` - After Discord button clicks (unavailable, time modal)
 - **Behavior**:
   1. Captures the old `ScheduleStatus` before the update
   2. After the update, fetches the new status and compares priority (`NOT_ENOUGH=0 < WITH_SUBS=1 < FULL_ROSTER=2`)
@@ -400,8 +401,9 @@ When a player's availability or a schedule reason changes, the bot can automatic
 - `/scrim-stats` - Win/loss statistics
 
 ### Player Commands
-- `/set` - Interactive buttons to set daily availability
-- `/set-week` - Set availability for all 7 upcoming days
+- `/set` - Interactive buttons to set daily availability (includes timezone prompt if not set)
+- `/set-timezone <timezone>` - Set personal timezone (with autocomplete)
+- `/remove-timezone` - Remove personal timezone (use bot default)
 
 ### Admin Commands (require Discord Administrator permission)
 - `/post-schedule [date]` - Manually post schedule to channel
@@ -410,7 +412,7 @@ When a player's availability or a schedule reason changes, the bot can automatic
 - `/remind [date]` - Send DM reminders to players without entry
 - `/notify <type> <target> [user]` - Send notifications (info/success/warning/error to all/main/sub/coach)
 - `/add-scrim <date> <opponent> <result> <score-us> <score-them> [maps] [notes]` - Log match
-- `/poll <question> <options> [duration]` - Create quick poll (emoji reactions, auto-close)
+- `/poll <question> <options> [duration]` - Create quick poll (emoji reactions, auto-close, duration in minutes)
 - `/training-start-poll` - Toggle automatic training start poll
 - `/send-training-poll [date]` - Manually trigger training start poll
 
@@ -522,7 +524,7 @@ Services are class-based with singleton exports (e.g., `export const scheduleSer
 - **Rate limiting** - `strictApiLimiter` on settings endpoints, `loginLimiter` on auth, general `apiLimiter` on all `/api`
 - **Input sanitization** - `sanitizeString()` removes `<>`, `javascript:`, event handlers
 - **Validation** - Joi schemas with `validate()` middleware on: user mappings, scrims, settings, polls, notifications, branding
-- Poll duration validated against Discord-compatible values only: 60, 240, 480, 1440, 4320, 10080 minutes
+- Poll duration validated as integer range 1-10080 minutes (free-form, not restricted to Discord-compatible values)
 - No caching headers on API responses
 
 ### API Authentication
@@ -618,6 +620,28 @@ Jobs respect `config.scheduling.timezone` and are restarted on settings change v
 
 The Training Start Poll is triggered separately via bot command (`/send-training-poll`) or toggle (`/training-start-poll`), not as a cron job.
 
+### Poll System (Training Start + Quick Polls)
+Both poll types use **reaction-based embeds** (not native Discord polls), which allows custom durations and full control over the UI.
+
+**Training Start Poll** (`src/bot/interactions/trainingStartPoll.ts`):
+- Generates time slot options (every 30min) within the common availability window
+- Uses Discord timestamps (`<t:TIMESTAMP:t>`) so users see times in their local timezone
+- Grid layout: 3 per row (divisible by 3), 2 per row (divisible by 2), mixed for odd counts (5→2-2-1, 7→3-3-1)
+- Poll duration configurable in minutes (1-10080) via dashboard Settings
+
+**Quick Poll** (`src/bot/interactions/polls.ts`):
+- Created via `/poll` command or dashboard Actions panel
+- Title = question text, options as embed fields with emoji reactions
+- Duration in minutes (configurable, default: 60)
+
+**Shared poll features**:
+- **Countdown timer**: Footer updates every 60 seconds showing remaining time (e.g., "Poll closes in 45 minutes", "Poll closes in 1h 30m")
+- **Auto-close**: `setTimeout` triggers poll closure; embed changes to red "CLOSED" state
+- **Clean close**: All reactions are removed when poll closes for a cleaner look
+- **Results display**: Top 3 with medal emojis (🥇🥈🥉), entries with 0 votes hidden (except 1st place). Training poll picks middle time if no votes.
+- **Recovery on restart**: `ready.event.ts` calls `recoverTrainingPolls()` and `recoverQuickPolls()` on bot startup. These scan the last 50 channel messages for open poll embeds, reconstruct poll state from reactions/fields, and re-register timers for the remaining duration. Expired polls are immediately closed with results.
+- **In-memory storage**: Active polls stored in `Map<messageId, Poll>`. Not persisted to DB — recovery relies on scanning Discord messages.
+
 ## Important Gotchas
 
 ### Date Format Consistency
@@ -637,6 +661,12 @@ Player availability is stored as a string with three possible formats:
 - Bot uses configured timezone from settings (default: "Europe/Berlin")
 - node-cron jobs respect this timezone
 - Dashboard should send dates in DD.MM.YYYY format, not epoch timestamps
+- **Per-user timezone**: Players can set a personal timezone via `/set-timezone` command or "🌍 Set Timezone" button (shown in `/set` flow and reminder DMs)
+- When a user has a personal timezone set, their time inputs (e.g., "14:00-20:00") are automatically converted from their timezone to the bot timezone before saving to DB
+- Timezone conversion uses `Intl.DateTimeFormat` formatter approach (`src/shared/utils/timezoneConverter.ts`)
+- The `user_mappings.user_timezone` column stores the IANA timezone string (nullable, null = bot default)
+- Dashboard also converts times for display: bot-TZ values from DB are converted to user's local timezone (`dashboard/lib/timezone.ts`)
+- All Discord time displays use `<t:TIMESTAMP:t>` format so each user sees times in their local timezone automatically
 
 ### Settings Reload Pattern
 When settings change:
@@ -719,7 +749,7 @@ curl -X POST http://localhost:3001/api/actions/remind \
 ### Key Tables
 - **schedules** - One row per date (DD.MM.YYYY), has reason/focus fields
 - **schedule_players** - Many rows per schedule, one per player per date, stores availability and sort_order
-- **user_mappings** - Master roster with discord_id, discord_username, display_name, role, sort_order
+- **user_mappings** - Master roster with discord_id, discord_username, display_name, role, sort_order, user_timezone (optional)
 - **scrims** - Match history (opponent, result, score_us, score_them, map, match_type, our_agents, their_agents as comma-separated strings, vod_url, notes)
 - **absences** - Player absence periods (user_id, start_date, end_date in DD.MM.YYYY, reason)
 - **settings** - Key-value store for bot configuration (dot-notation keys)

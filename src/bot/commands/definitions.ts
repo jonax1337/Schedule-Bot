@@ -43,11 +43,6 @@ export const commands = [
     .toJSON(),
     
   new SlashCommandBuilder()
-    .setName('set-week')
-    .setDescription('Set your availability for the next 7 days at once')
-    .toJSON(),
-    
-  new SlashCommandBuilder()
     .setName('register')
     .setDescription('Register a user for availability management (Admin)')
     .addUserOption(option =>
@@ -154,7 +149,7 @@ export const commands = [
     .addIntegerOption(option =>
       option
         .setName('duration')
-        .setDescription('Poll duration in hours (default: 1)')
+        .setDescription('Poll duration in minutes (default: 60)')
         .setRequired(false)
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
@@ -245,5 +240,22 @@ export const commands = [
   new SlashCommandBuilder()
     .setName('scrim-stats')
     .setDescription('View scrim statistics')
+    .toJSON(),
+
+  new SlashCommandBuilder()
+    .setName('set-timezone')
+    .setDescription('Set your personal timezone for automatic time conversion')
+    .addStringOption(option =>
+      option
+        .setName('timezone')
+        .setDescription('Your IANA timezone (e.g., America/New_York, Europe/London)')
+        .setRequired(true)
+        .setAutocomplete(true)
+    )
+    .toJSON(),
+
+  new SlashCommandBuilder()
+    .setName('remove-timezone')
+    .setDescription('Remove your personal timezone (revert to bot default)')
     .toJSON(),
 ];

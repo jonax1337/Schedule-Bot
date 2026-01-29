@@ -26,4 +26,14 @@ export async function registerCommands(client: Client): Promise<void> {
  */
 export async function handleReady(client: Client): Promise<void> {
   await registerCommands(client);
+
+  // Recover any open polls from before restart
+  try {
+    const { recoverTrainingPolls } = await import('../interactions/trainingStartPoll.js');
+    const { recoverQuickPolls } = await import('../interactions/polls.js');
+    await recoverTrainingPolls();
+    await recoverQuickPolls();
+  } catch (error) {
+    logger.error('Error recovering polls on startup', error instanceof Error ? error.message : String(error));
+  }
 }

@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { stagger, microInteractions, cn } from '@/lib/animations';
 import { BOT_API_URL } from '@/lib/config';
+import { useTimezone, getTimezoneAbbr } from '@/lib/timezone';
 
 interface PlayerStatus {
   name: string;
@@ -48,6 +49,7 @@ interface DateEntry {
 
 export function UserSchedule() {
   const router = useRouter();
+  const { convertRangeToLocal, convertRangeToBot, convertToLocal, isConverting, userTimezone, botTimezoneLoaded, timezoneVersion } = useTimezone();
   const [entries, setEntries] = useState<DateEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<DateEntry | null>(null);
@@ -73,19 +75,21 @@ export function UserSchedule() {
   ];
 
   useEffect(() => {
+    if (!botTimezoneLoaded) return;
+
     const checkAuth = async () => {
       try {
         const { validateToken, removeAuthToken, getUser } = await import('@/lib/auth');
-        
+
         const user = localStorage.getItem('selectedUser');
-        
+
         if (!user) {
           router.replace('/login');
           return;
         }
-        
+
         const isValid = await validateToken();
-        
+
         if (!isValid) {
           removeAuthToken();
           localStorage.removeItem('selectedUser');
@@ -93,12 +97,12 @@ export function UserSchedule() {
           router.replace('/login');
           return;
         }
-        
+
         const currentUser = getUser();
         if (currentUser?.role === 'admin') {
           setIsAdmin(true);
         }
-        
+
         setLoggedInUser(user);
         await loadScheduleData();
       } catch (error) {
@@ -108,7 +112,7 @@ export function UserSchedule() {
     };
 
     checkAuth();
-  }, [router]);
+  }, [router, botTimezoneLoaded, timezoneVersion]);
 
   const loadScheduleData = async () => {
     setLoading(true);
@@ -215,7 +219,7 @@ export function UserSchedule() {
               unavailable++;
             } else if (availability && availability !== '') {
               status = 'available';
-              time = availability;
+              time = convertRangeToLocal(availability);
               available++;
             } else {
               notSet++;
@@ -406,7 +410,8 @@ export function UserSchedule() {
           setSaving(false);
           return;
         }
-        availability = `${editTimeFrom}-${editTimeTo}`;
+        const localRange = `${editTimeFrom}-${editTimeTo}`;
+        availability = convertRangeToBot(localRange);
       }
 
       const response = await fetch(`${BOT_API_URL}/api/schedule/update-availability`, {
@@ -663,6 +668,9 @@ export function UserSchedule() {
                         <Clock className="w-4 h-4 text-muted-foreground" />
                         <span className="text-muted-foreground">
                           {selectedDate.scheduleDetails.startTime} - {selectedDate.scheduleDetails.endTime}
+                          {isConverting && (
+                            <span className="ml-1 text-xs opacity-70">({getTimezoneAbbr(userTimezone)})</span>
+                          )}
                         </span>
                       </div>
                     )}

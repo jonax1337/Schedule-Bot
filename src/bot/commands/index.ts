@@ -1,10 +1,11 @@
 import { ChatInputCommandInteraction } from 'discord.js';
 import { handleScheduleCommand, handlePostScheduleCommand } from './schedule.commands.js';
-import { 
-  handleAvailabilityCommand, 
-  handleScheduleWeekCommand, 
-  handleMyScheduleCommand, 
-  handleSetWeekCommandWrapper 
+import {
+  handleAvailabilityCommand,
+  handleScheduleWeekCommand,
+  handleMyScheduleCommand,
+  handleSetTimezoneCommand,
+  handleRemoveTimezoneCommand
 } from './availability.commands.js';
 import { handleRegisterCommand, handleUnregisterCommand } from './user-management.commands.js';
 import { handleSendRemindersCommand, handleInfoCommand } from './admin.commands.js';
@@ -44,8 +45,11 @@ export async function handleCommand(interaction: ChatInputCommandInteraction): P
     case 'my-schedule':
       await handleMyScheduleCommand(interaction);
       break;
-    case 'set-week':
-      await handleSetWeekCommandWrapper(interaction);
+    case 'set-timezone':
+      await handleSetTimezoneCommand(interaction);
+      break;
+    case 'remove-timezone':
+      await handleRemoveTimezoneCommand(interaction);
       break;
 
     // User management commands

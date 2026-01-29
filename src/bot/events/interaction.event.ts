@@ -4,9 +4,10 @@ import {
   handleDateNavigation,
   handleAvailabilityButton,
   handleDateSelect,
-  handleWeekModal,
   handleInfoModal,
   handleTimeModal,
+  handleTimezoneButton,
+  handleTimezoneSelect,
 } from '../interactions/interactive.js';
 
 /**
@@ -29,6 +30,8 @@ export async function handleInteraction(interaction: Interaction): Promise<void>
         interaction.customId.startsWith('set_custom_')
       ) {
         await handleAvailabilityButton(interaction);
+      } else if (interaction.customId === 'set_timezone_prompt') {
+        await handleTimezoneButton(interaction);
       }
       return;
     }
@@ -37,18 +40,33 @@ export async function handleInteraction(interaction: Interaction): Promise<void>
     if (interaction.isStringSelectMenu()) {
       if (interaction.customId === 'select_date') {
         await handleDateSelect(interaction);
+      } else if (interaction.customId === 'select_timezone') {
+        await handleTimezoneSelect(interaction);
       }
       return;
     }
 
     // Handle modal submissions
     if (interaction.isModalSubmit()) {
-      if (interaction.customId.startsWith('week_modal_')) {
-        await handleWeekModal(interaction);
-      } else if (interaction.customId.startsWith('info_modal_')) {
+      if (interaction.customId.startsWith('info_modal_')) {
         await handleInfoModal(interaction);
       } else if (interaction.customId.startsWith('time_modal_')) {
         await handleTimeModal(interaction);
+      }
+      return;
+    }
+    // Handle autocomplete interactions
+    if (interaction.isAutocomplete()) {
+      if (interaction.commandName === 'set-timezone') {
+        const focused = interaction.options.getFocused().toLowerCase();
+        const { getSupportedTimezones } = await import('../../shared/utils/timezoneConverter.js');
+        const allTimezones = getSupportedTimezones();
+        const filtered = focused
+          ? allTimezones.filter(tz => tz.toLowerCase().includes(focused))
+          : allTimezones;
+        await interaction.respond(
+          filtered.slice(0, 25).map(tz => ({ name: tz, value: tz }))
+        );
       }
       return;
     }
