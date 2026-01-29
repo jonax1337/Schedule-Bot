@@ -98,16 +98,13 @@ export async function createTrainingStartPoll(
       .setFooter({ text: `Poll closes in ${pollDurationMinutes} minute(s)` })
       .setTimestamp();
 
-    // Use inline layout only when options divide evenly into rows of 3
-    const useInline = options.length % 3 === 0;
+    // Layout: divisible by 3 → 3 per row, divisible by 2 → 2 per row (with spacer), else vertical
+    const columnsPerRow = options.length % 3 === 0 ? 3 : options.length % 2 === 0 ? 2 : 1;
 
-    options.forEach(opt => {
-      embed.addFields({
-        name: `${opt.emoji} <t:${opt.timestamp}:t>`,
-        value: '0 votes',
-        inline: useInline,
-      });
-    });
+    addPollFields(embed, options.map(opt => ({
+      name: `${opt.emoji} <t:${opt.timestamp}:t>`,
+      value: '0 votes',
+    })), columnsPerRow);
 
     const message = await channel.send({ embeds: [embed] });
 
@@ -176,15 +173,12 @@ async function updateTrainingPollEmbed(poll: TrainingPoll): Promise<void> {
     const newEmbed = EmbedBuilder.from(embed);
     newEmbed.setFields([]);
 
-    const useInline = poll.options.length % 3 === 0;
+    const columnsPerRow = poll.options.length % 3 === 0 ? 3 : poll.options.length % 2 === 0 ? 2 : 1;
 
-    poll.options.forEach(opt => {
-      newEmbed.addFields({
-        name: `${opt.emoji} <t:${opt.timestamp}:t>`,
-        value: `${opt.votes.length} vote${opt.votes.length !== 1 ? 's' : ''}`,
-        inline: useInline,
-      });
-    });
+    addPollFields(newEmbed, poll.options.map(opt => ({
+      name: `${opt.emoji} <t:${opt.timestamp}:t>`,
+      value: `${opt.votes.length} vote${opt.votes.length !== 1 ? 's' : ''}`,
+    })), columnsPerRow);
 
     await message.edit({ embeds: [newEmbed] });
   } catch (error) {
@@ -262,6 +256,36 @@ export function getActiveTrainingPoll(messageId: string): TrainingPoll | undefin
 }
 
 // Helper functions
+
+/**
+ * Add fields to an embed with a specific number of columns per row.
+ * For 2-column layout, inserts an invisible spacer field as the 3rd column.
+ * For 1-column layout, fields are not inline.
+ */
+function addPollFields(
+  embed: EmbedBuilder,
+  fields: Array<{ name: string; value: string }>,
+  columnsPerRow: number
+): void {
+  if (columnsPerRow === 1) {
+    fields.forEach(f => embed.addFields({ ...f, inline: false }));
+    return;
+  }
+
+  if (columnsPerRow === 3) {
+    fields.forEach(f => embed.addFields({ ...f, inline: true }));
+    return;
+  }
+
+  // 2-column layout: insert a blank spacer every 2 fields to fill the 3rd column
+  fields.forEach((f, i) => {
+    embed.addFields({ ...f, inline: true });
+    if (i % 2 === 1) {
+      embed.addFields({ name: '\u200b', value: '\u200b', inline: true });
+    }
+  });
+}
+
 function timeToMinutes(time: string): number {
   const [hours, minutes] = time.split(':').map(Number);
   return hours * 60 + minutes;
