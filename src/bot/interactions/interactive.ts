@@ -69,11 +69,11 @@ export function createAvailabilityButtons(date: string): ActionRowBuilder<Button
   return new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder()
       .setCustomId(`set_custom_${date}`)
-      .setLabel('Available')
+      .setLabel('✅ Available')
       .setStyle(ButtonStyle.Success),
     new ButtonBuilder()
       .setCustomId(`set_unavailable_${date}`)
-      .setLabel('Not Available')
+      .setLabel('❌ Not Available')
       .setStyle(ButtonStyle.Danger)
   );
 }
@@ -783,29 +783,29 @@ function validateTimeFormat(time: string): boolean {
 
 // Common timezones for the quick-select dropdown
 const COMMON_TIMEZONES = [
-  { label: '🇺🇸 US Eastern (New York)', value: 'America/New_York' },
-  { label: '🇺🇸 US Central (Chicago)', value: 'America/Chicago' },
-  { label: '🇺🇸 US Mountain (Denver)', value: 'America/Denver' },
-  { label: '🇺🇸 US Pacific (Los Angeles)', value: 'America/Los_Angeles' },
-  { label: '🇬🇧 UK (London)', value: 'Europe/London' },
-  { label: '🇩🇪 Central Europe (Berlin)', value: 'Europe/Berlin' },
-  { label: '🇫🇷 France (Paris)', value: 'Europe/Paris' },
-  { label: '🇪🇸 Spain (Madrid)', value: 'Europe/Madrid' },
-  { label: '🇮🇹 Italy (Rome)', value: 'Europe/Rome' },
-  { label: '🇳🇱 Netherlands (Amsterdam)', value: 'Europe/Amsterdam' },
-  { label: '🇸🇪 Sweden (Stockholm)', value: 'Europe/Stockholm' },
-  { label: '🇵🇱 Poland (Warsaw)', value: 'Europe/Warsaw' },
-  { label: '🇫🇮 Finland (Helsinki)', value: 'Europe/Helsinki' },
-  { label: '🇷🇴 Romania (Bucharest)', value: 'Europe/Bucharest' },
-  { label: '🇹🇷 Turkey (Istanbul)', value: 'Europe/Istanbul' },
-  { label: '🇷🇺 Russia (Moscow)', value: 'Europe/Moscow' },
-  { label: '🇯🇵 Japan (Tokyo)', value: 'Asia/Tokyo' },
-  { label: '🇰🇷 South Korea (Seoul)', value: 'Asia/Seoul' },
-  { label: '🇨🇳 China (Shanghai)', value: 'Asia/Shanghai' },
-  { label: '🇦🇺 Australia (Sydney)', value: 'Australia/Sydney' },
-  { label: '🇧🇷 Brazil (São Paulo)', value: 'America/Sao_Paulo' },
-  { label: '🇮🇳 India (Kolkata)', value: 'Asia/Kolkata' },
-  { label: '🌐 UTC', value: 'UTC' },
+  { label: 'US Eastern (New York)', value: 'America/New_York' },
+  { label: 'US Central (Chicago)', value: 'America/Chicago' },
+  { label: 'US Mountain (Denver)', value: 'America/Denver' },
+  { label: 'US Pacific (Los Angeles)', value: 'America/Los_Angeles' },
+  { label: 'UK (London)', value: 'Europe/London' },
+  { label: 'Central Europe (Berlin)', value: 'Europe/Berlin' },
+  { label: 'France (Paris)', value: 'Europe/Paris' },
+  { label: 'Spain (Madrid)', value: 'Europe/Madrid' },
+  { label: 'Italy (Rome)', value: 'Europe/Rome' },
+  { label: 'Netherlands (Amsterdam)', value: 'Europe/Amsterdam' },
+  { label: 'Sweden (Stockholm)', value: 'Europe/Stockholm' },
+  { label: 'Poland (Warsaw)', value: 'Europe/Warsaw' },
+  { label: 'Finland (Helsinki)', value: 'Europe/Helsinki' },
+  { label: 'Romania (Bucharest)', value: 'Europe/Bucharest' },
+  { label: 'Turkey (Istanbul)', value: 'Europe/Istanbul' },
+  { label: 'Russia (Moscow)', value: 'Europe/Moscow' },
+  { label: 'Japan (Tokyo)', value: 'Asia/Tokyo' },
+  { label: 'South Korea (Seoul)', value: 'Asia/Seoul' },
+  { label: 'China (Shanghai)', value: 'Asia/Shanghai' },
+  { label: 'Australia (Sydney)', value: 'Australia/Sydney' },
+  { label: 'Brazil (São Paulo)', value: 'America/Sao_Paulo' },
+  { label: 'India (Kolkata)', value: 'Asia/Kolkata' },
+  { label: 'UTC', value: 'UTC' },
 ];
 
 /**
