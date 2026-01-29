@@ -4,7 +4,6 @@ import {
   handleDateNavigation,
   handleAvailabilityButton,
   handleDateSelect,
-  handleWeekModal,
   handleInfoModal,
   handleTimeModal,
   handleTimezoneButton,
@@ -49,9 +48,7 @@ export async function handleInteraction(interaction: Interaction): Promise<void>
 
     // Handle modal submissions
     if (interaction.isModalSubmit()) {
-      if (interaction.customId.startsWith('week_modal_')) {
-        await handleWeekModal(interaction);
-      } else if (interaction.customId.startsWith('info_modal_')) {
+      if (interaction.customId.startsWith('info_modal_')) {
         await handleInfoModal(interaction);
       } else if (interaction.customId.startsWith('time_modal_')) {
         await handleTimeModal(interaction);

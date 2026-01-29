@@ -99,7 +99,8 @@ export async function createTrainingStartPoll(
       .setTimestamp();
 
     // Layout: divisible by 3 → 3 per row, divisible by 2 → 2 per row (with spacer), else vertical
-    const columnsPerRow = options.length % 3 === 0 ? 3 : options.length % 2 === 0 ? 2 : 1;
+    const n = options.length;
+    const columnsPerRow = n % 3 === 0 ? 3 : n % 2 === 0 ? 2 : n >= 7 ? 3 : n >= 5 ? 2 : 1;
 
     addPollFields(embed, options.map(opt => ({
       name: `${opt.emoji} <t:${opt.timestamp}:t>`,
@@ -173,7 +174,8 @@ async function updateTrainingPollEmbed(poll: TrainingPoll): Promise<void> {
     const newEmbed = EmbedBuilder.from(embed);
     newEmbed.setFields([]);
 
-    const columnsPerRow = poll.options.length % 3 === 0 ? 3 : poll.options.length % 2 === 0 ? 2 : 1;
+    const n = poll.options.length;
+    const columnsPerRow = n % 3 === 0 ? 3 : n % 2 === 0 ? 2 : n >= 7 ? 3 : n >= 5 ? 2 : 1;
 
     addPollFields(newEmbed, poll.options.map(opt => ({
       name: `${opt.emoji} <t:${opt.timestamp}:t>`,

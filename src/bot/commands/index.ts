@@ -4,7 +4,6 @@ import {
   handleAvailabilityCommand,
   handleScheduleWeekCommand,
   handleMyScheduleCommand,
-  handleSetWeekCommandWrapper,
   handleSetTimezoneCommand,
   handleRemoveTimezoneCommand
 } from './availability.commands.js';
@@ -45,9 +44,6 @@ export async function handleCommand(interaction: ChatInputCommandInteraction): P
       break;
     case 'my-schedule':
       await handleMyScheduleCommand(interaction);
-      break;
-    case 'set-week':
-      await handleSetWeekCommandWrapper(interaction);
       break;
     case 'set-timezone':
       await handleSetTimezoneCommand(interaction);

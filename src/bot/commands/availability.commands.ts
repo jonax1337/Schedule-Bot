@@ -1,6 +1,6 @@
 import { ChatInputCommandInteraction, MessageFlags } from 'discord.js';
 import { getUserMapping, updateUserMapping } from '../../repositories/user-mapping.repository.js';
-import { createDateSelectMenu, sendWeekOverview, sendMySchedule, handleSetWeekCommand } from '../interactions/interactive.js';
+import { createDateSelectMenu, sendWeekOverview, sendMySchedule } from '../interactions/interactive.js';
 import { isValidTimezone, getTimezoneAbbreviation } from '../../shared/utils/timezoneConverter.js';
 import { config } from '../../shared/config/config.js';
 
@@ -46,13 +46,6 @@ export async function handleScheduleWeekCommand(interaction: ChatInputCommandInt
  */
 export async function handleMyScheduleCommand(interaction: ChatInputCommandInteraction): Promise<void> {
   await sendMySchedule(interaction);
-}
-
-/**
- * Handle /set-week command - Set your availability for the next 7 days at once
- */
-export async function handleSetWeekCommandWrapper(interaction: ChatInputCommandInteraction): Promise<void> {
-  await handleSetWeekCommand(interaction);
 }
 
 /**

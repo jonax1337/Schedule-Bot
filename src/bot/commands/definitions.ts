@@ -43,11 +43,6 @@ export const commands = [
     .toJSON(),
     
   new SlashCommandBuilder()
-    .setName('set-week')
-    .setDescription('Set your availability for the next 7 days at once')
-    .toJSON(),
-    
-  new SlashCommandBuilder()
     .setName('register')
     .setDescription('Register a user for availability management (Admin)')
     .addUserOption(option =>

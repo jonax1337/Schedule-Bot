@@ -22,8 +22,6 @@ import { getTodayFormatted, addDays, normalizeDateFormat, isDateAfterOrEqual } f
 import { getScheduleStatus, checkAndNotifyStatusChange } from '../utils/schedule-poster.js';
 import { config } from '../../shared/config/config.js';
 import { convertTimeRangeBetweenTimezones, getTimezoneAbbreviation, isValidTimezone } from '../../shared/utils/timezoneConverter.js';
-import type { ScheduleStatus } from '../../shared/types/types.js';
-// Week operations removed - use individual updatePlayerAvailability calls
 import { client } from '../client.js';
 
 export async function createDateNavigationButtons(currentDate: string): Promise<ActionRowBuilder<ButtonBuilder>> {
@@ -313,10 +311,25 @@ export async function handleDateSelect(
   interaction: StringSelectMenuInteraction
 ): Promise<void> {
   const selectedDate = interaction.values[0];
-  
+
+  const components: ActionRowBuilder<ButtonBuilder>[] = [createAvailabilityButtons(selectedDate)];
+
+  // Show timezone button if user has no timezone set
+  const userMapping = await getUserMapping(interaction.user.id);
+  if (userMapping && !userMapping.timezone) {
+    components.push(
+      new ActionRowBuilder<ButtonBuilder>().addComponents(
+        new ButtonBuilder()
+          .setCustomId('set_timezone_prompt')
+          .setLabel('🌍 Set Timezone')
+          .setStyle(ButtonStyle.Secondary)
+      )
+    );
+  }
+
   await interaction.reply({
     content: `What is your availability for **${selectedDate}**?`,
-    components: [createAvailabilityButtons(selectedDate)],
+    components,
     flags: MessageFlags.Ephemeral,
   });
 }
@@ -441,204 +454,6 @@ export async function sendMySchedule(
   }
 
   await interaction.editReply({ embeds: [embed] });
-}
-
-export async function createWeekModal(userId: string): Promise<ModalBuilder> {
-  const dates = getNext14Dates().slice(0, 5); // First 5 days
-  
-  // Get user mapping to fetch current values
-  const userMapping = await getUserMapping(userId);
-  let currentValues: string[] = ['', '', '', '', ''];
-  
-  if (userMapping) {
-    // Fetch current availability for the next 5 days
-    // Fetch availability for first 5 days
-    const availability: Record<string, string> = {};
-    for (let i = 0; i < 5 && i < dates.length; i++) {
-      const schedule = await getScheduleForDate(dates[i]);
-      if (schedule) {
-        const player = schedule.players.find(p => p.userId === userMapping.discordId);
-        if (player) {
-          availability[dates[i]] = player.availability;
-        }
-      }
-    }
-    
-    // Map availability to values array
-    for (let i = 0; i < dates.length && i < 5; i++) {
-      const value = availability[dates[i]];
-      if (value) {
-        currentValues[i] = value;
-      }
-    }
-  }
-  
-  return new ModalBuilder()
-    .setCustomId('week_modal')
-    .setTitle('Set Week Availability')
-    .addComponents(
-      new ActionRowBuilder<TextInputBuilder>().addComponents(
-        new TextInputBuilder()
-          .setCustomId('day_0')
-          .setLabel(`Day 1 (${dates[0]})`)
-          .setStyle(TextInputStyle.Short)
-          .setPlaceholder('14:00-22:00 or x (not available) or leave empty')
-          .setRequired(false)
-          .setMaxLength(20)
-          .setValue(currentValues[0])
-      ),
-      new ActionRowBuilder<TextInputBuilder>().addComponents(
-        new TextInputBuilder()
-          .setCustomId('day_1')
-          .setLabel(`Day 2 (${dates[1]})`)
-          .setStyle(TextInputStyle.Short)
-          .setPlaceholder('14:00-22:00 or x (not available) or leave empty')
-          .setRequired(false)
-          .setMaxLength(20)
-          .setValue(currentValues[1])
-      ),
-      new ActionRowBuilder<TextInputBuilder>().addComponents(
-        new TextInputBuilder()
-          .setCustomId('day_2')
-          .setLabel(`Day 3 (${dates[2]})`)
-          .setStyle(TextInputStyle.Short)
-          .setPlaceholder('14:00-22:00 or x (not available) or leave empty')
-          .setRequired(false)
-          .setMaxLength(20)
-          .setValue(currentValues[2])
-      ),
-      new ActionRowBuilder<TextInputBuilder>().addComponents(
-        new TextInputBuilder()
-          .setCustomId('day_3')
-          .setLabel(`Day 4 (${dates[3]})`)
-          .setStyle(TextInputStyle.Short)
-          .setPlaceholder('14:00-22:00 or x (not available) or leave empty')
-          .setRequired(false)
-          .setMaxLength(20)
-          .setValue(currentValues[3])
-      ),
-      new ActionRowBuilder<TextInputBuilder>().addComponents(
-        new TextInputBuilder()
-          .setCustomId('day_4')
-          .setLabel(`Day 5 (${dates[4]})`)
-          .setStyle(TextInputStyle.Short)
-          .setPlaceholder('14:00-22:00 or x (not available) or leave empty')
-          .setRequired(false)
-          .setMaxLength(20)
-          .setValue(currentValues[4])
-      )
-    );
-}
-
-export async function handleSetWeekCommand(
-  interaction: ChatInputCommandInteraction
-): Promise<void> {
-  const userMapping = await getUserMapping(interaction.user.id);
-  
-  if (!userMapping) {
-    await interaction.reply({
-      content: '❌ You are not registered yet. Please contact an admin to register you.',
-      flags: MessageFlags.Ephemeral,
-    });
-    return;
-  }
-
-  const modal = await createWeekModal(interaction.user.id);
-  await interaction.showModal(modal);
-}
-
-export async function handleWeekModal(
-  interaction: ModalSubmitInteraction
-): Promise<void> {
-  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-
-  const userMapping = await getUserMapping(interaction.user.id);
-  
-  if (!userMapping) {
-    await interaction.editReply({
-      content: '❌ You are not registered yet.',
-    });
-    return;
-  }
-
-  const dates = getNext14Dates().slice(0, 5);
-  const weekData: Record<string, string> = {};
-  const entries: string[] = [];
-
-  // Collect all 7 days (only first 5 are in modal due to Discord limit)
-  for (let i = 0; i < 5; i++) {
-    const value = interaction.fields.getTextInputValue(`day_${i}`).trim();
-    if (value) {
-      // Validate format
-      if (value.toLowerCase() === 'x') {
-        weekData[dates[i]] = 'x';
-        entries.push(`${dates[i]}: Not available`);
-      } else if (validateTimeRangeFormat(value)) {
-        // Convert from user's timezone to bot timezone if needed
-        const userTz = userMapping.timezone;
-        const botTz = config.scheduling.timezone;
-        let convertedValue = value;
-        if (userTz && userTz !== botTz) {
-          convertedValue = convertTimeRangeBetweenTimezones(value, dates[i], userTz, botTz);
-        }
-        weekData[dates[i]] = convertedValue;
-        // Format with Discord timestamps for confirmation display (using converted bot TZ times)
-        const timeParts = convertedValue.split('-').map((s: string) => s.trim());
-        if (timeParts.length === 2) {
-          const startTs = convertTimeToUnixTimestamp(dates[i], timeParts[0], botTz);
-          const endTs = convertTimeToUnixTimestamp(dates[i], timeParts[1], botTz);
-          entries.push(`${dates[i]}: <t:${startTs}:t> - <t:${endTs}:t>`);
-        } else {
-          entries.push(`${dates[i]}: ${convertedValue}`);
-        }
-      } else {
-        await interaction.editReply({
-          content: `❌ Invalid format for ${dates[i]}. Use HH:MM-HH:MM (e.g., 14:00-22:00) or 'x' for not available.`,
-        });
-        return;
-      }
-    }
-  }
-
-  if (Object.keys(weekData).length === 0) {
-    await interaction.editReply({
-      content: '❌ No availability entered. Please fill at least one day.',
-    });
-    return;
-  }
-
-  // Capture today's old status before updates (for change notification)
-  const today = getTodayFormatted();
-  let todayOldStatus: ScheduleStatus | undefined;
-  if (weekData[today] !== undefined) {
-    const oldState = await getScheduleStatus(today);
-    todayOldStatus = oldState?.status;
-  }
-
-  // Update all entries
-  // Update each day individually
-  let successCount = 0;
-  for (const [date, value] of Object.entries(weekData)) {
-    const success = await updatePlayerAvailability(date, userMapping.discordId, value);
-    if (success) successCount++;
-  }
-
-  const result = { success: successCount === Object.keys(weekData).length, updated: successCount };
-
-  if (result.success) {
-    await interaction.editReply({
-      content: `✅ Week availability updated successfully!\n\n${entries.join('\n')}`,
-    });
-  } else {
-    await interaction.editReply({
-      content: `⚠️ Partially updated. ${result.updated}/${Object.keys(weekData).length} days updated successfully.`,
-    });
-  }
-
-  // Check and notify status change for today (fire and forget)
-  if (todayOldStatus !== undefined) {
-    checkAndNotifyStatusChange(today, todayOldStatus).catch(() => {});
-  }
 }
 
 function validateTimeRangeFormat(value: string): boolean {
