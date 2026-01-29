@@ -100,8 +100,8 @@ export async function createQuickPoll(
 
   const embed = new EmbedBuilder()
     .setColor(0xf39c12)
-    .setTitle('📊 Quick Poll')
-    .setDescription(`**${question}**\n\nReact to vote!`)
+    .setTitle(question)
+    .setDescription('React to vote!')
     .setFooter({ text: `Poll closes in ${formatRemainingTime(durationMs)}` })
     .setTimestamp();
 
@@ -214,7 +214,7 @@ async function closePoll(messageId: string): Promise<void> {
     const sorted = [...poll.options].sort((a, b) => b.votes.length - a.votes.length);
     const totalVotes = sorted.reduce((sum, opt) => sum + opt.votes.length, 0);
 
-    let resultText = `**${poll.question}**\n\n**📊 Results:**\n\n`;
+    let resultText = '**📊 Results:**\n\n';
     let winnerLabel: string;
 
     if (totalVotes === 0) {
@@ -236,7 +236,7 @@ async function closePoll(messageId: string): Promise<void> {
 
     const embed = new EmbedBuilder()
       .setColor(0xe74c3c)
-      .setTitle(`📊 Quick Poll — CLOSED`)
+      .setTitle(`${poll.question} — CLOSED`)
       .setDescription(resultText)
       .setFooter({ text: 'Poll closed' })
       .setTimestamp();
@@ -268,8 +268,10 @@ export async function recoverQuickPolls(): Promise<void> {
       const embed = message.embeds[0];
       if (!embed) continue;
 
-      // Identify open quick polls by title
-      if (embed.title !== '📊 Quick Poll') continue;
+      // Identify open quick polls by description content
+      if (!embed.description?.includes('React to vote!')) continue;
+      // Skip training polls (identified by their own recovery)
+      if (embed.title === 'When do you want to start?') continue;
 
       // Already tracked
       if (activePolls.has(message.id)) continue;
@@ -300,9 +302,8 @@ export async function recoverQuickPolls(): Promise<void> {
 
       const expiresAt = new Date(createdAt + durationMs);
 
-      // Reconstruct question from description
-      const questionMatch = embed.description?.match(/\*\*(.+?)\*\*/);
-      const question = questionMatch ? questionMatch[1] : 'Unknown';
+      // Reconstruct question from title
+      const question = embed.title || 'Unknown';
 
       // Reconstruct options from fields
       const options: PollOption[] = [];
