@@ -6,9 +6,6 @@ import {
   Calendar,
   CalendarCheck,
   Trophy,
-  Shield,
-  LogOut,
-  User,
   Home,
   BarChart3,
   PlaneTakeoff,
@@ -150,20 +147,6 @@ export function UserSidebar({ userName, onLogout, ...props }: UserSidebarProps) 
     },
   ]
 
-  const handleAdminNavigation = async () => {
-    // Check if admin is already logged in
-    const { getUser } = await import('@/lib/auth')
-    const user = getUser()
-
-    if (user && user.role === 'admin') {
-      // Already logged in as admin, go directly to admin dashboard
-      router.push('/admin?tab=dashboard')
-    } else {
-      // Not logged in as admin, go to login page
-      router.push('/admin/login')
-    }
-  }
-
   const user = userName ? {
     name: userName,
     email: "",
@@ -239,17 +222,6 @@ export function UserSidebar({ userName, onLogout, ...props }: UserSidebarProps) 
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              tooltip="Admin Panel"
-              onClick={handleAdminNavigation}
-            >
-              <Shield />
-              <span>Admin Panel</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
         {user && <NavUser user={user} onLogout={onLogout} role={userRole} />}
       </SidebarFooter>
       <SidebarRail />

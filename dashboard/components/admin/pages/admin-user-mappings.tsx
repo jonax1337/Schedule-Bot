@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { stagger, microInteractions, cn } from '@/lib/animations';
 import { BOT_API_URL } from '@/lib/config';
 
@@ -49,6 +50,7 @@ interface UserMapping {
   role: 'main' | 'sub' | 'coach';
   sortOrder: number;
   timezone?: string | null;
+  avatarUrl?: string | null;
 }
 
 type RoleType = 'main' | 'sub' | 'coach';
@@ -116,6 +118,12 @@ function SortableUserItem({
       >
         <GripVertical className="w-4 h-4" />
       </button>
+      <Avatar className="h-10 w-10 rounded-lg shrink-0">
+        <AvatarImage src={mapping.avatarUrl || undefined} alt={mapping.displayName} />
+        <AvatarFallback className="rounded-lg text-xs">
+          {mapping.displayName.slice(0, 2).toUpperCase()}
+        </AvatarFallback>
+      </Avatar>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <span className="font-medium truncate">{mapping.displayName}</span>
