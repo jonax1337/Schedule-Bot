@@ -59,7 +59,7 @@ export async function sendRemindersToUsersWithoutEntry(client: Client, date?: st
           
           const embed = new EmbedBuilder()
             .setColor(0xf39c12)
-            .setTitle('⏰ Availability Reminder')
+            .setTitle('Availability Reminder')
             .setDescription(`You haven't set your availability for **${normalizedDate}** yet.\n\nPlease set your availability using the buttons below.`)
             .setTimestamp();
 
@@ -95,7 +95,7 @@ export async function sendReminderToUser(client: Client, userId: string, date: s
     
     const embed = new EmbedBuilder()
       .setColor(0xf39c12)
-      .setTitle('⏰ Availability Reminder')
+      .setTitle('Availability Reminder')
       .setDescription(`You haven't set your availability for **${normalizedDate}** yet.\n\nPlease set your availability using the buttons below.`)
       .setFooter({ text: 'Schedule Bot' })
       .setTimestamp();

@@ -91,18 +91,21 @@ export async function createTrainingStartPoll(
 
     const embed = new EmbedBuilder()
       .setColor(0xf39c12)
-      .setTitle('🎮 When do you want to start?')
+      .setTitle('When do you want to start?')
       .setDescription(
         `⏰ Available window: <t:${startTs}:t> - <t:${endTs}:t>\n\nReact to vote!`
       )
       .setFooter({ text: `Poll closes in ${pollDurationMinutes} minute(s)` })
       .setTimestamp();
 
+    // Use inline layout only when options divide evenly into rows of 3
+    const useInline = options.length % 3 === 0;
+
     options.forEach(opt => {
       embed.addFields({
         name: `${opt.emoji} <t:${opt.timestamp}:t>`,
         value: '0 votes',
-        inline: true,
+        inline: useInline,
       });
     });
 
@@ -173,11 +176,13 @@ async function updateTrainingPollEmbed(poll: TrainingPoll): Promise<void> {
     const newEmbed = EmbedBuilder.from(embed);
     newEmbed.setFields([]);
 
+    const useInline = poll.options.length % 3 === 0;
+
     poll.options.forEach(opt => {
       newEmbed.addFields({
         name: `${opt.emoji} <t:${opt.timestamp}:t>`,
         value: `${opt.votes.length} vote${opt.votes.length !== 1 ? 's' : ''}`,
-        inline: true,
+        inline: useInline,
       });
     });
 
@@ -212,7 +217,7 @@ async function closeTrainingPoll(messageId: string): Promise<void> {
 
     const embed = new EmbedBuilder()
       .setColor(0xe74c3c)
-      .setTitle('🎮 Training Start Poll - CLOSED')
+      .setTitle('Training Start Poll — CLOSED')
       .setDescription(resultText)
       .setFooter({ text: 'Poll closed' })
       .setTimestamp();
