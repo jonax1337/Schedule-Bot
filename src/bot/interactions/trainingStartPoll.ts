@@ -2,6 +2,7 @@ import { client } from '../client.js';
 import { TextChannel } from 'discord.js';
 import { config } from '../../shared/config/config.js';
 import { updateSetting, getSetting } from '../../shared/utils/settingsManager.js';
+import { convertTimeToUnixTimestamp } from '../embeds/embed.js';
 import type { ScheduleResult } from '../../shared/types/types.js';
 
 /**
@@ -64,10 +65,17 @@ export async function createTrainingStartPoll(
   }
 
   try {
+    // Send a companion message with Discord timestamps so users see times in their local timezone
+    const startTs = convertTimeToUnixTimestamp(date, timeRange.start, config.scheduling.timezone);
+    const endTs = convertTimeToUnixTimestamp(date, timeRange.end, config.scheduling.timezone);
+    await channel.send({
+      content: `⏰ Available time window: <t:${startTs}:t> - <t:${endTs}:t>`,
+    });
+
     const pollMessage = await channel.send({
       poll: {
         question: {
-          text: `🎮 When do you want to start? `,
+          text: `🎮 When do you want to start?`,
         },
         answers: options.map(opt => ({
           text: opt.text,

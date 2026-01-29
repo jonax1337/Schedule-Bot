@@ -12,8 +12,13 @@ const COLORS = {
 
 const THUMBNAIL_URL = 'https://cdn-icons-png.flaticon.com/512/3652/3652191.png';
 
-function formatPlayer(player: PlayerAvailability): string {
+function formatPlayer(player: PlayerAvailability, date?: string): string {
   if (player.available && player.timeRange) {
+    if (date) {
+      const startTs = convertTimeToUnixTimestamp(date, player.timeRange.start, config.scheduling.timezone);
+      const endTs = convertTimeToUnixTimestamp(date, player.timeRange.end, config.scheduling.timezone);
+      return `✅ ${player.displayName} <t:${startTs}:t> - <t:${endTs}:t>`;
+    }
     return `✅ ${player.displayName} \`${player.timeRange.start} - ${player.timeRange.end}\``;
   }
   if (player.isAbsent) {
@@ -22,7 +27,7 @@ function formatPlayer(player: PlayerAvailability): string {
   return `❌ ~~${player.displayName}~~`;
 }
 
-function convertTimeToUnixTimestamp(date: string, time: string, timezone: string): number {
+export function convertTimeToUnixTimestamp(date: string, time: string, timezone: string): number {
   const [day, month, year] = date.split('.').map(Number);
   const [hours, minutes] = time.split(':').map(Number);
 
@@ -70,7 +75,7 @@ export function buildScheduleEmbed(result: ScheduleResult): EmbedBuilder {
   // Main Roster
   const mainPlayers = schedule.players.filter(p => p.role === 'MAIN');
   if (mainPlayers.length > 0) {
-    const mainLines = mainPlayers.map(formatPlayer).join('\n');
+    const mainLines = mainPlayers.map(p => formatPlayer(p, schedule.date)).join('\n');
     embed.addFields({ name: 'Main Roster', value: mainLines, inline: false });
   }
 
@@ -80,7 +85,7 @@ export function buildScheduleEmbed(result: ScheduleResult): EmbedBuilder {
 
   if (visibleSubs.length > 0) {
     const subLines = visibleSubs.map(p => {
-      const line = formatPlayer(p);
+      const line = formatPlayer(p, schedule.date);
       const isRequired = result.requiredSubs.some(rs => rs.userId === p.userId);
       return isRequired ? line + ' 🔄' : line;
     }).join('\n');
@@ -92,7 +97,7 @@ export function buildScheduleEmbed(result: ScheduleResult): EmbedBuilder {
   const visibleCoaches = coaches.filter(p => p.timeRange !== null || p.rawValue.toLowerCase() === 'x' || p.isAbsent);
 
   if (visibleCoaches.length > 0) {
-    const coachLines = visibleCoaches.map(formatPlayer).join('\n');
+    const coachLines = visibleCoaches.map(p => formatPlayer(p, schedule.date)).join('\n');
     embed.addFields({ name: 'Coaches', value: coachLines, inline: false });
   }
 

@@ -17,9 +17,10 @@ import { getUserMapping } from '../../repositories/user-mapping.repository.js';
 import { updatePlayerAvailability, getScheduleForDate, getNext14Dates } from '../../repositories/schedule.repository.js';
 import { isUserAbsentOnDate, getAbsentUserIdsForDate } from '../../repositories/absence.repository.js';
 import { parseSchedule, analyzeSchedule } from '../../shared/utils/analyzer.js';
-import { buildScheduleEmbed } from '../embeds/embed.js';
+import { buildScheduleEmbed, convertTimeToUnixTimestamp } from '../embeds/embed.js';
 import { getTodayFormatted, addDays, normalizeDateFormat, isDateAfterOrEqual } from '../../shared/utils/dateFormatter.js';
 import { getScheduleStatus, checkAndNotifyStatusChange } from '../utils/schedule-poster.js';
+import { config } from '../../shared/config/config.js';
 import type { ScheduleStatus } from '../../shared/types/types.js';
 // Week operations removed - use individual updatePlayerAvailability calls
 import { client } from '../client.js';
@@ -281,8 +282,10 @@ export async function handleTimeModal(
 
   if (success) {
     const normalizedDate = normalizeDateFormat(date);
+    const startTs = convertTimeToUnixTimestamp(date, startTime, config.scheduling.timezone);
+    const endTs = convertTimeToUnixTimestamp(date, endTime, config.scheduling.timezone);
     await interaction.editReply({
-      content: `✅ Your availability for ${normalizedDate} has been set to ${timeRange}.`,
+      content: `✅ Your availability for ${normalizedDate} has been set to <t:${startTs}:t> - <t:${endTs}:t>.`,
     });
 
     // Check and notify status change (fire and forget)
@@ -334,9 +337,12 @@ export async function sendWeekOverview(
       else if (result.status === 'WITH_SUBS') statusEmoji = '⚠️';
 
       const availableCount = result.availableMainCount + result.availableSubCount;
-      const timeInfo = result.commonTimeRange 
-        ? `${result.commonTimeRange.start}-${result.commonTimeRange.end}`
-        : 'No common time';
+      let timeInfo = 'No common time';
+      if (result.commonTimeRange) {
+        const startTs = convertTimeToUnixTimestamp(date, result.commonTimeRange.start, config.scheduling.timezone);
+        const endTs = convertTimeToUnixTimestamp(date, result.commonTimeRange.end, config.scheduling.timezone);
+        timeInfo = `<t:${startTs}:t>-<t:${endTs}:t>`;
+      }
 
       embed.addFields({
         name: `${statusEmoji} ${date}`,
@@ -403,7 +409,19 @@ export async function sendMySchedule(
       if (entry.isAbsent) {
         status = '✈️ Absent';
       } else if (entry.value) {
-        status = entry.value === 'x' ? '❌ Not available' : `✅ ${entry.value}`;
+        if (entry.value === 'x') {
+          status = '❌ Not available';
+        } else {
+          // Convert time range to Discord timestamps
+          const parts = entry.value.split('-').map((s: string) => s.trim());
+          if (parts.length === 2) {
+            const startTs = convertTimeToUnixTimestamp(date, parts[0], config.scheduling.timezone);
+            const endTs = convertTimeToUnixTimestamp(date, parts[1], config.scheduling.timezone);
+            status = `✅ <t:${startTs}:t> - <t:${endTs}:t>`;
+          } else {
+            status = `✅ ${entry.value}`;
+          }
+        }
       } else {
         status = '⚪ No entry';
       }
@@ -547,7 +565,15 @@ export async function handleWeekModal(
         entries.push(`${dates[i]}: Not available`);
       } else if (validateTimeRangeFormat(value)) {
         weekData[dates[i]] = value;
-        entries.push(`${dates[i]}: ${value}`);
+        // Format with Discord timestamps for confirmation display
+        const timeParts = value.split('-').map((s: string) => s.trim());
+        if (timeParts.length === 2) {
+          const startTs = convertTimeToUnixTimestamp(dates[i], timeParts[0], config.scheduling.timezone);
+          const endTs = convertTimeToUnixTimestamp(dates[i], timeParts[1], config.scheduling.timezone);
+          entries.push(`${dates[i]}: <t:${startTs}:t> - <t:${endTs}:t>`);
+        } else {
+          entries.push(`${dates[i]}: ${value}`);
+        }
       } else {
         await interaction.editReply({
           content: `❌ Invalid format for ${dates[i]}. Use HH:MM-HH:MM (e.g., 14:00-22:00) or 'x' for not available.`,

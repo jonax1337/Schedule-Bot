@@ -3,6 +3,8 @@ import { getScheduleForDate } from '../../repositories/schedule.repository.js';
 import { getAbsentUserIdsForDate } from '../../repositories/absence.repository.js';
 import { parseSchedule, analyzeSchedule } from '../../shared/utils/analyzer.js';
 import { getTodayFormatted } from '../../shared/utils/dateFormatter.js';
+import { convertTimeToUnixTimestamp } from '../embeds/embed.js';
+import { config } from '../../shared/config/config.js';
 
 /**
  * Handle /poll command - Create a quick poll (Admin)
@@ -100,8 +102,10 @@ export async function handleSendTrainingPollCommand(interaction: ChatInputComman
     await createTrainingStartPoll(result, displayDate);
 
     const timeRange = result.commonTimeRange;
+    const startTs = convertTimeToUnixTimestamp(displayDate, timeRange.start, config.scheduling.timezone);
+    const endTs = convertTimeToUnixTimestamp(displayDate, timeRange.end, config.scheduling.timezone);
     await interaction.editReply({
-      content: `✅ Training start time poll sent for **${displayDate}**!\n\n⏰ Available time: ${timeRange.start}-${timeRange.end}`,
+      content: `✅ Training start time poll sent for **${displayDate}**!\n\n⏰ Available time: <t:${startTs}:t> - <t:${endTs}:t>`,
     });
   } catch (error) {
     console.error('Error sending training start poll:', error);
