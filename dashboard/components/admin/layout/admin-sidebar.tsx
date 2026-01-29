@@ -15,6 +15,7 @@ import {
   LayoutDashboard,
   BarChart3,
   Map,
+  BookOpen,
 } from "lucide-react"
 
 import { NavUser } from "@/components/shared"
@@ -119,6 +120,12 @@ export function AdminSidebar({ userName, onLogout, ...props }: AdminSidebarProps
       tab: "map-veto",
       icon: Map,
       isActive: currentTab === 'map-veto',
+    },
+    {
+      title: "Stratbook",
+      tab: "stratbook",
+      icon: BookOpen,
+      isActive: currentTab === 'stratbook',
     },
   ]
 

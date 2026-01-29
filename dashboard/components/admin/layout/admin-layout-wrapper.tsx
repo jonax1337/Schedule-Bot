@@ -7,12 +7,21 @@ import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/s
 import { Separator } from "@/components/ui/separator"
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage } from "@/components/ui/breadcrumb"
 import { ThemeToggle } from "@/components/theme"
+import { BreadcrumbProvider, useBreadcrumbSub } from "@/lib/breadcrumb-context"
 
 interface AdminLayoutWrapperProps {
   children: React.ReactNode
 }
 
 export function AdminLayoutWrapper({ children }: AdminLayoutWrapperProps) {
+  return (
+    <BreadcrumbProvider>
+      <AdminLayoutWrapperInner>{children}</AdminLayoutWrapperInner>
+    </BreadcrumbProvider>
+  )
+}
+
+function AdminLayoutWrapperInner({ children }: AdminLayoutWrapperProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [userName, setUserName] = useState<string | null>(null)
@@ -43,6 +52,8 @@ export function AdminLayoutWrapper({ children }: AdminLayoutWrapperProps) {
     router.push('/')
   }
 
+  const { subPage } = useBreadcrumbSub()
+
   const tabLabels: Record<string, string> = {
     dashboard: 'Dashboard',
     statistics: 'Statistics',
@@ -51,6 +62,7 @@ export function AdminLayoutWrapper({ children }: AdminLayoutWrapperProps) {
     schedule: 'Schedule',
     scrims: 'Scrims',
     'map-veto': 'Map Veto',
+    stratbook: 'Stratbook',
     actions: 'Actions',
     security: 'Security',
     logs: 'Logs',
@@ -66,8 +78,22 @@ export function AdminLayoutWrapper({ children }: AdminLayoutWrapperProps) {
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>
-                <BreadcrumbPage>{tabLabels[currentTab] || 'Dashboard'}</BreadcrumbPage>
+                {subPage ? (
+                  <BreadcrumbLink className="cursor-pointer" onClick={subPage.onNavigateBack}>
+                    {tabLabels[currentTab] || 'Dashboard'}
+                  </BreadcrumbLink>
+                ) : (
+                  <BreadcrumbPage>{tabLabels[currentTab] || 'Dashboard'}</BreadcrumbPage>
+                )}
               </BreadcrumbItem>
+              {subPage && (
+                <>
+                  <BreadcrumbSeparator />
+                  <BreadcrumbItem>
+                    <BreadcrumbPage>{subPage.label}</BreadcrumbPage>
+                  </BreadcrumbItem>
+                </>
+              )}
             </BreadcrumbList>
           </Breadcrumb>
           <div className="ml-auto">

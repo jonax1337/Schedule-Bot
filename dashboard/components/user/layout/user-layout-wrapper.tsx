@@ -7,6 +7,7 @@ import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/s
 import { Separator } from "@/components/ui/separator"
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage } from "@/components/ui/breadcrumb"
 import { ThemeToggle } from "@/components/theme"
+import { BreadcrumbProvider, useBreadcrumbSub } from "@/lib/breadcrumb-context"
 
 interface UserLayoutWrapperProps {
   children: React.ReactNode
@@ -14,6 +15,14 @@ interface UserLayoutWrapperProps {
 }
 
 export function UserLayoutWrapper({ children, breadcrumbs = [] }: UserLayoutWrapperProps) {
+  return (
+    <BreadcrumbProvider>
+      <UserLayoutWrapperInner breadcrumbs={breadcrumbs}>{children}</UserLayoutWrapperInner>
+    </BreadcrumbProvider>
+  )
+}
+
+function UserLayoutWrapperInner({ children, breadcrumbs = [] }: UserLayoutWrapperProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [userName, setUserName] = useState<string | null>(null)
@@ -27,12 +36,15 @@ export function UserLayoutWrapper({ children, breadcrumbs = [] }: UserLayoutWrap
     return sidebarCookie ? sidebarCookie.split('=')[1] === 'true' : true
   })
 
+  const { subPage } = useBreadcrumbSub()
+
   const tabLabels: Record<string, string> = {
     schedule: 'Schedule',
     availability: 'My Availability',
     absences: 'Absences',
     matches: 'Match History',
     'map-veto': 'Map Veto',
+    stratbook: 'Stratbook',
     statistics: 'Statistics',
   }
 
@@ -62,8 +74,22 @@ export function UserLayoutWrapper({ children, breadcrumbs = [] }: UserLayoutWrap
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem className="hidden md:block">
-                <BreadcrumbPage>{tabLabels[currentTab] || 'Schedule'}</BreadcrumbPage>
+                {subPage ? (
+                  <BreadcrumbLink className="cursor-pointer" onClick={subPage.onNavigateBack}>
+                    {tabLabels[currentTab] || 'Schedule'}
+                  </BreadcrumbLink>
+                ) : (
+                  <BreadcrumbPage>{tabLabels[currentTab] || 'Schedule'}</BreadcrumbPage>
+                )}
               </BreadcrumbItem>
+              {subPage && (
+                <>
+                  <BreadcrumbSeparator className="hidden md:block" />
+                  <BreadcrumbItem className="hidden md:block">
+                    <BreadcrumbPage>{subPage.label}</BreadcrumbPage>
+                  </BreadcrumbItem>
+                </>
+              )}
             </BreadcrumbList>
           </Breadcrumb>
           <div className="ml-auto">

@@ -8,4 +8,4 @@ export { Security } from './admin-security';
 export { Logs } from './admin-logs';
 
 // Re-export shared components for convenience
-export { Matches, AgentSelector, MapVetoPlanner } from '@/components/shared';
+export { Matches, AgentSelector, MapVetoPlanner, Stratbook } from '@/components/shared';

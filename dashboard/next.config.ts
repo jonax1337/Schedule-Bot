@@ -55,7 +55,7 @@ const nextConfig: NextConfig = {
               "img-src 'self' data: https:",
               "font-src 'self'",
               "connect-src 'self' " + (process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:3001'),
-              "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com",
+              "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com https://*.amazonaws.com",
               "object-src 'none'",
               "base-uri 'self'",
               "form-action 'self'",
