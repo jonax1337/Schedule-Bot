@@ -321,7 +321,6 @@ Features like change notifications, channel cleaning, poll duration, branding, a
 - **Authentication**: JWT (jsonwebtoken 9), bcrypt 6
 - **Security**: Helmet 8, CORS, Rate Limiting (express-rate-limit)
 - **Validation**: Joi 18
-- **Calendar**: ical-generator 10 (installed but not yet used)
 - **Config**: dotenv 17
 
 ### Frontend
