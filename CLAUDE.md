@@ -71,13 +71,12 @@ npx prisma db push
 npm run db:push
 ```
 
-### Utility Scripts
+### Deployment
 ```bash
-# Generate password hash for ADMIN_PASSWORD_HASH
-node dist/generateHash.js YOUR_PASSWORD
+# Docker deployment (PostgreSQL + Bot + Dashboard)
+docker-compose up -d
 
-# Import data from Excel (legacy)
-node dist/importFromExcel.js
+# Render.com deployment is configured via render.yaml
 ```
 
 ## Architecture
@@ -239,12 +238,14 @@ dashboard/
 ├── lib/
 │   ├── api.ts                  # API client (apiGet, apiPost, apiPut, apiDelete)
 │   ├── auth.ts                 # JWT token management
+│   ├── config.ts               # Dashboard config constants (BOT_API_URL, timeouts, retry settings)
+│   ├── timezone.ts             # Timezone React Context (TimezoneProvider, useTimezone, conversion utils)
 │   ├── types.ts                # Frontend type definitions
 │   ├── utils.ts                # Tailwind merge utility (cn)
 │   └── animations.ts           # Animation utilities (stagger, presets, micro-interactions)
 └── public/
     └── assets/
-        ├── agents/             # Valorant agent icons (32 .webp files)
+        ├── agents/             # Valorant agent icons (28 .webp files)
         └── maps/               # Valorant map images (12 .webp files)
 ```
 
@@ -567,7 +568,7 @@ Components are organized by domain/role:
 - `components/auth/` - Authentication UI
 - `components/shared/` - Shared across admin/user (agent-picker, matches, statistics, map-veto, nav-user)
 - `components/theme/` - Theme system (theme-toggle, theme-provider)
-- `components/ui/` - Radix UI primitives (31 components including chart)
+- `components/ui/` - Radix UI primitives (30 components including chart)
 
 Admin pages export from `components/admin/pages/index.ts` which also re-exports shared components (Matches, AgentSelector, MapVetoPlanner, Statistics) for convenience.
 
@@ -665,7 +666,11 @@ Player availability is stored as a string with three possible formats:
 - When a user has a personal timezone set, their time inputs (e.g., "14:00-20:00") are automatically converted from their timezone to the bot timezone before saving to DB
 - Timezone conversion uses `Intl.DateTimeFormat` formatter approach (`src/shared/utils/timezoneConverter.ts`)
 - The `user_mappings.user_timezone` column stores the IANA timezone string (nullable, null = bot default)
-- Dashboard also converts times for display: bot-TZ values from DB are converted to user's local timezone (`dashboard/lib/timezone.ts`)
+- **Dashboard timezone system** (`dashboard/lib/timezone.ts`):
+  - `TimezoneProvider` React Context wraps the app, providing `useTimezone()` hook
+  - Conversion functions: `convertTime()`, `convertTimeRange()`, `getTimezoneAbbr()`
+  - User timezone stored in localStorage, bot timezone auto-fetched from settings API (refreshed every 5 minutes)
+  - Bot-TZ values from DB are converted to user's local timezone for display
 - All Discord time displays use `<t:TIMESTAMP:t>` format so each user sees times in their local timezone automatically
 
 ### Settings Reload Pattern
