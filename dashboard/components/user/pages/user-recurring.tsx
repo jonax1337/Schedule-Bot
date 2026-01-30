@@ -623,7 +623,7 @@ export function UserRecurring() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <div className="flex gap-1">
+                      <div className="flex gap-1 justify-end">
                         {entry.availability && (
                           <Button
                             size="sm"

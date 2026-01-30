@@ -861,38 +861,36 @@ export function UserAvailability() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className="flex flex-col gap-0.5">
-                            {entry.justSaved ? (
-                              <span className="flex items-center gap-2 text-green-600 animate-fadeIn">
-                                <Check className="w-4 h-4" />
-                                Saved
-                              </span>
-                            ) : entry.value === 'x' ? (
-                              <span className="flex items-center gap-2 text-red-500">
-                                <XCircle className="w-4 h-4" />
-                                Not Available
-                              </span>
-                            ) : entry.value ? (
-                              <span className="flex items-center gap-2 text-green-600">
-                                <Clock className="w-4 h-4" />
-                                {convertRangeToLocal(entry.value)}
-                                {isConverting && (
-                                  <span className="text-xs text-muted-foreground">({entry.value} {getTimezoneAbbr(botTimezone)})</span>
-                                )}
-                              </span>
-                            ) : (
-                              <span className="text-gray-400">Not set</span>
-                            )}
-                            {entry.isRecurring && (
-                              <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                                <RefreshCw className="w-3 h-3 shrink-0" />
-                                from recurring
-                              </span>
-                            )}
-                          </div>
+                          {entry.justSaved ? (
+                            <span className="flex items-center gap-2 text-green-600 animate-fadeIn">
+                              <Check className="w-4 h-4" />
+                              Saved
+                            </span>
+                          ) : entry.value === 'x' ? (
+                            <span className="flex items-center gap-2 text-red-500">
+                              <XCircle className="w-4 h-4" />
+                              Not Available
+                              {entry.isRecurring && (
+                                <RefreshCw className="w-3 h-3 text-muted-foreground" />
+                              )}
+                            </span>
+                          ) : entry.value ? (
+                            <span className="flex items-center gap-2 text-green-600">
+                              <Clock className="w-4 h-4" />
+                              {convertRangeToLocal(entry.value)}
+                              {isConverting && (
+                                <span className="text-xs text-muted-foreground">({entry.value} {getTimezoneAbbr(botTimezone)})</span>
+                              )}
+                              {entry.isRecurring && (
+                                <RefreshCw className="w-3 h-3 text-muted-foreground" />
+                              )}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400">Not set</span>
+                          )}
                         </TableCell>
                         <TableCell>
-                          <div className="flex gap-1">
+                          <div className="flex gap-1 justify-end">
                             {entry.value && (
                               <Button
                                 size="sm"
