@@ -134,7 +134,7 @@ export function Stratbook() {
 
   const checkPermission = async () => {
     try {
-      const { getAuthHeaders } = await import('@/lib/auth');
+      const { getAuthHeaders, getAuthToken } = await import('@/lib/auth');
       const headers = getAuthHeaders();
       // Fetch settings to check editPermission
       const res = await fetch(`${BOT_API_URL}/api/settings`, { headers });
@@ -142,7 +142,7 @@ export function Stratbook() {
         const settings = await res.json();
         const editPerm = settings?.stratbook?.editPermission || 'admin';
         // Check if current user is admin or if all users can edit
-        const token = localStorage.getItem('authToken');
+        const token = getAuthToken();
         if (token) {
           try {
             const payload = JSON.parse(atob(token.split('.')[1]));

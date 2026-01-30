@@ -16,7 +16,9 @@ const router = Router();
 // --- Image upload setup ---
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const UPLOAD_DIR = path.resolve(__dirname, '../../../uploads/strategies');
+const UPLOAD_DIR = process.env.UPLOAD_DIR
+  ? path.resolve(process.env.UPLOAD_DIR, 'strategies')
+  : path.resolve(__dirname, '../../../uploads/strategies');
 
 // Ensure upload directory exists
 if (!fs.existsSync(UPLOAD_DIR)) {
