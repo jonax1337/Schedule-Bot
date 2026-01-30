@@ -229,9 +229,10 @@ dashboard/
 │   │   ├── nav-user.tsx        # User navigation (sidebar user menu)
 │   │   ├── matches.tsx         # Match history (maps, agents, VOD)
 │   │   ├── statistics.tsx      # Charts & analytics (Recharts, mobile-friendly)
-│   │   ├── map-veto.tsx        # Map veto planner with drag-and-drop
 │   │   ├── stratbook.tsx       # Notion-powered strategy viewer
-│   │   └── notion-renderer.tsx # Renders Notion blocks (headings, lists, code, images)
+│   │   ├── notion-renderer.tsx # Renders Notion blocks (headings, lists, code, images)
+│   │   ├── sidebar-branding-header.tsx # Reusable sidebar branding header
+│   │   └── sidebar-nav-group.tsx # Reusable sidebar navigation group
 │   ├── error-boundary.tsx       # React error boundary with retry UI
 │   ├── auth/                   # Auth components
 │   │   ├── index.ts
@@ -259,7 +260,8 @@ dashboard/
 │           ├── user-recurring.tsx      # Recurring weekly availability management
 │           └── user-absences.tsx       # Absence/vacation management
 ├── hooks/
-│   └── use-mobile.ts           # Mobile breakpoint hook (768px)
+│   ├── use-mobile.ts           # Mobile breakpoint hook (768px)
+│   └── use-branding.ts         # Fetches branding settings (teamName, tagline, logoUrl)
 ├── lib/
 │   ├── api.ts                  # API client (apiGet, apiPost, apiPut, apiDelete)
 │   ├── auth.ts                 # JWT token management
@@ -597,15 +599,16 @@ Two auth modes:
 
 ### Dashboard Routing
 Next.js App Router structure:
-- `/` - Home page (tab-based: schedule, availability, recurring, absences, matches, map-veto, stratbook, statistics)
+- `/` - Home page (tab-based: schedule, availability, recurring, absences, matches, stratbook, statistics)
 - `/login` - User login page
 - `/admin/login` - Admin login page
-- `/admin` - Admin dashboard (tab-based: dashboard, statistics, settings, users, schedule, scrims, map-veto, actions, security, logs)
+- `/admin` - Admin dashboard (tab-based: dashboard, statistics, settings, users, schedule, scrims, stratbook, actions, security, logs)
 - `/auth/callback` - Discord OAuth callback handler
 
-Admin sidebar navigation is organized into three logical groups:
+Admin sidebar navigation is organized into four logical groups:
 - **Overview:** Dashboard, Statistics
-- **Team:** Schedule, Users, Matches, Map Veto, Stratbook
+- **Schedule:** Schedule, Users
+- **Competitive:** Matches, Stratbook
 - **System:** Settings, Actions, Security, Logs
 
 ### Dashboard API Proxy Layer
@@ -624,11 +627,11 @@ Components are organized by domain/role:
   - `layout/` - User layout wrapper and sidebar
   - `pages/` - User content pages (user-schedule, user-availability, user-recurring, user-absences)
 - `components/auth/` - Authentication UI
-- `components/shared/` - Shared across admin/user (agent-picker, matches, statistics, map-veto, stratbook, notion-renderer, nav-user)
+- `components/shared/` - Shared across admin/user (agent-picker, matches, statistics, stratbook, notion-renderer, nav-user, sidebar-branding-header, sidebar-nav-group)
 - `components/theme/` - Theme system (theme-toggle, theme-provider)
 - `components/ui/` - Radix UI primitives (30 components including chart)
 
-Admin pages export from `components/admin/pages/index.ts` which also re-exports shared components (Matches, AgentSelector, MapVetoPlanner, Statistics, Stratbook) for convenience.
+Admin pages export from `components/admin/pages/index.ts` which also re-exports shared components (Matches, AgentSelector, Statistics, Stratbook) for convenience.
 
 ### Statistics Component
 The `Statistics` component (`components/shared/statistics.tsx`) provides team analytics using Recharts:
@@ -645,13 +648,6 @@ The `Matches` component (`components/shared/matches.tsx`) provides match history
 - **Create/Edit Dialog** - Form for adding or editing match records with agent picker
 - **Filtering** - Filter by date range and opponent
 - Used in both admin dashboard (Matches tab) and user portal (Matches tab)
-
-### Map Veto Planner
-The `MapVetoPlanner` component (`components/shared/map-veto.tsx`) provides a drag-and-drop interface for map veto planning:
-- **Map Pool Management** - Visual drag-and-drop using @dnd-kit library
-- **Veto Process Simulation** - Plan pick/ban sequences for competitive matches
-- **Map Images** - Uses Valorant map images from `public/assets/maps/`
-- Available in both user portal and admin dashboard via the "Map Veto" tab
 
 ### Stratbook (Notion Integration)
 The `Stratbook` component (`components/shared/stratbook.tsx`) provides a read-only strategy viewer powered by Notion:
@@ -860,7 +856,7 @@ Scrims use custom IDs: `scrim_${timestamp}_${random}` (string, not auto-incremen
 
 ## Code Style
 
-- **Backend** TypeScript strict mode is DISABLED (`strict: false`, `noImplicitAny: false` in tsconfig.json), Target: ES2022, Module: NodeNext
+- **Backend** TypeScript strict mode is ENABLED (`strict: true` in tsconfig.json), Target: ES2022, Module: NodeNext
 - **Dashboard** TypeScript strict mode is ENABLED (full strict), Target: ES2017, Module: esnext, Path alias: `@/*` → `./*`
 - Use async/await for all database operations
 - Error handling: try/catch with `logger.error()` (structured logging throughout)
