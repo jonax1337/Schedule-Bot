@@ -134,7 +134,7 @@ async function initializeScheduleEntries(): Promise<void> {
   logger.info('Creating schedule entries for next 14 days');
 
   const today = new Date();
-  const entries = [];
+  const entries: { date: string; reason: string; focus: string }[] = [];
 
   for (let i = 0; i < 14; i++) {
     const date = new Date(today);
