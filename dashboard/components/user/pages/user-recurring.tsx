@@ -14,7 +14,6 @@ import { BOT_API_URL } from '@/lib/config';
 import { useTimezone, getTimezoneAbbr } from '@/lib/timezone';
 
 const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-const WEEKDAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 interface RecurringEntry {
   id: number;
@@ -27,6 +26,7 @@ interface RecurringEntry {
 export function UserRecurring() {
   const router = useRouter();
   const { convertRangeToLocal, convertRangeToBot, isConverting, userTimezone, botTimezoneLoaded, timezoneVersion } = useTimezone();
+  const [userDiscordId, setUserDiscordId] = useState('');
   const [entries, setEntries] = useState<RecurringEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -47,7 +47,7 @@ export function UserRecurring() {
           router.replace('/login');
           return;
         }
-        await loadData();
+        await loadData(savedUser);
       } catch {
         router.push('/login');
       }
@@ -56,13 +56,34 @@ export function UserRecurring() {
     checkAuthAndLoad();
   }, [router, botTimezoneLoaded, timezoneVersion]);
 
-  const loadData = async () => {
+  const loadData = async (userName?: string) => {
     setLoading(true);
     try {
       const { getAuthHeaders } = await import('@/lib/auth');
       const headers = getAuthHeaders();
 
-      const res = await fetch(`${BOT_API_URL}/api/recurring-availability/my`, { headers });
+      // Resolve Discord ID from user mappings (same pattern as user-availability)
+      let discordId = userDiscordId;
+      if (!discordId) {
+        const mappingsRes = await fetch(`${BOT_API_URL}/api/user-mappings`, { headers });
+        if (!mappingsRes.ok) {
+          toast.error('Failed to load user mappings');
+          setLoading(false);
+          return;
+        }
+        const mappingsData = await mappingsRes.json().catch(() => ({ mappings: [] }));
+        const currentUser = userName || localStorage.getItem('selectedUser');
+        const userMapping = mappingsData.mappings.find((m: any) => m.displayName === currentUser);
+        if (!userMapping) {
+          toast.error('User not found in roster');
+          setLoading(false);
+          return;
+        }
+        discordId = userMapping.discordId;
+        setUserDiscordId(discordId);
+      }
+
+      const res = await fetch(`${BOT_API_URL}/api/recurring-availability?userId=${discordId}`, { headers });
       if (!res.ok) {
         toast.error('Failed to load recurring schedule');
         setLoading(false);
@@ -111,7 +132,7 @@ export function UserRecurring() {
       const response = await fetch(`${BOT_API_URL}/api/recurring-availability`, {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ dayOfWeek, availability: botValue }),
+        body: JSON.stringify({ dayOfWeek, availability: botValue, userId: userDiscordId }),
       });
 
       if (response.ok) {
@@ -136,7 +157,7 @@ export function UserRecurring() {
       const response = await fetch(`${BOT_API_URL}/api/recurring-availability`, {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ dayOfWeek, availability: 'x' }),
+        body: JSON.stringify({ dayOfWeek, availability: 'x', userId: userDiscordId }),
       });
 
       if (response.ok) {
@@ -162,7 +183,7 @@ export function UserRecurring() {
     try {
       const { getAuthHeaders } = await import('@/lib/auth');
 
-      const response = await fetch(`${BOT_API_URL}/api/recurring-availability/${dayOfWeek}`, {
+      const response = await fetch(`${BOT_API_URL}/api/recurring-availability/${dayOfWeek}?userId=${userDiscordId}`, {
         method: 'DELETE',
         headers: getAuthHeaders(),
       });
@@ -190,7 +211,7 @@ export function UserRecurring() {
     try {
       const { getAuthHeaders } = await import('@/lib/auth');
 
-      const response = await fetch(`${BOT_API_URL}/api/recurring-availability`, {
+      const response = await fetch(`${BOT_API_URL}/api/recurring-availability?userId=${userDiscordId}`, {
         method: 'DELETE',
         headers: getAuthHeaders(),
       });
@@ -233,7 +254,7 @@ export function UserRecurring() {
       const response = await fetch(`${BOT_API_URL}/api/recurring-availability/bulk`, {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ days: Array.from(selectedDays), availability: botValue }),
+        body: JSON.stringify({ days: Array.from(selectedDays), availability: botValue, userId: userDiscordId }),
       });
 
       if (response.ok) {
@@ -265,7 +286,7 @@ export function UserRecurring() {
       const response = await fetch(`${BOT_API_URL}/api/recurring-availability/bulk`, {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ days: Array.from(selectedDays), availability: 'x' }),
+        body: JSON.stringify({ days: Array.from(selectedDays), availability: 'x', userId: userDiscordId }),
       });
 
       if (response.ok) {
