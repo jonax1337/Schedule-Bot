@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2, XCircle, Clock, CheckSquare, Square, Check, PlaneTakeoff } from 'lucide-react';
+import { Loader2, XCircle, Clock, CheckSquare, Square, Check, PlaneTakeoff, CalendarDays } from 'lucide-react';
 import { toast } from 'sonner';
 import { stagger, microInteractions, cn } from '@/lib/animations';
 import { BOT_API_URL } from '@/lib/config';
@@ -692,6 +692,15 @@ export function UserAvailability() {
 
       {/* Main Table */}
       <Card className="animate-fadeIn">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CalendarDays className="w-5 h-5" />
+            My Availability
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Set your availability for the next 14 days. Changes are auto-saved when you fill in both time fields.
+          </p>
+        </CardHeader>
         <CardContent>
           <Table className="table-fixed w-full">
             <colgroup>

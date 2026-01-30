@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -233,14 +233,12 @@ export function UserAbsences() {
   return (
     <div className="space-y-4">
       <Card className={stagger(0, 'slow', 'slideUpScale')}>
-        <CardContent>
-          {/* Action bar */}
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-sm text-muted-foreground">
-              {activeAbsences.length > 0
-                ? `${activeAbsences.length} active/upcoming absence${activeAbsences.length !== 1 ? 's' : ''}`
-                : 'No active absences'}
-            </p>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <PlaneTakeoff className="w-5 h-5" />
+              Absences
+            </CardTitle>
             <Button
               size="sm"
               onClick={openNewAbsenceDialog}
@@ -250,6 +248,13 @@ export function UserAbsences() {
               New Absence
             </Button>
           </div>
+          <p className="text-sm text-muted-foreground">
+            {activeAbsences.length > 0
+              ? `${activeAbsences.length} active/upcoming absence${activeAbsences.length !== 1 ? 's' : ''}`
+              : 'No active absences. Plan vacations or days off here.'}
+          </p>
+        </CardHeader>
+        <CardContent>
 
           {/* Absences Table */}
           {absences.length > 0 ? (
