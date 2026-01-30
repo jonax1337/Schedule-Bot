@@ -627,17 +627,19 @@ export function UserRecurring() {
                         >
                           Not Available
                         </Button>
-                        {entry.availability && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => removeDay(entry.dayOfWeek)}
-                            disabled={saving || entry.isSaving}
-                            className={cn(microInteractions.activePress, microInteractions.smooth)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => removeDay(entry.dayOfWeek)}
+                          disabled={saving || entry.isSaving || !entry.availability}
+                          className={cn(
+                            microInteractions.activePress,
+                            microInteractions.smooth,
+                            !entry.availability && 'invisible'
+                          )}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
