@@ -695,13 +695,13 @@ export function UserAvailability() {
         <CardContent>
           <Table className="table-fixed w-full">
             <colgroup>
-              <col style={{ width: 40 }} />
-              <col style={{ width: 100 }} />
-              <col style={{ width: 100 }} />
-              <col style={{ width: 140 }} />
-              <col style={{ width: 140 }} />
+              <col className="w-10" />
+              <col className="w-[100px]" />
+              <col className="w-[100px]" />
+              <col className="w-[140px]" />
+              <col className="w-[140px]" />
               <col />
-              <col style={{ width: 130 }} />
+              <col className="w-[130px]" />
             </colgroup>
             <TableHeader>
               <TableRow>
@@ -801,26 +801,24 @@ export function UserAvailability() {
                             />
                           </div>
                         </TableCell>
-                        <TableCell className="overflow-hidden">
+                        <TableCell>
                           {entry.justSaved ? (
                             <span className="flex items-center gap-2 text-green-600 animate-fadeIn">
-                              <Check className="w-4 h-4 shrink-0" />
+                              <Check className="w-4 h-4" />
                               Saved
                             </span>
                           ) : entry.value === 'x' ? (
                             <span className="flex items-center gap-2 text-red-500">
-                              <XCircle className="w-4 h-4 shrink-0" />
+                              <XCircle className="w-4 h-4" />
                               Not Available
                             </span>
                           ) : entry.value ? (
-                            <span className="flex items-center gap-2 text-green-600 truncate">
-                              <Clock className="w-4 h-4 shrink-0" />
-                              <span className="truncate">
-                                {convertRangeToLocal(entry.value)}
-                                {isConverting && (
-                                  <span className="text-xs text-muted-foreground ml-1">({entry.value} {getTimezoneAbbr(botTimezone)})</span>
-                                )}
-                              </span>
+                            <span className="flex items-center gap-2 text-green-600">
+                              <Clock className="w-4 h-4" />
+                              {convertRangeToLocal(entry.value)}
+                              {isConverting && (
+                                <span className="text-xs text-muted-foreground">({entry.value} {getTimezoneAbbr(botTimezone)})</span>
+                              )}
                             </span>
                           ) : (
                             <span className="text-gray-400">Not set</span>
