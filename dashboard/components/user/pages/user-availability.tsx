@@ -707,8 +707,8 @@ export function UserAvailability() {
                 <TableHead>Weekday</TableHead>
                 <TableHead>From</TableHead>
                 <TableHead>To</TableHead>
-                <TableHead>Current Status</TableHead>
-                <TableHead></TableHead>
+                <TableHead className="min-w-[200px]">Current Status</TableHead>
+                <TableHead className="min-w-[120px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
