@@ -66,7 +66,8 @@ router.post('/user/login', loginLimiter, async (req, res) => {
       return res.status(401).json({ success: false, error: 'Invalid credentials' });
     }
 
-    const token = generateToken(username, 'user');
+    const userRole = userMapping.isAdmin ? 'admin' : 'user';
+    const token = generateToken(username, userRole as 'admin' | 'user');
 
     logger.success('User login successful', `User: ${username}`);
     res.json({
@@ -75,7 +76,7 @@ router.post('/user/login', loginLimiter, async (req, res) => {
       expiresIn: '24h',
       user: {
         username,
-        role: 'user'
+        role: userRole,
       }
     });
   } catch (error) {

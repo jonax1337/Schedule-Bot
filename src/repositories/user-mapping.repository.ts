@@ -7,6 +7,7 @@ export interface UserMapping {
   role: 'main' | 'sub' | 'coach';
   sortOrder: number;
   timezone?: string | null;
+  isAdmin?: boolean;
 }
 
 export async function getUserMappings(): Promise<UserMapping[]> {
@@ -24,6 +25,7 @@ export async function getUserMappings(): Promise<UserMapping[]> {
     role: m.role.toLowerCase() as 'main' | 'sub' | 'coach',
     sortOrder: m.sortOrder,
     timezone: m.timezone,
+    isAdmin: m.isAdmin,
   }));
 }
 
@@ -111,6 +113,7 @@ export async function getUserMapping(discordId: string): Promise<UserMapping | n
     role: mapping.role.toLowerCase() as 'main' | 'sub' | 'coach',
     sortOrder: mapping.sortOrder,
     timezone: mapping.timezone,
+    isAdmin: mapping.isAdmin,
   };
 }
 
@@ -122,6 +125,7 @@ export async function updateUserMapping(discordId: string, updates: Partial<User
   if (updates.role) data.role = updates.role.toUpperCase() as 'MAIN' | 'SUB' | 'COACH';
   if (updates.sortOrder !== undefined) data.sortOrder = updates.sortOrder;
   if (updates.timezone !== undefined) data.timezone = updates.timezone;
+  if (updates.isAdmin !== undefined) data.isAdmin = updates.isAdmin;
 
   await prisma.userMapping.update({
     where: { discordId },

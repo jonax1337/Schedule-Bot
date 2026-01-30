@@ -177,9 +177,10 @@ export async function handleDiscordCallback(req: Request, res: Response) {
       });
     }
 
-    // Generate JWT token instead of session token
+    // Generate JWT token - grant admin role if user is marked as admin
     const { generateToken } = await import('../../shared/middleware/auth.js');
-    const token = generateToken(mapping.displayName, 'user');
+    const jwtRole = mapping.isAdmin ? 'admin' : 'user';
+    const token = generateToken(mapping.displayName, jwtRole);
 
     // Build Discord avatar URL
     const avatarUrl = discordUser.avatar
@@ -192,7 +193,7 @@ export async function handleDiscordCallback(req: Request, res: Response) {
       user: {
         id: discordUser.id,
         username: mapping.displayName,
-        role: 'user',
+        role: jwtRole,
         discordId,
         discordUsername,
         avatar: avatarUrl,

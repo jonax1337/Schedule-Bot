@@ -87,7 +87,7 @@ router.put('/reorder', verifyToken, requireAdmin, validate(reorderUserMappingsSc
 router.put('/:discordId', verifyToken, requireAdmin, validate(updateUserMappingSchema), async (req: AuthRequest, res) => {
   try {
     const oldDiscordId = req.params.discordId as string;
-    const { discordId, discordUsername, displayName, role, sortOrder, timezone } = req.body;
+    const { discordId, discordUsername, displayName, role, sortOrder, timezone, isAdmin } = req.body;
 
     await updateUserMapping(oldDiscordId, {
       discordId,
@@ -96,6 +96,7 @@ router.put('/:discordId', verifyToken, requireAdmin, validate(updateUserMappingS
       role,
       sortOrder,
       timezone: timezone || null,
+      isAdmin,
     });
 
     await syncUserMappingsToSchedules();

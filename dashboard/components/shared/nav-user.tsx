@@ -6,6 +6,7 @@ import {
   LogOut,
   Globe,
   Check,
+  ShieldCheck,
 } from "lucide-react"
 
 import {
@@ -47,6 +48,7 @@ export function NavUser({
   user,
   onLogout,
   role,
+  isAdmin,
 }: {
   user: {
     name: string
@@ -55,6 +57,7 @@ export function NavUser({
   }
   onLogout?: () => void
   role?: string
+  isAdmin?: boolean
 }) {
   const { isMobile } = useSidebar()
   const { userTimezone, setUserTimezone } = useTimezone()
@@ -120,6 +123,17 @@ export function NavUser({
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
+            {isAdmin && (
+              <>
+                <DropdownMenuGroup>
+                  <DropdownMenuItem onClick={() => { window.location.href = '/admin' }}>
+                    <ShieldCheck className="h-4 w-4" />
+                    Admin Dashboard
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator />
+              </>
+            )}
             <DropdownMenuGroup>
               <DropdownMenuItem asChild onSelect={(e) => e.preventDefault()}>
                 <Popover open={tzOpen} onOpenChange={setTzOpen}>

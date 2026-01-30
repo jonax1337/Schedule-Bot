@@ -39,6 +39,7 @@ export function UserSidebar({ userName, onLogout, ...props }: UserSidebarProps) 
   const pathname = usePathname()
   const router = useRouter()
   const [userRole, setUserRole] = React.useState<string | undefined>(undefined)
+  const [isAdmin, setIsAdmin] = React.useState(false)
   const [avatarUrl, setAvatarUrl] = React.useState("")
   const [teamName, setTeamName] = React.useState<string>('Valorant Bot')
   const [tagline, setTagline] = React.useState<string>('Schedule Manager')
@@ -59,6 +60,7 @@ export function UserSidebar({ userName, onLogout, ...props }: UserSidebarProps) 
           const userMapping = data.mappings.find((m: any) => m.displayName === userName)
           if (userMapping) {
             setUserRole(userMapping.role.toLowerCase())
+            setIsAdmin(!!userMapping.isAdmin)
             if (userMapping.avatarUrl) {
               setAvatarUrl(userMapping.avatarUrl)
             }
@@ -236,7 +238,7 @@ export function UserSidebar({ userName, onLogout, ...props }: UserSidebarProps) 
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
-        {user && <NavUser user={user} onLogout={onLogout} role={userRole} />}
+        {user && <NavUser user={user} onLogout={onLogout} role={userRole} isAdmin={isAdmin} />}
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
