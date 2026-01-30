@@ -521,12 +521,10 @@ export function UserRecurring() {
       {/* Main Table */}
       <Card className="animate-fadeIn">
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <RefreshCw className="w-5 h-5" />
-              Recurring Weekly Schedule
-            </CardTitle>
-          </div>
+          <CardTitle className="flex items-center gap-2">
+            <RefreshCw className="w-5 h-5" />
+            Recurring Weekly Schedule
+          </CardTitle>
           <p className="text-sm text-muted-foreground">
             Set your default weekly availability. Auto-applied when new schedule days are created. Override specific dates in &quot;My Availability&quot;.
           </p>

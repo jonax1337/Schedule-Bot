@@ -232,7 +232,7 @@ export function UserAbsences() {
 
   return (
     <div className="space-y-4">
-      <Card className={stagger(0, 'slow', 'slideUpScale')}>
+      <Card className="animate-fadeIn">
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
