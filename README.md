@@ -83,6 +83,7 @@
 - **Training Start Polls**: Vote on preferred training start times with reaction-based embeds
 - **Poll Recovery**: Open polls survive bot restarts — automatically recovered from channel messages
 - **Absence Management**: Plan absences in advance with automatic marking
+- **Recurring Availability**: Set weekly default availability patterns that auto-apply to new schedules
 
 ### Dashboard Features
 - **Admin Panel**: Manage configuration and restart services with one click
@@ -97,6 +98,7 @@
 - **User Management**: Register/unregister Discord users and sync mappings
 - **Manual Actions**: Trigger posts, reminders, notifications, and polls manually
 - **Branding Customization**: Configure team name, tagline, and logo via settings
+- **Recurring Schedule**: Manage weekly recurring availability with auto-save and bulk operations
 - **Responsive Design**: Works on desktop, tablet, and mobile (PWA-ready)
 - **Dark Mode**: Full dark mode support with system preference detection
 
@@ -108,6 +110,7 @@
 - **Change Notifications**: Automatic channel alerts when roster status changes (upgrades or downgrades), with role pings and fresh training polls
 - **Training Polls**: Optional automatic training time voting with reaction-based embeds
 - **Poll Recovery**: Open polls are automatically recovered from channel messages after bot restart
+- **Recurring Availability**: Auto-applies weekly defaults when new schedule days are seeded
 - **Absence Integration**: Absent players excluded from reminders, polls, and marked in daily embeds
 
 ---
@@ -345,6 +348,7 @@ Features like change notifications, channel cleaning, poll duration, branding, a
 - **user_mappings**: Discord ID → Dashboard user mapping (includes per-user timezone)
 - **scrims**: Match tracking data
 - **absences**: Planned absences
+- **recurring_availabilities**: Weekly recurring availability patterns
 - **settings**: Persistent bot configuration
 
 ---
@@ -705,7 +709,17 @@ The migration creates the following tables:
 - `created_at`, `updated_at` (TIMESTAMP)
 - **Indexes**: `user_id`, `(start_date, end_date)`
 
-**5. scrims**
+**5. recurring_availabilities**
+- `id` (SERIAL PRIMARY KEY)
+- `user_id` (TEXT) - Discord ID
+- `day_of_week` (INTEGER) - 0-6 (Sunday=0)
+- `availability` (TEXT) - Time range (e.g., "18:00-22:00")
+- `active` (BOOLEAN) - Whether entry is active (default: true)
+- `created_at`, `updated_at` (TIMESTAMP)
+- **Indexes**: `user_id`, `day_of_week`
+- **Unique**: `(user_id, day_of_week)`
+
+**6. scrims**
 - `id` (TEXT PRIMARY KEY)
 - `date` (TEXT)
 - `opponent` (TEXT)
@@ -717,7 +731,7 @@ The migration creates the following tables:
 - `created_at`, `updated_at` (TIMESTAMP)
 - **Index**: `date`
 
-**6. settings**
+**7. settings**
 - `id` (SERIAL PRIMARY KEY)
 - `key` (TEXT UNIQUE)
 - `value` (TEXT) - JSON serialized
@@ -896,6 +910,9 @@ node dist/generateHash.js YOUR_PASSWORD
 | `/set` | Set your availability interactively | `/set` |
 | `/set-timezone` | Set your personal timezone | `/set-timezone timezone:America/New_York` |
 | `/remove-timezone` | Remove your timezone (use bot default) | `/remove-timezone` |
+| `/set-recurring` | Set recurring weekly availability | `/set-recurring days:mon-fri time:18:00-22:00` |
+| `/my-recurring` | View your recurring weekly schedule | `/my-recurring` |
+| `/clear-recurring` | Clear recurring entry for a day or all | `/clear-recurring day:mon` |
 | `/schedule-week` | Show next 7 days overview | `/schedule-week` |
 | `/my-schedule` | Your personal 14-day schedule | `/my-schedule` |
 | `/view-scrims [limit]` | View recent match results | `/view-scrims limit:5` |
@@ -943,11 +960,12 @@ Sidebar is organized into three groups:
 Tab-based interface for users:
 1. **Schedule**: Calendar view of all players (14 days) with status indicators
 2. **Availability**: Set your own availability for upcoming days
-3. **Absences**: View and manage planned absences
-4. **Matches**: Browse match history and stats
-5. **Map Veto**: Plan pick/ban sequences with drag-and-drop
-6. **Stratbook**: Browse team strategies from Notion
-7. **Statistics**: Team analytics with charts
+3. **Recurring**: Manage weekly recurring availability defaults
+4. **Absences**: View and manage planned absences
+5. **Matches**: Browse match history and stats
+6. **Map Veto**: Plan pick/ban sequences with drag-and-drop
+7. **Stratbook**: Browse team strategies from Notion
+8. **Statistics**: Team analytics with charts
 
 Select your username from dropdown (or login with Discord) to access personalized features.
 
@@ -1039,6 +1057,14 @@ POST /api/absences                      # Create absence (own only)
 PUT /api/absences/:id                   # Update (own only unless admin)
 DELETE /api/absences/:id                # Delete (own only unless admin)
 
+# Recurring Availability
+GET /api/recurring-availability/my       # Logged-in user's recurring schedule
+GET /api/recurring-availability?userId=ID # Specific user's recurring schedule
+POST /api/recurring-availability         # Set recurring availability for a day
+POST /api/recurring-availability/bulk    # Bulk set for multiple days
+DELETE /api/recurring-availability/:dayOfWeek # Remove specific day
+DELETE /api/recurring-availability       # Remove all entries
+
 # Stratbook
 GET /api/stratbook                       # List strategies (optional: map, side filters)
 GET /api/stratbook/:pageId               # Get strategy content (Notion blocks)
@@ -1070,6 +1096,7 @@ schedule-bot/
 │   │   └── routes/
 │   │       ├── index.ts            # Route aggregator + health/logs/schedule-details
 │   │       ├── absence.routes.ts   # Absence/vacation CRUD
+│   │       ├── recurring-availability.routes.ts # Recurring weekly availability
 │   │       ├── actions.routes.ts   # Manual action triggers
 │   │       ├── admin.routes.ts     # Admin utilities (hash, JWT generation)
 │   │       ├── auth.routes.ts      # Login, logout, OAuth endpoints
@@ -1082,6 +1109,7 @@ schedule-bot/
 │   ├── bot/
 │   │   ├── client.ts        # Discord client singleton
 │   │   ├── commands/        # Slash command definitions and handlers
+│   │   │                    # (schedule, availability, poll, scrim, admin, recurring, user-management)
 │   │   ├── events/          # ready.event.ts, interaction.event.ts
 │   │   ├── interactions/    # Buttons, modals, polls, reminders
 │   │   ├── embeds/          # Discord embed builders
@@ -1093,11 +1121,13 @@ schedule-bot/
 │   │   ├── database.repository.ts     # Prisma client singleton
 │   │   ├── database-initializer.ts    # First-run DB setup
 │   │   ├── absence.repository.ts      # Absence CRUD + date range checks
+│   │   ├── recurring-availability.repository.ts # Recurring weekly availability CRUD
 │   │   ├── schedule.repository.ts     # Schedule queries, seeding, sync
 │   │   ├── scrim.repository.ts        # Match tracking CRUD
 │   │   └── user-mapping.repository.ts # Roster management
 │   ├── services/            # Business logic layer
 │   │   ├── absence.service.ts         # Absence CRUD with auth + date validation
+│   │   ├── recurring-availability.service.ts # Recurring availability business logic
 │   │   ├── schedule.service.ts        # Schedule analysis, validation
 │   │   ├── scrim.service.ts           # Scrim CRUD + stats
 │   │   ├── stratbook.service.ts       # Notion API integration with caching
@@ -1145,12 +1175,13 @@ schedule-bot/
 │   │   │   ├── map-veto.tsx          # Map veto planner (drag-and-drop)
 │   │   │   ├── stratbook.tsx         # Notion-powered strategy viewer
 │   │   │   └── notion-renderer.tsx   # Renders Notion blocks
+│   │   ├── error-boundary.tsx       # React error boundary with retry UI
 │   │   ├── auth/            # Auth components (login-form)
 │   │   ├── theme/           # Theme system (provider, toggle)
 │   │   ├── ui/              # Radix UI primitives (30 components)
 │   │   └── user/            # User portal components
 │   │       ├── layout/      # user-layout-wrapper, user-sidebar
-│   │       └── pages/       # User content pages (user-schedule, user-availability, user-absences)
+│   │       └── pages/       # User content pages (user-schedule, user-availability, user-recurring, user-absences)
 │   ├── hooks/
 │   │   └── use-mobile.ts    # Mobile breakpoint hook (768px)
 │   ├── lib/
@@ -1182,7 +1213,7 @@ Components are organized by domain/role:
   - `layout/` - Admin layout wrapper and sidebar
 - **`components/user/`** - User portal features
   - `layout/` - User layout wrapper and sidebar
-  - `pages/` - User content pages (user-schedule, user-availability, user-absences)
+  - `pages/` - User content pages (user-schedule, user-availability, user-recurring, user-absences)
 - **`components/auth/`** - Authentication UI
 - **`components/shared/`** - Shared across admin/user (agent-picker, matches, statistics, map-veto, stratbook, notion-renderer, nav-user)
 - **`components/theme/`** - Theme system (theme-toggle, theme-provider)
@@ -1291,6 +1322,7 @@ Data access is abstracted into repositories (sole data layer):
 - **`database.repository.ts`** - Prisma client singleton, `connectDatabase()`, `disconnectDatabase()`
 - **`database-initializer.ts`** - First-run setup: creates tables, seeds default settings and schedules
 - **`absence.repository.ts`** - Absence CRUD, `isUserAbsentOnDate()`, `getAbsentUserIdsForDate()`, `getAbsentUserIdsForDates()` (batch)
+- **`recurring-availability.repository.ts`** - Recurring weekly availability CRUD, day-of-week queries, upsert
 - **`schedule.repository.ts`** - Schedule CRUD, `addMissingDays()`, `syncUserMappingsToSchedules()`, pagination
 - **`scrim.repository.ts`** - Scrim CRUD, stats aggregation, date range queries
 - **`user-mapping.repository.ts`** - Roster CRUD with auto-`sortOrder` calculation and reordering on role changes
@@ -1300,6 +1332,7 @@ Data access is abstracted into repositories (sole data layer):
 Services provide business logic on top of repositories:
 
 - **`absence.service.ts`** - Absence CRUD with date validation and authorization (users manage own absences only)
+- **`recurring-availability.service.ts`** - Recurring availability CRUD with authorization (users manage own entries only)
 - **`schedule.service.ts`** - Schedule analysis, availability validation (users can only edit their own unless admin), pagination
 - **`scrim.service.ts`** - Scrim CRUD, stats, recent scrims with date sorting
 - **`stratbook.service.ts`** - Fetches strategies from Notion API, caches results for 60 seconds, filters by map/side/tags
@@ -1310,7 +1343,7 @@ Services are class-based with singleton exports (e.g., `export const scheduleSer
 ### Discord Bot Structure
 
 - **Commands** are defined in `src/bot/commands/definitions.ts` and registered on bot ready
-- **Command handlers** are split by feature: schedule, availability, poll, scrim, admin, user-management
+- **Command handlers** are split by feature: schedule, availability, poll, scrim, admin, recurring, user-management
 - **`src/bot/commands/index.ts`** routes incoming interactions to the correct handler
 - **Event handlers** are in `src/bot/events/` (ready.event.ts, interaction.event.ts)
 - **Interactive components** (buttons, modals, polls) are in `src/bot/interactions/`

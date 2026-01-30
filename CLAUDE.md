@@ -105,6 +105,7 @@ src/
 │   └── routes/
 │       ├── index.ts            # Route aggregator + health/logs/schedule-details
 │       ├── absence.routes.ts   # Absence/vacation CRUD
+│       ├── recurring-availability.routes.ts # Recurring weekly availability CRUD
 │       ├── actions.routes.ts   # Manual action triggers (post, remind, poll, notify)
 │       ├── admin.routes.ts     # Admin utilities (hash, JWT generation)
 │       ├── auth.routes.ts      # Login, logout, OAuth endpoints
@@ -124,6 +125,7 @@ src/
 │   │   ├── poll.commands.ts
 │   │   ├── scrim.commands.ts
 │   │   ├── admin.commands.ts
+│   │   ├── recurring.commands.ts
 │   │   └── user-management.commands.ts
 │   ├── events/
 │   │   ├── ready.event.ts      # Bot ready handler (command registration + poll recovery)
@@ -143,11 +145,13 @@ src/
 │   ├── database.repository.ts  # Prisma client singleton + connect/disconnect
 │   ├── database-initializer.ts # First-run DB setup (default settings, tables)
 │   ├── absence.repository.ts   # Absence CRUD + date range checks
+│   ├── recurring-availability.repository.ts # Recurring weekly availability CRUD
 │   ├── schedule.repository.ts  # Schedule + player queries, seeding, sync
 │   ├── scrim.repository.ts     # Match tracking CRUD + stats
 │   └── user-mapping.repository.ts # Roster management with auto-sort
 ├── services/                   # Business logic layer
 │   ├── absence.service.ts      # Absence CRUD with auth + date validation
+│   ├── recurring-availability.service.ts # Recurring availability business logic
 │   ├── schedule.service.ts     # Schedule analysis, availability validation
 │   ├── scrim.service.ts        # Scrim CRUD + stats + recent scrims
 │   ├── stratbook.service.ts    # Notion API integration with caching
@@ -213,6 +217,7 @@ dashboard/
 │   │   ├── map-veto.tsx        # Map veto planner with drag-and-drop
 │   │   ├── stratbook.tsx       # Notion-powered strategy viewer
 │   │   └── notion-renderer.tsx # Renders Notion blocks (headings, lists, code, images)
+│   ├── error-boundary.tsx       # React error boundary with retry UI
 │   ├── auth/                   # Auth components
 │   │   ├── index.ts
 │   │   └── login-form.tsx
@@ -236,6 +241,7 @@ dashboard/
 │           ├── index.ts
 │           ├── user-schedule.tsx       # Calendar view for users
 │           ├── user-availability.tsx   # Set availability (auto-save)
+│           ├── user-recurring.tsx      # Recurring weekly availability management
 │           └── user-absences.tsx       # Absence/vacation management
 ├── hooks/
 │   └── use-mobile.ts           # Mobile breakpoint hook (768px)
@@ -380,6 +386,20 @@ Players can register planned absences (vacations, travel, etc.) with date ranges
   - `poll.commands.ts` - Excludes absent players from training polls
 - **Statistics**: Team Availability chart shows absent players as a separate purple bar segment
 
+### Recurring Availability System
+Players can set a default weekly availability pattern that auto-applies to new schedule entries:
+- **Database**: `recurring_availabilities` table with `user_id`, `day_of_week` (0-6, Sunday=0), `availability`, `active` flag, unique constraint on `[userId, dayOfWeek]`
+- **Repository** (`recurring-availability.repository.ts`): CRUD + `getRecurringForUser()`, `getActiveRecurringForDay()`, `upsert()`, `remove()`, `removeAll()`
+- **Service** (`recurring-availability.service.ts`): Business logic with authorization (users manage own entries only)
+- **API Routes** (`recurring-availability.routes.ts`): REST API at `/api/recurring-availability`
+- **Dashboard**: `UserRecurring` page with table view, auto-save (1s debounce), bulk operations, timezone conversion, Monday-first week display
+- **Discord Bot Integration**:
+  - `/set-recurring <days> <time>` - Set recurring schedule (e.g., `mon-fri`, `18:00-22:00`)
+  - `/my-recurring` - View weekly recurring schedule with emoji indicators
+  - `/clear-recurring <day>` - Remove entries for a day or "all"
+- **Auto-Application**: When new schedule days are seeded via `addMissingDays()`, recurring entries are automatically applied to matching day-of-week slots
+- **Override Behavior**: Users can always override recurring defaults for specific dates using `/set` or the My Availability dashboard
+
 ### Change Notification System
 When a player's availability or a schedule reason changes, the bot can automatically detect roster status changes and post an updated schedule embed to Discord:
 - **Function**: `checkAndNotifyStatusChange(date, previousStatus, clientInstance?)` in `src/bot/utils/schedule-poster.ts`
@@ -410,6 +430,9 @@ When a player's availability or a schedule reason changes, the bot can automatic
 - `/set` - Interactive buttons to set daily availability (includes timezone prompt if not set)
 - `/set-timezone <timezone>` - Set personal timezone (with autocomplete)
 - `/remove-timezone` - Remove personal timezone (use bot default)
+- `/set-recurring <days> <time>` - Set recurring weekly availability (e.g., `mon-fri`, `18:00-22:00`)
+- `/my-recurring` - View your recurring weekly schedule
+- `/clear-recurring <day>` - Clear recurring entry for a day (or "all" to clear everything)
 
 ### Admin Commands (require Discord Administrator permission)
 - `/post-schedule [date]` - Manually post schedule to channel
@@ -464,6 +487,14 @@ When a player's availability or a schedule reason changes, the bot can automatic
 - `PUT /api/absences/:id` - Update absence (auth required, own only unless admin)
 - `DELETE /api/absences/:id` - Delete absence (auth required, own only unless admin)
 
+### Recurring Availability
+- `GET /api/recurring-availability/my` - Get logged-in user's recurring schedule (auth required)
+- `GET /api/recurring-availability?userId=ID` - Get specific user's recurring schedule (auth required)
+- `POST /api/recurring-availability` - Set recurring availability for a day (auth required, validated)
+- `POST /api/recurring-availability/bulk` - Bulk set for multiple days (auth required, validated)
+- `DELETE /api/recurring-availability/:dayOfWeek` - Remove specific day (auth required)
+- `DELETE /api/recurring-availability` - Remove all entries (auth required)
+
 ### Settings & Actions
 - `GET /api/settings` - Load all settings (public)
 - `POST /api/settings` - Save settings (admin, strict rate limit, validated)
@@ -515,6 +546,7 @@ Data access is abstracted into repositories (sole data layer, no legacy alternat
 - `database.repository.ts` - Prisma client singleton, `connectDatabase()`, `disconnectDatabase()`
 - `database-initializer.ts` - First-run setup: creates tables, seeds default settings and schedules
 - `absence.repository.ts` - Absence CRUD, `isUserAbsentOnDate()`, `getAbsentUserIdsForDate()`, `getAbsentUserIdsForDates()` (batch)
+- `recurring-availability.repository.ts` - Recurring weekly availability CRUD, day-of-week queries, upsert
 - `schedule.repository.ts` - Schedule CRUD, `addMissingDays()`, `syncUserMappingsToSchedules()`, pagination
 - `scrim.repository.ts` - Scrim CRUD, stats aggregation, date range queries
 - `user-mapping.repository.ts` - Roster CRUD with auto-`sortOrder` calculation and reordering on role changes
@@ -522,6 +554,7 @@ Data access is abstracted into repositories (sole data layer, no legacy alternat
 ### Services Layer
 Services provide business logic on top of repositories:
 - `absence.service.ts` - Absence CRUD with date validation and authorization (users manage own absences only)
+- `recurring-availability.service.ts` - Recurring availability CRUD with authorization (users manage own entries only)
 - `schedule.service.ts` - Schedule analysis, availability validation (users can only edit their own unless admin), pagination
 - `scrim.service.ts` - Scrim CRUD, stats, recent scrims with date sorting
 - `stratbook.service.ts` - Fetches strategies from Notion API, caches results for 60 seconds, filters by map/side/tags
@@ -549,7 +582,7 @@ Two auth modes:
 
 ### Dashboard Routing
 Next.js App Router structure:
-- `/` - Home page (tab-based: schedule, availability, absences, matches, map-veto, statistics)
+- `/` - Home page (tab-based: schedule, availability, recurring, absences, matches, map-veto, stratbook, statistics)
 - `/login` - User login page
 - `/admin/login` - Admin login page
 - `/admin` - Admin dashboard (tab-based: dashboard, statistics, settings, users, schedule, scrims, map-veto, actions, security, logs)
@@ -574,7 +607,7 @@ Components are organized by domain/role:
   - `layout/` - Admin layout wrapper and sidebar
 - `components/user/` - User portal features (layout + pages subdirectories)
   - `layout/` - User layout wrapper and sidebar
-  - `pages/` - User content pages (user-schedule, user-availability, user-absences)
+  - `pages/` - User content pages (user-schedule, user-availability, user-recurring, user-absences)
 - `components/auth/` - Authentication UI
 - `components/shared/` - Shared across admin/user (agent-picker, matches, statistics, map-veto, stratbook, notion-renderer, nav-user)
 - `components/theme/` - Theme system (theme-toggle, theme-provider)
@@ -792,6 +825,7 @@ curl -X POST http://localhost:3001/api/actions/remind \
 - **user_mappings** - Master roster with discord_id, discord_username, display_name, role, sort_order, user_timezone (optional)
 - **scrims** - Match history (opponent, result, score_us, score_them, map, match_type, our_agents, their_agents as comma-separated strings, vod_url, notes)
 - **absences** - Player absence periods (user_id, start_date, end_date in DD.MM.YYYY, reason)
+- **recurring_availabilities** - Weekly recurring availability patterns (user_id, day_of_week 0-6, availability, active flag, unique on [userId, dayOfWeek])
 - **settings** - Key-value store for bot configuration (dot-notation keys)
 
 ### Enums
