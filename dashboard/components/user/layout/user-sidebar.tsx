@@ -14,21 +14,15 @@ import {
   RefreshCw,
 } from "lucide-react"
 
-import { NavUser } from "@/components/shared"
+import { NavUser, SidebarNavGroup, SidebarBrandingHeader } from "@/components/shared"
+import type { NavItem } from "@/components/shared"
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
   SidebarRail,
-  SidebarGroup,
-  SidebarGroupLabel,
-  SidebarGroupContent,
 } from "@/components/ui/sidebar"
-import Image from "next/image"
+import { useBranding } from "@/hooks/use-branding"
 
 interface UserSidebarProps extends React.ComponentProps<typeof Sidebar> {
   userName?: string
@@ -41,9 +35,7 @@ export function UserSidebar({ userName, onLogout, ...props }: UserSidebarProps) 
   const [userRole, setUserRole] = React.useState<string | undefined>(undefined)
   const [isAdmin, setIsAdmin] = React.useState(false)
   const [avatarUrl, setAvatarUrl] = React.useState("")
-  const [teamName, setTeamName] = React.useState<string>('Valorant Bot')
-  const [tagline, setTagline] = React.useState<string>('Schedule Manager')
-  const [logoUrl, setLogoUrl] = React.useState<string>('')
+  const branding = useBranding()
 
   React.useEffect(() => {
     const fetchUserRole = async () => {
@@ -74,27 +66,6 @@ export function UserSidebar({ userName, onLogout, ...props }: UserSidebarProps) 
     fetchUserRole()
   }, [userName])
 
-  React.useEffect(() => {
-    const fetchBranding = async () => {
-      try {
-        const { BOT_API_URL } = await import('@/lib/config')
-        const response = await fetch(`${BOT_API_URL}/api/settings`)
-        if (response.ok) {
-          const data = await response.json()
-          if (data?.branding) {
-            setTeamName(data.branding.teamName || 'Valorant Bot')
-            setTagline(data.branding.tagline || 'Schedule Manager')
-            setLogoUrl(data.branding.logoUrl || '')
-          }
-        }
-      } catch (error) {
-        console.error('Failed to fetch branding:', error)
-      }
-    }
-
-    fetchBranding()
-  }, [])
-
   const [currentTab, setCurrentTab] = React.useState('schedule')
 
   React.useEffect(() => {
@@ -109,58 +80,21 @@ export function UserSidebar({ userName, onLogout, ...props }: UserSidebarProps) 
     router.push(`/?tab=${tab}`, { scroll: false })
   }
 
-  const scheduleItems = [
-    {
-      title: "Schedule",
-      tab: "schedule",
-      icon: Home,
-      isActive: currentTab === 'schedule',
-    },
-    {
-      title: "My Availability",
-      tab: "availability",
-      icon: CalendarCheck,
-      isActive: currentTab === 'availability',
-    },
-    {
-      title: "Recurring",
-      tab: "recurring",
-      icon: RefreshCw,
-      isActive: currentTab === 'recurring',
-    },
-    {
-      title: "Absences",
-      tab: "absences",
-      icon: PlaneTakeoff,
-      isActive: currentTab === 'absences',
-    },
+  const overviewItems: NavItem[] = [
+    { title: "Schedule", tab: "schedule", icon: Home, isActive: currentTab === 'schedule' },
   ]
 
-  const competitiveItems = [
-    {
-      title: "Match History",
-      tab: "matches",
-      icon: Trophy,
-      isActive: currentTab === 'matches',
-    },
-    {
-      title: "Map Veto",
-      tab: "map-veto",
-      icon: Map,
-      isActive: currentTab === 'map-veto',
-    },
-    {
-      title: "Stratbook",
-      tab: "stratbook",
-      icon: BookOpen,
-      isActive: currentTab === 'stratbook',
-    },
-    {
-      title: "Statistics",
-      tab: "statistics",
-      icon: BarChart3,
-      isActive: currentTab === 'statistics',
-    },
+  const myScheduleItems: NavItem[] = [
+    { title: "Availability", tab: "availability", icon: CalendarCheck, isActive: currentTab === 'availability' },
+    { title: "Recurring", tab: "recurring", icon: RefreshCw, isActive: currentTab === 'recurring' },
+    { title: "Absences", tab: "absences", icon: PlaneTakeoff, isActive: currentTab === 'absences' },
+  ]
+
+  const teamItems: NavItem[] = [
+    { title: "Matches", tab: "matches", icon: Trophy, isActive: currentTab === 'matches' },
+    { title: "Map Veto", tab: "map-veto", icon: Map, isActive: currentTab === 'map-veto' },
+    { title: "Stratbook", tab: "stratbook", icon: BookOpen, isActive: currentTab === 'stratbook' },
+    { title: "Statistics", tab: "statistics", icon: BarChart3, isActive: currentTab === 'statistics' },
   ]
 
   const user = userName ? {
@@ -171,71 +105,17 @@ export function UserSidebar({ userName, onLogout, ...props }: UserSidebarProps) 
 
   return (
     <Sidebar collapsible="icon" {...props}>
-      <SidebarHeader>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton size="lg" onClick={() => handleNavigation('schedule')}>
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground flex-shrink-0">
-                {logoUrl ? (
-                  <img
-                    src={logoUrl}
-                    alt={teamName}
-                    className="size-4 object-contain"
-                    onError={(e) => {
-                      // Fallback to Calendar icon if image fails to load
-                      e.currentTarget.style.display = 'none';
-                    }}
-                  />
-                ) : null}
-                {!logoUrl && <Calendar className="size-4" />}
-              </div>
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold">{teamName}</span>
-                <span className="truncate text-xs">{tagline}</span>
-              </div>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarHeader>
+      <SidebarBrandingHeader
+        title={branding.teamName}
+        subtitle={branding.tagline}
+        logoUrl={branding.logoUrl}
+        fallbackIcon={Calendar}
+        onClick={() => handleNavigation('schedule')}
+      />
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Schedule</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {scheduleItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    isActive={item.isActive}
-                    tooltip={item.title}
-                    onClick={() => handleNavigation(item.tab)}
-                  >
-                    <item.icon />
-                    <span>{item.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-        <SidebarGroup>
-          <SidebarGroupLabel>Competitive</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {competitiveItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    isActive={item.isActive}
-                    tooltip={item.title}
-                    onClick={() => handleNavigation(item.tab)}
-                  >
-                    <item.icon />
-                    <span>{item.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        <SidebarNavGroup label="Overview" items={overviewItems} onNavigate={handleNavigation} />
+        <SidebarNavGroup label="My Schedule" items={myScheduleItems} onNavigate={handleNavigation} />
+        <SidebarNavGroup label="Team" items={teamItems} onNavigate={handleNavigation} />
       </SidebarContent>
       <SidebarFooter>
         {user && <NavUser user={user} onLogout={onLogout} role={userRole} isAdmin={isAdmin} />}

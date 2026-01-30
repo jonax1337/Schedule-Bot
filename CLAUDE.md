@@ -413,7 +413,7 @@ Players can set a default weekly availability pattern that auto-applies to new s
   - `/my-recurring` - View weekly recurring schedule with emoji indicators
   - `/clear-recurring <day>` - Remove entries for a day or "all"
 - **Auto-Application**: When new schedule days are seeded via `addMissingDays()`, recurring entries are automatically applied to matching day-of-week slots
-- **Override Behavior**: Users can always override recurring defaults for specific dates using `/set` or the My Availability dashboard
+- **Override Behavior**: Users can always override recurring defaults for specific dates using `/set` or the Availability dashboard
 
 ### Change Notification System
 When a player's availability or a schedule reason changes, the bot can automatically detect roster status changes and post an updated schedule embed to Discord:

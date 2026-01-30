@@ -745,7 +745,7 @@ export function UserAvailability() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <CalendarDays className="w-5 h-5" />
-            My Availability
+            Availability
           </CardTitle>
           <p className="text-sm text-muted-foreground">
             Set your availability for the next 14 days. Changes are auto-saved when you fill in both time fields.

@@ -50,10 +50,10 @@ function HomeContent() {
   useEffect(() => {
     const titles: Record<string, string> = {
       schedule: 'Team Calendar',
-      availability: 'My Availability',
+      availability: 'Availability',
       recurring: 'Recurring Schedule',
       absences: 'Absences',
-      matches: 'Match History',
+      matches: 'Matches',
       'map-veto': 'Map Veto',
       stratbook: 'Stratbook',
       statistics: 'Statistics',
