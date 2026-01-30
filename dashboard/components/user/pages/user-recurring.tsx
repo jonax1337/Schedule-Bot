@@ -308,36 +308,6 @@ export function UserRecurring() {
     }
   };
 
-  const clearAll = async () => {
-    setSaving(true);
-    try {
-      const { getAuthHeaders } = await import('@/lib/auth');
-
-      const response = await fetch(`${BOT_API_URL}/api/recurring-availability?userId=${userDiscordId}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(),
-      });
-
-      if (response.ok) {
-        toast.success('All recurring entries cleared');
-        setDayEntries(prev => prev.map(e => ({
-          ...e,
-          availability: '',
-          timeFrom: '',
-          timeTo: '',
-          originalTimeFrom: '',
-          originalTimeTo: '',
-        })));
-      } else {
-        toast.error('Failed to clear');
-      }
-    } catch {
-      toast.error('Failed to clear');
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const handleTimeChange = (dayOfWeek: number, field: 'timeFrom' | 'timeTo', value: string) => {
     // Update local state immediately
     setDayEntries(prev => prev.map(e =>
@@ -486,8 +456,6 @@ export function UserRecurring() {
     );
   }
 
-  const hasAnyEntries = dayEntries.some(e => e.availability);
-
   return (
     <div className="space-y-4">
       {/* Bulk Actions Toolbar */}
@@ -558,18 +526,6 @@ export function UserRecurring() {
               <RefreshCw className="w-5 h-5" />
               Recurring Weekly Schedule
             </CardTitle>
-            {hasAnyEntries && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={clearAll}
-                disabled={saving}
-                className={cn(microInteractions.activePress, microInteractions.smooth)}
-              >
-                <Trash2 className="w-4 h-4 mr-1" />
-                Clear All
-              </Button>
-            )}
           </div>
           <p className="text-sm text-muted-foreground">
             Set your default weekly availability. Auto-applied when new schedule days are created. Override specific dates in &quot;My Availability&quot;.
@@ -661,15 +617,28 @@ export function UserRecurring() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => setDayUnavailable(entry.dayOfWeek)}
-                        disabled={saving || entry.isSaving}
-                        className={cn(microInteractions.activePress, microInteractions.smooth)}
-                      >
-                        Not Available
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => setDayUnavailable(entry.dayOfWeek)}
+                          disabled={saving || entry.isSaving}
+                          className={cn(microInteractions.activePress, microInteractions.smooth)}
+                        >
+                          Not Available
+                        </Button>
+                        {entry.availability && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => removeDay(entry.dayOfWeek)}
+                            disabled={saving || entry.isSaving}
+                            className={cn(microInteractions.activePress, microInteractions.smooth)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 );

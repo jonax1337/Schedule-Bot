@@ -116,10 +116,7 @@ class RecurringAvailabilityService {
       return { success: false, error: 'You can only manage your own recurring schedule' };
     }
 
-    const removed = await removeRecurring(userId, dayOfWeek);
-    if (!removed) {
-      return { success: false, error: `No recurring entry for ${WEEKDAY_NAMES[dayOfWeek]}` };
-    }
+    await removeRecurring(userId, dayOfWeek);
 
     return { success: true };
   }
