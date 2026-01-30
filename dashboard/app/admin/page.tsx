@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, Suspense } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Settings,
@@ -22,6 +22,7 @@ function AdminContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const currentTab = searchParams.get('tab') || 'dashboard';
+  const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
     // Check for JWT token and admin role
@@ -44,6 +45,8 @@ function AdminContent() {
         router.push('/admin/login');
         return;
       }
+
+      setAuthChecked(true);
     };
 
     checkAuth();
@@ -67,6 +70,14 @@ function AdminContent() {
     const pageTitle = titles[currentTab] || 'Dashboard';
     document.title = `${pageTitle} - Admin Panel`;
   }, [currentTab]);
+
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <AdminLayoutWrapper>

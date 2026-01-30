@@ -5,10 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Loader2, Trash2, UserPlus, Search, Users, Edit3, Edit, GripVertical, Shield, UserCheck, Headset, Check, ChevronsUpDown } from 'lucide-react';
+import { Loader2, Trash2, UserPlus, Search, Users, Edit3, Edit, GripVertical, Shield, ShieldCheck, UserCheck, Headset, Check, ChevronsUpDown } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -51,6 +52,7 @@ interface UserMapping {
   sortOrder: number;
   timezone?: string | null;
   avatarUrl?: string | null;
+  isAdmin?: boolean;
 }
 
 type RoleType = 'main' | 'sub' | 'coach';
@@ -127,6 +129,12 @@ function SortableUserItem({
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <span className="font-medium truncate">{mapping.displayName}</span>
+          {mapping.isAdmin && (
+            <Badge variant="default" className="text-[10px] px-1.5 py-0 h-5 font-normal shrink-0 gap-0.5">
+              <ShieldCheck className="w-3 h-3" />
+              Admin
+            </Badge>
+          )}
           {mapping.timezone && (
             <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 font-normal text-muted-foreground shrink-0">
               {mapping.timezone.replace(/_/g, ' ')}
@@ -240,6 +248,7 @@ export function UserMappings() {
   const [editTimezone, setEditTimezone] = useState('');
   const [editTimezoneOpen, setEditTimezoneOpen] = useState(false);
   const [editTimezoneSearch, setEditTimezoneSearch] = useState('');
+  const [editIsAdmin, setEditIsAdmin] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -405,6 +414,7 @@ export function UserMappings() {
     setEditDisplayName(mapping.displayName);
     setEditRole(mapping.role);
     setEditTimezone(mapping.timezone || '');
+    setEditIsAdmin(!!mapping.isAdmin);
     setEditDialogOpen(true);
   };
 
@@ -426,6 +436,7 @@ export function UserMappings() {
           displayName: editDisplayName,
           role: editRole,
           timezone: editTimezone || null,
+          isAdmin: editIsAdmin,
         }),
       });
 
@@ -864,6 +875,19 @@ export function UserMappings() {
                   </Command>
                 </PopoverContent>
               </Popover>
+            </div>
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <div className="space-y-0.5">
+                <Label htmlFor="edit-is-admin" className="text-sm font-medium">Admin Access</Label>
+                <p className="text-xs text-muted-foreground">
+                  Allow this user to access the Admin Dashboard
+                </p>
+              </div>
+              <Switch
+                id="edit-is-admin"
+                checked={editIsAdmin}
+                onCheckedChange={setEditIsAdmin}
+              />
             </div>
           </div>
           <DialogFooter className="animate-fadeIn stagger-4">

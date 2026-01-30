@@ -97,7 +97,18 @@ export async function validateToken(): Promise<boolean> {
       return false;
     }
 
-    return response.ok;
+    if (response.ok) {
+      // Sync the role from the server-validated JWT to localStorage
+      // This prevents localStorage manipulation from bypassing role checks
+      const data = await response.json();
+      const currentUser = getUser();
+      if (currentUser && data.role && currentUser.role !== data.role) {
+        setUser({ ...currentUser, role: data.role });
+      }
+      return true;
+    }
+
+    return false;
   } catch (error) {
     // On network error, don't remove token (may be transient) but treat as not validated
     return false;

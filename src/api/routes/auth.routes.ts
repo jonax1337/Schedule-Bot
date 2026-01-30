@@ -66,6 +66,8 @@ router.post('/user/login', loginLimiter, async (req, res) => {
       return res.status(401).json({ success: false, error: 'Invalid credentials' });
     }
 
+    // Normal user login always gets 'user' role - admin access requires
+    // either admin credentials login or Discord OAuth with isAdmin flag
     const token = generateToken(username, 'user');
 
     logger.success('User login successful', `User: ${username}`);
@@ -75,7 +77,7 @@ router.post('/user/login', loginLimiter, async (req, res) => {
       expiresIn: '24h',
       user: {
         username,
-        role: 'user'
+        role: 'user',
       }
     });
   } catch (error) {

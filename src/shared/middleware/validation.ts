@@ -8,6 +8,7 @@ export const addUserMappingSchema = Joi.object({
   role: Joi.string().valid('main', 'sub', 'coach').required(),
   sortOrder: Joi.number().integer().min(0).optional(), // Optional - wird automatisch berechnet
   timezone: Joi.string().max(100).allow('', null).optional(),
+  isAdmin: Joi.boolean().optional(),
 });
 
 export const addScrimSchema = Joi.object({
@@ -133,6 +134,7 @@ export const updateUserMappingSchema = Joi.object({
   role: Joi.string().valid('main', 'sub', 'coach').required(),
   sortOrder: Joi.number().integer().min(0).optional(),
   timezone: Joi.string().max(100).allow('', null).optional(),
+  isAdmin: Joi.boolean().optional(),
 });
 
 export const recurringAvailabilitySchema = Joi.object({
