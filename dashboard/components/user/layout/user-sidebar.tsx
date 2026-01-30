@@ -9,7 +9,7 @@ import {
   Home,
   BarChart3,
   PlaneTakeoff,
-
+  ShieldCheck,
   BookOpen,
   RefreshCw,
 } from "lucide-react"
@@ -21,6 +21,10 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarRail,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarSeparator,
 } from "@/components/ui/sidebar"
 import { useBranding } from "@/hooks/use-branding"
 
@@ -118,7 +122,25 @@ export function UserSidebar({ userName, onLogout, ...props }: UserSidebarProps) 
         <SidebarNavGroup label="Team" items={teamItems} onNavigate={handleNavigation} />
       </SidebarContent>
       <SidebarFooter>
-        {user && <NavUser user={user} onLogout={onLogout} role={userRole} isAdmin={isAdmin} />}
+        {isAdmin && (
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                tooltip="Admin Dashboard"
+                onClick={() => router.push('/admin')}
+              >
+                <ShieldCheck />
+                <span>Admin Dashboard</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        )}
+        {user && (
+          <>
+            {isAdmin && <SidebarSeparator />}
+            <NavUser user={user} onLogout={onLogout} role={userRole} />
+          </>
+        )}
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

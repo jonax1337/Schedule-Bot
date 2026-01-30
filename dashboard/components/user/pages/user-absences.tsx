@@ -98,7 +98,7 @@ export function UserAbsences() {
         }
 
         setUserDiscordId(userMapping.discordId);
-        await loadAbsences(userMapping.discordId);
+        await loadAbsences(userMapping.discordId, true);
       } catch (error) {
         console.error('Auth check failed:', error);
         router.push('/login');
@@ -108,11 +108,11 @@ export function UserAbsences() {
     checkAuthAndLoad();
   }, [router]);
 
-  const loadAbsences = async (discordId?: string) => {
+  const loadAbsences = async (discordId?: string, isInitial = false) => {
     const userId = discordId || userDiscordId;
     if (!userId) return;
 
-    setLoading(true);
+    if (!isInitial) setLoading(true);
     try {
       const { getAuthHeaders } = await import('@/lib/auth');
       const response = await fetch(`${BOT_API_URL}/api/absences?userId=${userId}`, {
@@ -223,9 +223,7 @@ export function UserAbsences() {
   if (loading) {
     return (
       <div className="min-h-[400px] flex items-center justify-center">
-        <div className="animate-scaleIn">
-          <Loader2 className="w-8 h-8 animate-spin" />
-        </div>
+        <Loader2 className="w-8 h-8 animate-spin" />
       </div>
     );
   }
@@ -254,7 +252,6 @@ export function UserAbsences() {
         </CardHeader>
         <CardContent>
 
-          {/* Absences Table */}
           {absences.length > 0 ? (
             <Table>
               <TableHeader>
