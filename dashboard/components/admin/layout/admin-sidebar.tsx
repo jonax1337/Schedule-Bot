@@ -13,7 +13,7 @@ import {
   ArrowLeft,
   LayoutDashboard,
   BarChart3,
-  Map,
+
   BookOpen,
 } from "lucide-react"
 
@@ -66,7 +66,7 @@ export function AdminSidebar({ userName, onLogout, ...props }: AdminSidebarProps
 
   const competitiveItems: NavItem[] = [
     { title: "Matches", tab: "scrims", icon: Trophy, isActive: currentTab === 'scrims' },
-    { title: "Map Veto", tab: "map-veto", icon: Map, isActive: currentTab === 'map-veto' },
+
     { title: "Stratbook", tab: "stratbook", icon: BookOpen, isActive: currentTab === 'stratbook' },
   ]
 

@@ -10,7 +10,7 @@ import {
   UserAbsences,
   UserRecurring
 } from '@/components/user';
-import { MapVetoPlanner, Matches, Statistics, Stratbook } from '@/components/admin/pages';
+import { Matches, Statistics, Stratbook } from '@/components/admin/pages';
 
 function HomeContent() {
   const router = useRouter();
@@ -54,7 +54,6 @@ function HomeContent() {
       recurring: 'Recurring Schedule',
       absences: 'Absences',
       matches: 'Matches',
-      'map-veto': 'Map Veto',
       stratbook: 'Stratbook',
       statistics: 'Statistics',
     };
@@ -71,7 +70,6 @@ function HomeContent() {
         {currentTab === 'recurring' && <UserRecurring />}
         {currentTab === 'absences' && <UserAbsences />}
         {currentTab === 'matches' && <Matches />}
-        {currentTab === 'map-veto' && <MapVetoPlanner />}
         {currentTab === 'stratbook' && <Stratbook />}
         {currentTab === 'statistics' && <Statistics />}
       </div>

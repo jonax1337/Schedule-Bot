@@ -9,7 +9,7 @@ import {
   Home,
   BarChart3,
   PlaneTakeoff,
-  Map,
+
   BookOpen,
   RefreshCw,
 } from "lucide-react"
@@ -92,7 +92,7 @@ export function UserSidebar({ userName, onLogout, ...props }: UserSidebarProps) 
 
   const teamItems: NavItem[] = [
     { title: "Matches", tab: "matches", icon: Trophy, isActive: currentTab === 'matches' },
-    { title: "Map Veto", tab: "map-veto", icon: Map, isActive: currentTab === 'map-veto' },
+
     { title: "Stratbook", tab: "stratbook", icon: BookOpen, isActive: currentTab === 'stratbook' },
     { title: "Statistics", tab: "statistics", icon: BarChart3, isActive: currentTab === 'statistics' },
   ]

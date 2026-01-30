@@ -44,7 +44,6 @@ function UserLayoutWrapperInner({ children, breadcrumbs = [] }: UserLayoutWrappe
     recurring: 'Recurring',
     absences: 'Absences',
     matches: 'Matches',
-    'map-veto': 'Map Veto',
     stratbook: 'Stratbook',
     statistics: 'Statistics',
   }
