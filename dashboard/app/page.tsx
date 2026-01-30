@@ -7,7 +7,8 @@ import {
   UserLayoutWrapper,
   UserSchedule,
   UserAvailability,
-  UserAbsences
+  UserAbsences,
+  UserRecurring
 } from '@/components/user';
 import { MapVetoPlanner, Matches, Statistics, Stratbook } from '@/components/admin/pages';
 
@@ -50,6 +51,7 @@ function HomeContent() {
     const titles: Record<string, string> = {
       schedule: 'Team Calendar',
       availability: 'My Availability',
+      recurring: 'Recurring Schedule',
       absences: 'Absences',
       matches: 'Match History',
       'map-veto': 'Map Veto',
@@ -66,6 +68,7 @@ function HomeContent() {
       <div className="animate-fadeIn">
         {currentTab === 'schedule' && <UserSchedule />}
         {currentTab === 'availability' && <UserAvailability />}
+        {currentTab === 'recurring' && <UserRecurring />}
         {currentTab === 'absences' && <UserAbsences />}
         {currentTab === 'matches' && <Matches />}
         {currentTab === 'map-veto' && <MapVetoPlanner />}

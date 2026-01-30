@@ -14,11 +14,16 @@ import {
   handleTrainingStartPollCommand, 
   handleSendTrainingPollCommand 
 } from './poll.commands.js';
-import { 
-  handleAddScrimCommand, 
-  handleViewScrimsCommand, 
-  handleScrimStatsCommand 
+import {
+  handleAddScrimCommand,
+  handleViewScrimsCommand,
+  handleScrimStatsCommand
 } from './scrim.commands.js';
+import {
+  handleSetRecurringCommand,
+  handleMyRecurringCommand,
+  handleClearRecurringCommand
+} from './recurring.commands.js';
 
 /**
  * Central command handler - routes commands to appropriate handlers
@@ -88,6 +93,17 @@ export async function handleCommand(interaction: ChatInputCommandInteraction): P
       break;
     case 'scrim-stats':
       await handleScrimStatsCommand(interaction);
+      break;
+
+    // Recurring schedule commands
+    case 'set-recurring':
+      await handleSetRecurringCommand(interaction);
+      break;
+    case 'my-recurring':
+      await handleMyRecurringCommand(interaction);
+      break;
+    case 'clear-recurring':
+      await handleClearRecurringCommand(interaction);
       break;
 
     default:

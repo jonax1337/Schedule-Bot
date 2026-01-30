@@ -87,6 +87,21 @@ model Absence {
   @@map("absences")
 }
 
+model RecurringAvailability {
+  id           Int      @id @default(autoincrement())
+  userId       String   @map("user_id")
+  dayOfWeek    Int      @map("day_of_week") // 0=Sunday, 1=Monday...6=Saturday
+  availability String   // "HH:MM-HH:MM" or "x"
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, dayOfWeek])
+  @@index([userId])
+  @@index([dayOfWeek])
+  @@map("recurring_availabilities")
+}
+
 model Setting {
   id        Int      @id @default(autoincrement())
   key       String   @unique

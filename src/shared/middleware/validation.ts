@@ -135,6 +135,18 @@ export const updateUserMappingSchema = Joi.object({
   timezone: Joi.string().max(100).allow('', null).optional(),
 });
 
+export const recurringAvailabilitySchema = Joi.object({
+  dayOfWeek: Joi.number().integer().min(0).max(6).required(),
+  availability: Joi.string().pattern(/^(\d{2}:\d{2}-\d{2}:\d{2}|x|X)$/).required(),
+  userId: Joi.string().pattern(/^\d{17,19}$/).optional(),
+});
+
+export const recurringAvailabilityBulkSchema = Joi.object({
+  days: Joi.array().items(Joi.number().integer().min(0).max(6)).min(1).max(7).required(),
+  availability: Joi.string().pattern(/^(\d{2}:\d{2}-\d{2}:\d{2}|x|X)$/).required(),
+  userId: Joi.string().pattern(/^\d{17,19}$/).optional(),
+});
+
 export function isValidDateFormat(date: string): boolean {
   return datePattern.test(date);
 }

@@ -1,5 +1,6 @@
 import { prisma } from './database.repository.js';
 import { getUserMappings } from './user-mapping.repository.js';
+import { getAllActiveRecurring } from './recurring-availability.repository.js';
 import type { ScheduleData, SchedulePlayerData } from '../shared/types/types.js';
 import { logger } from '../shared/utils/logger.js';
 
@@ -203,8 +204,23 @@ export async function updatePlayerAvailability(
 export async function addMissingDays(): Promise<void> {
   const dates = getNext14Dates();
   const userMappings = await getUserMappings();
+  const allRecurring = await getAllActiveRecurring();
+
+  // Build a lookup: Map<userId, Map<dayOfWeek, availability>>
+  const recurringMap = new Map<string, Map<number, string>>();
+  for (const entry of allRecurring) {
+    if (!recurringMap.has(entry.userId)) {
+      recurringMap.set(entry.userId, new Map());
+    }
+    recurringMap.get(entry.userId)!.set(entry.dayOfWeek, entry.availability);
+  }
 
   for (const date of dates) {
+    // Determine day of week for this date
+    const [day, month, year] = date.split('.');
+    const dateObj = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    const dayOfWeek = dateObj.getDay(); // 0=Sunday...6=Saturday
+
     // Ensure schedule exists
     let schedule = await prisma.schedule.findUnique({
       where: { date },
@@ -225,15 +241,18 @@ export async function addMissingDays(): Promise<void> {
     // Ensure all user mappings have player entries
     for (const mapping of userMappings) {
       const existingPlayer = schedule.players.find(p => p.userId === mapping.discordId);
-      
+
       if (!existingPlayer) {
+        // Check for recurring availability for this user on this day of week
+        const recurringAvailability = recurringMap.get(mapping.discordId)?.get(dayOfWeek) || '';
+
         await prisma.schedulePlayer.create({
           data: {
             scheduleId: schedule.id,
             userId: mapping.discordId,
             displayName: mapping.displayName,
             role: mapping.role.toUpperCase() as 'MAIN' | 'SUB' | 'COACH',
-            availability: '',
+            availability: recurringAvailability,
             sortOrder: mapping.sortOrder,
           },
         });
@@ -241,7 +260,7 @@ export async function addMissingDays(): Promise<void> {
     }
   }
 
-  logger.success('Schedule entries verified', 'Next 14 days');
+  logger.success('Schedule entries verified', 'Next 14 days (with recurring)');
 }
 
 /**
