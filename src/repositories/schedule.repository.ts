@@ -373,6 +373,47 @@ export async function applyRecurringToEmptySchedules(userId?: string): Promise<n
 }
 
 /**
+ * Clear schedule_players entries that match a removed recurring availability.
+ * Only clears future entries where the availability exactly matches the old recurring value.
+ */
+export async function clearRecurringFromSchedules(
+  userId: string,
+  dayOfWeek: number,
+  oldAvailability: string
+): Promise<number> {
+  if (!oldAvailability) return 0;
+
+  const dates = getNext14Dates();
+  let clearedCount = 0;
+
+  for (const date of dates) {
+    const [day, month, year] = date.split('.');
+    const dateObj = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    if (dateObj.getDay() !== dayOfWeek) continue;
+
+    const schedule = await prisma.schedule.findUnique({
+      where: { date },
+      include: { players: true },
+    });
+    if (!schedule) continue;
+
+    const player = schedule.players.find(p => p.userId === userId);
+    if (player && player.availability === oldAvailability) {
+      await prisma.schedulePlayer.update({
+        where: { id: player.id },
+        data: { availability: '' },
+      });
+      clearedCount++;
+    }
+  }
+
+  if (clearedCount > 0) {
+    logger.info('Recurring cleared', `${clearedCount} schedule entries reset for user ${userId}`);
+  }
+  return clearedCount;
+}
+
+/**
  * Get all schedules (for export/backup)
  */
 export async function getAllSchedules(): Promise<ScheduleData[]> {

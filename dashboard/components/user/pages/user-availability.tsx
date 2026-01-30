@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2, XCircle, Clock, CheckSquare, Square, Check, PlaneTakeoff, CalendarDays, RefreshCw } from 'lucide-react';
+import { Loader2, XCircle, Clock, CheckSquare, Square, Check, PlaneTakeoff, CalendarDays, RefreshCw, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { stagger, microInteractions, cn } from '@/lib/animations';
 import { BOT_API_URL } from '@/lib/config';
@@ -400,6 +400,41 @@ export function UserAvailability() {
     }
   };
 
+  const clearEntry = async (date: string) => {
+    setEntries(prev => prev.map(e =>
+      e.date === date ? { ...e, isSaving: true, justSaved: false } : e
+    ));
+
+    try {
+      const { getAuthHeaders } = await import('@/lib/auth');
+      const response = await fetch(`${BOT_API_URL}/api/schedule/update-availability`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ date, userId: userDiscordId, availability: '' }),
+      });
+
+      if (response.ok) {
+        setEntries(prev => prev.map(e =>
+          e.date === date ? {
+            ...e, value: '', timeFrom: '', timeTo: '',
+            originalTimeFrom: '', originalTimeTo: '',
+            isSaving: false, isRecurring: false,
+          } : e
+        ));
+      } else {
+        toast.error('Failed to clear availability');
+        setEntries(prev => prev.map(e =>
+          e.date === date ? { ...e, isSaving: false } : e
+        ));
+      }
+    } catch {
+      toast.error('Failed to clear availability');
+      setEntries(prev => prev.map(e =>
+        e.date === date ? { ...e, isSaving: false } : e
+      ));
+    }
+  };
+
   const handleTimeChange = (date: string, field: 'from' | 'to', value: string) => {
     // Update local state immediately
     setEntries(prev => prev.map(e =>
@@ -725,7 +760,7 @@ export function UserAvailability() {
               <col className="w-[140px]" />
               <col className="w-[140px]" />
               <col />
-              <col className="w-[130px]" />
+              <col className="w-[180px]" />
             </colgroup>
             <TableHeader>
               <TableRow>
@@ -826,50 +861,61 @@ export function UserAvailability() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          {entry.justSaved ? (
-                            <span className="flex items-center gap-2 text-green-600 animate-fadeIn">
-                              <Check className="w-4 h-4" />
-                              Saved
-                            </span>
-                          ) : entry.value === 'x' ? (
-                            <span className="flex items-center gap-2 text-red-500">
-                              <XCircle className="w-4 h-4" />
-                              Not Available
-                              {entry.isRecurring && (
-                                <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                                  <RefreshCw className="w-3 h-3" />
-                                  Recurring
-                                </span>
-                              )}
-                            </span>
-                          ) : entry.value ? (
-                            <span className="flex items-center gap-2 text-green-600">
-                              <Clock className="w-4 h-4" />
-                              {convertRangeToLocal(entry.value)}
-                              {isConverting && (
-                                <span className="text-xs text-muted-foreground">({entry.value} {getTimezoneAbbr(botTimezone)})</span>
-                              )}
-                              {entry.isRecurring && (
-                                <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                                  <RefreshCw className="w-3 h-3" />
-                                  Recurring
-                                </span>
-                              )}
-                            </span>
-                          ) : (
-                            <span className="text-gray-400">Not set</span>
-                          )}
+                          <div className="flex flex-col gap-0.5">
+                            {entry.justSaved ? (
+                              <span className="flex items-center gap-2 text-green-600 animate-fadeIn">
+                                <Check className="w-4 h-4" />
+                                Saved
+                              </span>
+                            ) : entry.value === 'x' ? (
+                              <span className="flex items-center gap-2 text-red-500">
+                                <XCircle className="w-4 h-4" />
+                                Not Available
+                              </span>
+                            ) : entry.value ? (
+                              <span className="flex items-center gap-2 text-green-600">
+                                <Clock className="w-4 h-4" />
+                                {convertRangeToLocal(entry.value)}
+                                {isConverting && (
+                                  <span className="text-xs text-muted-foreground">({entry.value} {getTimezoneAbbr(botTimezone)})</span>
+                                )}
+                              </span>
+                            ) : (
+                              <span className="text-gray-400">Not set</span>
+                            )}
+                            {entry.isRecurring && (
+                              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <RefreshCw className="w-3 h-3 shrink-0" />
+                                from recurring
+                              </span>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => setUnavailable(entry.date)}
-                            disabled={saving || entry.isSaving}
-                            className={cn(microInteractions.activePress, microInteractions.smooth)}
-                          >
-                            Not Available
-                          </Button>
+                          <div className="flex gap-1">
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => setUnavailable(entry.date)}
+                              disabled={saving || entry.isSaving}
+                              className={cn(microInteractions.activePress, microInteractions.smooth)}
+                            >
+                              Not Available
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => clearEntry(entry.date)}
+                              disabled={saving || entry.isSaving || !entry.value}
+                              className={cn(
+                                microInteractions.activePress,
+                                microInteractions.smooth,
+                                !entry.value && 'invisible'
+                              )}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </>
                     )}

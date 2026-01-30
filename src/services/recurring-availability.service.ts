@@ -1,5 +1,6 @@
 import {
   getRecurringForUser,
+  getRecurringForUserAndDay,
   setRecurring,
   removeRecurring,
   removeAllRecurringForUser,
@@ -7,7 +8,7 @@ import {
   type RecurringAvailabilityData,
 } from '../repositories/recurring-availability.repository.js';
 import { getUserMapping } from '../repositories/user-mapping.repository.js';
-import { applyRecurringToEmptySchedules } from '../repositories/schedule.repository.js';
+import { applyRecurringToEmptySchedules, clearRecurringFromSchedules } from '../repositories/schedule.repository.js';
 import { logger } from '../shared/utils/logger.js';
 
 const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -129,7 +130,18 @@ class RecurringAvailabilityService {
       return { success: false, error: 'You can only manage your own recurring schedule' };
     }
 
+    // Fetch old value before deleting so we can clear matching schedule entries
+    const oldEntry = await getRecurringForUserAndDay(userId, dayOfWeek);
+    const oldAvailability = oldEntry?.availability || '';
+
     await removeRecurring(userId, dayOfWeek);
+
+    // Clear schedule entries that were set by this recurring entry
+    if (oldAvailability) {
+      clearRecurringFromSchedules(userId, dayOfWeek, oldAvailability).catch(err =>
+        logger.error('Failed to clear recurring from schedules', err)
+      );
+    }
 
     return { success: true };
   }
