@@ -80,12 +80,18 @@ router.post('/', verifyToken, validate(recurringAvailabilitySchema), async (req:
     const isAdmin = req.user?.role === 'admin';
 
     let targetUserId = userId;
-    if (!isAdmin || !userId) {
+    if (!targetUserId) {
       const discordId = await resolveDiscordId(req);
       if (!discordId) {
-        return res.status(404).json({ error: 'User mapping not found' });
+        return res.status(400).json({ error: 'Your account is not linked to a player in the roster. Please log in as a player, not as admin.' });
       }
       targetUserId = discordId;
+    } else if (!isAdmin) {
+      // Non-admin trying to set for another user
+      const discordId = await resolveDiscordId(req);
+      if (discordId !== targetUserId) {
+        return res.status(403).json({ error: 'You can only manage your own recurring schedule' });
+      }
     }
 
     const result = await recurringAvailabilityService.set(
@@ -117,12 +123,17 @@ router.post('/bulk', verifyToken, validate(recurringAvailabilityBulkSchema), asy
     const isAdmin = req.user?.role === 'admin';
 
     let targetUserId = userId;
-    if (!isAdmin || !userId) {
+    if (!targetUserId) {
       const discordId = await resolveDiscordId(req);
       if (!discordId) {
-        return res.status(404).json({ error: 'User mapping not found' });
+        return res.status(400).json({ error: 'Your account is not linked to a player in the roster. Please log in as a player, not as admin.' });
       }
       targetUserId = discordId;
+    } else if (!isAdmin) {
+      const discordId = await resolveDiscordId(req);
+      if (discordId !== targetUserId) {
+        return res.status(403).json({ error: 'You can only manage your own recurring schedule' });
+      }
     }
 
     const result = await recurringAvailabilityService.setBulk(
@@ -158,12 +169,17 @@ router.delete('/:dayOfWeek', verifyToken, async (req: AuthRequest, res) => {
     }
 
     let targetUserId = userId;
-    if (!isAdmin || !userId) {
+    if (!targetUserId) {
       const discordId = await resolveDiscordId(req);
       if (!discordId) {
-        return res.status(404).json({ error: 'User mapping not found' });
+        return res.status(400).json({ error: 'Your account is not linked to a player in the roster.' });
       }
       targetUserId = discordId;
+    } else if (!isAdmin) {
+      const discordId = await resolveDiscordId(req);
+      if (discordId !== targetUserId) {
+        return res.status(403).json({ error: 'You can only manage your own recurring schedule' });
+      }
     }
 
     const result = await recurringAvailabilityService.remove(
@@ -193,12 +209,17 @@ router.delete('/', verifyToken, async (req: AuthRequest, res) => {
     const userId = req.query.userId as string;
 
     let targetUserId = userId;
-    if (!isAdmin || !userId) {
+    if (!targetUserId) {
       const discordId = await resolveDiscordId(req);
       if (!discordId) {
-        return res.status(404).json({ error: 'User mapping not found' });
+        return res.status(400).json({ error: 'Your account is not linked to a player in the roster.' });
       }
       targetUserId = discordId;
+    } else if (!isAdmin) {
+      const discordId = await resolveDiscordId(req);
+      if (discordId !== targetUserId) {
+        return res.status(403).json({ error: 'You can only manage your own recurring schedule' });
+      }
     }
 
     const result = await recurringAvailabilityService.removeAll(
