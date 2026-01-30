@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2, XCircle, Clock, CheckSquare, Square, Check, PlaneTakeoff, CalendarDays } from 'lucide-react';
+import { Loader2, XCircle, Clock, CheckSquare, Square, Check, PlaneTakeoff, CalendarDays, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { stagger, microInteractions, cn } from '@/lib/animations';
 import { BOT_API_URL } from '@/lib/config';
@@ -51,6 +51,7 @@ interface DateEntry {
   originalTimeTo: string;
   isSaving?: boolean;
   justSaved?: boolean;
+  isRecurring?: boolean;
 }
 
 export function UserAvailability() {
@@ -123,17 +124,27 @@ export function UserAvailability() {
 
       setUserDiscordId(userMapping.discordId);
 
-      // Fetch absences and schedule in parallel
-      const [absencesRes, scheduleRes] = await Promise.all([
+      // Fetch absences, schedule, and recurring in parallel
+      const [absencesRes, scheduleRes, recurringRes] = await Promise.all([
         fetch(`${BOT_API_URL}/api/absences?userId=${userMapping.discordId}`, { headers }),
         fetch(`${BOT_API_URL}/api/schedule/next14`, { headers }),
+        fetch(`${BOT_API_URL}/api/recurring-availability?userId=${userMapping.discordId}`, { headers }),
       ]);
 
       // Parse responses with safe JSON handling
-      const [absencesData, scheduleData] = await Promise.all([
+      const [absencesData, scheduleData, recurringData] = await Promise.all([
         absencesRes.ok ? absencesRes.json().catch(() => ({ absences: [] })) : Promise.resolve({ absences: [] }),
         scheduleRes.ok ? scheduleRes.json().catch(() => ({ schedules: [] })) : Promise.resolve({ schedules: [] }),
+        recurringRes.ok ? recurringRes.json().catch(() => ({ entries: [] })) : Promise.resolve({ entries: [] }),
       ]);
+
+      // Build recurring lookup: dayOfWeek -> availability
+      const recurringMap = new Map<number, string>();
+      for (const entry of (recurringData.entries || [])) {
+        if (entry.active) {
+          recurringMap.set(entry.dayOfWeek, entry.availability);
+        }
+      }
 
       setAbsences(absencesData.absences || []);
 
@@ -162,6 +173,9 @@ export function UserAvailability() {
         const schedule = schedules.find((s: any) => s.date === dateStr);
         const player = schedule?.players?.find((p: any) => p.userId === userMapping.discordId);
         const availability = player?.availability || '';
+        const dayOfWeek = date.getDay();
+        const recurringValue = recurringMap.get(dayOfWeek);
+        const isRecurring = !!(availability && recurringValue && availability === recurringValue);
 
         let timeFrom = '';
         let timeTo = '';
@@ -182,6 +196,7 @@ export function UserAvailability() {
           timeTo,
           originalTimeFrom: timeFrom,
           originalTimeTo: timeTo,
+          isRecurring,
         });
       }
 
@@ -820,6 +835,12 @@ export function UserAvailability() {
                             <span className="flex items-center gap-2 text-red-500">
                               <XCircle className="w-4 h-4" />
                               Not Available
+                              {entry.isRecurring && (
+                                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                  <RefreshCw className="w-3 h-3" />
+                                  Recurring
+                                </span>
+                              )}
                             </span>
                           ) : entry.value ? (
                             <span className="flex items-center gap-2 text-green-600">
@@ -827,6 +848,12 @@ export function UserAvailability() {
                               {convertRangeToLocal(entry.value)}
                               {isConverting && (
                                 <span className="text-xs text-muted-foreground">({entry.value} {getTimezoneAbbr(botTimezone)})</span>
+                              )}
+                              {entry.isRecurring && (
+                                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                  <RefreshCw className="w-3 h-3" />
+                                  Recurring
+                                </span>
                               )}
                             </span>
                           ) : (
