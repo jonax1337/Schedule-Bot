@@ -220,6 +220,9 @@ describe('settingsSchema', () => {
       tagline: '',
       logoUrl: '',
     },
+    stratbook: {
+      editPermission: 'admin',
+    },
   };
 
   it('accepts valid settings', () => {

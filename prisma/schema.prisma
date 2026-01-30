@@ -119,6 +119,40 @@ enum UserRole {
   COACH
 }
 
+model Strategy {
+  id         Int              @id @default(autoincrement())
+  title      String
+  map        String?
+  side       String?
+  tags       String           @default("")
+  agents     String           @default("")
+  content    Json             @default("{}")
+  authorId   String           @map("author_id")
+  authorName String           @map("author_name")
+  createdAt  DateTime         @default(now()) @map("created_at")
+  updatedAt  DateTime         @updatedAt @map("updated_at")
+  images     StrategyImage[]
+
+  @@index([map])
+  @@index([side])
+  @@map("strategies")
+}
+
+model StrategyImage {
+  id           Int       @id @default(autoincrement())
+  strategyId   Int?      @map("strategy_id")
+  filename     String    @unique
+  originalName String    @map("original_name")
+  mimeType     String    @map("mime_type")
+  size         Int
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  strategy     Strategy? @relation(fields: [strategyId], references: [id], onDelete: Cascade)
+
+  @@index([strategyId])
+  @@map("strategy_images")
+}
+
 enum ScrimResult {
   WIN
   LOSS

@@ -20,6 +20,9 @@ export interface Settings {
     tagline?: string;
     logoUrl?: string;
   };
+  stratbook: {
+    editPermission: 'admin' | 'all';
+  };
   admin?: {
     username: string;
     password: string;

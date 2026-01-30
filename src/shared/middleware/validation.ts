@@ -75,6 +75,9 @@ export const settingsSchema = Joi.object({
     tagline: Joi.string().min(0).max(100).allow(''),
     logoUrl: Joi.string().uri({ scheme: ['http', 'https'] }).allow(''),
   }).required(),
+  stratbook: Joi.object({
+    editPermission: Joi.string().valid('admin', 'all').required(),
+  }).required(),
 });
 
 export function validate(schema: Joi.ObjectSchema) {
@@ -148,6 +151,24 @@ export const recurringAvailabilityBulkSchema = Joi.object({
   availability: Joi.string().pattern(/^(\d{2}:\d{2}-\d{2}:\d{2}|x|X)$/).required(),
   userId: Joi.string().pattern(/^\d{17,19}$/).optional(),
 });
+
+export const createStrategySchema = Joi.object({
+  title: Joi.string().min(1).max(200).required(),
+  map: Joi.string().max(50).allow('', null),
+  side: Joi.string().valid('Attack', 'Defense', '', null).allow(null),
+  tags: Joi.string().max(500).allow(''),
+  agents: Joi.string().max(500).allow(''),
+  content: Joi.object().required(),
+});
+
+export const updateStrategySchema = Joi.object({
+  title: Joi.string().min(1).max(200),
+  map: Joi.string().max(50).allow('', null),
+  side: Joi.string().valid('Attack', 'Defense', '', null).allow(null),
+  tags: Joi.string().max(500).allow(''),
+  agents: Joi.string().max(500).allow(''),
+  content: Joi.object(),
+}).min(1);
 
 export function isValidDateFormat(date: string): boolean {
   return datePattern.test(date);
