@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2, RefreshCw, Trash2, Clock, XCircle, Check } from 'lucide-react';
+import { Loader2, RefreshCw, Trash2, Clock, XCircle, Check, CheckSquare } from 'lucide-react';
 import { toast } from 'sonner';
 import { stagger, microInteractions, cn } from '@/lib/animations';
 import { BOT_API_URL } from '@/lib/config';
@@ -23,19 +23,31 @@ interface RecurringEntry {
   active: boolean;
 }
 
+interface DayEntry {
+  dayOfWeek: number;
+  timeFrom: string;
+  timeTo: string;
+  originalTimeFrom: string;
+  originalTimeTo: string;
+  availability: string;
+  isSaving?: boolean;
+  justSaved?: boolean;
+}
+
 export function UserRecurring() {
   const router = useRouter();
   const { convertRangeToLocal, convertRangeToBot, isConverting, userTimezone, botTimezoneLoaded, timezoneVersion } = useTimezone();
   const [userDiscordId, setUserDiscordId] = useState('');
-  const [entries, setEntries] = useState<RecurringEntry[]>([]);
+  const [dayEntries, setDayEntries] = useState<DayEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [selectedDays, setSelectedDays] = useState<Set<number>>(new Set());
   const [bulkTimeFrom, setBulkTimeFrom] = useState('');
   const [bulkTimeTo, setBulkTimeTo] = useState('');
+  const autoSaveTimeoutsRef = useRef<Record<number, NodeJS.Timeout>>({});
 
-  // Per-day editing state
-  const [dayEdits, setDayEdits] = useState<Record<number, { timeFrom: string; timeTo: string }>>({});
+  // Monday-first order
+  const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
 
   useEffect(() => {
     if (!botTimezoneLoaded) return;
@@ -56,13 +68,22 @@ export function UserRecurring() {
     checkAuthAndLoad();
   }, [router, botTimezoneLoaded, timezoneVersion]);
 
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(autoSaveTimeoutsRef.current).forEach(timeout => {
+        clearTimeout(timeout);
+      });
+    };
+  }, []);
+
   const loadData = async (userName?: string) => {
     setLoading(true);
     try {
       const { getAuthHeaders } = await import('@/lib/auth');
       const headers = getAuthHeaders();
 
-      // Resolve Discord ID from user mappings (same pattern as user-availability)
+      // Resolve Discord ID from user mappings
       let discordId = userDiscordId;
       if (!discordId) {
         const mappingsRes = await fetch(`${BOT_API_URL}/api/user-mappings`, { headers });
@@ -91,20 +112,35 @@ export function UserRecurring() {
       }
 
       const data = await res.json();
-      setEntries(data.entries || []);
+      const entries: RecurringEntry[] = data.entries || [];
 
-      // Initialize edit state from existing entries
-      const edits: Record<number, { timeFrom: string; timeTo: string }> = {};
-      for (const entry of (data.entries || [])) {
-        if (entry.availability && entry.availability !== 'x' && entry.availability.includes('-')) {
-          const localRange = convertRangeToLocal(entry.availability);
+      // Build day entries for all 7 days
+      const newDayEntries: DayEntry[] = DAY_ORDER.map(dayOfWeek => {
+        const entry = entries.find(e => e.dayOfWeek === dayOfWeek);
+        let timeFrom = '';
+        let timeTo = '';
+        const availability = entry?.availability || '';
+
+        if (availability && availability !== 'x' && availability.includes('-')) {
+          const localRange = convertRangeToLocal(availability);
           const parts = localRange.split('-');
           if (parts.length === 2) {
-            edits[entry.dayOfWeek] = { timeFrom: parts[0].trim(), timeTo: parts[1].trim() };
+            timeFrom = parts[0].trim();
+            timeTo = parts[1].trim();
           }
         }
-      }
-      setDayEdits(edits);
+
+        return {
+          dayOfWeek,
+          timeFrom,
+          timeTo,
+          originalTimeFrom: timeFrom,
+          originalTimeTo: timeTo,
+          availability,
+        };
+      });
+
+      setDayEntries(newDayEntries);
     } catch {
       toast.error('Failed to load recurring schedule');
     } finally {
@@ -112,18 +148,26 @@ export function UserRecurring() {
     }
   };
 
-  const saveDay = async (dayOfWeek: number, timeFrom: string, timeTo: string) => {
+  const saveDay = async (dayOfWeek: number, timeFrom: string, timeTo: string, isAutoSave = false) => {
     if (!timeFrom || !timeTo) {
-      toast.error('Please enter both start and end time');
+      if (!isAutoSave) {
+        toast.error('Please enter both start and end time');
+      }
       return;
     }
 
     if (timeTo <= timeFrom) {
-      toast.error('End time must be after start time');
+      if (!isAutoSave) {
+        toast.error('End time must be after start time');
+      }
       return;
     }
 
-    setSaving(true);
+    // Mark as saving
+    setDayEntries(prev => prev.map(e =>
+      e.dayOfWeek === dayOfWeek ? { ...e, isSaving: true, justSaved: false } : e
+    ));
+
     try {
       const localValue = `${timeFrom}-${timeTo}`;
       const botValue = convertRangeToBot(localValue);
@@ -136,21 +180,45 @@ export function UserRecurring() {
       });
 
       if (response.ok) {
-        toast.success(`${WEEKDAY_NAMES[dayOfWeek]} updated`);
-        await loadData();
+        if (!isAutoSave) {
+          toast.success(`${WEEKDAY_NAMES[dayOfWeek]} updated`);
+        }
+
+        setDayEntries(prev => prev.map(e =>
+          e.dayOfWeek === dayOfWeek ? {
+            ...e,
+            availability: botValue,
+            originalTimeFrom: timeFrom,
+            originalTimeTo: timeTo,
+            isSaving: false,
+            justSaved: true,
+          } : e
+        ));
+
+        setTimeout(() => {
+          setDayEntries(prev => prev.map(e =>
+            e.dayOfWeek === dayOfWeek ? { ...e, justSaved: false } : e
+          ));
+        }, 2000);
       } else {
-        const err = await response.json().catch(() => ({}));
-        toast.error(err.error || 'Failed to save');
+        toast.error('Failed to save');
+        setDayEntries(prev => prev.map(e =>
+          e.dayOfWeek === dayOfWeek ? { ...e, isSaving: false } : e
+        ));
       }
     } catch {
       toast.error('Failed to save');
-    } finally {
-      setSaving(false);
+      setDayEntries(prev => prev.map(e =>
+        e.dayOfWeek === dayOfWeek ? { ...e, isSaving: false } : e
+      ));
     }
   };
 
   const setDayUnavailable = async (dayOfWeek: number) => {
-    setSaving(true);
+    setDayEntries(prev => prev.map(e =>
+      e.dayOfWeek === dayOfWeek ? { ...e, isSaving: true, justSaved: false } : e
+    ));
+
     try {
       const { getAuthHeaders } = await import('@/lib/auth');
 
@@ -162,24 +230,43 @@ export function UserRecurring() {
 
       if (response.ok) {
         toast.success(`${WEEKDAY_NAMES[dayOfWeek]} marked as unavailable`);
-        setDayEdits(prev => {
-          const next = { ...prev };
-          delete next[dayOfWeek];
-          return next;
-        });
-        await loadData();
+        setDayEntries(prev => prev.map(e =>
+          e.dayOfWeek === dayOfWeek ? {
+            ...e,
+            availability: 'x',
+            timeFrom: '',
+            timeTo: '',
+            originalTimeFrom: '',
+            originalTimeTo: '',
+            isSaving: false,
+            justSaved: true,
+          } : e
+        ));
+
+        setTimeout(() => {
+          setDayEntries(prev => prev.map(e =>
+            e.dayOfWeek === dayOfWeek ? { ...e, justSaved: false } : e
+          ));
+        }, 2000);
       } else {
         toast.error('Failed to save');
+        setDayEntries(prev => prev.map(e =>
+          e.dayOfWeek === dayOfWeek ? { ...e, isSaving: false } : e
+        ));
       }
     } catch {
       toast.error('Failed to save');
-    } finally {
-      setSaving(false);
+      setDayEntries(prev => prev.map(e =>
+        e.dayOfWeek === dayOfWeek ? { ...e, isSaving: false } : e
+      ));
     }
   };
 
   const removeDay = async (dayOfWeek: number) => {
-    setSaving(true);
+    setDayEntries(prev => prev.map(e =>
+      e.dayOfWeek === dayOfWeek ? { ...e, isSaving: true, justSaved: false } : e
+    ));
+
     try {
       const { getAuthHeaders } = await import('@/lib/auth');
 
@@ -189,20 +276,35 @@ export function UserRecurring() {
       });
 
       if (response.ok) {
-        toast.success(`${WEEKDAY_NAMES[dayOfWeek]} recurring entry removed`);
-        setDayEdits(prev => {
-          const next = { ...prev };
-          delete next[dayOfWeek];
-          return next;
-        });
-        await loadData();
+        setDayEntries(prev => prev.map(e =>
+          e.dayOfWeek === dayOfWeek ? {
+            ...e,
+            availability: '',
+            timeFrom: '',
+            timeTo: '',
+            originalTimeFrom: '',
+            originalTimeTo: '',
+            isSaving: false,
+            justSaved: true,
+          } : e
+        ));
+
+        setTimeout(() => {
+          setDayEntries(prev => prev.map(e =>
+            e.dayOfWeek === dayOfWeek ? { ...e, justSaved: false } : e
+          ));
+        }, 2000);
       } else {
         toast.error('Failed to remove');
+        setDayEntries(prev => prev.map(e =>
+          e.dayOfWeek === dayOfWeek ? { ...e, isSaving: false } : e
+        ));
       }
     } catch {
       toast.error('Failed to remove');
-    } finally {
-      setSaving(false);
+      setDayEntries(prev => prev.map(e =>
+        e.dayOfWeek === dayOfWeek ? { ...e, isSaving: false } : e
+      ));
     }
   };
 
@@ -218,8 +320,14 @@ export function UserRecurring() {
 
       if (response.ok) {
         toast.success('All recurring entries cleared');
-        setDayEdits({});
-        await loadData();
+        setDayEntries(prev => prev.map(e => ({
+          ...e,
+          availability: '',
+          timeFrom: '',
+          timeTo: '',
+          originalTimeFrom: '',
+          originalTimeTo: '',
+        })));
       } else {
         toast.error('Failed to clear');
       }
@@ -228,6 +336,32 @@ export function UserRecurring() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleTimeChange = (dayOfWeek: number, field: 'timeFrom' | 'timeTo', value: string) => {
+    // Update local state immediately
+    setDayEntries(prev => prev.map(e =>
+      e.dayOfWeek === dayOfWeek ? { ...e, [field]: value } : e
+    ));
+
+    // Clear existing timeout for this day
+    if (autoSaveTimeoutsRef.current[dayOfWeek]) {
+      clearTimeout(autoSaveTimeoutsRef.current[dayOfWeek]);
+    }
+
+    // Auto-save after 1 second
+    autoSaveTimeoutsRef.current[dayOfWeek] = setTimeout(() => {
+      setDayEntries(current => {
+        const entry = current.find(e => e.dayOfWeek === dayOfWeek);
+        if (entry && entry.timeFrom && entry.timeTo) {
+          saveDay(dayOfWeek, entry.timeFrom, entry.timeTo, true);
+        } else if (entry && !entry.timeFrom && !entry.timeTo && entry.availability && entry.availability !== 'x') {
+          // Both fields cleared — remove the entry
+          removeDay(dayOfWeek);
+        }
+        return current;
+      });
+    }, 1000);
   };
 
   // Bulk operations
@@ -259,10 +393,21 @@ export function UserRecurring() {
 
       if (response.ok) {
         toast.success(`Updated ${selectedDays.size} day(s)`);
+
+        setDayEntries(prev => prev.map(e =>
+          selectedDays.has(e.dayOfWeek) ? {
+            ...e,
+            availability: botValue,
+            timeFrom: bulkTimeFrom,
+            timeTo: bulkTimeTo,
+            originalTimeFrom: bulkTimeFrom,
+            originalTimeTo: bulkTimeTo,
+          } : e
+        ));
+
         setSelectedDays(new Set());
         setBulkTimeFrom('');
         setBulkTimeTo('');
-        await loadData();
       } else {
         toast.error('Failed to bulk update');
       }
@@ -291,8 +436,19 @@ export function UserRecurring() {
 
       if (response.ok) {
         toast.success(`Marked ${selectedDays.size} day(s) as unavailable`);
+
+        setDayEntries(prev => prev.map(e =>
+          selectedDays.has(e.dayOfWeek) ? {
+            ...e,
+            availability: 'x',
+            timeFrom: '',
+            timeTo: '',
+            originalTimeFrom: '',
+            originalTimeTo: '',
+          } : e
+        ));
+
         setSelectedDays(new Set());
-        await loadData();
       } else {
         toast.error('Failed to bulk update');
       }
@@ -316,18 +472,8 @@ export function UserRecurring() {
     if (selectedDays.size === 7) {
       setSelectedDays(new Set());
     } else {
-      setSelectedDays(new Set([0, 1, 2, 3, 4, 5, 6]));
+      setSelectedDays(new Set(DAY_ORDER));
     }
-  };
-
-  const handleTimeChange = (dayOfWeek: number, field: 'timeFrom' | 'timeTo', value: string) => {
-    setDayEdits(prev => ({
-      ...prev,
-      [dayOfWeek]: {
-        ...prev[dayOfWeek] || { timeFrom: '', timeTo: '' },
-        [field]: value,
-      },
-    }));
   };
 
   if (loading) {
@@ -340,26 +486,16 @@ export function UserRecurring() {
     );
   }
 
+  const hasAnyEntries = dayEntries.some(e => e.availability);
+
   return (
     <div className="space-y-4">
-      {/* Info Card */}
-      <Card className="animate-fadeIn">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <RefreshCw className="w-5 h-5" />
-            Recurring Weekly Schedule
-          </CardTitle>
-          <CardDescription>
-            Set your default availability for each day of the week. This will be auto-applied when new schedule days are created. You can always override specific dates in &quot;My Availability&quot;.
-          </CardDescription>
-        </CardHeader>
-      </Card>
-
-      {/* Bulk Actions */}
+      {/* Bulk Actions Toolbar */}
       {selectedDays.size > 0 && (
         <Card className="animate-slideDown border-primary">
           <CardHeader>
-            <CardTitle className="text-sm">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <CheckSquare className="w-4 h-4" />
               {selectedDays.size} day(s) selected
             </CardTitle>
           </CardHeader>
@@ -367,7 +503,7 @@ export function UserRecurring() {
             <div className="flex flex-wrap gap-4 items-end">
               <div className="flex gap-2 flex-1 min-w-[300px]">
                 <div className="flex-1">
-                  <label className="text-xs text-muted-foreground mb-1 block">From</label>
+                  <label className="text-xs text-muted-foreground mb-1 block">Bulk From</label>
                   <Input
                     type="time"
                     value={bulkTimeFrom}
@@ -376,7 +512,7 @@ export function UserRecurring() {
                   />
                 </div>
                 <div className="flex-1">
-                  <label className="text-xs text-muted-foreground mb-1 block">To</label>
+                  <label className="text-xs text-muted-foreground mb-1 block">Bulk To</label>
                   <Input
                     type="time"
                     value={bulkTimeTo}
@@ -416,21 +552,30 @@ export function UserRecurring() {
 
       {/* Main Table */}
       <Card className="animate-fadeIn">
-        <CardContent>
-          <div className="flex justify-end mb-4">
-            {entries.length > 0 && (
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <RefreshCw className="w-5 h-5" />
+              Recurring Weekly Schedule
+            </CardTitle>
+            {hasAnyEntries && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={clearAll}
                 disabled={saving}
-                className={microInteractions.activePress}
+                className={cn(microInteractions.activePress, microInteractions.smooth)}
               >
                 <Trash2 className="w-4 h-4 mr-1" />
                 Clear All
               </Button>
             )}
           </div>
+          <p className="text-sm text-muted-foreground">
+            Set your default weekly availability. Auto-applied when new schedule days are created. Override specific dates in &quot;My Availability&quot;.
+          </p>
+        </CardHeader>
+        <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
@@ -444,105 +589,87 @@ export function UserRecurring() {
                 <TableHead>Day</TableHead>
                 <TableHead>From</TableHead>
                 <TableHead>To</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>Current Status</TableHead>
                 <TableHead></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {/* Render Monday first (1), then Tue-Sun: 1,2,3,4,5,6,0 */}
-              {[1, 2, 3, 4, 5, 6, 0].map((dayOfWeek, index) => {
-                const entry = entries.find(e => e.dayOfWeek === dayOfWeek);
-                const isSelected = selectedDays.has(dayOfWeek);
-                const edit = dayEdits[dayOfWeek] || { timeFrom: '', timeTo: '' };
-                const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+              {dayEntries.map((entry, index) => {
+                const isSelected = selectedDays.has(entry.dayOfWeek);
+                const isWeekend = entry.dayOfWeek === 0 || entry.dayOfWeek === 6;
 
                 return (
                   <TableRow
-                    key={dayOfWeek}
+                    key={entry.dayOfWeek}
                     className={cn(
                       isSelected && 'bg-primary/5',
-                      isWeekend && 'bg-muted/30',
+                      !isSelected && isWeekend && 'bg-muted/30',
                       stagger(index, 'fast', 'fadeIn')
                     )}
                   >
                     <TableCell>
                       <Checkbox
                         checked={isSelected}
-                        onCheckedChange={() => toggleDaySelection(dayOfWeek)}
-                        aria-label={`Select ${WEEKDAY_NAMES[dayOfWeek]}`}
+                        onCheckedChange={() => toggleDaySelection(entry.dayOfWeek)}
+                        aria-label={`Select ${WEEKDAY_NAMES[entry.dayOfWeek]}`}
                       />
                     </TableCell>
-                    <TableCell className="font-medium">{WEEKDAY_NAMES[dayOfWeek]}</TableCell>
+                    <TableCell className="font-medium">{WEEKDAY_NAMES[entry.dayOfWeek]}</TableCell>
                     <TableCell>
-                      <Input
-                        type="time"
-                        value={edit.timeFrom}
-                        onChange={(e) => handleTimeChange(dayOfWeek, 'timeFrom', e.target.value)}
-                        className={cn("w-32", microInteractions.focusRing)}
-                        disabled={saving}
-                      />
+                      <div className="relative">
+                        <Input
+                          type="time"
+                          value={entry.timeFrom}
+                          onChange={(e) => handleTimeChange(entry.dayOfWeek, 'timeFrom', e.target.value)}
+                          className={cn("w-32", microInteractions.focusRing)}
+                          disabled={entry.isSaving}
+                        />
+                      </div>
                     </TableCell>
                     <TableCell>
-                      <Input
-                        type="time"
-                        value={edit.timeTo}
-                        onChange={(e) => handleTimeChange(dayOfWeek, 'timeTo', e.target.value)}
-                        className={cn("w-32", microInteractions.focusRing)}
-                        disabled={saving}
-                      />
+                      <div className="relative">
+                        <Input
+                          type="time"
+                          value={entry.timeTo}
+                          onChange={(e) => handleTimeChange(entry.dayOfWeek, 'timeTo', e.target.value)}
+                          className={cn("w-32", microInteractions.focusRing)}
+                          disabled={entry.isSaving}
+                        />
+                      </div>
                     </TableCell>
                     <TableCell>
-                      {entry ? (
-                        entry.availability === 'x' ? (
-                          <span className="flex items-center gap-2 text-red-500">
-                            <XCircle className="w-4 h-4" />
-                            Unavailable
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-2 text-green-600">
-                            <Clock className="w-4 h-4" />
-                            {convertRangeToLocal(entry.availability)}
-                            {isConverting && (
-                              <span className="text-xs text-muted-foreground">({getTimezoneAbbr(userTimezone)})</span>
-                            )}
-                          </span>
-                        )
+                      {entry.justSaved ? (
+                        <span className="flex items-center gap-2 text-green-600 animate-fadeIn">
+                          <Check className="w-4 h-4" />
+                          Saved
+                        </span>
+                      ) : entry.availability === 'x' ? (
+                        <span className="flex items-center gap-2 text-red-500">
+                          <XCircle className="w-4 h-4" />
+                          Not Available
+                        </span>
+                      ) : entry.availability ? (
+                        <span className="flex items-center gap-2 text-green-600">
+                          <Clock className="w-4 h-4" />
+                          {convertRangeToLocal(entry.availability)}
+                          {isConverting && (
+                            <span className="text-xs text-muted-foreground">({getTimezoneAbbr(userTimezone)})</span>
+                          )}
+                        </span>
                       ) : (
                         <span className="text-gray-400">Not set</span>
                       )}
                     </TableCell>
                     <TableCell>
-                      <div className="flex gap-1">
-                        <Button
-                          size="sm"
-                          onClick={() => saveDay(dayOfWeek, edit.timeFrom, edit.timeTo)}
-                          disabled={saving || !edit.timeFrom || !edit.timeTo}
-                          className={microInteractions.activePress}
-                        >
-                          <Check className="w-3 h-3 mr-1" />
-                          Save
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => setDayUnavailable(dayOfWeek)}
-                          disabled={saving}
-                          className={microInteractions.activePress}
-                        >
-                          <XCircle className="w-3 h-3" />
-                        </Button>
-                        {entry && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => removeDay(dayOfWeek)}
-                            disabled={saving}
-                            className={microInteractions.activePress}
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
-                        )}
-                      </div>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => setDayUnavailable(entry.dayOfWeek)}
+                        disabled={saving || entry.isSaving}
+                        className={cn(microInteractions.activePress, microInteractions.smooth)}
+                      >
+                        Not Available
+                      </Button>
                     </TableCell>
                   </TableRow>
                 );

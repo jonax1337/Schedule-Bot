@@ -715,12 +715,16 @@ export function UserAvailability() {
               {entries.map((entry, index) => {
                 const isSelected = selectedDates.has(entry.date);
                 const isAbsent = isDateInAbsence(entry.date, absences);
+                const [day, month, year] = entry.date.split('.');
+                const dateObj = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+                const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
                 return (
                   <TableRow
                     key={entry.date}
                     className={cn(
                       isSelected && 'bg-primary/5',
                       isAbsent && 'bg-purple-500/5 opacity-60',
+                      !isSelected && !isAbsent && isWeekend && 'bg-muted/30',
                       stagger(index, 'fast', 'fadeIn')
                     )}
                   >
