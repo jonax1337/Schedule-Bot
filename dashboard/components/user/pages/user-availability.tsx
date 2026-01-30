@@ -693,10 +693,19 @@ export function UserAvailability() {
       {/* Main Table */}
       <Card className="animate-fadeIn">
         <CardContent>
-          <Table>
+          <Table className="table-fixed w-full">
+            <colgroup>
+              <col className="w-10" />
+              <col className="w-[100px]" />
+              <col className="w-[100px]" />
+              <col className="w-[140px]" />
+              <col className="w-[140px]" />
+              <col />
+              <col className="w-[130px]" />
+            </colgroup>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-12">
+                <TableHead>
                   <Checkbox
                     checked={selectedDates.size === entries.length && entries.length > 0}
                     onCheckedChange={toggleSelectAll}
@@ -707,8 +716,8 @@ export function UserAvailability() {
                 <TableHead>Weekday</TableHead>
                 <TableHead>From</TableHead>
                 <TableHead>To</TableHead>
-                <TableHead className="min-w-[200px]">Current Status</TableHead>
-                <TableHead className="min-w-[120px]"></TableHead>
+                <TableHead>Current Status</TableHead>
+                <TableHead></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

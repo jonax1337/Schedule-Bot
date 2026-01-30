@@ -532,10 +532,18 @@ export function UserRecurring() {
           </p>
         </CardHeader>
         <CardContent>
-          <Table>
+          <Table className="table-fixed w-full">
+            <colgroup>
+              <col className="w-10" />
+              <col className="w-[120px]" />
+              <col className="w-[140px]" />
+              <col className="w-[140px]" />
+              <col />
+              <col className="w-[180px]" />
+            </colgroup>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-12">
+                <TableHead>
                   <Checkbox
                     checked={selectedDays.size === 7}
                     onCheckedChange={toggleSelectAll}
@@ -545,8 +553,8 @@ export function UserRecurring() {
                 <TableHead>Day</TableHead>
                 <TableHead>From</TableHead>
                 <TableHead>To</TableHead>
-                <TableHead className="min-w-[200px]">Current Status</TableHead>
-                <TableHead className="min-w-[160px]"></TableHead>
+                <TableHead>Current Status</TableHead>
+                <TableHead></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
