@@ -308,10 +308,10 @@ export function UserAbsences() {
                       <TableCell>
                         <Button
                           size="sm"
-                          variant="ghost"
+                          variant="outline"
                           onClick={() => deleteAbsenceHandler(absence.id)}
                           disabled={deleting === absence.id}
-                          className={cn("text-destructive hover:text-destructive", microInteractions.activePress)}
+                          className={cn(microInteractions.activePress, microInteractions.smooth)}
                         >
                           {deleting === absence.id ? (
                             <Loader2 className="w-4 h-4 animate-spin" />
@@ -341,10 +341,10 @@ export function UserAbsences() {
                     <TableCell>
                       <Button
                         size="sm"
-                        variant="ghost"
+                        variant="outline"
                         onClick={() => deleteAbsenceHandler(absence.id)}
                         disabled={deleting === absence.id}
-                        className={cn("text-destructive hover:text-destructive", microInteractions.activePress)}
+                        className={cn(microInteractions.activePress, microInteractions.smooth)}
                       >
                         {deleting === absence.id ? (
                           <Loader2 className="w-4 h-4 animate-spin" />
