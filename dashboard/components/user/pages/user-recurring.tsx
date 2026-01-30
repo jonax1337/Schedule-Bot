@@ -526,7 +526,7 @@ export function UserRecurring() {
             Recurring Weekly Schedule
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Set your default weekly availability. Auto-applied when new schedule days are created. Override specific dates in &quot;My Availability&quot;.
+            Set your default weekly availability. Auto-applied when new schedule days are created. Override specific dates in &quot;Availability&quot;.
           </p>
         </CardHeader>
         <CardContent>

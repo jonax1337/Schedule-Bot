@@ -61,7 +61,6 @@ function AdminLayoutWrapperInner({ children }: AdminLayoutWrapperProps) {
     users: 'Users',
     schedule: 'Schedule',
     scrims: 'Scrims',
-    'map-veto': 'Map Veto',
     stratbook: 'Stratbook',
     actions: 'Actions',
     security: 'Security',

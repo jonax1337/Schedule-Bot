@@ -88,7 +88,7 @@ export async function initiateDiscordAuth(req: Request, res: Response) {
     
     res.json({ url: authUrl });
   } catch (error) {
-    logger.error('Error initiating Discord auth:', error);
+    logger.error('Error initiating Discord auth:', String(error));
     res.status(500).json({ error: 'Failed to initiate authentication' });
   }
 }
@@ -200,7 +200,7 @@ export async function handleDiscordCallback(req: Request, res: Response) {
       },
     });
   } catch (error) {
-    logger.error('Error handling Discord callback:', error);
+    logger.error('Error handling Discord callback:', String(error));
     res.status(500).json({ error: 'Authentication failed' });
   }
 }
@@ -262,7 +262,7 @@ export async function getUserFromSession(req: Request, res: Response) {
 
     res.status(401).json({ error: 'Invalid token' });
   } catch (error) {
-    logger.error('Error getting user from token:', error);
+    logger.error('Error getting user from token:', String(error));
     res.status(500).json({ error: 'Failed to get user info' });
   }
 }
@@ -280,7 +280,7 @@ export function logout(req: Request, res: Response) {
 
     res.json({ success: true });
   } catch (error) {
-    logger.error('Error during logout:', error);
+    logger.error('Error during logout:', String(error));
     res.status(500).json({ error: 'Logout failed' });
   }
 }

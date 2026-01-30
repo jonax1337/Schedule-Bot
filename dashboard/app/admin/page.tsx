@@ -12,7 +12,6 @@ import {
   Security,
   AdminDashboard,
   Statistics,
-  MapVetoPlanner,
   Stratbook
 } from "@/components/admin/pages";
 import { AdminLayoutWrapper } from "@/components/admin/layout";
@@ -60,7 +59,6 @@ function AdminContent() {
       users: 'User Management',
       schedule: 'Schedule Editor',
       scrims: 'Match Management',
-      'map-veto': 'Map Veto Planner',
       stratbook: 'Stratbook',
       actions: 'Bot Actions',
       security: 'Security',
@@ -88,7 +86,6 @@ function AdminContent() {
         {currentTab === 'users' && <UserMappings />}
         {currentTab === 'schedule' && <ScheduleEditor />}
         {currentTab === 'scrims' && <Matches />}
-        {currentTab === 'map-veto' && <MapVetoPlanner />}
         {currentTab === 'stratbook' && <Stratbook />}
         {currentTab === 'actions' && <Actions />}
         {currentTab === 'security' && <Security />}

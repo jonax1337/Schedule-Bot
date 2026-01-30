@@ -14,6 +14,7 @@ All components run from a single Node.js process that starts the bot, API server
 ### Technology Stack
 **Backend:** TypeScript 5.9, discord.js 14.25, Express 5.2, Prisma 7.3 (with @prisma/adapter-pg + pg native driver), node-cron 4.2, bcrypt 6, jsonwebtoken 9, Helmet 8, dotenv 17, Joi 18, @notionhq/client 2.3 (Notion API)
 **Frontend:** Next.js 16.1, React 19.2, TailwindCSS 4, Radix UI primitives, Recharts 3.7 (charts), next-themes, sonner (toasts), lucide-react (icons), cmdk (command palette), @dnd-kit (drag and drop)
+**Testing:** Vitest 4.0 with V8 coverage provider
 **Database:** PostgreSQL via Prisma ORM
 
 ## Common Commands
@@ -43,6 +44,18 @@ npm start
 
 # Full deploy (migrate + build)
 npm run deploy
+```
+
+### Testing
+```bash
+# Run all tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with coverage report
+npm run test:coverage
 ```
 
 ### Database Operations
@@ -159,12 +172,14 @@ src/
 └── shared/
     ├── config/config.ts        # Global config (env + DB settings)
     ├── middleware/
+    │   ├── __tests__/          # Middleware unit tests (auth, validation)
     │   ├── auth.ts             # JWT verification, admin check, optional auth
     │   ├── passwordManager.ts  # Password hashing/comparison
     │   ├── rateLimiter.ts      # Rate limiting (general, strict, login)
     │   └── validation.ts       # Joi schemas + validate() middleware
     ├── types/types.ts          # Shared TypeScript interfaces
     └── utils/
+        ├── __tests__/          # Utility unit tests (analyzer, dateFormatter, timezoneConverter)
         ├── analyzer.ts         # Schedule roster analysis (status, time windows)
         ├── dateFormatter.ts    # DD.MM.YYYY formatting utilities
         ├── logger.ts           # In-memory log store + console output
@@ -398,7 +413,7 @@ Players can set a default weekly availability pattern that auto-applies to new s
   - `/my-recurring` - View weekly recurring schedule with emoji indicators
   - `/clear-recurring <day>` - Remove entries for a day or "all"
 - **Auto-Application**: When new schedule days are seeded via `addMissingDays()`, recurring entries are automatically applied to matching day-of-week slots
-- **Override Behavior**: Users can always override recurring defaults for specific dates using `/set` or the My Availability dashboard
+- **Override Behavior**: Users can always override recurring defaults for specific dates using `/set` or the Availability dashboard
 
 ### Change Notification System
 When a player's availability or a schedule reason changes, the bot can automatically detect roster status changes and post an updated schedule embed to Discord:
@@ -822,7 +837,7 @@ curl -X POST http://localhost:3001/api/actions/remind \
 ### Key Tables
 - **schedules** - One row per date (DD.MM.YYYY), has reason/focus fields
 - **schedule_players** - Many rows per schedule, one per player per date, stores availability and sort_order
-- **user_mappings** - Master roster with discord_id, discord_username, display_name, role, sort_order, user_timezone (optional)
+- **user_mappings** - Master roster with discord_id, discord_username, display_name, role, sort_order, user_timezone (optional), is_admin (boolean, default false — grants admin privileges via JWT)
 - **scrims** - Match history (opponent, result, score_us, score_them, map, match_type, our_agents, their_agents as comma-separated strings, vod_url, notes)
 - **absences** - Player absence periods (user_id, start_date, end_date in DD.MM.YYYY, reason)
 - **recurring_availabilities** - Weekly recurring availability patterns (user_id, day_of_week 0-6, availability, active flag, unique on [userId, dayOfWeek])

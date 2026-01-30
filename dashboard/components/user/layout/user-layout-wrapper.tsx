@@ -40,11 +40,10 @@ function UserLayoutWrapperInner({ children, breadcrumbs = [] }: UserLayoutWrappe
 
   const tabLabels: Record<string, string> = {
     schedule: 'Schedule',
-    availability: 'My Availability',
+    availability: 'Availability',
     recurring: 'Recurring',
     absences: 'Absences',
-    matches: 'Match History',
-    'map-veto': 'Map Veto',
+    matches: 'Matches',
     stratbook: 'Stratbook',
     statistics: 'Statistics',
   }
