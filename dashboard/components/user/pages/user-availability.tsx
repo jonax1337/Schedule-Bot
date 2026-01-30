@@ -893,6 +893,17 @@ export function UserAvailability() {
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
+                            {entry.value && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => clearEntry(entry.date)}
+                                disabled={saving || entry.isSaving}
+                                className={cn(microInteractions.activePress, microInteractions.smooth)}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
                             <Button
                               size="sm"
                               variant="destructive"
@@ -901,19 +912,6 @@ export function UserAvailability() {
                               className={cn(microInteractions.activePress, microInteractions.smooth)}
                             >
                               Not Available
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => clearEntry(entry.date)}
-                              disabled={saving || entry.isSaving || !entry.value}
-                              className={cn(
-                                microInteractions.activePress,
-                                microInteractions.smooth,
-                                !entry.value && 'invisible'
-                              )}
-                            >
-                              <Trash2 className="w-4 h-4" />
                             </Button>
                           </div>
                         </TableCell>
