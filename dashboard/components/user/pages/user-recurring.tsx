@@ -36,7 +36,7 @@ interface DayEntry {
 
 export function UserRecurring() {
   const router = useRouter();
-  const { convertRangeToLocal, convertRangeToBot, isConverting, userTimezone, botTimezoneLoaded, timezoneVersion } = useTimezone();
+  const { convertRangeToLocal, convertRangeToBot, isConverting, userTimezone, botTimezone, botTimezoneLoaded, timezoneVersion } = useTimezone();
   const [userDiscordId, setUserDiscordId] = useState('');
   const [dayEntries, setDayEntries] = useState<DayEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -609,7 +609,7 @@ export function UserRecurring() {
                           <Clock className="w-4 h-4" />
                           {convertRangeToLocal(entry.availability)}
                           {isConverting && (
-                            <span className="text-xs text-muted-foreground">({getTimezoneAbbr(userTimezone)})</span>
+                            <span className="text-xs text-muted-foreground">({entry.availability} {getTimezoneAbbr(botTimezone)})</span>
                           )}
                         </span>
                       ) : (

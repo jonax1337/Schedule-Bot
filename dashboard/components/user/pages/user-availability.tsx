@@ -55,7 +55,7 @@ interface DateEntry {
 
 export function UserAvailability() {
   const router = useRouter();
-  const { convertRangeToLocal, convertRangeToBot, isConverting, userTimezone, botTimezoneLoaded, timezoneVersion } = useTimezone();
+  const { convertRangeToLocal, convertRangeToBot, isConverting, userTimezone, botTimezone, botTimezoneLoaded, timezoneVersion } = useTimezone();
   const [userName, setUserName] = useState('');
   const [userDiscordId, setUserDiscordId] = useState('');
   const [entries, setEntries] = useState<DateEntry[]>([]);
@@ -806,9 +806,9 @@ export function UserAvailability() {
                           ) : entry.value ? (
                             <span className="flex items-center gap-2 text-green-600">
                               <Clock className="w-4 h-4" />
-                              {entry.value}
+                              {convertRangeToLocal(entry.value)}
                               {isConverting && (
-                                <span className="text-xs text-muted-foreground">({getTimezoneAbbr(userTimezone)})</span>
+                                <span className="text-xs text-muted-foreground">({entry.value} {getTimezoneAbbr(botTimezone)})</span>
                               )}
                             </span>
                           ) : (
