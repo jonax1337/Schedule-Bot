@@ -12,7 +12,7 @@ This is a Discord bot with web dashboard for managing E-Sports team scheduling a
 All components run from a single Node.js process that starts the bot, API server, and scheduler together.
 
 ### Technology Stack
-**Backend:** TypeScript 5.9, discord.js 14.25, Express 5.2, Prisma 7.3 (with @prisma/adapter-pg + pg native driver), node-cron 4.2, bcrypt 6, jsonwebtoken 9, Helmet 8, dotenv 17, Joi 18
+**Backend:** TypeScript 5.9, discord.js 14.25, Express 5.2, Prisma 7.3 (with @prisma/adapter-pg + pg native driver), node-cron 4.2, bcrypt 6, jsonwebtoken 9, Helmet 8, dotenv 17, Joi 18, @notionhq/client 2.3 (Notion API)
 **Frontend:** Next.js 16.1, React 19.2, TailwindCSS 4, Radix UI primitives, Recharts 3.7 (charts), next-themes, sonner (toasts), lucide-react (icons), cmdk (command palette), @dnd-kit (drag and drop)
 **Database:** PostgreSQL via Prisma ORM
 
@@ -112,6 +112,7 @@ src/
 │       ├── schedule.routes.ts  # Schedule CRUD + availability updates
 │       ├── scrim.routes.ts     # Scrim/match CRUD + stats
 │       ├── settings.routes.ts  # Bot settings management
+│       ├── stratbook.routes.ts # Notion-powered strategy viewer
 │       └── user-mapping.routes.ts # Player roster management
 ├── bot/
 │   ├── client.ts               # Discord client singleton
@@ -149,6 +150,7 @@ src/
 │   ├── absence.service.ts      # Absence CRUD with auth + date validation
 │   ├── schedule.service.ts     # Schedule analysis, availability validation
 │   ├── scrim.service.ts        # Scrim CRUD + stats + recent scrims
+│   ├── stratbook.service.ts    # Notion API integration with caching
 │   └── user-mapping.service.ts # Roster CRUD with auto-sync to schedules
 └── shared/
     ├── config/config.ts        # Global config (env + DB settings)
@@ -208,7 +210,9 @@ dashboard/
 │   │   ├── nav-user.tsx        # User navigation (sidebar user menu)
 │   │   ├── matches.tsx         # Match history (maps, agents, VOD)
 │   │   ├── statistics.tsx      # Charts & analytics (Recharts, mobile-friendly)
-│   │   └── map-veto.tsx        # Map veto planner with drag-and-drop
+│   │   ├── map-veto.tsx        # Map veto planner with drag-and-drop
+│   │   ├── stratbook.tsx       # Notion-powered strategy viewer
+│   │   └── notion-renderer.tsx # Renders Notion blocks (headings, lists, code, images)
 │   ├── auth/                   # Auth components
 │   │   ├── index.ts
 │   │   └── login-form.tsx
@@ -216,7 +220,7 @@ dashboard/
 │   │   ├── index.ts
 │   │   ├── theme-provider.tsx
 │   │   └── theme-toggle.tsx
-│   ├── ui/                     # Radix UI primitives (31 components)
+│   ├── ui/                     # Radix UI primitives (30 components)
 │   │   └── accordion, alert-dialog, avatar, badge, breadcrumb,
 │   │       button, card, chart, checkbox, collapsible, command, dialog,
 │   │       dropdown-menu, field, input, label, popover, scroll-area,
@@ -238,6 +242,7 @@ dashboard/
 ├── lib/
 │   ├── api.ts                  # API client (apiGet, apiPost, apiPut, apiDelete)
 │   ├── auth.ts                 # JWT token management
+│   ├── breadcrumb-context.tsx   # React Context for breadcrumb navigation in sub-pages
 │   ├── config.ts               # Dashboard config constants (BOT_API_URL, timeouts, retry settings)
 │   ├── timezone.ts             # Timezone React Context (TimezoneProvider, useTimezone, conversion utils)
 │   ├── types.ts                # Frontend type definitions
@@ -470,6 +475,10 @@ When a player's availability or a schedule reason changes, the bot can automatic
 - `POST /api/actions/clear-channel` - Clear channel messages (admin)
 - `POST /api/actions/pin-message` - Send and pin message (admin)
 
+### Stratbook
+- `GET /api/stratbook` - List strategies (optional query params: map, side)
+- `GET /api/stratbook/:pageId` - Get single strategy content (Notion blocks)
+
 ### Discord & Admin
 - `GET /api/discord/channels` - List text channels (admin)
 - `GET /api/discord/roles` - List server roles (admin)
@@ -515,6 +524,7 @@ Services provide business logic on top of repositories:
 - `absence.service.ts` - Absence CRUD with date validation and authorization (users manage own absences only)
 - `schedule.service.ts` - Schedule analysis, availability validation (users can only edit their own unless admin), pagination
 - `scrim.service.ts` - Scrim CRUD, stats, recent scrims with date sorting
+- `stratbook.service.ts` - Fetches strategies from Notion API, caches results for 60 seconds, filters by map/side/tags
 - `user-mapping.service.ts` - Roster CRUD with automatic `syncUserMappingsToSchedules()` after changes
 
 Services are class-based with singleton exports (e.g., `export const scheduleService = new ScheduleService()`).
@@ -547,7 +557,7 @@ Next.js App Router structure:
 
 Admin sidebar navigation is organized into three logical groups:
 - **Overview:** Dashboard, Statistics
-- **Team:** Schedule, Users, Matches, Map Veto
+- **Team:** Schedule, Users, Matches, Map Veto, Stratbook
 - **System:** Settings, Actions, Security, Logs
 
 ### Dashboard API Proxy Layer
@@ -566,11 +576,11 @@ Components are organized by domain/role:
   - `layout/` - User layout wrapper and sidebar
   - `pages/` - User content pages (user-schedule, user-availability, user-absences)
 - `components/auth/` - Authentication UI
-- `components/shared/` - Shared across admin/user (agent-picker, matches, statistics, map-veto, nav-user)
+- `components/shared/` - Shared across admin/user (agent-picker, matches, statistics, map-veto, stratbook, notion-renderer, nav-user)
 - `components/theme/` - Theme system (theme-toggle, theme-provider)
 - `components/ui/` - Radix UI primitives (30 components including chart)
 
-Admin pages export from `components/admin/pages/index.ts` which also re-exports shared components (Matches, AgentSelector, MapVetoPlanner, Statistics) for convenience.
+Admin pages export from `components/admin/pages/index.ts` which also re-exports shared components (Matches, AgentSelector, MapVetoPlanner, Statistics, Stratbook) for convenience.
 
 ### Statistics Component
 The `Statistics` component (`components/shared/statistics.tsx`) provides team analytics using Recharts:
@@ -594,6 +604,27 @@ The `MapVetoPlanner` component (`components/shared/map-veto.tsx`) provides a dra
 - **Veto Process Simulation** - Plan pick/ban sequences for competitive matches
 - **Map Images** - Uses Valorant map images from `public/assets/maps/`
 - Available in both user portal and admin dashboard via the "Map Veto" tab
+
+### Stratbook (Notion Integration)
+The `Stratbook` component (`components/shared/stratbook.tsx`) provides a read-only strategy viewer powered by Notion:
+- **Strategy List** - Fetches strategies from a Notion database with properties: Name, Map, Side, Tags, Agents
+- **Filtering** - Filter by map and side, with search functionality
+- **Strategy Detail View** - Renders full Notion page content using `NotionRenderer` component
+- **NotionRenderer** (`components/shared/notion-renderer.tsx`) - Renders Notion blocks including headings, paragraphs, lists, code blocks, images, callouts, toggles, and more
+- **Caching** - 60-second in-memory cache on the backend for performance
+- **Graceful Degradation** - Shows informational message when Notion is not configured (missing API key)
+- **Breadcrumb Navigation** - Uses `BreadcrumbContext` (`lib/breadcrumb-context.tsx`) for sub-page navigation
+- Available in both admin dashboard (Stratbook tab) and user portal (Stratbook tab)
+- Requires `NOTION_API_KEY` and `NOTION_STRATS_DB_ID` environment variables
+
+### Discord Avatar Integration
+User avatars from Discord are displayed throughout the dashboard:
+- **User Mappings** (`admin-user-mappings.tsx`) - Shows Discord avatars next to player names in the roster list
+- **User Sidebar** (`user-sidebar.tsx`) - Displays avatar for OAuth-authenticated users
+- **OAuth Flow** (`auth.controller.ts`) - Returns avatar URL in Discord OAuth callback response
+- **API Enrichment** (`user-mapping.routes.ts`) - Enriches user mapping responses with avatar URLs fetched from bot client (authenticated requests only)
+- Avatar URLs use Discord CDN: `https://cdn.discordapp.com/avatars/{discordId}/{avatar}.{gif|png}?size=128`
+- Supports animated avatars (GIF format for avatars starting with `a_`)
 
 ### Dashboard Animation System
 The dashboard uses a custom animation utility system (`lib/animations.ts`):
@@ -709,6 +740,10 @@ Required .env variables:
 
 Optional for OAuth:
 - `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `DISCORD_REDIRECT_URI`
+
+Optional for Notion Stratbook:
+- `NOTION_API_KEY` - Notion API key for stratbook feature
+- `NOTION_STRATS_DB_ID` - Notion database ID containing strategies
 
 Optional for CORS/URLs:
 - `DASHBOARD_URL` - Dashboard URL for production CORS (defaults to localhost:3000)
