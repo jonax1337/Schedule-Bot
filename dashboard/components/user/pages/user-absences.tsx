@@ -233,26 +233,24 @@ export function UserAbsences() {
   return (
     <div className="space-y-4">
       <Card className="animate-fadeIn">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <PlaneTakeoff className="w-5 h-5" />
-              Absences
-            </CardTitle>
-            <Button
-              size="sm"
-              onClick={openNewAbsenceDialog}
-              className={microInteractions.activePress}
-            >
-              <Plus className="w-4 h-4 mr-1" />
-              New Absence
-            </Button>
-          </div>
+        <CardHeader className="relative">
+          <CardTitle className="flex items-center gap-2">
+            <PlaneTakeoff className="w-5 h-5" />
+            Absences
+          </CardTitle>
           <p className="text-sm text-muted-foreground">
             {activeAbsences.length > 0
               ? `${activeAbsences.length} active/upcoming absence${activeAbsences.length !== 1 ? 's' : ''}`
               : 'No active absences. Plan vacations or days off here.'}
           </p>
+          <Button
+            size="sm"
+            onClick={openNewAbsenceDialog}
+            className={cn("absolute right-6 top-6", microInteractions.activePress)}
+          >
+            <Plus className="w-4 h-4 mr-1" />
+            New Absence
+          </Button>
         </CardHeader>
         <CardContent>
 
