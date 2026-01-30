@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2, XCircle, Clock, CheckSquare, Square, Check, PlaneTakeoff } from 'lucide-react';
+import { Loader2, XCircle, Clock, CheckSquare, Square, Check, PlaneTakeoff, CalendarDays, RefreshCw, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { stagger, microInteractions, cn } from '@/lib/animations';
 import { BOT_API_URL } from '@/lib/config';
@@ -51,11 +51,12 @@ interface DateEntry {
   originalTimeTo: string;
   isSaving?: boolean;
   justSaved?: boolean;
+  isRecurring?: boolean;
 }
 
 export function UserAvailability() {
   const router = useRouter();
-  const { convertRangeToLocal, convertRangeToBot, isConverting, userTimezone, botTimezoneLoaded, timezoneVersion } = useTimezone();
+  const { convertRangeToLocal, convertRangeToBot, isConverting, userTimezone, botTimezone, botTimezoneLoaded, timezoneVersion } = useTimezone();
   const [userName, setUserName] = useState('');
   const [userDiscordId, setUserDiscordId] = useState('');
   const [entries, setEntries] = useState<DateEntry[]>([]);
@@ -123,17 +124,27 @@ export function UserAvailability() {
 
       setUserDiscordId(userMapping.discordId);
 
-      // Fetch absences and schedule in parallel
-      const [absencesRes, scheduleRes] = await Promise.all([
+      // Fetch absences, schedule, and recurring in parallel
+      const [absencesRes, scheduleRes, recurringRes] = await Promise.all([
         fetch(`${BOT_API_URL}/api/absences?userId=${userMapping.discordId}`, { headers }),
         fetch(`${BOT_API_URL}/api/schedule/next14`, { headers }),
+        fetch(`${BOT_API_URL}/api/recurring-availability?userId=${userMapping.discordId}`, { headers }),
       ]);
 
       // Parse responses with safe JSON handling
-      const [absencesData, scheduleData] = await Promise.all([
+      const [absencesData, scheduleData, recurringData] = await Promise.all([
         absencesRes.ok ? absencesRes.json().catch(() => ({ absences: [] })) : Promise.resolve({ absences: [] }),
         scheduleRes.ok ? scheduleRes.json().catch(() => ({ schedules: [] })) : Promise.resolve({ schedules: [] }),
+        recurringRes.ok ? recurringRes.json().catch(() => ({ entries: [] })) : Promise.resolve({ entries: [] }),
       ]);
+
+      // Build recurring lookup: dayOfWeek -> availability
+      const recurringMap = new Map<number, string>();
+      for (const entry of (recurringData.entries || [])) {
+        if (entry.active) {
+          recurringMap.set(entry.dayOfWeek, entry.availability);
+        }
+      }
 
       setAbsences(absencesData.absences || []);
 
@@ -162,6 +173,9 @@ export function UserAvailability() {
         const schedule = schedules.find((s: any) => s.date === dateStr);
         const player = schedule?.players?.find((p: any) => p.userId === userMapping.discordId);
         const availability = player?.availability || '';
+        const dayOfWeek = date.getDay();
+        const recurringValue = recurringMap.get(dayOfWeek);
+        const isRecurring = !!(availability && recurringValue && availability === recurringValue);
 
         let timeFrom = '';
         let timeTo = '';
@@ -182,6 +196,7 @@ export function UserAvailability() {
           timeTo,
           originalTimeFrom: timeFrom,
           originalTimeTo: timeTo,
+          isRecurring,
         });
       }
 
@@ -379,6 +394,41 @@ export function UserAvailability() {
     } catch (error) {
       console.error('Failed to save:', error);
       toast.error('Failed to save availability');
+      setEntries(prev => prev.map(e =>
+        e.date === date ? { ...e, isSaving: false } : e
+      ));
+    }
+  };
+
+  const clearEntry = async (date: string) => {
+    setEntries(prev => prev.map(e =>
+      e.date === date ? { ...e, isSaving: true, justSaved: false } : e
+    ));
+
+    try {
+      const { getAuthHeaders } = await import('@/lib/auth');
+      const response = await fetch(`${BOT_API_URL}/api/schedule/update-availability`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ date, userId: userDiscordId, availability: '' }),
+      });
+
+      if (response.ok) {
+        setEntries(prev => prev.map(e =>
+          e.date === date ? {
+            ...e, value: '', timeFrom: '', timeTo: '',
+            originalTimeFrom: '', originalTimeTo: '',
+            isSaving: false, isRecurring: false,
+          } : e
+        ));
+      } else {
+        toast.error('Failed to clear availability');
+        setEntries(prev => prev.map(e =>
+          e.date === date ? { ...e, isSaving: false } : e
+        ));
+      }
+    } catch {
+      toast.error('Failed to clear availability');
       setEntries(prev => prev.map(e =>
         e.date === date ? { ...e, isSaving: false } : e
       ));
@@ -692,11 +742,29 @@ export function UserAvailability() {
 
       {/* Main Table */}
       <Card className="animate-fadeIn">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CalendarDays className="w-5 h-5" />
+            My Availability
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Set your availability for the next 14 days. Changes are auto-saved when you fill in both time fields.
+          </p>
+        </CardHeader>
         <CardContent>
-          <Table>
+          <Table className="table-fixed w-full">
+            <colgroup>
+              <col className="w-10" />
+              <col className="w-[100px]" />
+              <col className="w-[100px]" />
+              <col className="w-[140px]" />
+              <col className="w-[140px]" />
+              <col />
+              <col className="w-[180px]" />
+            </colgroup>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-12">
+                <TableHead>
                   <Checkbox
                     checked={selectedDates.size === entries.length && entries.length > 0}
                     onCheckedChange={toggleSelectAll}
@@ -715,12 +783,16 @@ export function UserAvailability() {
               {entries.map((entry, index) => {
                 const isSelected = selectedDates.has(entry.date);
                 const isAbsent = isDateInAbsence(entry.date, absences);
+                const [day, month, year] = entry.date.split('.');
+                const dateObj = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+                const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
                 return (
                   <TableRow
                     key={entry.date}
                     className={cn(
                       isSelected && 'bg-primary/5',
                       isAbsent && 'bg-purple-500/5 opacity-60',
+                      !isSelected && !isAbsent && isWeekend && 'bg-muted/30',
                       stagger(index, 'fast', 'fadeIn')
                     )}
                   >
@@ -798,13 +870,19 @@ export function UserAvailability() {
                             <span className="flex items-center gap-2 text-red-500">
                               <XCircle className="w-4 h-4" />
                               Not Available
+                              {entry.isRecurring && (
+                                <RefreshCw className="w-3 h-3 text-muted-foreground" />
+                              )}
                             </span>
                           ) : entry.value ? (
                             <span className="flex items-center gap-2 text-green-600">
                               <Clock className="w-4 h-4" />
-                              {entry.value}
+                              {convertRangeToLocal(entry.value)}
                               {isConverting && (
-                                <span className="text-xs text-muted-foreground">({getTimezoneAbbr(userTimezone)})</span>
+                                <span className="text-xs text-muted-foreground">({entry.value} {getTimezoneAbbr(botTimezone)})</span>
+                              )}
+                              {entry.isRecurring && (
+                                <RefreshCw className="w-3 h-3 text-muted-foreground" />
                               )}
                             </span>
                           ) : (
@@ -812,15 +890,28 @@ export function UserAvailability() {
                           )}
                         </TableCell>
                         <TableCell>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => setUnavailable(entry.date)}
-                            disabled={saving || entry.isSaving}
-                            className={cn(microInteractions.activePress, microInteractions.smooth)}
-                          >
-                            Not Available
-                          </Button>
+                          <div className="flex gap-1 justify-end">
+                            {entry.value && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => clearEntry(entry.date)}
+                                disabled={saving || entry.isSaving}
+                                className={cn(microInteractions.activePress, microInteractions.smooth)}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => setUnavailable(entry.date)}
+                              disabled={saving || entry.isSaving}
+                              className={cn(microInteractions.activePress, microInteractions.smooth)}
+                            >
+                              Not Available
+                            </Button>
+                          </div>
                         </TableCell>
                       </>
                     )}

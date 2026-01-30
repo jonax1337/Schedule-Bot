@@ -34,8 +34,9 @@ async function main(): Promise<void> {
 
   // Ensure next 14 days have schedule entries
   try {
-    const { addMissingDays } = await import('./repositories/schedule.repository.js');
+    const { addMissingDays, applyRecurringToEmptySchedules } = await import('./repositories/schedule.repository.js');
     await addMissingDays();
+    await applyRecurringToEmptySchedules();
   } catch (error) {
     logger.error('Schedule verification failed', error instanceof Error ? error.message : String(error));
   }

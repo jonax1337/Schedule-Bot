@@ -1,5 +1,6 @@
 import { prisma } from './database.repository.js';
 import { getUserMappings } from './user-mapping.repository.js';
+import { getAllActiveRecurring } from './recurring-availability.repository.js';
 import type { ScheduleData, SchedulePlayerData } from '../shared/types/types.js';
 import { logger } from '../shared/utils/logger.js';
 
@@ -203,8 +204,23 @@ export async function updatePlayerAvailability(
 export async function addMissingDays(): Promise<void> {
   const dates = getNext14Dates();
   const userMappings = await getUserMappings();
+  const allRecurring = await getAllActiveRecurring();
+
+  // Build a lookup: Map<userId, Map<dayOfWeek, availability>>
+  const recurringMap = new Map<string, Map<number, string>>();
+  for (const entry of allRecurring) {
+    if (!recurringMap.has(entry.userId)) {
+      recurringMap.set(entry.userId, new Map());
+    }
+    recurringMap.get(entry.userId)!.set(entry.dayOfWeek, entry.availability);
+  }
 
   for (const date of dates) {
+    // Determine day of week for this date
+    const [day, month, year] = date.split('.');
+    const dateObj = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    const dayOfWeek = dateObj.getDay(); // 0=Sunday...6=Saturday
+
     // Ensure schedule exists
     let schedule = await prisma.schedule.findUnique({
       where: { date },
@@ -225,15 +241,18 @@ export async function addMissingDays(): Promise<void> {
     // Ensure all user mappings have player entries
     for (const mapping of userMappings) {
       const existingPlayer = schedule.players.find(p => p.userId === mapping.discordId);
-      
+
       if (!existingPlayer) {
+        // Check for recurring availability for this user on this day of week
+        const recurringAvailability = recurringMap.get(mapping.discordId)?.get(dayOfWeek) || '';
+
         await prisma.schedulePlayer.create({
           data: {
             scheduleId: schedule.id,
             userId: mapping.discordId,
             displayName: mapping.displayName,
             role: mapping.role.toUpperCase() as 'MAIN' | 'SUB' | 'COACH',
-            availability: '',
+            availability: recurringAvailability,
             sortOrder: mapping.sortOrder,
           },
         });
@@ -241,7 +260,7 @@ export async function addMissingDays(): Promise<void> {
     }
   }
 
-  logger.success('Schedule entries verified', 'Next 14 days');
+  logger.success('Schedule entries verified', 'Next 14 days (with recurring)');
 }
 
 /**
@@ -299,6 +318,99 @@ export async function syncUserMappingsToSchedules(): Promise<void> {
   }
 
   logger.success('User mappings synced to schedules');
+}
+
+/**
+ * Apply recurring availability to future schedule_players that still have empty availability.
+ * Optionally filter by userId to only apply for a specific user.
+ */
+export async function applyRecurringToEmptySchedules(userId?: string): Promise<number> {
+  const dates = getNext14Dates();
+  const allRecurring = await getAllActiveRecurring();
+
+  // Build lookup: Map<userId, Map<dayOfWeek, availability>>
+  const recurringMap = new Map<string, Map<number, string>>();
+  for (const entry of allRecurring) {
+    if (userId && entry.userId !== userId) continue;
+    if (!recurringMap.has(entry.userId)) {
+      recurringMap.set(entry.userId, new Map());
+    }
+    recurringMap.get(entry.userId)!.set(entry.dayOfWeek, entry.availability);
+  }
+
+  let updatedCount = 0;
+
+  for (const date of dates) {
+    const [day, month, year] = date.split('.');
+    const dateObj = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    const dayOfWeek = dateObj.getDay();
+
+    const schedule = await prisma.schedule.findUnique({
+      where: { date },
+      include: { players: true },
+    });
+    if (!schedule) continue;
+
+    for (const player of schedule.players) {
+      if (player.availability !== '') continue; // Only fill empty entries
+      if (userId && player.userId !== userId) continue;
+
+      const recurring = recurringMap.get(player.userId)?.get(dayOfWeek);
+      if (recurring) {
+        await prisma.schedulePlayer.update({
+          where: { id: player.id },
+          data: { availability: recurring },
+        });
+        updatedCount++;
+      }
+    }
+  }
+
+  if (updatedCount > 0) {
+    logger.info('Recurring applied', `${updatedCount} empty schedule entries updated`);
+  }
+  return updatedCount;
+}
+
+/**
+ * Clear schedule_players entries that match a removed recurring availability.
+ * Only clears future entries where the availability exactly matches the old recurring value.
+ */
+export async function clearRecurringFromSchedules(
+  userId: string,
+  dayOfWeek: number,
+  oldAvailability: string
+): Promise<number> {
+  if (!oldAvailability) return 0;
+
+  const dates = getNext14Dates();
+  let clearedCount = 0;
+
+  for (const date of dates) {
+    const [day, month, year] = date.split('.');
+    const dateObj = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    if (dateObj.getDay() !== dayOfWeek) continue;
+
+    const schedule = await prisma.schedule.findUnique({
+      where: { date },
+      include: { players: true },
+    });
+    if (!schedule) continue;
+
+    const player = schedule.players.find(p => p.userId === userId);
+    if (player && player.availability === oldAvailability) {
+      await prisma.schedulePlayer.update({
+        where: { id: player.id },
+        data: { availability: '' },
+      });
+      clearedCount++;
+    }
+  }
+
+  if (clearedCount > 0) {
+    logger.info('Recurring cleared', `${clearedCount} schedule entries reset for user ${userId}`);
+  }
+  return clearedCount;
 }
 
 /**

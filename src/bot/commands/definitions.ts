@@ -258,4 +258,37 @@ export const commands = [
     .setName('remove-timezone')
     .setDescription('Remove your personal timezone (revert to bot default)')
     .toJSON(),
+
+  new SlashCommandBuilder()
+    .setName('set-recurring')
+    .setDescription('Set your recurring weekly availability')
+    .addStringOption(option =>
+      option
+        .setName('days')
+        .setDescription('Days of week: mon,tue,wed,thu,fri,sat,sun (comma-separated)')
+        .setRequired(true)
+    )
+    .addStringOption(option =>
+      option
+        .setName('time')
+        .setDescription('Time range (e.g., 18:00-22:00) or "x" for unavailable')
+        .setRequired(true)
+    )
+    .toJSON(),
+
+  new SlashCommandBuilder()
+    .setName('my-recurring')
+    .setDescription('View your recurring weekly schedule')
+    .toJSON(),
+
+  new SlashCommandBuilder()
+    .setName('clear-recurring')
+    .setDescription('Clear your recurring schedule (one day or all)')
+    .addStringOption(option =>
+      option
+        .setName('day')
+        .setDescription('Day to clear (e.g., mon) or "all" to clear everything')
+        .setRequired(true)
+    )
+    .toJSON(),
 ];

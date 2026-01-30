@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -232,24 +232,27 @@ export function UserAbsences() {
 
   return (
     <div className="space-y-4">
-      <Card className={stagger(0, 'slow', 'slideUpScale')}>
+      <Card className="animate-fadeIn">
+        <CardHeader className="relative">
+          <CardTitle className="flex items-center gap-2">
+            <PlaneTakeoff className="w-5 h-5" />
+            Absences
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            {activeAbsences.length > 0
+              ? `${activeAbsences.length} active/upcoming absence${activeAbsences.length !== 1 ? 's' : ''}`
+              : 'No active absences. Plan vacations or days off here.'}
+          </p>
+          <Button
+            size="sm"
+            onClick={openNewAbsenceDialog}
+            className={cn("absolute right-6 top-6", microInteractions.activePress)}
+          >
+            <Plus className="w-4 h-4 mr-1" />
+            New Absence
+          </Button>
+        </CardHeader>
         <CardContent>
-          {/* Action bar */}
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-sm text-muted-foreground">
-              {activeAbsences.length > 0
-                ? `${activeAbsences.length} active/upcoming absence${activeAbsences.length !== 1 ? 's' : ''}`
-                : 'No active absences'}
-            </p>
-            <Button
-              size="sm"
-              onClick={openNewAbsenceDialog}
-              className={microInteractions.activePress}
-            >
-              <Plus className="w-4 h-4 mr-1" />
-              New Absence
-            </Button>
-          </div>
 
           {/* Absences Table */}
           {absences.length > 0 ? (
@@ -303,10 +306,10 @@ export function UserAbsences() {
                       <TableCell>
                         <Button
                           size="sm"
-                          variant="ghost"
+                          variant="outline"
                           onClick={() => deleteAbsenceHandler(absence.id)}
                           disabled={deleting === absence.id}
-                          className={cn("text-destructive hover:text-destructive", microInteractions.activePress)}
+                          className={cn(microInteractions.activePress, microInteractions.smooth)}
                         >
                           {deleting === absence.id ? (
                             <Loader2 className="w-4 h-4 animate-spin" />
@@ -336,10 +339,10 @@ export function UserAbsences() {
                     <TableCell>
                       <Button
                         size="sm"
-                        variant="ghost"
+                        variant="outline"
                         onClick={() => deleteAbsenceHandler(absence.id)}
                         disabled={deleting === absence.id}
-                        className={cn("text-destructive hover:text-destructive", microInteractions.activePress)}
+                        className={cn(microInteractions.activePress, microInteractions.smooth)}
                       >
                         {deleting === absence.id ? (
                           <Loader2 className="w-4 h-4 animate-spin" />

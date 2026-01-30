@@ -296,9 +296,15 @@ export function ScheduleEditor() {
                   return date.toLocaleDateString('en-US', { weekday: 'long' });
                 };
 
+                const isWeekend = (() => {
+                  const [day, month, year] = schedule.date.split('.');
+                  const d = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+                  return d.getDay() === 0 || d.getDay() === 6;
+                })();
+
                 return (
-                <TableRow key={schedule.date} className={stagger(index, 'fast', 'fadeIn')}>
-                  <TableCell className="sticky left-0 bg-background z-10">
+                <TableRow key={schedule.date} className={cn(isWeekend && 'bg-muted/30', stagger(index, 'fast', 'fadeIn'))}>
+                  <TableCell className={cn("sticky left-0 z-10", isWeekend ? 'bg-muted/30' : 'bg-background')}>
                     <div className="flex flex-col">
                       <span className="font-medium">{schedule.date}</span>
                       <span className="text-xs text-muted-foreground">{getWeekday(schedule.date)}</span>
