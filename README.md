@@ -91,7 +91,6 @@
 - **Schedule Editor**: Spreadsheet-like editor for schedule entries
 - **Scrim Manager**: Record opponents, results, VOD URLs, and notes with automatic stats
 - **Statistics Panel**: Team availability charts, scrim results visualization, win/loss streaks, and map composition analysis using Recharts
-- **Map Veto Planner**: Drag-and-drop interface for planning competitive match pick/ban sequences
 - **Stratbook**: Notion-powered read-only strategy viewer with map/side filtering and rich content rendering
 - **Discord Avatars**: Player avatars from Discord displayed in roster lists and user navigation
 - **Live Logs**: Stream bot activity, warnings, and errors from the API server
@@ -936,24 +935,25 @@ node dist/generateHash.js YOUR_PASSWORD
 
 #### Admin Dashboard (`/admin`)
 
-Sidebar is organized into three groups:
+Sidebar is organized into four groups:
 
 **Overview:**
 1. **Dashboard**: Bot status, uptime, and quick actions
 2. **Statistics**: Team availability charts, scrim results, win/loss streaks, map compositions
 
-**Team:**
+**Schedule:**
 3. **Schedule**: Spreadsheet-like editor for schedule entries
 4. **Users**: Manage player registrations and roster
+
+**Competitive:**
 5. **Matches**: Track scrim results, VOD links, and agent compositions
-6. **Map Veto**: Plan pick/ban sequences for competitive matches
-7. **Stratbook**: View team strategies from Notion
+6. **Stratbook**: View team strategies from Notion
 
 **System:**
-8. **Settings**: Configure Discord, scheduling, and branding settings
-9. **Actions**: Trigger manual bot actions (posts, reminders, polls, notifications)
-10. **Security**: Password hash and JWT secret generators
-11. **Logs**: View real-time bot logs with level filtering
+7. **Settings**: Configure Discord, scheduling, and branding settings
+8. **Actions**: Trigger manual bot actions (posts, reminders, polls, notifications)
+9. **Security**: Password hash and JWT secret generators
+10. **Logs**: View real-time bot logs with level filtering
 
 #### Home Page (`/`)
 
@@ -963,9 +963,8 @@ Tab-based interface for users:
 3. **Recurring**: Manage weekly recurring availability defaults
 4. **Absences**: View and manage planned absences
 5. **Matches**: Browse match history and stats
-6. **Map Veto**: Plan pick/ban sequences with drag-and-drop
-7. **Stratbook**: Browse team strategies from Notion
-8. **Statistics**: Team analytics with charts
+6. **Stratbook**: Browse team strategies from Notion
+7. **Statistics**: Team analytics with charts
 
 Select your username from dropdown (or login with Discord) to access personalized features.
 
@@ -1172,9 +1171,10 @@ schedule-bot/
 │   │   │   ├── nav-user.tsx          # User navigation menu
 │   │   │   ├── matches.tsx           # Match history component
 │   │   │   ├── statistics.tsx        # Charts & analytics
-│   │   │   ├── map-veto.tsx          # Map veto planner (drag-and-drop)
 │   │   │   ├── stratbook.tsx         # Notion-powered strategy viewer
-│   │   │   └── notion-renderer.tsx   # Renders Notion blocks
+│   │   │   ├── notion-renderer.tsx   # Renders Notion blocks
+│   │   │   ├── sidebar-branding-header.tsx # Reusable sidebar branding header
+│   │   │   └── sidebar-nav-group.tsx # Reusable sidebar navigation group
 │   │   ├── error-boundary.tsx       # React error boundary with retry UI
 │   │   ├── auth/            # Auth components (login-form)
 │   │   ├── theme/           # Theme system (provider, toggle)
@@ -1183,7 +1183,8 @@ schedule-bot/
 │   │       ├── layout/      # user-layout-wrapper, user-sidebar
 │   │       └── pages/       # User content pages (user-schedule, user-availability, user-recurring, user-absences)
 │   ├── hooks/
-│   │   └── use-mobile.ts    # Mobile breakpoint hook (768px)
+│   │   ├── use-mobile.ts    # Mobile breakpoint hook (768px)
+│   │   └── use-branding.ts  # Fetches branding settings (teamName, tagline, logoUrl)
 │   ├── lib/
 │   │   ├── api.ts           # API client (apiGet, apiPost, etc.)
 │   │   ├── auth.ts          # JWT token management
@@ -1215,11 +1216,11 @@ Components are organized by domain/role:
   - `layout/` - User layout wrapper and sidebar
   - `pages/` - User content pages (user-schedule, user-availability, user-recurring, user-absences)
 - **`components/auth/`** - Authentication UI
-- **`components/shared/`** - Shared across admin/user (agent-picker, matches, statistics, map-veto, stratbook, notion-renderer, nav-user)
+- **`components/shared/`** - Shared across admin/user (agent-picker, matches, statistics, stratbook, notion-renderer, nav-user, sidebar-branding-header, sidebar-nav-group)
 - **`components/theme/`** - Theme system (theme-toggle, theme-provider)
 - **`components/ui/`** - Radix UI primitives (30 components including chart)
 
-Admin pages export from `components/admin/pages/index.ts` which also re-exports shared components (Matches, AgentSelector, MapVetoPlanner, Statistics, Stratbook) for convenience.
+Admin pages export from `components/admin/pages/index.ts` which also re-exports shared components (Matches, AgentSelector, Statistics, Stratbook) for convenience.
 
 ### Statistics Component
 
@@ -1240,15 +1241,6 @@ The `Matches` component (`components/shared/matches.tsx`) provides match history
 - **Create/Edit Dialog** - Form for adding or editing match records with agent picker
 - **Filtering** - Filter by date range and opponent
 - Used in both admin dashboard (Matches tab) and user portal (Matches tab)
-
-### Map Veto Planner
-
-The `MapVetoPlanner` component (`components/shared/map-veto.tsx`) provides a drag-and-drop interface for map veto planning:
-
-- **Map Pool Management** - Visual drag-and-drop using @dnd-kit library
-- **Veto Process Simulation** - Plan pick/ban sequences for competitive matches
-- **Map Images** - Uses Valorant map images from `public/assets/maps/`
-- Available in both user portal and admin dashboard via the "Map Veto" tab
 
 ### Stratbook (Notion Integration)
 
@@ -1556,7 +1548,7 @@ If you encounter circular dependency issues:
 ### TypeScript Build Errors
 
 1. **Verify Node.js version** is 20+
-2. **Check tsconfig.json** - strict mode is disabled, target is ES2022
+2. **Check tsconfig.json** - strict mode is enabled, target is ES2022
 3. **Ensure all imports use .js extension** even for .ts files (ES modules requirement)
 4. **Run `npx prisma generate`** after any schema changes
 
@@ -1574,7 +1566,7 @@ Contributions are welcome! Please follow these steps:
 
 ### Development Guidelines
 
-- **Code Style**: TypeScript strict mode is DISABLED (`strict: false`, `noImplicitAny: false` in tsconfig.json)
+- **Code Style**: TypeScript strict mode is ENABLED (`strict: true` in tsconfig.json)
 - **Target**: ES2022, Module: NodeNext, ModuleResolution: NodeNext
 - **Async/Await**: Use for all database operations
 - **Error Handling**: try/catch with `logger.error()` (structured logging throughout)
