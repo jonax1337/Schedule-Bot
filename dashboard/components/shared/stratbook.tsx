@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ArrowLeft, BookOpen, ChevronRight, Copy, ExternalLink, FileText, Folder, FolderOpen, FolderPlus, Loader2, Pencil, Plus, Search, Swords, Shield, Trash2, X } from 'lucide-react';
+import { ArrowLeft, BookOpen, ChevronRight, Copy, ExternalLink, FileText, Folder, FolderOpen, FolderPlus, Loader2, Palette, Pencil, Plus, Search, Swords, Shield, Trash2, X } from 'lucide-react';
 import { useBreadcrumbSub } from '@/lib/breadcrumb-context';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -40,10 +40,22 @@ import {
 } from '@/components/ui/alert-dialog';
 import { BOT_API_URL } from '@/lib/config';
 
+const FOLDER_COLORS = [
+  { label: 'None', value: null },
+  { label: 'Red', value: '#ef4444' },
+  { label: 'Orange', value: '#f97316' },
+  { label: 'Yellow', value: '#eab308' },
+  { label: 'Green', value: '#22c55e' },
+  { label: 'Blue', value: '#3b82f6' },
+  { label: 'Purple', value: '#a855f7' },
+  { label: 'Pink', value: '#ec4899' },
+];
+
 interface FolderEntry {
   id: number;
   name: string;
   parentId: number | null;
+  color: string | null;
 }
 
 interface StratEntry {
@@ -73,12 +85,16 @@ export function Stratbook() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const stratParam = searchParams.get('strat');
+  const folderParam = searchParams.get('folder');
 
   const [strats, setStrats] = useState<StratEntry[]>([]);
   const [folders, setFolders] = useState<FolderEntry[]>([]);
-  const [currentFolderId, setCurrentFolderId] = useState<number | null>(null);
+  const [currentFolderId, setCurrentFolderId] = useState<number | null>(
+    folderParam ? parseInt(folderParam, 10) || null : null
+  );
   const [folderPath, setFolderPath] = useState<FolderEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [initialLoad, setInitialLoad] = useState(true);
   const [mapFilter, setMapFilter] = useState<string>('all');
   const [sideFilter, setSideFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -112,15 +128,28 @@ export function Stratbook() {
   const contentCache = useRef<Record<number, any>>({});
   const initialDeepLinkHandled = useRef(false);
 
-  const setStratParam = useCallback((stratId: number | null) => {
+  const updateUrlParams = useCallback((updates: { strat?: number | null; folder?: number | null }) => {
     const params = new URLSearchParams(searchParams.toString());
-    if (stratId !== null) {
-      params.set('strat', String(stratId));
-    } else {
-      params.delete('strat');
+    if ('strat' in updates) {
+      if (updates.strat !== null && updates.strat !== undefined) {
+        params.set('strat', String(updates.strat));
+      } else {
+        params.delete('strat');
+      }
+    }
+    if ('folder' in updates) {
+      if (updates.folder !== null && updates.folder !== undefined) {
+        params.set('folder', String(updates.folder));
+      } else {
+        params.delete('folder');
+      }
     }
     router.replace(`?${params.toString()}`, { scroll: false });
   }, [router, searchParams]);
+
+  const setStratParam = useCallback((stratId: number | null) => {
+    updateUrlParams({ strat: stratId });
+  }, [updateUrlParams]);
 
   const goBack = useCallback(() => {
     setTransitioning(true);
@@ -142,6 +171,13 @@ export function Stratbook() {
     fetchFolders();
     checkPermission();
   }, [mapFilter, sideFilter, currentFolderId]);
+
+  // Load folder path on mount if deep-linked to a folder
+  useEffect(() => {
+    if (currentFolderId !== null) {
+      fetchFolderPath(currentFolderId);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Deep link handling
   useEffect(() => {
@@ -179,7 +215,7 @@ export function Stratbook() {
 
   const fetchStrats = async () => {
     try {
-      setLoading(true);
+      if (initialLoad) setLoading(true);
       const { getAuthHeaders } = await import('@/lib/auth');
       const params = new URLSearchParams();
       if (mapFilter !== 'all') params.set('map', mapFilter);
@@ -199,6 +235,7 @@ export function Stratbook() {
       toast.error('Failed to load strategies');
     } finally {
       setLoading(false);
+      setInitialLoad(false);
     }
   };
 
@@ -233,6 +270,7 @@ export function Stratbook() {
   const navigateToFolder = (folderId: number | null) => {
     setCurrentFolderId(folderId);
     fetchFolderPath(folderId);
+    updateUrlParams({ folder: folderId });
   };
 
   const handleCreateFolder = async () => {
@@ -328,6 +366,21 @@ export function Stratbook() {
       fetchFolders();
     } catch {
       toast.error('Failed to duplicate folder');
+    }
+  };
+
+  const handleFolderColor = async (folder: FolderEntry, color: string | null) => {
+    try {
+      const { getAuthHeaders } = await import('@/lib/auth');
+      const response = await fetch(`${BOT_API_URL}/api/strategies/folders/${folder.id}/color`, {
+        method: 'PUT',
+        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ color }),
+      });
+      if (!response.ok) throw new Error('Failed to update color');
+      fetchFolders();
+    } catch {
+      toast.error('Failed to update folder color');
     }
   };
 
@@ -594,14 +647,58 @@ export function Stratbook() {
 
         {/* List view */}
         {view === 'list' && (
-          <div className="space-y-6">
+          <div className="space-y-3">
+            {/* Breadcrumb - always visible, outside Card */}
+            {!searchQuery && (
+              <div className="flex items-center gap-2 text-sm min-h-[24px]">
+                {currentFolderId !== null && (
+                  <button
+                    className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
+                    onClick={() => {
+                      const parentId = folderPath.length >= 2 ? folderPath[folderPath.length - 2].id : null;
+                      navigateToFolder(parentId);
+                    }}
+                  >
+                    <ArrowLeft className="h-3.5 w-3.5" />
+                  </button>
+                )}
+                <div className="flex items-center gap-1 text-muted-foreground flex-wrap">
+                  <button
+                    className={cn(
+                      "hover:text-foreground transition-colors font-medium",
+                      currentFolderId === null && "text-foreground"
+                    )}
+                    onClick={() => navigateToFolder(null)}
+                  >
+                    Stratbook
+                  </button>
+                  {folderPath.map(f => (
+                    <React.Fragment key={f.id}>
+                      <ChevronRight className="h-3 w-3 shrink-0" />
+                      <button
+                        className={cn(
+                          "hover:text-foreground transition-colors font-medium",
+                          f.id === currentFolderId && "text-foreground"
+                        )}
+                        onClick={() => navigateToFolder(f.id)}
+                      >
+                        {f.name}
+                      </button>
+                    </React.Fragment>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <Card className={stagger(0, 'fast', 'fadeIn')}>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle className="flex items-center gap-2">
                       <BookOpen className="w-5 h-5" />
-                      Stratbook
+                      {currentFolderId !== null && folderPath.length > 0
+                        ? folderPath[folderPath.length - 1].name
+                        : 'Stratbook'}
                     </CardTitle>
                     <CardDescription>
                       Browse and search team strategies.
@@ -669,43 +766,6 @@ export function Stratbook() {
                 )}
               </div>
 
-              {/* Folder breadcrumb */}
-              {currentFolderId !== null && !searchQuery && (
-                <div className="px-3 sm:px-6 pt-3 flex items-center gap-2 text-sm">
-                  <button
-                    className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
-                    onClick={() => {
-                      const parentId = folderPath.length >= 2 ? folderPath[folderPath.length - 2].id : null;
-                      navigateToFolder(parentId);
-                    }}
-                  >
-                    <ArrowLeft className="h-3.5 w-3.5" />
-                  </button>
-                  <div className="flex items-center gap-1 text-muted-foreground flex-wrap">
-                    <button
-                      className="hover:text-foreground transition-colors font-medium"
-                      onClick={() => navigateToFolder(null)}
-                    >
-                      Stratbook
-                    </button>
-                    {folderPath.map(f => (
-                      <React.Fragment key={f.id}>
-                        <ChevronRight className="h-3 w-3 shrink-0" />
-                        <button
-                          className={cn(
-                            "hover:text-foreground transition-colors font-medium",
-                            f.id === currentFolderId && "text-foreground"
-                          )}
-                          onClick={() => navigateToFolder(f.id)}
-                        >
-                          {f.name}
-                        </button>
-                      </React.Fragment>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               {/* Strats grid */}
               <CardContent className="pt-4">
                 <ContextMenu>
@@ -732,11 +792,12 @@ export function Stratbook() {
                               stagger(index, 'fast', 'fadeIn'),
                               microInteractions.hoverLift
                             )}
+                            style={folder.color ? { borderLeftWidth: '3px', borderLeftColor: folder.color } : undefined}
                             onClick={() => navigateToFolder(folder.id)}
                           >
                             <CardHeader className="pb-2">
                               <CardTitle className="text-sm font-medium leading-snug flex items-center gap-2">
-                                <Folder className="h-4 w-4 text-muted-foreground" />
+                                <Folder className="h-4 w-4 shrink-0" style={folder.color ? { color: folder.color } : undefined} />
                                 {folder.name}
                               </CardTitle>
                             </CardHeader>
@@ -758,6 +819,26 @@ export function Stratbook() {
                                 <Copy className="h-4 w-4 mr-2" />
                                 Duplicate
                               </ContextMenuItem>
+                              <ContextMenuSeparator />
+                              <div className="px-2 py-1.5">
+                                <p className="text-xs text-muted-foreground mb-1.5 flex items-center gap-1">
+                                  <Palette className="h-3 w-3" /> Color
+                                </p>
+                                <div className="flex gap-1">
+                                  {FOLDER_COLORS.map(c => (
+                                    <button
+                                      key={c.label}
+                                      title={c.label}
+                                      className={cn(
+                                        "w-5 h-5 rounded-full border-2 transition-transform hover:scale-110",
+                                        folder.color === c.value ? "border-foreground scale-110" : "border-transparent"
+                                      )}
+                                      style={{ backgroundColor: c.value || 'var(--muted)' }}
+                                      onClick={(e) => { e.stopPropagation(); handleFolderColor(folder, c.value); }}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
                               <ContextMenuSeparator />
                               <ContextMenuItem variant="destructive" onClick={() => setDeletingFolder(folder)}>
                                 <Trash2 className="h-4 w-4 mr-2" />

@@ -123,6 +123,7 @@ model StrategyFolder {
   id         Int              @id @default(autoincrement())
   name       String
   parentId   Int?             @map("parent_id")
+  color      String?
   sortOrder  Int              @default(0) @map("sort_order")
   createdAt  DateTime         @default(now()) @map("created_at")
   updatedAt  DateTime         @updatedAt @map("updated_at")

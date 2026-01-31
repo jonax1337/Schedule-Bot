@@ -76,7 +76,11 @@ export class StrategyService {
   }
 
   async renameFolder(id: number, name: string): Promise<FolderItem | null> {
-    return updateFolder(id, name.trim());
+    return updateFolder(id, { name: name.trim() });
+  }
+
+  async updateFolderColor(id: number, color: string | null): Promise<FolderItem | null> {
+    return updateFolder(id, { color });
   }
 
   async deleteFolder(id: number): Promise<boolean> {

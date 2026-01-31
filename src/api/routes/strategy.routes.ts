@@ -204,6 +204,26 @@ router.put('/folders/:id', verifyToken, async (req: AuthRequest, res) => {
   }
 });
 
+// Update folder color
+router.put('/folders/:id/color', verifyToken, async (req: AuthRequest, res) => {
+  try {
+    if (!strategyService.canEdit(req.user!.role)) {
+      return res.status(403).json({ error: 'No permission' });
+    }
+    const id = parseInt(req.params.id as string, 10);
+    if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+    const { color } = req.body;
+    if (color !== null && (typeof color !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(color))) {
+      return res.status(400).json({ error: 'Invalid color format. Use #RRGGBB or null.' });
+    }
+    const folder = await strategyService.updateFolderColor(id, color ?? null);
+    if (!folder) return res.status(404).json({ error: 'Folder not found' });
+    res.json({ success: true, folder });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update folder color' });
+  }
+});
+
 // Delete folder (must be empty)
 router.delete('/folders/:id', verifyToken, async (req: AuthRequest, res) => {
   try {

@@ -5,6 +5,7 @@ export interface FolderItem {
   id: number;
   name: string;
   parentId: number | null;
+  color: string | null;
   sortOrder: number;
   createdAt: string;
   updatedAt: string;
@@ -254,6 +255,7 @@ export async function findFolders(parentId: number | null): Promise<FolderItem[]
     id: f.id,
     name: f.name,
     parentId: f.parentId,
+    color: f.color,
     sortOrder: f.sortOrder,
     createdAt: f.createdAt.toISOString(),
     updatedAt: f.updatedAt.toISOString(),
@@ -273,22 +275,24 @@ export async function createFolder(name: string, parentId: number | null): Promi
     id: folder.id,
     name: folder.name,
     parentId: folder.parentId,
+    color: folder.color,
     sortOrder: folder.sortOrder,
     createdAt: folder.createdAt.toISOString(),
     updatedAt: folder.updatedAt.toISOString(),
   };
 }
 
-export async function updateFolder(id: number, name: string): Promise<FolderItem | null> {
+export async function updateFolder(id: number, data: { name?: string; color?: string | null }): Promise<FolderItem | null> {
   try {
     const folder = await prisma.strategyFolder.update({
       where: { id },
-      data: { name },
+      data,
     });
     return {
       id: folder.id,
       name: folder.name,
       parentId: folder.parentId,
+      color: folder.color,
       sortOrder: folder.sortOrder,
       createdAt: folder.createdAt.toISOString(),
       updatedAt: folder.updatedAt.toISOString(),
@@ -348,6 +352,7 @@ export async function duplicateFolder(id: number, parentId?: number | null): Pro
     id: copy.id,
     name: copy.name,
     parentId: copy.parentId,
+    color: copy.color,
     sortOrder: copy.sortOrder,
     createdAt: copy.createdAt.toISOString(),
     updatedAt: copy.updatedAt.toISOString(),
@@ -370,12 +375,13 @@ export async function getFolderPath(folderId: number): Promise<FolderItem[]> {
   const breadcrumbs: FolderItem[] = [];
   let currentId: number | null = folderId;
   while (currentId !== null) {
-    const found: { id: number; name: string; parentId: number | null; sortOrder: number; createdAt: Date; updatedAt: Date } | null = await prisma.strategyFolder.findUnique({ where: { id: currentId } });
+    const found: { id: number; name: string; parentId: number | null; color: string | null; sortOrder: number; createdAt: Date; updatedAt: Date } | null = await prisma.strategyFolder.findUnique({ where: { id: currentId } });
     if (!found) break;
     breadcrumbs.unshift({
       id: found.id,
       name: found.name,
       parentId: found.parentId,
+      color: found.color,
       sortOrder: found.sortOrder,
       createdAt: found.createdAt.toISOString(),
       updatedAt: found.updatedAt.toISOString(),
