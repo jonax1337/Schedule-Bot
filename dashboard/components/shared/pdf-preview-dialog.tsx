@@ -1,11 +1,8 @@
 'use client';
 
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { X } from 'lucide-react';
 
 interface PdfPreviewDialogProps {
   open: boolean;
@@ -15,22 +12,38 @@ interface PdfPreviewDialogProps {
 }
 
 export function PdfPreviewDialog({ open, onOpenChange, url, title }: PdfPreviewDialogProps) {
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl w-[95vw] h-[85vh] flex flex-col p-0">
-        <DialogHeader className="px-6 pt-6 pb-2">
-          <DialogTitle className="truncate">{title}</DialogTitle>
-        </DialogHeader>
-        <div className="flex-1 min-h-0 px-6 pb-6">
-          {open && (
-            <iframe
-              src={url}
-              className="w-full h-full rounded-md border"
-              title={title}
-            />
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
+  useEffect(() => {
+    if (!open) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onOpenChange(false);
+    };
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [open, onOpenChange]);
+
+  if (!open) return null;
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm animate-fadeIn"
+      onClick={() => onOpenChange(false)}
+    >
+      <div className="absolute top-4 left-4 right-4 flex items-center justify-between">
+        <span className="text-white/80 text-sm font-medium truncate max-w-[80%]">{title}</span>
+        <button
+          className="text-white/80 hover:text-white transition-colors"
+          onClick={() => onOpenChange(false)}
+        >
+          <X className="h-6 w-6" />
+        </button>
+      </div>
+      <iframe
+        src={url}
+        title={title}
+        className="w-[90vw] h-[85vh] rounded-lg border-0"
+        onClick={(e) => e.stopPropagation()}
+      />
+    </div>,
+    document.body
   );
 }
