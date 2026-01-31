@@ -531,7 +531,8 @@
               box-shadow var(--anim-duration-fast) var(--anim-ease-out);
 }
 
-.hover-lift:hover {
+.hover-lift:hover,
+.hover-lift[data-state="open"] {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px oklch(0 0 0 / 0.15);
 }

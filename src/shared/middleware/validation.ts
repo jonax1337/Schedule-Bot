@@ -159,6 +159,7 @@ export const createStrategySchema = Joi.object({
   tags: Joi.string().max(500).allow(''),
   agents: Joi.string().max(500).allow(''),
   content: Joi.object().required(),
+  folderId: Joi.number().integer().allow(null),
 });
 
 export const updateStrategySchema = Joi.object({

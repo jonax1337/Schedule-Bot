@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { BookOpen, ExternalLink, FileText, Loader2, Search, Swords, Shield, X, Plus, Pencil, Trash2 } from 'lucide-react';
+import { ArrowLeft, BookOpen, ChevronRight, Copy, ExternalLink, FileText, Folder, FolderOpen, FolderPlus, Loader2, Pencil, Plus, Search, Swords, Shield, Trash2, X } from 'lucide-react';
 import { useBreadcrumbSub } from '@/lib/breadcrumb-context';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -22,6 +22,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu';
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -33,6 +40,12 @@ import {
 } from '@/components/ui/alert-dialog';
 import { BOT_API_URL } from '@/lib/config';
 
+interface FolderEntry {
+  id: number;
+  name: string;
+  parentId: number | null;
+}
+
 interface StratEntry {
   id: number;
   title: string;
@@ -40,6 +53,7 @@ interface StratEntry {
   side: string | null;
   tags: string[];
   agents: string[];
+  folderId?: number | null;
   authorId: string;
   authorName: string;
   content?: any;
@@ -61,10 +75,19 @@ export function Stratbook() {
   const stratParam = searchParams.get('strat');
 
   const [strats, setStrats] = useState<StratEntry[]>([]);
+  const [folders, setFolders] = useState<FolderEntry[]>([]);
+  const [currentFolderId, setCurrentFolderId] = useState<number | null>(null);
+  const [folderPath, setFolderPath] = useState<FolderEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [mapFilter, setMapFilter] = useState<string>('all');
   const [sideFilter, setSideFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Folder dialogs
+  const [folderDialogOpen, setFolderDialogOpen] = useState(false);
+  const [folderName, setFolderName] = useState('');
+  const [renamingFolder, setRenamingFolder] = useState<FolderEntry | null>(null);
+  const [deletingFolder, setDeletingFolder] = useState<FolderEntry | null>(null);
 
   // View transition state
   const [view, setView] = useState<View>(stratParam ? 'detail' : 'list');
@@ -116,8 +139,9 @@ export function Stratbook() {
 
   useEffect(() => {
     fetchStrats();
+    fetchFolders();
     checkPermission();
-  }, [mapFilter, sideFilter]);
+  }, [mapFilter, sideFilter, currentFolderId]);
 
   // Deep link handling
   useEffect(() => {
@@ -160,8 +184,12 @@ export function Stratbook() {
       const params = new URLSearchParams();
       if (mapFilter !== 'all') params.set('map', mapFilter);
       if (sideFilter !== 'all') params.set('side', sideFilter);
+      // When searching, don't filter by folder (search across all)
+      if (!searchQuery) {
+        params.set('folderId', currentFolderId !== null ? String(currentFolderId) : 'null');
+      }
 
-      const url = `${BOT_API_URL}/api/strategies${params.toString() ? `?${params}` : ''}`;
+      const url = `${BOT_API_URL}/api/strategies?${params}`;
       const response = await fetch(url, { headers: getAuthHeaders() });
       if (!response.ok) throw new Error('Failed to fetch');
 
@@ -171,6 +199,135 @@ export function Stratbook() {
       toast.error('Failed to load strategies');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchFolders = async () => {
+    try {
+      const { getAuthHeaders } = await import('@/lib/auth');
+      const params = new URLSearchParams();
+      params.set('parentId', currentFolderId !== null ? String(currentFolderId) : 'null');
+      const response = await fetch(`${BOT_API_URL}/api/strategies/folders?${params}`, { headers: getAuthHeaders() });
+      if (response.ok) {
+        const data = await response.json();
+        setFolders(data.folders || []);
+      }
+    } catch { /* ignore */ }
+  };
+
+  const fetchFolderPath = async (folderId: number | null) => {
+    if (folderId === null) {
+      setFolderPath([]);
+      return;
+    }
+    try {
+      const { getAuthHeaders } = await import('@/lib/auth');
+      const response = await fetch(`${BOT_API_URL}/api/strategies/folders/${folderId}/path`, { headers: getAuthHeaders() });
+      if (response.ok) {
+        const data = await response.json();
+        setFolderPath(data.path || []);
+      }
+    } catch { /* ignore */ }
+  };
+
+  const navigateToFolder = (folderId: number | null) => {
+    setCurrentFolderId(folderId);
+    fetchFolderPath(folderId);
+  };
+
+  const handleCreateFolder = async () => {
+    if (!folderName.trim()) return;
+    try {
+      const { getAuthHeaders } = await import('@/lib/auth');
+      const response = await fetch(`${BOT_API_URL}/api/strategies/folders`, {
+        method: 'POST',
+        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: folderName.trim(), parentId: currentFolderId }),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to create folder');
+      }
+      toast.success('Folder created');
+      setFolderDialogOpen(false);
+      setFolderName('');
+      fetchFolders();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to create folder');
+    }
+  };
+
+  const handleRenameFolder = async () => {
+    if (!renamingFolder || !folderName.trim()) return;
+    try {
+      const { getAuthHeaders } = await import('@/lib/auth');
+      const response = await fetch(`${BOT_API_URL}/api/strategies/folders/${renamingFolder.id}`, {
+        method: 'PUT',
+        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: folderName.trim() }),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to rename folder');
+      }
+      toast.success('Folder renamed');
+      setRenamingFolder(null);
+      setFolderName('');
+      fetchFolders();
+      fetchFolderPath(currentFolderId);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to rename folder');
+    }
+  };
+
+  const handleDeleteFolder = async () => {
+    if (!deletingFolder) return;
+    try {
+      const { getAuthHeaders } = await import('@/lib/auth');
+      const response = await fetch(`${BOT_API_URL}/api/strategies/folders/${deletingFolder.id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || 'Folder is not empty');
+      }
+      toast.success('Folder deleted');
+      setDeletingFolder(null);
+      fetchFolders();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete folder');
+    }
+  };
+
+  const handleDuplicateStrategy = async (strat: StratEntry) => {
+    try {
+      const { getAuthHeaders } = await import('@/lib/auth');
+      const response = await fetch(`${BOT_API_URL}/api/strategies/duplicate/${strat.id}`, {
+        method: 'POST',
+        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folderId: currentFolderId }),
+      });
+      if (!response.ok) throw new Error('Failed to duplicate');
+      toast.success('Strategy duplicated');
+      fetchStrats();
+    } catch {
+      toast.error('Failed to duplicate strategy');
+    }
+  };
+
+  const handleDuplicateFolder = async (folder: FolderEntry) => {
+    try {
+      const { getAuthHeaders } = await import('@/lib/auth');
+      const response = await fetch(`${BOT_API_URL}/api/strategies/folders/${folder.id}/duplicate`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      });
+      if (!response.ok) throw new Error('Failed to duplicate');
+      toast.success('Folder duplicated');
+      fetchFolders();
+    } catch {
+      toast.error('Failed to duplicate folder');
     }
   };
 
@@ -302,7 +459,7 @@ export function Stratbook() {
       <div className={cn('transition-all duration-200 ease-out', viewClasses)}>
         {/* Create view */}
         {view === 'create' && (
-          <StrategyForm onSaved={handleSaved} onCancel={goBack} />
+          <StrategyForm onSaved={handleSaved} onCancel={goBack} folderId={currentFolderId} />
         )}
 
         {/* Edit view */}
@@ -324,7 +481,14 @@ export function Stratbook() {
 
         {/* Detail view */}
         {view === 'detail' && selectedStrat && (
-          <div className="space-y-6">
+          <div className="space-y-4">
+            <button
+              onClick={goBack}
+              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Stratbook
+            </button>
             <Card>
               <CardHeader className="space-y-1.5">
                 <div className="flex items-start justify-between gap-3">
@@ -444,10 +608,16 @@ export function Stratbook() {
                     </CardDescription>
                   </div>
                   {canEdit && (
-                    <Button size="sm" onClick={handleCreate} className={microInteractions.activePress}>
-                      <Plus className="h-4 w-4 mr-1" />
-                      New Strategy
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={() => { setFolderName(''); setFolderDialogOpen(true); }} className={microInteractions.activePress}>
+                        <FolderPlus className="h-4 w-4 mr-1" />
+                        Folder
+                      </Button>
+                      <Button size="sm" onClick={handleCreate} className={microInteractions.activePress}>
+                        <Plus className="h-4 w-4 mr-1" />
+                        Strategy
+                      </Button>
+                    </div>
                   )}
                 </div>
               </CardHeader>
@@ -499,9 +669,49 @@ export function Stratbook() {
                 )}
               </div>
 
+              {/* Folder breadcrumb */}
+              {currentFolderId !== null && !searchQuery && (
+                <div className="px-3 sm:px-6 pt-3 flex items-center gap-2 text-sm">
+                  <button
+                    className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
+                    onClick={() => {
+                      const parentId = folderPath.length >= 2 ? folderPath[folderPath.length - 2].id : null;
+                      navigateToFolder(parentId);
+                    }}
+                  >
+                    <ArrowLeft className="h-3.5 w-3.5" />
+                  </button>
+                  <div className="flex items-center gap-1 text-muted-foreground flex-wrap">
+                    <button
+                      className="hover:text-foreground transition-colors font-medium"
+                      onClick={() => navigateToFolder(null)}
+                    >
+                      Stratbook
+                    </button>
+                    {folderPath.map(f => (
+                      <React.Fragment key={f.id}>
+                        <ChevronRight className="h-3 w-3 shrink-0" />
+                        <button
+                          className={cn(
+                            "hover:text-foreground transition-colors font-medium",
+                            f.id === currentFolderId && "text-foreground"
+                          )}
+                          onClick={() => navigateToFolder(f.id)}
+                        >
+                          {f.name}
+                        </button>
+                      </React.Fragment>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Strats grid */}
               <CardContent className="pt-4">
-                {filteredStrats.length === 0 ? (
+                <ContextMenu>
+                <ContextMenuTrigger asChild>
+                  <div>
+                {filteredStrats.length === 0 && folders.length === 0 ? (
                   <div className="py-12 text-center">
                     <BookOpen className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                     <p className="text-muted-foreground">
@@ -512,76 +722,163 @@ export function Stratbook() {
                   </div>
                 ) : (
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    {filteredStrats.map((strat, index) => (
-                      <Card
-                        key={strat.id}
-                        className={cn(
-                          'cursor-pointer border overflow-hidden relative',
-                          stagger(index, 'fast', 'fadeIn'),
-                          microInteractions.hoverLift
-                        )}
-                        onMouseEnter={() => handleStratHover(strat.id)}
-                        onClick={() => openStrat(strat)}
-                      >
-                        {strat.map && (
-                          <div
-                            className="absolute inset-0 bg-cover bg-center opacity-15 dark:opacity-25"
-                            style={{ backgroundImage: `url(/assets/maps/Loading_Screen_${strat.map}.webp)` }}
-                          />
-                        )}
-                        <CardHeader className="pb-2 relative">
-                          <div className="flex items-start justify-between gap-2">
-                            <CardTitle className="text-sm font-medium leading-snug">
-                              {strat.title}
-                            </CardTitle>
-                            {strat.side && (
-                              <span className={cn("inline-flex shrink-0", strat.side === 'Attack' ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400')} title={strat.side}>
-                                {strat.side === 'Attack' ? <Swords className="h-4 w-4" /> : <Shield className="h-4 w-4" />}
-                              </span>
+                    {/* Folder cards */}
+                    {!searchQuery && folders.map((folder, index) => (
+                      <ContextMenu key={`folder-${folder.id}`}>
+                        <ContextMenuTrigger asChild>
+                          <Card
+                            className={cn(
+                              'cursor-pointer border overflow-hidden',
+                              stagger(index, 'fast', 'fadeIn'),
+                              microInteractions.hoverLift
                             )}
-                          </div>
-                        </CardHeader>
-                        <CardContent className="pt-0 relative">
-                          {strat.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1.5">
-                            {strat.tags.map(tag => (
-                              <Badge key={tag} variant="outline" className="text-xs text-muted-foreground">
-                                {tag}
-                              </Badge>
-                            ))}
-                          </div>
+                            onClick={() => navigateToFolder(folder.id)}
+                          >
+                            <CardHeader className="pb-2">
+                              <CardTitle className="text-sm font-medium leading-snug flex items-center gap-2">
+                                <Folder className="h-4 w-4 text-muted-foreground" />
+                                {folder.name}
+                              </CardTitle>
+                            </CardHeader>
+                          </Card>
+                        </ContextMenuTrigger>
+                        <ContextMenuContent>
+                          <ContextMenuItem onClick={() => navigateToFolder(folder.id)}>
+                            <FolderOpen className="h-4 w-4 mr-2" />
+                            Open
+                          </ContextMenuItem>
+                          {canEdit && (
+                            <>
+                              <ContextMenuSeparator />
+                              <ContextMenuItem onClick={() => { setFolderName(folder.name); setRenamingFolder(folder); }}>
+                                <Pencil className="h-4 w-4 mr-2" />
+                                Rename
+                              </ContextMenuItem>
+                              <ContextMenuItem onClick={() => handleDuplicateFolder(folder)}>
+                                <Copy className="h-4 w-4 mr-2" />
+                                Duplicate
+                              </ContextMenuItem>
+                              <ContextMenuSeparator />
+                              <ContextMenuItem variant="destructive" onClick={() => setDeletingFolder(folder)}>
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete
+                              </ContextMenuItem>
+                            </>
                           )}
-                          {strat.agents.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-2 pt-2 border-t">
-                              {strat.agents.map(agent => (
-                                <img
-                                  key={agent}
-                                  src={`/assets/agents/${normalizeAgentName(agent)}_icon.webp`}
-                                  alt={agent}
-                                  title={agent}
-                                  className="w-6 h-6 rounded border border-primary/50"
-                                />
-                              ))}
-                            </div>
+                        </ContextMenuContent>
+                      </ContextMenu>
+                    ))}
+                    {filteredStrats.map((strat, index) => (
+                      <ContextMenu key={strat.id}>
+                        <ContextMenuTrigger asChild>
+                          <Card
+                            className={cn(
+                              'cursor-pointer border overflow-hidden relative',
+                              stagger(index, 'fast', 'fadeIn'),
+                              microInteractions.hoverLift
+                            )}
+                            onMouseEnter={() => handleStratHover(strat.id)}
+                            onClick={() => openStrat(strat)}
+                          >
+                            {strat.map && (
+                              <div
+                                className="absolute inset-0 bg-cover bg-center opacity-15 dark:opacity-25"
+                                style={{ backgroundImage: `url(/assets/maps/Loading_Screen_${strat.map}.webp)` }}
+                              />
+                            )}
+                            <CardHeader className="pb-2 relative">
+                              <div className="flex items-start justify-between gap-2">
+                                <CardTitle className="text-sm font-medium leading-snug">
+                                  {strat.title}
+                                </CardTitle>
+                                {strat.side && (
+                                  <span className={cn("inline-flex shrink-0", strat.side === 'Attack' ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400')} title={strat.side}>
+                                    {strat.side === 'Attack' ? <Swords className="h-4 w-4" /> : <Shield className="h-4 w-4" />}
+                                  </span>
+                                )}
+                              </div>
+                            </CardHeader>
+                            <CardContent className="pt-0 relative">
+                              {strat.tags.length > 0 && (
+                              <div className="flex flex-wrap gap-1.5">
+                                {strat.tags.map(tag => (
+                                  <Badge key={tag} variant="outline" className="text-xs text-muted-foreground">
+                                    {tag}
+                                  </Badge>
+                                ))}
+                              </div>
+                              )}
+                              {strat.agents.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-2 pt-2 border-t">
+                                  {strat.agents.map(agent => (
+                                    <img
+                                      key={agent}
+                                      src={`/assets/agents/${normalizeAgentName(agent)}_icon.webp`}
+                                      alt={agent}
+                                      title={agent}
+                                      className="w-6 h-6 rounded border border-primary/50"
+                                    />
+                                  ))}
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
+                        </ContextMenuTrigger>
+                        <ContextMenuContent>
+                          <ContextMenuItem onClick={() => openStrat(strat)}>
+                            <BookOpen className="h-4 w-4 mr-2" />
+                            Open
+                          </ContextMenuItem>
+                          {canEdit && (
+                            <>
+                              <ContextMenuItem onClick={async () => { await openStrat(strat); setTimeout(handleEdit, 200); }}>
+                                <Pencil className="h-4 w-4 mr-2" />
+                                Edit
+                              </ContextMenuItem>
+                              <ContextMenuItem onClick={() => handleDuplicateStrategy(strat)}>
+                                <Copy className="h-4 w-4 mr-2" />
+                                Duplicate
+                              </ContextMenuItem>
+                              <ContextMenuSeparator />
+                              <ContextMenuItem variant="destructive" onClick={() => setDeleteTarget(strat)}>
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete
+                              </ContextMenuItem>
+                            </>
                           )}
-                        </CardContent>
-                      </Card>
+                        </ContextMenuContent>
+                      </ContextMenu>
                     ))}
                   </div>
                 )}
+                  </div>
+                </ContextMenuTrigger>
+                {canEdit && (
+                  <ContextMenuContent>
+                    <ContextMenuItem onClick={() => { setFolderName(''); setFolderDialogOpen(true); }}>
+                      <FolderPlus className="h-4 w-4 mr-2" />
+                      New Folder
+                    </ContextMenuItem>
+                    <ContextMenuItem onClick={handleCreate}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      New Strategy
+                    </ContextMenuItem>
+                  </ContextMenuContent>
+                )}
+              </ContextMenu>
               </CardContent>
             </Card>
           </div>
         )}
       </div>
 
-      {/* Delete confirmation dialog */}
+      {/* Delete strategy dialog */}
       <AlertDialog open={!!deleteTarget} onOpenChange={open => !open && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Strategy</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete "{deleteTarget?.title}"? This action cannot be undone.
+              Are you sure you want to delete &quot;{deleteTarget?.title}&quot;? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -592,6 +889,76 @@ export function Stratbook() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Create folder dialog */}
+      <AlertDialog open={folderDialogOpen} onOpenChange={open => { if (!open) setFolderDialogOpen(false); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>New Folder</AlertDialogTitle>
+            <AlertDialogDescription>
+              Enter a name for the new folder.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Input
+            value={folderName}
+            onChange={e => setFolderName(e.target.value)}
+            placeholder="Folder name"
+            maxLength={100}
+            onKeyDown={e => { if (e.key === 'Enter') handleCreateFolder(); }}
+            autoFocus
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setFolderDialogOpen(false)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleCreateFolder} disabled={!folderName.trim()}>
+              Create
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Rename folder dialog */}
+      <AlertDialog open={!!renamingFolder} onOpenChange={open => { if (!open) setRenamingFolder(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Rename Folder</AlertDialogTitle>
+          </AlertDialogHeader>
+          <Input
+            value={folderName}
+            onChange={e => setFolderName(e.target.value)}
+            placeholder="Folder name"
+            maxLength={100}
+            onKeyDown={e => { if (e.key === 'Enter') handleRenameFolder(); }}
+            autoFocus
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setRenamingFolder(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRenameFolder} disabled={!folderName.trim()}>
+              Rename
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete folder dialog */}
+      <AlertDialog open={!!deletingFolder} onOpenChange={open => { if (!open) setDeletingFolder(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Folder</AlertDialogTitle>
+            <AlertDialogDescription>
+              Delete &quot;{deletingFolder?.name}&quot;? The folder must be empty.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteFolder}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

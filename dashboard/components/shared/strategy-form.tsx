@@ -38,11 +38,12 @@ interface StrategyFormProps {
     agents: string[];
     content: JSONContent;
   };
+  folderId?: number | null;
   onSaved: (strategy: any) => void;
   onCancel: () => void;
 }
 
-export function StrategyForm({ strategyId, initialData, onSaved, onCancel }: StrategyFormProps) {
+export function StrategyForm({ strategyId, initialData, folderId, onSaved, onCancel }: StrategyFormProps) {
   const [title, setTitle] = useState(initialData?.title || '');
   const [map, setMap] = useState(initialData?.map || '');
   const [side, setSide] = useState(initialData?.side || '');
@@ -155,7 +156,7 @@ export function StrategyForm({ strategyId, initialData, onSaved, onCancel }: Str
     setSaving(true);
     try {
       const { getAuthHeaders } = await import('@/lib/auth');
-      const body = {
+      const body: any = {
         title: title.trim(),
         map: map || null,
         side: side || null,
@@ -163,6 +164,9 @@ export function StrategyForm({ strategyId, initialData, onSaved, onCancel }: Str
         agents: agents.join(','),
         content,
       };
+      if (!isEditing && folderId !== undefined) {
+        body.folderId = folderId;
+      }
 
       const url = isEditing
         ? `${BOT_API_URL}/api/strategies/${strategyId}`

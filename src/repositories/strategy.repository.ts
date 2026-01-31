@@ -1,6 +1,15 @@
 import { prisma } from './database.repository.js';
 import { logger } from '../shared/utils/logger.js';
 
+export interface FolderItem {
+  id: number;
+  name: string;
+  parentId: number | null;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface StrategyListItem {
   id: number;
   title: string;
@@ -8,6 +17,7 @@ export interface StrategyListItem {
   side: string | null;
   tags: string[];
   agents: string[];
+  folderId: number | null;
   authorId: string;
   authorName: string;
   createdAt: string;
@@ -35,6 +45,7 @@ export interface CreateStrategyData {
   tags?: string;
   agents?: string;
   content?: any;
+  folderId?: number | null;
   authorId: string;
   authorName: string;
 }
@@ -56,6 +67,7 @@ function toListItem(s: any): StrategyListItem {
     side: s.side,
     tags: s.tags ? s.tags.split(',').filter(Boolean) : [],
     agents: s.agents ? s.agents.split(',').filter(Boolean) : [],
+    folderId: s.folderId ?? null,
     authorId: s.authorId,
     authorName: s.authorName,
     createdAt: s.createdAt.toISOString(),
@@ -70,10 +82,11 @@ function toDetail(s: any): StrategyDetail {
   };
 }
 
-export async function findAllStrategies(filter?: { map?: string; side?: string }): Promise<StrategyListItem[]> {
+export async function findAllStrategies(filter?: { map?: string; side?: string; folderId?: number | null }): Promise<StrategyListItem[]> {
   const where: any = {};
   if (filter?.map) where.map = filter.map;
   if (filter?.side) where.side = filter.side;
+  if (filter && 'folderId' in filter) where.folderId = filter.folderId;
 
   const strategies = await prisma.strategy.findMany({
     where,
@@ -85,6 +98,7 @@ export async function findAllStrategies(filter?: { map?: string; side?: string }
       side: true,
       tags: true,
       agents: true,
+      folderId: true,
       authorId: true,
       authorName: true,
       createdAt: true,
@@ -122,6 +136,7 @@ export async function createStrategy(data: CreateStrategyData): Promise<Strategy
       tags: data.tags || '',
       agents: data.agents || '',
       content: data.content || {},
+      folderId: data.folderId ?? null,
       authorId: data.authorId,
       authorName: data.authorName,
     },
@@ -226,4 +241,146 @@ export async function deleteOrphanImages(): Promise<string[]> {
     where: { id: { in: orphans.map(o => o.id) } },
   });
   return orphans.map(o => o.filename);
+}
+
+// --- Folder CRUD ---
+
+export async function findFolders(parentId: number | null): Promise<FolderItem[]> {
+  const folders = await prisma.strategyFolder.findMany({
+    where: { parentId },
+    orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+  });
+  return folders.map(f => ({
+    id: f.id,
+    name: f.name,
+    parentId: f.parentId,
+    sortOrder: f.sortOrder,
+    createdAt: f.createdAt.toISOString(),
+    updatedAt: f.updatedAt.toISOString(),
+  }));
+}
+
+export async function findFolderById(id: number) {
+  return prisma.strategyFolder.findUnique({ where: { id } });
+}
+
+export async function createFolder(name: string, parentId: number | null): Promise<FolderItem> {
+  const folder = await prisma.strategyFolder.create({
+    data: { name, parentId },
+  });
+  logger.success('Folder created', `"${name}"`);
+  return {
+    id: folder.id,
+    name: folder.name,
+    parentId: folder.parentId,
+    sortOrder: folder.sortOrder,
+    createdAt: folder.createdAt.toISOString(),
+    updatedAt: folder.updatedAt.toISOString(),
+  };
+}
+
+export async function updateFolder(id: number, name: string): Promise<FolderItem | null> {
+  try {
+    const folder = await prisma.strategyFolder.update({
+      where: { id },
+      data: { name },
+    });
+    return {
+      id: folder.id,
+      name: folder.name,
+      parentId: folder.parentId,
+      sortOrder: folder.sortOrder,
+      createdAt: folder.createdAt.toISOString(),
+      updatedAt: folder.updatedAt.toISOString(),
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function deleteFolder(id: number): Promise<boolean> {
+  try {
+    // Check if folder has children or strategies
+    const [children, strategies] = await Promise.all([
+      prisma.strategyFolder.count({ where: { parentId: id } }),
+      prisma.strategy.count({ where: { folderId: id } }),
+    ]);
+    if (children > 0 || strategies > 0) return false;
+    await prisma.strategyFolder.delete({ where: { id } });
+    logger.success('Folder deleted', `ID: ${id}`);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function duplicateStrategy(id: number, folderId?: number | null): Promise<StrategyDetail | null> {
+  const original = await prisma.strategy.findUnique({ where: { id } });
+  if (!original) return null;
+  const copy = await prisma.strategy.create({
+    data: {
+      title: `${original.title} (Copy)`,
+      map: original.map,
+      side: original.side,
+      tags: original.tags,
+      agents: original.agents,
+      content: original.content as any,
+      folderId: folderId !== undefined ? folderId : original.folderId,
+      authorId: original.authorId,
+      authorName: original.authorName,
+    },
+  });
+  logger.success('Strategy duplicated', `"${copy.title}" from ID: ${id}`);
+  return toDetail(copy);
+}
+
+export async function duplicateFolder(id: number, parentId?: number | null): Promise<FolderItem | null> {
+  const original = await prisma.strategyFolder.findUnique({ where: { id } });
+  if (!original) return null;
+  const copy = await prisma.strategyFolder.create({
+    data: {
+      name: `${original.name} (Copy)`,
+      parentId: parentId !== undefined ? parentId : original.parentId,
+    },
+  });
+  logger.success('Folder duplicated', `"${copy.name}" from ID: ${id}`);
+  return {
+    id: copy.id,
+    name: copy.name,
+    parentId: copy.parentId,
+    sortOrder: copy.sortOrder,
+    createdAt: copy.createdAt.toISOString(),
+    updatedAt: copy.updatedAt.toISOString(),
+  };
+}
+
+export async function moveStrategy(id: number, folderId: number | null): Promise<boolean> {
+  try {
+    await prisma.strategy.update({
+      where: { id },
+      data: { folderId },
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function getFolderPath(folderId: number): Promise<FolderItem[]> {
+  const breadcrumbs: FolderItem[] = [];
+  let currentId: number | null = folderId;
+  while (currentId !== null) {
+    const found: { id: number; name: string; parentId: number | null; sortOrder: number; createdAt: Date; updatedAt: Date } | null = await prisma.strategyFolder.findUnique({ where: { id: currentId } });
+    if (!found) break;
+    breadcrumbs.unshift({
+      id: found.id,
+      name: found.name,
+      parentId: found.parentId,
+      sortOrder: found.sortOrder,
+      createdAt: found.createdAt.toISOString(),
+      updatedAt: found.updatedAt.toISOString(),
+    });
+    currentId = found.parentId;
+  }
+  return breadcrumbs;
 }

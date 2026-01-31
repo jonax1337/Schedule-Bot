@@ -5,10 +5,20 @@ import {
   updateStrategy,
   deleteStrategy,
   linkOrphanImages,
+  findFolders,
+  findFolderById,
+  createFolder,
+  updateFolder,
+  deleteFolder,
+  moveStrategy,
+  duplicateStrategy,
+  duplicateFolder,
+  getFolderPath,
   type StrategyListItem,
   type StrategyDetail,
   type CreateStrategyData,
   type UpdateStrategyData,
+  type FolderItem,
 } from '../repositories/strategy.repository.js';
 import { loadSettings } from '../shared/utils/settingsManager.js';
 
@@ -20,7 +30,7 @@ export class StrategyService {
     return settings.stratbook.editPermission === 'all';
   }
 
-  async getAll(filter?: { map?: string; side?: string }): Promise<StrategyListItem[]> {
+  async getAll(filter?: { map?: string; side?: string; folderId?: number | null }): Promise<StrategyListItem[]> {
     return findAllStrategies(filter);
   }
 
@@ -49,6 +59,45 @@ export class StrategyService {
 
   async delete(id: number): Promise<boolean> {
     return deleteStrategy(id);
+  }
+
+  // --- Folder operations ---
+
+  async getFolders(parentId: number | null): Promise<FolderItem[]> {
+    return findFolders(parentId);
+  }
+
+  async getFolderPath(folderId: number): Promise<FolderItem[]> {
+    return getFolderPath(folderId);
+  }
+
+  async createFolder(name: string, parentId: number | null): Promise<FolderItem> {
+    return createFolder(name.trim(), parentId);
+  }
+
+  async renameFolder(id: number, name: string): Promise<FolderItem | null> {
+    return updateFolder(id, name.trim());
+  }
+
+  async deleteFolder(id: number): Promise<boolean> {
+    return deleteFolder(id);
+  }
+
+  async duplicateStrategy(id: number, folderId?: number | null) {
+    return duplicateStrategy(id, folderId);
+  }
+
+  async duplicateFolder(id: number) {
+    return duplicateFolder(id);
+  }
+
+  async moveStrategy(id: number, folderId: number | null): Promise<boolean> {
+    // Verify target folder exists if not null
+    if (folderId !== null) {
+      const folder = await findFolderById(folderId);
+      if (!folder) return false;
+    }
+    return moveStrategy(id, folderId);
   }
 
   /** Extract image filenames from Tiptap JSON content */

@@ -117,13 +117,158 @@ router.get('/', optionalAuth, async (req: AuthRequest, res) => {
   try {
     const map = req.query.map as string | undefined;
     const side = req.query.side as string | undefined;
-    const filter = (map || side) ? { map, side } : undefined;
+    const folderIdParam = req.query.folderId as string | undefined;
+    const filter: any = {};
+    if (map) filter.map = map;
+    if (side) filter.side = side;
+    if (folderIdParam !== undefined) {
+      filter.folderId = folderIdParam === 'null' || folderIdParam === '' ? null : parseInt(folderIdParam, 10);
+    }
 
-    const strategies = await strategyService.getAll(filter);
+    const strategies = await strategyService.getAll(Object.keys(filter).length > 0 ? filter : undefined);
     res.json({ success: true, strategies });
   } catch (error) {
     logger.error('Error fetching strategies', error instanceof Error ? error.message : String(error));
     res.status(500).json({ error: 'Failed to fetch strategies' });
+  }
+});
+
+// --- Folder routes (must be before /:id) ---
+
+// List folders
+router.get('/folders', optionalAuth, async (req: AuthRequest, res) => {
+  try {
+    const parentId = req.query.parentId as string | undefined;
+    const pid = parentId && parentId !== 'null' && parentId !== '' ? parseInt(parentId, 10) : null;
+    const folders = await strategyService.getFolders(pid);
+    res.json({ success: true, folders });
+  } catch (error) {
+    logger.error('Error fetching folders', error instanceof Error ? error.message : String(error));
+    res.status(500).json({ error: 'Failed to fetch folders' });
+  }
+});
+
+// Get folder breadcrumb path
+router.get('/folders/:id/path', optionalAuth, async (req: AuthRequest, res) => {
+  try {
+    const id = parseInt(req.params.id as string, 10);
+    if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+    const path = await strategyService.getFolderPath(id);
+    res.json({ success: true, path });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch folder path' });
+  }
+});
+
+// Create folder
+router.post('/folders', verifyToken, async (req: AuthRequest, res) => {
+  try {
+    if (!strategyService.canEdit(req.user!.role)) {
+      return res.status(403).json({ error: 'No permission' });
+    }
+    const { name, parentId } = req.body;
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      return res.status(400).json({ error: 'Name is required' });
+    }
+    const folder = await strategyService.createFolder(name, parentId ?? null);
+    res.json({ success: true, folder });
+  } catch (error: any) {
+    if (error?.code === 'P2002') {
+      return res.status(409).json({ error: 'A folder with that name already exists here' });
+    }
+    logger.error('Error creating folder', error instanceof Error ? error.message : String(error));
+    res.status(500).json({ error: 'Failed to create folder' });
+  }
+});
+
+// Rename folder
+router.put('/folders/:id', verifyToken, async (req: AuthRequest, res) => {
+  try {
+    if (!strategyService.canEdit(req.user!.role)) {
+      return res.status(403).json({ error: 'No permission' });
+    }
+    const id = parseInt(req.params.id as string, 10);
+    if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+    const { name } = req.body;
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      return res.status(400).json({ error: 'Name is required' });
+    }
+    const folder = await strategyService.renameFolder(id, name);
+    if (!folder) return res.status(404).json({ error: 'Folder not found' });
+    res.json({ success: true, folder });
+  } catch (error: any) {
+    if (error?.code === 'P2002') {
+      return res.status(409).json({ error: 'A folder with that name already exists here' });
+    }
+    res.status(500).json({ error: 'Failed to rename folder' });
+  }
+});
+
+// Delete folder (must be empty)
+router.delete('/folders/:id', verifyToken, async (req: AuthRequest, res) => {
+  try {
+    if (!strategyService.canEdit(req.user!.role)) {
+      return res.status(403).json({ error: 'No permission' });
+    }
+    const id = parseInt(req.params.id as string, 10);
+    if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+    const success = await strategyService.deleteFolder(id);
+    if (!success) return res.status(400).json({ error: 'Folder is not empty or not found' });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete folder' });
+  }
+});
+
+// Duplicate strategy
+router.post('/duplicate/:id', verifyToken, async (req: AuthRequest, res) => {
+  try {
+    if (!strategyService.canEdit(req.user!.role)) {
+      return res.status(403).json({ error: 'No permission' });
+    }
+    const id = parseInt(req.params.id as string, 10);
+    if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+    const strategy = await strategyService.duplicateStrategy(id, req.body.folderId);
+    if (!strategy) return res.status(404).json({ error: 'Strategy not found' });
+    res.json({ success: true, strategy });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to duplicate strategy' });
+  }
+});
+
+// Duplicate folder
+router.post('/folders/:id/duplicate', verifyToken, async (req: AuthRequest, res) => {
+  try {
+    if (!strategyService.canEdit(req.user!.role)) {
+      return res.status(403).json({ error: 'No permission' });
+    }
+    const id = parseInt(req.params.id as string, 10);
+    if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+    const folder = await strategyService.duplicateFolder(id);
+    if (!folder) return res.status(404).json({ error: 'Folder not found' });
+    res.json({ success: true, folder });
+  } catch (error: any) {
+    if (error?.code === 'P2002') {
+      return res.status(409).json({ error: 'A folder with that name already exists' });
+    }
+    res.status(500).json({ error: 'Failed to duplicate folder' });
+  }
+});
+
+// Move strategy to folder
+router.put('/move/:id', verifyToken, async (req: AuthRequest, res) => {
+  try {
+    if (!strategyService.canEdit(req.user!.role)) {
+      return res.status(403).json({ error: 'No permission' });
+    }
+    const id = parseInt(req.params.id as string, 10);
+    if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+    const { folderId } = req.body;
+    const success = await strategyService.moveStrategy(id, folderId ?? null);
+    if (!success) return res.status(404).json({ error: 'Strategy or folder not found' });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to move strategy' });
   }
 });
 
@@ -152,7 +297,8 @@ router.post('/', verifyToken, validate(createStrategySchema), async (req: AuthRe
 
     const strategy = await strategyService.create({
       ...req.body,
-      authorId: req.user!.username, // username from JWT (display name or discord id)
+      folderId: req.body.folderId ?? null,
+      authorId: req.user!.username,
       authorName: req.user!.username,
     });
 
