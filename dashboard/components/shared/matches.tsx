@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Loader2, Plus, Edit, Trash2, TrendingUp, Trophy, Target, X, LayoutGrid, Table as TableIcon, Video, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import Image from 'next/image';
 import { toast } from "sonner";
@@ -91,6 +92,7 @@ export function Matches() {
   const [loading, setLoading] = useState(true);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingScrim, setEditingScrim] = useState<ScrimEntry | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
   const [teamName, setTeamName] = useState<string>('Our Team');
   
@@ -236,8 +238,6 @@ export function Matches() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this match?')) return;
-    
     try {
       // Import auth helpers
       const { getAuthHeaders } = await import('@/lib/auth');
@@ -449,6 +449,32 @@ export function Matches() {
           </Card>
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Match</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this match? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deleteTarget) {
+                  handleDelete(deleteTarget);
+                  setDeleteTarget(null);
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Scrims List */}
       <Card className={stagger(3, 'fast', 'slideUpScale')}>
@@ -879,7 +905,7 @@ export function Matches() {
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8"
-                            onClick={() => handleDelete(scrim.id)}
+                            onClick={() => setDeleteTarget(scrim.id)}
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
@@ -961,7 +987,7 @@ export function Matches() {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8"
-                          onClick={() => handleDelete(scrim.id)}
+                          onClick={() => setDeleteTarget(scrim.id)}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
