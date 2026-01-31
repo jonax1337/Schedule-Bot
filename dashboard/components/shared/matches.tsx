@@ -304,21 +304,30 @@ export function Matches() {
     }
   };
 
-  const getResultBadge = (result: string) => {
+  const getResultBadge = (result: string, onDark = false) => {
     switch (result) {
       case 'win':
-        return <Badge variant="default" className="bg-green-500">Win</Badge>;
+        return <Badge variant="default" className={onDark ? "bg-green-600 text-white" : "bg-green-500"}>Win</Badge>;
       case 'loss':
-        return <Badge variant="destructive">Loss</Badge>;
+        return <Badge variant="destructive" className={onDark ? "bg-red-600 text-white" : undefined}>Loss</Badge>;
       case 'draw':
-        return <Badge variant="secondary">Draw</Badge>;
+        return <Badge variant="secondary" className={onDark ? "bg-white/20 text-white" : undefined}>Draw</Badge>;
       default:
         return null;
     }
   };
 
-  const getMatchTypeBadge = (matchType: string) => {
+  const getMatchTypeBadge = (matchType: string, onDark = false) => {
     const getClassName = () => {
+      if (onDark) {
+        switch (matchType) {
+          case 'Premier': return 'bg-amber-950/80 text-amber-300';
+          case 'Scrim': return 'bg-blue-950/80 text-blue-300';
+          case 'Tournament': return 'bg-yellow-950/80 text-yellow-300';
+          case 'Custom': return 'bg-gray-800/80 text-gray-300';
+          default: return 'bg-gray-800/80 text-gray-300';
+        }
+      }
       switch (matchType) {
         case 'Premier':
           return 'bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300';
@@ -966,9 +975,9 @@ export function Matches() {
                     <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-white/20 relative z-10">
                       <div className="flex items-center gap-2">
                         {scrim.matchType && (
-                          getMatchTypeBadge(scrim.matchType)
+                          getMatchTypeBadge(scrim.matchType, true)
                         )}
-                        {getResultBadge(scrim.result)}
+                        {getResultBadge(scrim.result, true)}
                       </div>
                       <div className="flex gap-1">
                         <Button
@@ -1004,7 +1013,7 @@ export function Matches() {
                                   key={`our-${idx}`}
                                   src={`/assets/agents/${agent}_icon.webp`}
                                   alt={agent}
-                                  className="w-6 h-6 sm:w-7 sm:h-7 rounded border-2 border-primary/60"
+                                  className="w-6 h-6 sm:w-7 sm:h-7 rounded border-2 border-white/50"
                                   title={agent}
                                 />
                               ))}
@@ -1033,7 +1042,7 @@ export function Matches() {
                                   key={`their-${idx}`}
                                   src={`/assets/agents/${agent}_icon.webp`}
                                   alt={agent}
-                                  className="w-6 h-6 sm:w-7 sm:h-7 rounded border-2 border-destructive/60"
+                                  className="w-6 h-6 sm:w-7 sm:h-7 rounded border-2 border-white/50"
                                   title={agent}
                                 />
                               ))}

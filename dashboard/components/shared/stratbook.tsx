@@ -880,7 +880,7 @@ export function Stratbook() {
                                         src={`/assets/agents/${normalizeAgentName(agent)}_icon.webp`}
                                         alt={agent}
                                         title={agent}
-                                        className="w-6 h-6 rounded border border-primary/50"
+                                        className={cn("w-6 h-6 rounded border", strat.map ? "border-white/50" : "border-primary/50")}
                                       />
                                     ))}
                                   </div>
