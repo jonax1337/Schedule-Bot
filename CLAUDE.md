@@ -100,10 +100,10 @@ The main process follows this startup sequence:
 2. Initialize database if empty (create default settings, user mappings)
 3. Load settings from PostgreSQL `settings` table
 4. Seed next 14 days of schedule entries (ensures continuous availability)
-5. Start Discord bot (src/bot/client.ts)
-6. Wait for bot 'clientReady' event
-7. Start scheduler (node-cron jobs for daily posts and reminders)
-8. Start Express API server on port 3001
+5. Apply recurring availability to empty schedule entries (`applyRecurringToEmptySchedules()`)
+6. Start Express API server on port 3001 (early, so healthchecks pass while bot connects)
+7. Start Discord bot (src/bot/client.ts) + wait for 'clientReady' event
+8. Start scheduler (node-cron jobs for daily posts and reminders)
 
 Graceful shutdown is handled via SIGINT/SIGTERM handlers that stop the scheduler and destroy the Discord client.
 
@@ -524,8 +524,8 @@ When a player's availability or a schedule reason changes, the bot can automatic
 - `POST /api/actions/pin-message` - Send and pin message (admin)
 
 ### Stratbook
-- `GET /api/stratbook` - List strategies (optional query params: map, side)
-- `GET /api/stratbook/:pageId` - Get single strategy content (Notion blocks)
+- `GET /api/stratbook` - List strategies (query params: map, side). Response includes `configured` boolean flag
+- `GET /api/stratbook/:pageId` - Get single strategy content (recursive Notion blocks with children)
 
 ### Discord & Admin
 - `GET /api/discord/channels` - List text channels (admin)
@@ -564,7 +564,7 @@ Data access is abstracted into repositories (sole data layer, no legacy alternat
 - `database-initializer.ts` - First-run setup: creates tables, seeds default settings and schedules
 - `absence.repository.ts` - Absence CRUD, `isUserAbsentOnDate()`, `getAbsentUserIdsForDate()`, `getAbsentUserIdsForDates()` (batch)
 - `recurring-availability.repository.ts` - Recurring weekly availability CRUD, day-of-week queries, upsert
-- `schedule.repository.ts` - Schedule CRUD, `addMissingDays()`, `syncUserMappingsToSchedules()`, pagination
+- `schedule.repository.ts` - Schedule CRUD, `addMissingDays()`, `syncUserMappingsToSchedules()`, `applyRecurringToEmptySchedules()`, `clearRecurringFromSchedules()`, pagination
 - `scrim.repository.ts` - Scrim CRUD, stats aggregation, date range queries
 - `user-mapping.repository.ts` - Roster CRUD with auto-`sortOrder` calculation and reordering on role changes
 
@@ -574,7 +574,7 @@ Services provide business logic on top of repositories:
 - `recurring-availability.service.ts` - Recurring availability CRUD with authorization (users manage own entries only)
 - `schedule.service.ts` - Schedule analysis, availability validation (users can only edit their own unless admin), pagination
 - `scrim.service.ts` - Scrim CRUD, stats, recent scrims with date sorting
-- `stratbook.service.ts` - Fetches strategies from Notion API, caches results for 60 seconds, filters by map/side/tags
+- `stratbook.service.ts` - Fetches strategies from Notion API, caches results for 60 seconds, filters by map/side (server-side); tags/agents available in response for client-side filtering
 - `user-mapping.service.ts` - Roster CRUD with automatic `syncUserMappingsToSchedules()` after changes
 
 Services are class-based with singleton exports (e.g., `export const scheduleService = new ScheduleService()`).
@@ -651,15 +651,31 @@ The `Matches` component (`components/shared/matches.tsx`) provides match history
 
 ### Stratbook (Notion Integration)
 The `Stratbook` component (`components/shared/stratbook.tsx`) provides a read-only strategy viewer powered by Notion:
-- **Strategy List** - Fetches strategies from a Notion database with properties: Name, Map, Side, Tags, Agents
-- **Filtering** - Filter by map and side, with search functionality
+- **Strategy List** - Fetches strategies from a Notion database with hardcoded property names: `Name` (title), `Map` (select), `Side` (select), `Tags` (multi_select), `Agents` (multi_select)
+- **Filtering** - Filter by map and side dropdowns; search queries name, tags, and agents (case-insensitive). Clear Filters button + "Showing X of Y strats" count
 - **Strategy Detail View** - Renders full Notion page content using `NotionRenderer` component
-- **NotionRenderer** (`components/shared/notion-renderer.tsx`) - Renders Notion blocks including headings, paragraphs, lists, code blocks, images, callouts, toggles, and more
-- **Caching** - 60-second in-memory cache on the backend for performance
-- **Graceful Degradation** - Shows informational message when Notion is not configured (missing API key)
+- **Prefetch on Hover** - Hovering a strat card prefetches its content and caches it; file/PDF URLs are also prefetched via `<link rel="prefetch">`
+- **Visual Enhancements** - Map background images on cards, agent icons (`/assets/agents/`), side badges (Swords/Shield icons, red/blue), color-coded tags
+- **Agent Name Normalization** - `normalizeAgentName()` converts "KAY/O" → "KAYO" to match asset filenames
+- **Caching** - 60-second in-memory cache on the backend (keyed by `strats:map:side` and `strat-content:pageId`)
+- **Graceful Degradation** - API returns `{ configured: false }` when Notion env vars are missing; frontend shows informational message
 - **Breadcrumb Navigation** - Uses `BreadcrumbContext` (`lib/breadcrumb-context.tsx`) for sub-page navigation
 - Available in both admin dashboard (Stratbook tab) and user portal (Stratbook tab)
 - Requires `NOTION_API_KEY` and `NOTION_STRATS_DB_ID` environment variables
+- **Note**: Tag filtering is client-side only (search); the API only filters by map and side server-side via Notion query
+
+### NotionRenderer (`components/shared/notion-renderer.tsx`)
+Renders Notion API blocks into React components. Supports 29+ block types:
+
+**Text & Structure:** `paragraph`, `heading_1/2/3` (with toggleable children support), `quote`, `divider`, `equation`, `callout` (emoji/image icons, colored backgrounds)
+**Lists:** `bulleted_list_item`, `numbered_list_item`, `to_do` (checkbox state) — consecutive items auto-grouped into `<ul>`/`<ol>`
+**Media:** `image` (with captions), `video` (YouTube/Vimeo embed detection with 16:9 responsive iframe, fallback to native `<video>`), `audio` (native player), `file` (download link), `pdf` (interactive collapsible viewer with toolbar: open in tab, download, expand/collapse)
+**Code:** `code` (language label badge, caption support)
+**Embeds:** `embed` (sandboxed iframe), `bookmark` / `link_preview` (Google favicon fetching)
+**Layout:** `column_list` + `column` (responsive flex, stacks on mobile), `table` + `table_row` (column/row header flags)
+**Sub-pages:** `child_page`, `child_database`, `synced_block`, `link_to_page`, `table_of_contents`, `breadcrumb`
+**Rich text:** bold, italic, strikethrough, underline, inline code, hyperlinks, 9 text colors + 9 background colors mapped to Tailwind classes
+**Fallback:** Unsupported blocks render as dashed border box with block type name
 
 ### Discord Avatar Integration
 User avatars from Discord are displayed throughout the dashboard:
