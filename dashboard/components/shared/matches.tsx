@@ -967,7 +967,7 @@ export function Matches() {
                           }}
                         />
                         <div
-                          className="absolute inset-0 w-full h-full bg-gradient-to-r from-black/60 via-black/40 to-black/60 dark:from-black/70 dark:via-black/50 dark:to-black/70"
+                          className="absolute inset-0 w-full h-full bg-gradient-to-r from-black/75 via-black/65 to-black/75 dark:from-black/80 dark:via-black/70 dark:to-black/80"
                         />
                       </div>
                     )}
