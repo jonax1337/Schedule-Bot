@@ -82,6 +82,16 @@ function UserLayoutWrapperInner({ children, breadcrumbs = [] }: UserLayoutWrappe
                   <BreadcrumbPage>{tabLabels[currentTab] || 'Schedule'}</BreadcrumbPage>
                 )}
               </BreadcrumbItem>
+              {subPage?.trail?.map((item, i) => (
+                <span key={i} className="contents hidden md:contents">
+                  <BreadcrumbSeparator />
+                  <BreadcrumbItem>
+                    <BreadcrumbLink className="cursor-pointer" onClick={item.onClick}>
+                      {item.label}
+                    </BreadcrumbLink>
+                  </BreadcrumbItem>
+                </span>
+              ))}
               {subPage && (
                 <>
                   <BreadcrumbSeparator className="hidden md:block" />

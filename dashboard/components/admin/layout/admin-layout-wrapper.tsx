@@ -85,6 +85,16 @@ function AdminLayoutWrapperInner({ children }: AdminLayoutWrapperProps) {
                   <BreadcrumbPage>{tabLabels[currentTab] || 'Dashboard'}</BreadcrumbPage>
                 )}
               </BreadcrumbItem>
+              {subPage?.trail?.map((item, i) => (
+                <span key={i} className="contents">
+                  <BreadcrumbSeparator />
+                  <BreadcrumbItem>
+                    <BreadcrumbLink className="cursor-pointer" onClick={item.onClick}>
+                      {item.label}
+                    </BreadcrumbLink>
+                  </BreadcrumbItem>
+                </span>
+              ))}
               {subPage && (
                 <>
                   <BreadcrumbSeparator />

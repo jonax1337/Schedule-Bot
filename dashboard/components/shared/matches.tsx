@@ -891,7 +891,7 @@ export function Matches() {
                           </Button>
                         )}
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right relative z-10">
                         <div className="flex gap-1 justify-end">
                           <Button
                             variant="ghost"
@@ -918,10 +918,10 @@ export function Matches() {
                             className="block absolute right-0 top-0 bottom-0 w-48 pointer-events-none overflow-hidden"
                             aria-hidden="true"
                           >
-                            <span 
+                            <span
                               className="block absolute right-0 top-0 bottom-0 w-full"
                               style={{
-                                backgroundImage: `linear-gradient(to right, transparent 0%, rgba(0,0,0,0.05) 20%, rgba(0,0,0,0.08) 100%), url(/assets/maps/Loading_Screen_${scrim.map}.webp)`,
+                                backgroundImage: `url(/assets/maps/Loading_Screen_${scrim.map}.webp)`,
                                 backgroundPosition: 'center',
                                 backgroundSize: 'cover',
                                 backgroundRepeat: 'no-repeat',
@@ -946,28 +946,24 @@ export function Matches() {
                 return (
                   <div
                     key={scrim.id}
-                    className="border rounded-lg hover:bg-accent/50 transition-colors overflow-hidden relative"
+                    className="border border-white/10 rounded-lg transition-colors overflow-hidden relative"
                   >
                     {/* Map Background Image - Full Card Coverage */}
                     {scrim.map && (
                       <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-lg z-0">
-                        <div 
-                          className="absolute inset-0 w-full h-full"
+                        <div
+                          className="absolute inset-0 w-full h-full bg-cover bg-center"
                           style={{
                             backgroundImage: `url(/assets/maps/Loading_Screen_${scrim.map}.webp)`,
-                            backgroundPosition: 'center',
-                            backgroundSize: 'cover',
-                            backgroundRepeat: 'no-repeat',
-                            opacity: 0.2,
                           }}
                         />
-                        <div 
-                          className="absolute inset-0 w-full h-full bg-gradient-to-r from-background/90 via-background/70 to-background/90"
+                        <div
+                          className="absolute inset-0 w-full h-full bg-gradient-to-r from-black/60 via-black/40 to-black/60 dark:from-black/70 dark:via-black/50 dark:to-black/70"
                         />
                       </div>
                     )}
                     {/* Header with Match Type and Actions */}
-                    <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b bg-muted/30 relative z-10">
+                    <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-white/20 relative z-10">
                       <div className="flex items-center gap-2">
                         {scrim.matchType && (
                           getMatchTypeBadge(scrim.matchType)
@@ -978,7 +974,7 @@ export function Matches() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8"
+                          className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/10"
                           onClick={() => handleEdit(scrim)}
                         >
                           <Edit className="h-3.5 w-3.5" />
@@ -986,7 +982,7 @@ export function Matches() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8"
+                          className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/10"
                           onClick={() => setDeleteTarget(scrim.id)}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
@@ -1000,7 +996,7 @@ export function Matches() {
                       <div className="flex items-center justify-between gap-4">
                         {/* Our Team - Left Side */}
                         <div className="flex-1 flex flex-col items-center">
-                          <span className="text-base sm:text-lg font-semibold">{teamName}</span>
+                          <span className="text-base sm:text-lg font-semibold text-white drop-shadow-md">{teamName}</span>
                           {scrim.ourAgents?.length > 0 && (
                             <div className="flex gap-1 sm:gap-1.5 justify-center flex-wrap mt-1">
                               {[...scrim.ourAgents].sort().map((agent, idx) => (
@@ -1021,7 +1017,7 @@ export function Matches() {
                           <div className={`text-3xl sm:text-4xl font-bold ${scrim.result === 'win' ? 'text-green-500' : scrim.result === 'loss' ? 'text-red-500' : 'text-muted-foreground'}`}>
                             {scrim.scoreUs}
                           </div>
-                          <div className="text-xl sm:text-2xl font-semibold text-muted-foreground">:</div>
+                          <div className="text-xl sm:text-2xl font-semibold text-white/60">:</div>
                           <div className={`text-3xl sm:text-4xl font-bold ${scrim.result === 'loss' ? 'text-green-500' : scrim.result === 'win' ? 'text-red-500' : 'text-muted-foreground'}`}>
                             {scrim.scoreThem}
                           </div>
@@ -1029,7 +1025,7 @@ export function Matches() {
 
                         {/* Opponent Team - Right Side */}
                         <div className="flex-1 flex flex-col items-center">
-                          <span className="text-base sm:text-lg font-semibold">{scrim.opponent}</span>
+                          <span className="text-base sm:text-lg font-semibold text-white drop-shadow-md">{scrim.opponent}</span>
                           {scrim.theirAgents?.length > 0 && (
                             <div className="flex gap-1 sm:gap-1.5 justify-center flex-wrap mt-1">
                               {[...scrim.theirAgents].sort().map((agent, idx) => (
@@ -1047,7 +1043,7 @@ export function Matches() {
                       </div>
 
                       {/* Map and Date - Below */}
-                      <div className="flex flex-col items-center justify-center gap-1 mt-3 text-xs text-muted-foreground">
+                      <div className="flex flex-col items-center justify-center gap-1 mt-3 text-xs text-white/70">
                         {scrim.map && (
                           <span className="font-medium">{scrim.map}</span>
                         )}
@@ -1055,7 +1051,7 @@ export function Matches() {
                       </div>
                         
                       {scrim.notes && (
-                        <div className="mt-4 pt-4 border-t text-sm text-muted-foreground italic text-center">
+                        <div className="mt-4 pt-4 border-t border-white/20 text-sm text-white/60 italic text-center">
                           {scrim.notes}
                         </div>
                       )}
@@ -1064,9 +1060,9 @@ export function Matches() {
                     {/* VOD Accordion */}
                     {vodId && (
                       <div className="relative z-10">
-                        <Accordion type="single" collapsible className="border-t">
+                        <Accordion type="single" collapsible className="border-t border-white/20">
                           <AccordionItem value="vod" className="border-0">
-                            <AccordionTrigger className="px-4 py-3 hover:bg-accent/30">
+                            <AccordionTrigger className="px-4 py-3 hover:bg-white/10 text-white/70">
                               <div className="flex items-center gap-2">
                                 <Video className="h-4 w-4" />
                                 <span className="font-medium">Watch VOD Review</span>

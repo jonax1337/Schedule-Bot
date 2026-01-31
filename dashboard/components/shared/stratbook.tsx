@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ArrowLeft, BookOpen, ChevronRight, Copy, ExternalLink, FileText, Folder, FolderOpen, FolderPlus, Loader2, Palette, Pencil, Plus, Search, Swords, Shield, Trash2, X } from 'lucide-react';
+import { BookOpen, Copy, ExternalLink, FileText, Folder, FolderOpen, FolderPlus, Loader2, Palette, Pencil, Plus, Search, Swords, Shield, Trash2, X } from 'lucide-react';
 import { useBreadcrumbSub } from '@/lib/breadcrumb-context';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -151,19 +151,64 @@ export function Stratbook() {
     updateUrlParams({ strat: stratId });
   }, [updateUrlParams]);
 
+  // Ref to break circular dep between navigateToFolder <-> updateBreadcrumbForFolder
+  const navigateToFolderRef = useRef<(id: number | null) => void>(() => {});
+
+  const updateBreadcrumbForFolder = useCallback((path: FolderEntry[]) => {
+    if (path.length === 0) {
+      setSubPage(null);
+      return;
+    }
+    const currentFolder = path[path.length - 1];
+    const trail = path.slice(0, -1).map(f => ({
+      label: f.name,
+      onClick: () => navigateToFolderRef.current(f.id),
+    }));
+    setSubPage({
+      label: currentFolder.name,
+      onNavigateBack: () => navigateToFolderRef.current(null),
+      trail,
+    });
+  }, [setSubPage]);
+
+  const navigateToFolder = useCallback((folderId: number | null) => {
+    setCurrentFolderId(folderId);
+    updateUrlParams({ folder: folderId });
+    if (folderId === null) {
+      setFolderPath([]);
+      updateBreadcrumbForFolder([]);
+    } else {
+      (async () => {
+        try {
+          const { getAuthHeaders } = await import('@/lib/auth');
+          const response = await fetch(`${BOT_API_URL}/api/strategies/folders/${folderId}/path`, { headers: getAuthHeaders() });
+          if (response.ok) {
+            const data = await response.json();
+            const newPath = data.path || [];
+            setFolderPath(newPath);
+            updateBreadcrumbForFolder(newPath);
+          }
+        } catch { /* ignore */ }
+      })();
+    }
+  }, [updateUrlParams, updateBreadcrumbForFolder]);
+
+  // Keep ref in sync
+  navigateToFolderRef.current = navigateToFolder;
+
   const goBack = useCallback(() => {
     setTransitioning(true);
     setTimeout(() => {
       setSelectedStrat(null);
-      setSubPage(null);
       setStratParam(null);
       setView('list');
+      updateBreadcrumbForFolder(folderPath);
       requestAnimationFrame(() => setTransitioning(false));
     }, 150);
-  }, [setSubPage, setStratParam]);
+  }, [setStratParam, folderPath, updateBreadcrumbForFolder]);
 
   useEffect(() => {
-    return () => setSubPage(null);
+    return () => { setSubPage(null); };
   }, [setSubPage]);
 
   useEffect(() => {
@@ -175,7 +220,7 @@ export function Stratbook() {
   // Load folder path on mount if deep-linked to a folder
   useEffect(() => {
     if (currentFolderId !== null) {
-      fetchFolderPath(currentFolderId);
+      navigateToFolder(currentFolderId);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -252,27 +297,6 @@ export function Stratbook() {
     } catch { /* ignore */ }
   };
 
-  const fetchFolderPath = async (folderId: number | null) => {
-    if (folderId === null) {
-      setFolderPath([]);
-      return;
-    }
-    try {
-      const { getAuthHeaders } = await import('@/lib/auth');
-      const response = await fetch(`${BOT_API_URL}/api/strategies/folders/${folderId}/path`, { headers: getAuthHeaders() });
-      if (response.ok) {
-        const data = await response.json();
-        setFolderPath(data.path || []);
-      }
-    } catch { /* ignore */ }
-  };
-
-  const navigateToFolder = (folderId: number | null) => {
-    setCurrentFolderId(folderId);
-    fetchFolderPath(folderId);
-    updateUrlParams({ folder: folderId });
-  };
-
   const handleCreateFolder = async () => {
     if (!folderName.trim()) return;
     try {
@@ -312,7 +336,8 @@ export function Stratbook() {
       setRenamingFolder(null);
       setFolderName('');
       fetchFolders();
-      fetchFolderPath(currentFolderId);
+      // Refresh breadcrumb with updated folder name
+      if (currentFolderId !== null) navigateToFolder(currentFolderId);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to rename folder');
     }
@@ -409,7 +434,11 @@ export function Stratbook() {
       await new Promise(r => setTimeout(r, 150));
     }
     setSelectedStrat(strat);
-    setSubPage({ label: strat.title, onNavigateBack: goBack });
+    const trail = folderPath.map(f => ({
+      label: f.name,
+      onClick: () => { goBack(); navigateToFolder(f.id); },
+    }));
+    setSubPage({ label: strat.title, onNavigateBack: goBack, trail });
     setStratParam(strat.id);
     setView('detail');
     setLoadingContent(true);
@@ -535,13 +564,6 @@ export function Stratbook() {
         {/* Detail view */}
         {view === 'detail' && selectedStrat && (
           <div className="space-y-4">
-            <button
-              onClick={goBack}
-              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back to Stratbook
-            </button>
             <Card>
               <CardHeader className="space-y-1.5">
                 <div className="flex items-start justify-between gap-3">
@@ -647,58 +669,14 @@ export function Stratbook() {
 
         {/* List view */}
         {view === 'list' && (
-          <div className="space-y-3">
-            {/* Breadcrumb - always visible, outside Card */}
-            {!searchQuery && (
-              <div className="flex items-center gap-2 text-sm min-h-[24px]">
-                {currentFolderId !== null && (
-                  <button
-                    className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
-                    onClick={() => {
-                      const parentId = folderPath.length >= 2 ? folderPath[folderPath.length - 2].id : null;
-                      navigateToFolder(parentId);
-                    }}
-                  >
-                    <ArrowLeft className="h-3.5 w-3.5" />
-                  </button>
-                )}
-                <div className="flex items-center gap-1 text-muted-foreground flex-wrap">
-                  <button
-                    className={cn(
-                      "hover:text-foreground transition-colors font-medium",
-                      currentFolderId === null && "text-foreground"
-                    )}
-                    onClick={() => navigateToFolder(null)}
-                  >
-                    Stratbook
-                  </button>
-                  {folderPath.map(f => (
-                    <React.Fragment key={f.id}>
-                      <ChevronRight className="h-3 w-3 shrink-0" />
-                      <button
-                        className={cn(
-                          "hover:text-foreground transition-colors font-medium",
-                          f.id === currentFolderId && "text-foreground"
-                        )}
-                        onClick={() => navigateToFolder(f.id)}
-                      >
-                        {f.name}
-                      </button>
-                    </React.Fragment>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <Card className={stagger(0, 'fast', 'fadeIn')}>
+          <div className="space-y-6">
+            <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle className="flex items-center gap-2">
                       <BookOpen className="w-5 h-5" />
-                      {currentFolderId !== null && folderPath.length > 0
-                        ? folderPath[folderPath.length - 1].name
-                        : 'Stratbook'}
+                      Stratbook
                     </CardTitle>
                     <CardDescription>
                       Browse and search team strategies.
@@ -788,7 +766,7 @@ export function Stratbook() {
                         <ContextMenuTrigger asChild>
                           <Card
                             className={cn(
-                              'cursor-pointer border overflow-hidden',
+                              'cursor-pointer border overflow-hidden h-[160px]',
                               stagger(index, 'fast', 'fadeIn'),
                               microInteractions.hoverLift
                             )}
@@ -801,6 +779,7 @@ export function Stratbook() {
                                 {folder.name}
                               </CardTitle>
                             </CardHeader>
+                            <CardContent className="pt-0" />
                           </Card>
                         </ContextMenuTrigger>
                         <ContextMenuContent>
@@ -854,7 +833,7 @@ export function Stratbook() {
                         <ContextMenuTrigger asChild>
                           <Card
                             className={cn(
-                              'cursor-pointer border overflow-hidden relative',
+                              'cursor-pointer border overflow-hidden relative h-[160px]',
                               stagger(index, 'fast', 'fadeIn'),
                               microInteractions.hoverLift
                             )}
@@ -862,47 +841,52 @@ export function Stratbook() {
                             onClick={() => openStrat(strat)}
                           >
                             {strat.map && (
-                              <div
-                                className="absolute inset-0 bg-cover bg-center opacity-15 dark:opacity-25"
-                                style={{ backgroundImage: `url(/assets/maps/Loading_Screen_${strat.map}.webp)` }}
-                              />
+                              <>
+                                <div
+                                  className="absolute inset-0 bg-cover bg-center"
+                                  style={{ backgroundImage: `url(/assets/maps/Loading_Screen_${strat.map}.webp)` }}
+                                />
+                                <div className="absolute inset-0 bg-black/50 dark:bg-black/60" />
+                              </>
                             )}
-                            <CardHeader className="pb-2 relative">
-                              <div className="flex items-start justify-between gap-2">
-                                <CardTitle className="text-sm font-medium leading-snug">
-                                  {strat.title}
-                                </CardTitle>
-                                {strat.side && (
-                                  <span className={cn("inline-flex shrink-0", strat.side === 'Attack' ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400')} title={strat.side}>
-                                    {strat.side === 'Attack' ? <Swords className="h-4 w-4" /> : <Shield className="h-4 w-4" />}
-                                  </span>
-                                )}
-                              </div>
-                            </CardHeader>
-                            <CardContent className="pt-0 relative">
-                              {strat.tags.length > 0 && (
-                              <div className="flex flex-wrap gap-1.5">
-                                {strat.tags.map(tag => (
-                                  <Badge key={tag} variant="outline" className="text-xs text-muted-foreground">
-                                    {tag}
-                                  </Badge>
-                                ))}
-                              </div>
-                              )}
-                              {strat.agents.length > 0 && (
-                                <div className="flex flex-wrap gap-1 mt-2 pt-2 border-t">
-                                  {strat.agents.map(agent => (
-                                    <img
-                                      key={agent}
-                                      src={`/assets/agents/${normalizeAgentName(agent)}_icon.webp`}
-                                      alt={agent}
-                                      title={agent}
-                                      className="w-6 h-6 rounded border border-primary/50"
-                                    />
+                            <div className="relative flex flex-col h-full">
+                              <CardHeader className="pb-2">
+                                <div className="flex items-start justify-between gap-2">
+                                  <CardTitle className={cn("text-sm font-medium leading-snug", strat.map && "text-white drop-shadow-md")}>
+                                    {strat.title}
+                                  </CardTitle>
+                                  {strat.side && (
+                                    <span className={cn("inline-flex shrink-0", strat.map && "drop-shadow-md", strat.side === 'Attack' ? (strat.map ? 'text-red-400' : 'text-red-600 dark:text-red-400') : (strat.map ? 'text-blue-400' : 'text-blue-600 dark:text-blue-400'))} title={strat.side}>
+                                      {strat.side === 'Attack' ? <Swords className="h-4 w-4" /> : <Shield className="h-4 w-4" />}
+                                    </span>
+                                  )}
+                                </div>
+                              </CardHeader>
+                              <CardContent className="pt-0 mt-auto">
+                                {strat.tags.length > 0 && (
+                                <div className="flex flex-wrap gap-1.5">
+                                  {strat.tags.map(tag => (
+                                    <Badge key={tag} variant="outline" className={cn("text-xs", strat.map ? "text-white/90 border-white/30 bg-black/30 backdrop-blur-sm" : "text-muted-foreground")}>
+                                      {tag}
+                                    </Badge>
                                   ))}
                                 </div>
-                              )}
-                            </CardContent>
+                                )}
+                                {strat.agents.length > 0 && (
+                                  <div className={cn("flex flex-wrap gap-1 mt-2 pt-2 border-t", strat.map ? "border-white/20" : "border-foreground/10")}>
+                                    {strat.agents.map(agent => (
+                                      <img
+                                        key={agent}
+                                        src={`/assets/agents/${normalizeAgentName(agent)}_icon.webp`}
+                                        alt={agent}
+                                        title={agent}
+                                        className="w-6 h-6 rounded border border-primary/50"
+                                      />
+                                    ))}
+                                  </div>
+                                )}
+                              </CardContent>
+                            </div>
                           </Card>
                         </ContextMenuTrigger>
                         <ContextMenuContent>
