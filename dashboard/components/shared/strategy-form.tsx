@@ -274,72 +274,76 @@ export function StrategyForm({ strategyId, initialData, onSaved, onCancel }: Str
             <StrategyEditor content={content} onChange={setContent} editable={true} />
           </div>
 
-          {/* Attachments (only when editing — needs strategyId) */}
-          {isEditing && (
-            <div className="space-y-2">
-              <Label>PDF Attachments</Label>
-              {files.length > 0 && (
-                <div className="space-y-1.5">
-                  {files.map(file => (
-                    <div key={file.id} className="flex items-center gap-2 p-2 rounded-md border bg-muted/30">
-                      <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                      <span className="text-sm truncate flex-1">{file.originalName}</span>
-                      <span className="text-xs text-muted-foreground shrink-0">
-                        {(file.size / 1024).toFixed(0)} KB
-                      </span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                        onClick={() => deletePdf(file.id)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  ))}
+          {/* Attachments */}
+          <div className="space-y-2">
+            <Label>PDF Attachments</Label>
+            {isEditing ? (
+              <>
+                {files.length > 0 && (
+                  <div className="space-y-1.5">
+                    {files.map(file => (
+                      <div key={file.id} className="flex items-center gap-2 p-2 rounded-md border bg-muted/30">
+                        <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <span className="text-sm truncate flex-1">{file.originalName}</span>
+                        <span className="text-xs text-muted-foreground shrink-0">
+                          {(file.size / 1024).toFixed(0)} KB
+                        </span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                          onClick={() => deletePdf(file.id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div
+                  onClick={() => !uploading && pdfInputRef.current?.click()}
+                  onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={e => {
+                    e.preventDefault();
+                    setDragOver(false);
+                    const file = e.dataTransfer.files?.[0];
+                    if (file && file.type === 'application/pdf') uploadPdf(file);
+                    else if (file) toast.error('Only PDF files are allowed');
+                  }}
+                  className={cn(
+                    'flex flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed p-6 cursor-pointer transition-colors',
+                    dragOver ? 'border-primary bg-primary/5' : 'border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/50',
+                    uploading && 'pointer-events-none opacity-60'
+                  )}
+                >
+                  {uploading ? (
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  ) : (
+                    <Upload className="h-6 w-6 text-muted-foreground" />
+                  )}
+                  <span className="text-sm text-muted-foreground">
+                    {uploading ? 'Uploading...' : 'Drop a PDF here or click to browse'}
+                  </span>
+                  <span className="text-xs text-muted-foreground/60">Max 10 MB</span>
                 </div>
-              )}
-              <div
-                onClick={() => !uploading && pdfInputRef.current?.click()}
-                onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-                onDragLeave={() => setDragOver(false)}
-                onDrop={e => {
-                  e.preventDefault();
-                  setDragOver(false);
-                  const file = e.dataTransfer.files?.[0];
-                  if (file && file.type === 'application/pdf') uploadPdf(file);
-                  else if (file) toast.error('Only PDF files are allowed');
-                }}
-                className={cn(
-                  'flex flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed p-6 cursor-pointer transition-colors',
-                  dragOver ? 'border-primary bg-primary/5' : 'border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/50',
-                  uploading && 'pointer-events-none opacity-60'
-                )}
-              >
-                {uploading ? (
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                ) : (
-                  <Upload className="h-6 w-6 text-muted-foreground" />
-                )}
-                <span className="text-sm text-muted-foreground">
-                  {uploading ? 'Uploading...' : 'Drop a PDF here or click to browse'}
-                </span>
-                <span className="text-xs text-muted-foreground/60">Max 10 MB</span>
-              </div>
-              <input
-                ref={pdfInputRef}
-                type="file"
-                accept="application/pdf"
-                className="hidden"
-                onChange={e => {
-                  const file = e.target.files?.[0];
-                  if (file) uploadPdf(file);
-                  e.target.value = '';
-                }}
-              />
-            </div>
-          )}
+                <input
+                  ref={pdfInputRef}
+                  type="file"
+                  accept="application/pdf"
+                  className="hidden"
+                  onChange={e => {
+                    const file = e.target.files?.[0];
+                    if (file) uploadPdf(file);
+                    e.target.value = '';
+                  }}
+                />
+              </>
+            ) : (
+              <p className="text-xs text-muted-foreground">Save the strategy first to upload PDFs.</p>
+            )}
+          </div>
 
           {/* Actions */}
           <div className="flex justify-end gap-2 pt-2">
