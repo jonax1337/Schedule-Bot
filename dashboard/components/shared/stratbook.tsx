@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { BookOpen, Copy, ExternalLink, FileText, Folder, FolderOpen, FolderPlus, Loader2, Palette, Pencil, Plus, Search, Swords, Shield, Trash2, X } from 'lucide-react';
+import { BookOpen, Copy, ExternalLink, FileText, Folder, FolderOpen, FolderPlus, FolderInput, Loader2, Palette, Pencil, Plus, Search, Swords, Shield, Trash2, X } from 'lucide-react';
 import { useBreadcrumbSub } from '@/lib/breadcrumb-context';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -26,6 +26,9 @@ import {
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubTrigger,
+  ContextMenuSubContent,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import {
@@ -120,6 +123,10 @@ export function Stratbook() {
   // Delete dialog
   const [deleteTarget, setDeleteTarget] = useState<StratEntry | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Move to folder
+  const [allFolders, setAllFolders] = useState<FolderEntry[]>([]);
+  const [allFoldersLoaded, setAllFoldersLoaded] = useState(false);
 
   // PDF preview
   const [pdfPreview, setPdfPreview] = useState<{ url: string; title: string } | null>(null);
@@ -285,6 +292,7 @@ export function Stratbook() {
   };
 
   const fetchFolders = async () => {
+    setAllFoldersLoaded(false);
     try {
       const { getAuthHeaders } = await import('@/lib/auth');
       const params = new URLSearchParams();
@@ -406,6 +414,54 @@ export function Stratbook() {
       fetchFolders();
     } catch {
       toast.error('Failed to update folder color');
+    }
+  };
+
+  const fetchAllFolders = async () => {
+    if (allFoldersLoaded) return;
+    try {
+      const { getAuthHeaders } = await import('@/lib/auth');
+      const response = await fetch(`${BOT_API_URL}/api/strategies/folders?all=true`, { headers: getAuthHeaders() });
+      if (response.ok) {
+        const data = await response.json();
+        setAllFolders(data.folders || []);
+        setAllFoldersLoaded(true);
+      }
+    } catch { /* ignore */ }
+  };
+
+  const buildFolderTree = (folders: FolderEntry[]): { id: number | null; label: string; depth: number }[] => {
+    const result: { id: number | null; label: string; depth: number }[] = [{ id: null, label: 'Stratbook', depth: 0 }];
+    const childrenMap = new Map<number | null, FolderEntry[]>();
+    for (const f of folders) {
+      const children = childrenMap.get(f.parentId) || [];
+      children.push(f);
+      childrenMap.set(f.parentId, children);
+    }
+    const walk = (parentId: number | null, depth: number) => {
+      const children = childrenMap.get(parentId) || [];
+      for (const child of children) {
+        result.push({ id: child.id, label: child.name, depth });
+        walk(child.id, depth + 1);
+      }
+    };
+    walk(null, 1);
+    return result;
+  };
+
+  const handleMoveStrategy = async (stratId: number, targetFolderId: number | null) => {
+    try {
+      const { getAuthHeaders } = await import('@/lib/auth');
+      const response = await fetch(`${BOT_API_URL}/api/strategies/move/${stratId}`, {
+        method: 'PUT',
+        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folderId: targetFolderId }),
+      });
+      if (!response.ok) throw new Error('Failed to move strategy');
+      toast.success('Strategy moved');
+      fetchStrats();
+    } catch {
+      toast.error('Failed to move strategy');
     }
   };
 
@@ -904,6 +960,28 @@ export function Stratbook() {
                                 <Copy className="h-4 w-4 mr-2" />
                                 Duplicate
                               </ContextMenuItem>
+                              <ContextMenuSub>
+                                <ContextMenuSubTrigger onPointerEnter={fetchAllFolders} onFocus={fetchAllFolders}>
+                                  <FolderInput className="h-4 w-4 mr-2" />
+                                  Move to
+                                </ContextMenuSubTrigger>
+                                <ContextMenuSubContent className="max-h-64 overflow-y-auto">
+                                  {buildFolderTree(allFolders).map(item => (
+                                    <ContextMenuItem
+                                      key={item.id ?? 'root'}
+                                      disabled={item.id === currentFolderId}
+                                      onClick={() => handleMoveStrategy(strat.id, item.id)}
+                                      style={{ paddingLeft: `${8 + item.depth * 16}px` }}
+                                    >
+                                      <Folder className="h-3.5 w-3.5 mr-2 shrink-0" />
+                                      <span className="truncate">{item.label}</span>
+                                      {item.id === currentFolderId && (
+                                        <span className="ml-auto text-xs text-muted-foreground">current</span>
+                                      )}
+                                    </ContextMenuItem>
+                                  ))}
+                                </ContextMenuSubContent>
+                              </ContextMenuSub>
                               <ContextMenuSeparator />
                               <ContextMenuItem variant="destructive" onClick={() => setDeleteTarget(strat)}>
                                 <Trash2 className="h-4 w-4 mr-2" />

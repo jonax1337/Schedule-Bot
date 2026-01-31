@@ -138,6 +138,11 @@ router.get('/', optionalAuth, async (req: AuthRequest, res) => {
 // List folders
 router.get('/folders', optionalAuth, async (req: AuthRequest, res) => {
   try {
+    const all = req.query.all === 'true';
+    if (all) {
+      const folders = await strategyService.getAllFolders();
+      return res.json({ success: true, folders });
+    }
     const parentId = req.query.parentId as string | undefined;
     const pid = parentId && parentId !== 'null' && parentId !== '' ? parseInt(parentId, 10) : null;
     const folders = await strategyService.getFolders(pid);

@@ -6,6 +6,7 @@ import {
   deleteStrategy,
   linkOrphanImages,
   findFolders,
+  findAllFolders,
   findFolderById,
   createFolder,
   updateFolder,
@@ -65,6 +66,10 @@ export class StrategyService {
 
   async getFolders(parentId: number | null): Promise<FolderItem[]> {
     return findFolders(parentId);
+  }
+
+  async getAllFolders(): Promise<FolderItem[]> {
+    return findAllFolders();
   }
 
   async getFolderPath(folderId: number): Promise<FolderItem[]> {

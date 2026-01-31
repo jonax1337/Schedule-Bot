@@ -262,6 +262,21 @@ export async function findFolders(parentId: number | null): Promise<FolderItem[]
   }));
 }
 
+export async function findAllFolders(): Promise<FolderItem[]> {
+  const folders = await prisma.strategyFolder.findMany({
+    orderBy: [{ name: 'asc' }],
+  });
+  return folders.map(f => ({
+    id: f.id,
+    name: f.name,
+    parentId: f.parentId,
+    color: f.color,
+    sortOrder: f.sortOrder,
+    createdAt: f.createdAt.toISOString(),
+    updatedAt: f.updatedAt.toISOString(),
+  }));
+}
+
 export async function findFolderById(id: number) {
   return prisma.strategyFolder.findUnique({ where: { id } });
 }
