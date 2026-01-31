@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Loader2, RefreshCw, Trash2, Clock, XCircle, Check, CheckSquare } from 'lucide-react';
 import { toast } from 'sonner';
 import { stagger, microInteractions, cn } from '@/lib/animations';
@@ -41,6 +42,7 @@ export function UserRecurring() {
   const [dayEntries, setDayEntries] = useState<DayEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
   const [selectedDays, setSelectedDays] = useState<Set<number>>(new Set());
   const [bulkTimeFrom, setBulkTimeFrom] = useState('');
   const [bulkTimeTo, setBulkTimeTo] = useState('');
@@ -518,6 +520,32 @@ export function UserRecurring() {
         </Card>
       )}
 
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove Recurring Entry</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove the recurring availability for {deleteTarget !== null ? WEEKDAY_NAMES[deleteTarget] : ''}?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deleteTarget !== null) {
+                  removeDay(deleteTarget);
+                  setDeleteTarget(null);
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Main Table */}
       <Card className="animate-fadeIn">
         <CardHeader>
@@ -628,7 +656,7 @@ export function UserRecurring() {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => removeDay(entry.dayOfWeek)}
+                            onClick={() => setDeleteTarget(entry.dayOfWeek)}
                             disabled={saving || entry.isSaving}
                             className={cn(microInteractions.activePress, microInteractions.smooth)}
                           >
