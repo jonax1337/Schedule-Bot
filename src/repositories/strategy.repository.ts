@@ -14,8 +14,18 @@ export interface StrategyListItem {
   updatedAt: string;
 }
 
+export interface StrategyFileItem {
+  id: number;
+  filename: string;
+  originalName: string;
+  mimeType: string;
+  size: number;
+  createdAt: string;
+}
+
 export interface StrategyDetail extends StrategyListItem {
   content: any;
+  files?: StrategyFileItem[];
 }
 
 export interface CreateStrategyData {
@@ -86,9 +96,21 @@ export async function findAllStrategies(filter?: { map?: string; side?: string }
 }
 
 export async function findStrategyById(id: number): Promise<StrategyDetail | null> {
-  const strategy = await prisma.strategy.findUnique({ where: { id } });
+  const strategy = await prisma.strategy.findUnique({
+    where: { id },
+    include: { files: { orderBy: { createdAt: 'asc' } } },
+  });
   if (!strategy) return null;
-  return toDetail(strategy);
+  const detail = toDetail(strategy);
+  (detail as any).files = strategy.files.map(f => ({
+    id: f.id,
+    filename: f.filename,
+    originalName: f.originalName,
+    mimeType: f.mimeType,
+    size: f.size,
+    createdAt: f.createdAt.toISOString(),
+  }));
+  return detail;
 }
 
 export async function createStrategy(data: CreateStrategyData): Promise<StrategyDetail> {
@@ -160,6 +182,38 @@ export async function linkOrphanImages(filenames: string[], strategyId: number) 
     where: { filename: { in: filenames }, strategyId: null },
     data: { strategyId },
   });
+}
+
+// File (PDF) helpers
+export async function createStrategyFile(data: {
+  strategyId: number;
+  filename: string;
+  originalName: string;
+  mimeType: string;
+  size: number;
+}): Promise<StrategyFileItem> {
+  const file = await prisma.strategyFile.create({ data });
+  return {
+    id: file.id,
+    filename: file.filename,
+    originalName: file.originalName,
+    mimeType: file.mimeType,
+    size: file.size,
+    createdAt: file.createdAt.toISOString(),
+  };
+}
+
+export async function getStrategyFile(id: number) {
+  return prisma.strategyFile.findUnique({ where: { id } });
+}
+
+export async function deleteStrategyFile(id: number): Promise<string | null> {
+  try {
+    const file = await prisma.strategyFile.delete({ where: { id } });
+    return file.filename;
+  } catch {
+    return null;
+  }
 }
 
 export async function deleteOrphanImages(): Promise<string[]> {

@@ -7,7 +7,7 @@ import { fileURLToPath } from 'url';
 import { verifyToken, optionalAuth, AuthRequest } from '../../shared/middleware/auth.js';
 import { validate } from '../../shared/middleware/validation.js';
 import { strategyService } from '../../services/strategy.service.js';
-import { createStrategyImage } from '../../repositories/strategy.repository.js';
+import { createStrategyImage, createStrategyFile, getStrategyFile, deleteStrategyFile } from '../../repositories/strategy.repository.js';
 import { logger } from '../../shared/utils/logger.js';
 import { createStrategySchema, updateStrategySchema } from '../../shared/middleware/validation.js';
 
@@ -46,6 +46,18 @@ const upload = multer({
   },
 });
 
+const pdfUpload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype === 'application/pdf') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only PDF files are allowed'));
+    }
+  },
+});
+
 // --- Routes ---
 
 // Serve uploaded images (public)
@@ -55,8 +67,8 @@ router.get('/uploads/:filename', (req, res) => {
   if (!fs.existsSync(filePath)) {
     return res.status(404).json({ error: 'Image not found' });
   }
-  // Allow browser caching for images
   res.setHeader('Cache-Control', 'public, max-age=86400');
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
   res.sendFile(filePath);
 });
 
@@ -188,11 +200,20 @@ router.delete('/:id', verifyToken, async (req: AuthRequest, res) => {
     const success = await strategyService.delete(id);
     if (!success) return res.status(500).json({ error: 'Failed to delete strategy' });
 
-    // Clean up image files (images are cascade-deleted from DB)
+    // Clean up image files from disk (DB records cascade-deleted)
     if (strategy.content) {
       const filenames = extractImageFilenames(strategy.content);
       for (const filename of filenames) {
         const filePath = path.join(UPLOAD_DIR, filename);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      }
+    }
+    // Clean up PDF files from disk (DB records cascade-deleted)
+    if (strategy.files) {
+      for (const file of strategy.files) {
+        const filePath = path.join(UPLOAD_DIR, file.filename);
         if (fs.existsSync(filePath)) {
           fs.unlinkSync(filePath);
         }
@@ -204,6 +225,98 @@ router.delete('/:id', verifyToken, async (req: AuthRequest, res) => {
   } catch (error) {
     logger.error('Error deleting strategy', error instanceof Error ? error.message : String(error));
     res.status(500).json({ error: 'Failed to delete strategy' });
+  }
+});
+
+// --- PDF File endpoints ---
+
+// Serve PDF files inline (public)
+router.get('/files/:filename', (req, res) => {
+  const filename = path.basename(req.params.filename as string);
+  const filePath = path.join(UPLOAD_DIR, filename);
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'File not found' });
+  }
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+  res.setHeader('Content-Disposition', 'inline');
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.sendFile(filePath);
+});
+
+// Upload PDF to strategy (auth required)
+router.post('/:id/files', verifyToken, (req: AuthRequest, res) => {
+  pdfUpload.single('file')(req, res, async (err) => {
+    if (err instanceof multer.MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ error: 'File too large. Maximum 10MB.' });
+      }
+      return res.status(400).json({ error: err.message });
+    }
+    if (err) {
+      return res.status(400).json({ error: err.message });
+    }
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file provided' });
+    }
+
+    try {
+      if (!strategyService.canEdit(req.user!.role)) {
+        fs.unlinkSync(req.file.path);
+        return res.status(403).json({ error: 'No permission to upload files' });
+      }
+
+      const strategyId = parseInt(req.params.id as string, 10);
+      if (isNaN(strategyId)) {
+        fs.unlinkSync(req.file.path);
+        return res.status(400).json({ error: 'Invalid strategy ID' });
+      }
+
+      const strategy = await strategyService.getById(strategyId);
+      if (!strategy) {
+        fs.unlinkSync(req.file.path);
+        return res.status(404).json({ error: 'Strategy not found' });
+      }
+
+      const file = await createStrategyFile({
+        strategyId,
+        filename: req.file.filename,
+        originalName: req.file.originalname,
+        mimeType: req.file.mimetype,
+        size: req.file.size,
+      });
+
+      res.json({ success: true, file });
+    } catch (error) {
+      logger.error('Error saving file record', error instanceof Error ? error.message : String(error));
+      res.status(500).json({ error: 'Failed to save file' });
+    }
+  });
+});
+
+// Delete PDF file (auth required)
+router.delete('/files/:fileId', verifyToken, async (req: AuthRequest, res) => {
+  try {
+    if (!strategyService.canEdit(req.user!.role)) {
+      return res.status(403).json({ error: 'No permission to delete files' });
+    }
+
+    const fileId = parseInt(req.params.fileId as string, 10);
+    if (isNaN(fileId)) return res.status(400).json({ error: 'Invalid file ID' });
+
+    const filename = await deleteStrategyFile(fileId);
+    if (!filename) return res.status(404).json({ error: 'File not found' });
+
+    // Clean up from disk
+    const filePath = path.join(UPLOAD_DIR, filename);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+
+    res.json({ success: true, message: 'File deleted' });
+  } catch (error) {
+    logger.error('Error deleting file', error instanceof Error ? error.message : String(error));
+    res.status(500).json({ error: 'Failed to delete file' });
   }
 });
 

@@ -2,13 +2,14 @@
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { BookOpen, ExternalLink, Loader2, Search, Swords, Shield, X, Plus, Pencil, Trash2 } from 'lucide-react';
+import { BookOpen, ExternalLink, FileText, Loader2, Search, Swords, Shield, X, Plus, Pencil, Trash2 } from 'lucide-react';
 import { useBreadcrumbSub } from '@/lib/breadcrumb-context';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { stagger, microInteractions } from '@/lib/animations';
 import { StrategyViewer } from './strategy-viewer';
 import { StrategyForm } from './strategy-form';
+import { PdfPreviewDialog } from './pdf-preview-dialog';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -42,6 +43,7 @@ interface StratEntry {
   authorId: string;
   authorName: string;
   content?: any;
+  files?: { id: number; filename: string; originalName: string; size: number }[];
   createdAt: string;
   updatedAt: string;
 }
@@ -88,6 +90,9 @@ export function Stratbook() {
   // Delete dialog
   const [deleteTarget, setDeleteTarget] = useState<StratEntry | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // PDF preview
+  const [pdfPreview, setPdfPreview] = useState<{ url: string; title: string } | null>(null);
 
   // Content cache
   const contentCache = useRef<Record<number, any>>({});
@@ -178,7 +183,7 @@ export function Stratbook() {
     }
   };
 
-  const fetchContent = async (id: number): Promise<any> => {
+  const fetchContent = async (id: number): Promise<{ content: any; files?: any[] }> => {
     if (contentCache.current[id]) return contentCache.current[id];
     const { getAuthHeaders } = await import('@/lib/auth');
     const response = await fetch(`${BOT_API_URL}/api/strategies/${id}`, {
@@ -186,9 +191,9 @@ export function Stratbook() {
     });
     if (!response.ok) throw new Error('Failed to fetch content');
     const data = await response.json();
-    const content = data.strategy?.content || {};
-    contentCache.current[id] = content;
-    return content;
+    const result = { content: data.strategy?.content || {}, files: data.strategy?.files || [] };
+    contentCache.current[id] = result;
+    return result;
   };
 
   const handleStratHover = (id: number) => {
@@ -209,8 +214,8 @@ export function Stratbook() {
     setLoadingContent(true);
     if (!skipTransition) requestAnimationFrame(() => setTransitioning(false));
     try {
-      const content = await fetchContent(strat.id);
-      setSelectedStrat(prev => prev ? { ...prev, content } : null);
+      const { content, files } = await fetchContent(strat.id);
+      setSelectedStrat(prev => prev ? { ...prev, content, files } : null);
     } catch {
       toast.error('Failed to load strategy content');
     } finally {
@@ -330,45 +335,9 @@ export function Stratbook() {
         {view === 'detail' && selectedStrat && (
           <div className="space-y-6">
             <Card>
-              <CardHeader>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div>
-                    <CardTitle className="text-lg">{selectedStrat.title}</CardTitle>
-                    <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                      {selectedStrat.map && (
-                        <Badge variant="outline" className={getMapBadgeClasses()}>
-                          {selectedStrat.map}
-                        </Badge>
-                      )}
-                      {selectedStrat.side && (
-                        <Badge variant="outline" className={getSideBadgeClasses(selectedStrat.side)}>
-                          {selectedStrat.side === 'Attack' ? (
-                            <Swords className="h-3 w-3 mr-1" />
-                          ) : (
-                            <Shield className="h-3 w-3 mr-1" />
-                          )}
-                          {selectedStrat.side}
-                        </Badge>
-                      )}
-                      {selectedStrat.tags.map(tag => (
-                        <Badge key={tag} variant="outline" className="text-xs text-muted-foreground">
-                          {tag}
-                        </Badge>
-                      ))}
-                      {selectedStrat.agents.map(agent => (
-                        <img
-                          key={agent}
-                          src={`/assets/agents/${normalizeAgentName(agent)}_icon.webp`}
-                          alt={agent}
-                          title={agent}
-                          className="w-6 h-6 rounded border border-primary/50"
-                        />
-                      ))}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      by {selectedStrat.authorName}
-                    </p>
-                  </div>
+              <CardHeader className="space-y-1.5">
+                <div className="flex items-start justify-between gap-3">
+                  <CardTitle className="text-xl">{selectedStrat.title}</CardTitle>
                   {canEdit && (
                     <div className="flex gap-2 flex-shrink-0">
                       <Button
@@ -392,8 +361,43 @@ export function Stratbook() {
                     </div>
                   )}
                 </div>
+                {selectedStrat.agents.length > 0 && (
+                  <div className="flex gap-1.5">
+                    {selectedStrat.agents.map(agent => (
+                      <img
+                        key={agent}
+                        src={`/assets/agents/${normalizeAgentName(agent)}_icon.webp`}
+                        alt={agent}
+                        title={agent}
+                        className="w-7 h-7 rounded border border-primary/50"
+                      />
+                    ))}
+                  </div>
+                )}
+                <div className="flex flex-wrap items-center gap-2">
+                  {selectedStrat.map && (
+                    <Badge variant="outline" className={getMapBadgeClasses()}>
+                      {selectedStrat.map}
+                    </Badge>
+                  )}
+                  {selectedStrat.side && (
+                    <Badge variant="outline" className={getSideBadgeClasses(selectedStrat.side)}>
+                      {selectedStrat.side === 'Attack' ? (
+                        <Swords className="h-3 w-3 mr-1" />
+                      ) : (
+                        <Shield className="h-3 w-3 mr-1" />
+                      )}
+                      {selectedStrat.side}
+                    </Badge>
+                  )}
+                  {selectedStrat.tags.map(tag => (
+                    <Badge key={tag} variant="outline" className="text-xs text-muted-foreground">
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-0">
                 {loadingContent ? (
                   <div className="min-h-[200px] flex items-center justify-center">
                     <div className="animate-scaleIn">
@@ -403,10 +407,39 @@ export function Stratbook() {
                 ) : (
                   <div className="animate-fadeIn">
                     <StrategyViewer content={selectedStrat.content || {}} />
+                    {selectedStrat.files && selectedStrat.files.length > 0 && (
+                      <div className="mt-6 pt-4 border-t space-y-2">
+                        <h4 className="text-sm font-medium text-muted-foreground">Attachments</h4>
+                        <div className="space-y-1.5">
+                          {selectedStrat.files.map(file => (
+                            <button
+                              key={file.id}
+                              className="flex items-center gap-2 p-2 rounded-md border bg-muted/30 hover:bg-muted/60 transition-colors w-full text-left"
+                              onClick={() => setPdfPreview({
+                                url: `${BOT_API_URL}/api/strategies/files/${file.filename}`,
+                                title: file.originalName,
+                              })}
+                            >
+                              <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                              <span className="text-sm truncate flex-1">{file.originalName}</span>
+                              <span className="text-xs text-muted-foreground shrink-0">
+                                {(file.size / 1024).toFixed(0)} KB
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </CardContent>
             </Card>
+            <PdfPreviewDialog
+              open={!!pdfPreview}
+              onOpenChange={open => { if (!open) setPdfPreview(null); }}
+              url={pdfPreview?.url || ''}
+              title={pdfPreview?.title || ''}
+            />
           </div>
         )}
 

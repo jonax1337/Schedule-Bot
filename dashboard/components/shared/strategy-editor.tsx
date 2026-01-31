@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useCallback, useRef } from 'react';
-import { useEditor, EditorContent, type JSONContent } from '@tiptap/react';
+import React, { useCallback, useRef, useState, useEffect } from 'react';
+import { useEditor, EditorContent, NodeViewWrapper, ReactNodeViewRenderer, type JSONContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import Link from '@tiptap/extension-link';
@@ -23,6 +23,88 @@ import { BOT_API_URL } from '@/lib/config';
 
 const lowlight = createLowlight(common);
 
+// --- Resizable Image Node View ---
+function ResizableImageView({ node, updateAttributes, selected, editor }: any) {
+  const [resizing, setResizing] = useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
+  const startX = useRef(0);
+  const startWidth = useRef(0);
+  const isEditable = editor?.isEditable;
+
+  const onMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!imgRef.current) return;
+    setResizing(true);
+    startX.current = e.clientX;
+    startWidth.current = imgRef.current.offsetWidth;
+
+    const onMouseMove = (ev: MouseEvent) => {
+      const diff = ev.clientX - startX.current;
+      const newWidth = Math.max(100, startWidth.current + diff);
+      updateAttributes({ width: newWidth });
+    };
+
+    const onMouseUp = () => {
+      setResizing(false);
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    };
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  }, [updateAttributes]);
+
+  return (
+    <NodeViewWrapper data-drag-handle>
+      <div
+        className="relative inline-block max-w-full"
+        style={{ width: node.attrs.width ? `${node.attrs.width}px` : undefined }}
+      >
+        <img
+          ref={imgRef}
+          src={node.attrs.src}
+          alt={node.attrs.alt || ''}
+          title={node.attrs.title || ''}
+          className={cn(
+            'rounded-lg max-w-full h-auto block',
+            isEditable && selected && 'outline outline-2 outline-primary',
+          )}
+          style={{ width: '100%' }}
+          draggable={false}
+        />
+        {isEditable && selected && (
+          <div
+            className="absolute top-0 bottom-0 -right-1.5 w-3 cursor-col-resize flex items-center justify-center"
+            onMouseDown={onMouseDown}
+            title="Drag to resize"
+          >
+            <div className="w-1 h-8 rounded-full bg-primary" />
+          </div>
+        )}
+      </div>
+    </NodeViewWrapper>
+  );
+}
+
+const ResizableImage = Image.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      width: {
+        default: null,
+        renderHTML: (attributes: any) => {
+          if (!attributes.width) return {};
+          return { style: `width: ${attributes.width}px` };
+        },
+      },
+    };
+  },
+  addNodeView() {
+    return ReactNodeViewRenderer(ResizableImageView);
+  },
+});
+
 interface StrategyEditorProps {
   content: JSONContent;
   onChange: (content: JSONContent) => void;
@@ -40,10 +122,11 @@ export function StrategyEditor({ content, onChange, editable = true }: StrategyE
       Underline,
       Link.configure({
         openOnClick: !editable,
+        autolink: true,
         HTMLAttributes: { class: 'text-primary underline cursor-pointer' },
       }),
-      Image.configure({
-        HTMLAttributes: { class: 'rounded-lg max-w-full h-auto my-4' },
+      ResizableImage.configure({
+        HTMLAttributes: { class: 'rounded-lg max-w-full h-auto' },
       }),
       CodeBlockLowlight.configure({ lowlight }),
       Placeholder.configure({
@@ -55,14 +138,15 @@ export function StrategyEditor({ content, onChange, editable = true }: StrategyE
     ],
     content,
     editable,
+    immediatelyRender: false,
     onUpdate: ({ editor }) => {
       onChange(editor.getJSON());
     },
     editorProps: {
       attributes: {
         class: cn(
-          'prose prose-sm dark:prose-invert max-w-none focus:outline-none min-h-[200px] px-4 py-3',
-          !editable && 'cursor-default'
+          'prose prose-sm dark:prose-invert max-w-none focus:outline-none min-h-[200px] [&_img]:my-0',
+          editable ? 'px-4 py-3' : 'cursor-default'
         ),
       },
     },

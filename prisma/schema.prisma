@@ -132,6 +132,7 @@ model Strategy {
   createdAt  DateTime         @default(now()) @map("created_at")
   updatedAt  DateTime         @updatedAt @map("updated_at")
   images     StrategyImage[]
+  files      StrategyFile[]
 
   @@index([map])
   @@index([side])
@@ -151,6 +152,21 @@ model StrategyImage {
 
   @@index([strategyId])
   @@map("strategy_images")
+}
+
+model StrategyFile {
+  id           Int      @id @default(autoincrement())
+  strategyId   Int      @map("strategy_id")
+  filename     String   @unique
+  originalName String   @map("original_name")
+  mimeType     String   @map("mime_type")
+  size         Int
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  strategy     Strategy @relation(fields: [strategyId], references: [id], onDelete: Cascade)
+
+  @@index([strategyId])
+  @@map("strategy_files")
 }
 
 enum ScrimResult {
