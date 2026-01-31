@@ -48,15 +48,6 @@ interface StratEntry {
   updatedAt: string;
 }
 
-function getSideBadgeClasses(side: string): string {
-  return side === 'Attack'
-    ? 'bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-300 border-red-500/30'
-    : 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border-blue-500/30';
-}
-
-function getMapBadgeClasses(): string {
-  return 'bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 border-purple-500/30';
-}
 
 function normalizeAgentName(name: string): string {
   return name.replace(/\//g, '');
@@ -337,7 +328,14 @@ export function Stratbook() {
             <Card>
               <CardHeader className="space-y-1.5">
                 <div className="flex items-start justify-between gap-3">
-                  <CardTitle className="text-xl">{selectedStrat.title}</CardTitle>
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-xl">{selectedStrat.title}</CardTitle>
+                    {selectedStrat.side && (
+                      <span className={cn("inline-flex", selectedStrat.side === 'Attack' ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400')} title={selectedStrat.side}>
+                        {selectedStrat.side === 'Attack' ? <Swords className="h-5 w-5" /> : <Shield className="h-5 w-5" />}
+                      </span>
+                    )}
+                  </div>
                   {canEdit && (
                     <div className="flex gap-2 flex-shrink-0">
                       <Button
@@ -374,28 +372,15 @@ export function Stratbook() {
                     ))}
                   </div>
                 )}
-                <div className="flex flex-wrap items-center gap-2">
-                  {selectedStrat.map && (
-                    <Badge variant="outline" className={getMapBadgeClasses()}>
-                      {selectedStrat.map}
-                    </Badge>
-                  )}
-                  {selectedStrat.side && (
-                    <Badge variant="outline" className={getSideBadgeClasses(selectedStrat.side)}>
-                      {selectedStrat.side === 'Attack' ? (
-                        <Swords className="h-3 w-3 mr-1" />
-                      ) : (
-                        <Shield className="h-3 w-3 mr-1" />
-                      )}
-                      {selectedStrat.side}
-                    </Badge>
-                  )}
-                  {selectedStrat.tags.map(tag => (
-                    <Badge key={tag} variant="outline" className="text-xs text-muted-foreground">
-                      {tag}
-                    </Badge>
-                  ))}
-                </div>
+                {selectedStrat.tags.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    {selectedStrat.tags.map(tag => (
+                      <Badge key={tag} variant="outline" className="text-xs text-muted-foreground">
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
               </CardHeader>
               <CardContent className="pt-0">
                 {loadingContent ? (
@@ -545,33 +530,27 @@ export function Stratbook() {
                           />
                         )}
                         <CardHeader className="pb-2 relative">
-                          <CardTitle className="text-sm font-medium leading-snug">
-                            {strat.title}
-                          </CardTitle>
+                          <div className="flex items-start justify-between gap-2">
+                            <CardTitle className="text-sm font-medium leading-snug">
+                              {strat.title}
+                            </CardTitle>
+                            {strat.side && (
+                              <span className={cn("inline-flex shrink-0", strat.side === 'Attack' ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400')} title={strat.side}>
+                                {strat.side === 'Attack' ? <Swords className="h-4 w-4" /> : <Shield className="h-4 w-4" />}
+                              </span>
+                            )}
+                          </div>
                         </CardHeader>
                         <CardContent className="pt-0 relative">
+                          {strat.tags.length > 0 && (
                           <div className="flex flex-wrap gap-1.5">
-                            {strat.map && (
-                              <Badge variant="outline" className={cn("text-xs", getMapBadgeClasses())}>
-                                {strat.map}
-                              </Badge>
-                            )}
-                            {strat.side && (
-                              <Badge variant="outline" className={cn("text-xs", getSideBadgeClasses(strat.side))}>
-                                {strat.side === 'Attack' ? (
-                                  <Swords className="h-2.5 w-2.5 mr-0.5" />
-                                ) : (
-                                  <Shield className="h-2.5 w-2.5 mr-0.5" />
-                                )}
-                                {strat.side}
-                              </Badge>
-                            )}
                             {strat.tags.map(tag => (
                               <Badge key={tag} variant="outline" className="text-xs text-muted-foreground">
                                 {tag}
                               </Badge>
                             ))}
                           </div>
+                          )}
                           {strat.agents.length > 0 && (
                             <div className="flex flex-wrap gap-1 mt-2 pt-2 border-t">
                               {strat.agents.map(agent => (

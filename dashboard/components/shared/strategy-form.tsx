@@ -54,6 +54,7 @@ export function StrategyForm({ strategyId, initialData, onSaved, onCancel }: Str
   );
   const [saving, setSaving] = useState(false);
   const [files, setFiles] = useState<{ id: number; filename: string; originalName: string; size: number }[]>([]);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const pdfInputRef = useRef<HTMLInputElement>(null);
@@ -93,33 +94,42 @@ export function StrategyForm({ strategyId, initialData, onSaved, onCancel }: Str
     })();
   }, [strategyId]);
 
-  const uploadPdf = useCallback(async (file: File) => {
-    if (!strategyId) return;
-    setUploading(true);
-    try {
-      const { getAuthHeaders } = await import('@/lib/auth');
-      const headers = getAuthHeaders();
-      delete (headers as any)['Content-Type'];
-      const formData = new FormData();
-      formData.append('file', file);
-      const res = await fetch(`${BOT_API_URL}/api/strategies/${strategyId}/files`, {
-        method: 'POST',
-        headers,
-        body: formData,
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'Upload failed');
-      }
-      const data = await res.json();
-      setFiles(prev => [...prev, data.file]);
-      toast.success('PDF uploaded');
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to upload PDF');
-    } finally {
-      setUploading(false);
+  const uploadPdfToStrategy = useCallback(async (file: File, targetId: number) => {
+    const { getAuthHeaders } = await import('@/lib/auth');
+    const headers = getAuthHeaders();
+    delete (headers as any)['Content-Type'];
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await fetch(`${BOT_API_URL}/api/strategies/${targetId}/files`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || 'Upload failed');
     }
-  }, [strategyId]);
+    return (await res.json()).file;
+  }, []);
+
+  const handlePdfAdd = useCallback(async (file: File) => {
+    if (strategyId) {
+      // Existing strategy: upload immediately
+      setUploading(true);
+      try {
+        const uploaded = await uploadPdfToStrategy(file, strategyId);
+        setFiles(prev => [...prev, uploaded]);
+        toast.success('PDF uploaded');
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Failed to upload PDF');
+      } finally {
+        setUploading(false);
+      }
+    } else {
+      // New strategy: queue for upload after save
+      setPendingFiles(prev => [...prev, file]);
+    }
+  }, [strategyId, uploadPdfToStrategy]);
 
   const deletePdf = useCallback(async (fileId: number) => {
     try {
@@ -173,6 +183,19 @@ export function StrategyForm({ strategyId, initialData, onSaved, onCancel }: Str
       }
 
       const data = await response.json();
+
+      // Upload pending PDFs for newly created strategy
+      if (!isEditing && pendingFiles.length > 0 && data.strategy?.id) {
+        for (const file of pendingFiles) {
+          try {
+            await uploadPdfToStrategy(file, data.strategy.id);
+          } catch {
+            toast.error(`Failed to upload ${file.name}`);
+          }
+        }
+        setPendingFiles([]);
+      }
+
       toast.success(isEditing ? 'Strategy updated' : 'Strategy created');
       onSaved(data.strategy);
     } catch (error) {
@@ -277,72 +300,90 @@ export function StrategyForm({ strategyId, initialData, onSaved, onCancel }: Str
           {/* Attachments */}
           <div className="space-y-2">
             <Label>PDF Attachments</Label>
-            {isEditing ? (
-              <>
-                {files.length > 0 && (
-                  <div className="space-y-1.5">
-                    {files.map(file => (
-                      <div key={file.id} className="flex items-center gap-2 p-2 rounded-md border bg-muted/30">
-                        <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                        <span className="text-sm truncate flex-1">{file.originalName}</span>
-                        <span className="text-xs text-muted-foreground shrink-0">
-                          {(file.size / 1024).toFixed(0)} KB
-                        </span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                          onClick={() => deletePdf(file.id)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    ))}
+            {files.length > 0 && (
+              <div className="space-y-1.5">
+                {files.map(file => (
+                  <div key={file.id} className="flex items-center gap-2 p-2 rounded-md border bg-muted/30">
+                    <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <span className="text-sm truncate flex-1">{file.originalName}</span>
+                    <span className="text-xs text-muted-foreground shrink-0">
+                      {(file.size / 1024).toFixed(0)} KB
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                      onClick={() => deletePdf(file.id)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
-                )}
-                <div
-                  onClick={() => !uploading && pdfInputRef.current?.click()}
-                  onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-                  onDragLeave={() => setDragOver(false)}
-                  onDrop={e => {
-                    e.preventDefault();
-                    setDragOver(false);
-                    const file = e.dataTransfer.files?.[0];
-                    if (file && file.type === 'application/pdf') uploadPdf(file);
-                    else if (file) toast.error('Only PDF files are allowed');
-                  }}
-                  className={cn(
-                    'flex flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed p-6 cursor-pointer transition-colors',
-                    dragOver ? 'border-primary bg-primary/5' : 'border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/50',
-                    uploading && 'pointer-events-none opacity-60'
-                  )}
-                >
-                  {uploading ? (
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                  ) : (
-                    <Upload className="h-6 w-6 text-muted-foreground" />
-                  )}
-                  <span className="text-sm text-muted-foreground">
-                    {uploading ? 'Uploading...' : 'Drop a PDF here or click to browse'}
-                  </span>
-                  <span className="text-xs text-muted-foreground/60">Max 10 MB</span>
-                </div>
-                <input
-                  ref={pdfInputRef}
-                  type="file"
-                  accept="application/pdf"
-                  className="hidden"
-                  onChange={e => {
-                    const file = e.target.files?.[0];
-                    if (file) uploadPdf(file);
-                    e.target.value = '';
-                  }}
-                />
-              </>
-            ) : (
-              <p className="text-xs text-muted-foreground">Save the strategy first to upload PDFs.</p>
+                ))}
+              </div>
             )}
+            {pendingFiles.length > 0 && (
+              <div className="space-y-1.5">
+                {pendingFiles.map((file, i) => (
+                  <div key={i} className="flex items-center gap-2 p-2 rounded-md border bg-muted/30">
+                    <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <span className="text-sm truncate flex-1">{file.name}</span>
+                    <span className="text-xs text-muted-foreground shrink-0">
+                      {(file.size / 1024).toFixed(0)} KB
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                      onClick={() => setPendingFiles(prev => prev.filter((_, j) => j !== i))}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div
+              onClick={() => !uploading && pdfInputRef.current?.click()}
+              onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={e => {
+                e.preventDefault();
+                setDragOver(false);
+                const file = e.dataTransfer.files?.[0];
+                if (file && file.type === 'application/pdf') handlePdfAdd(file);
+                else if (file) toast.error('Only PDF files are allowed');
+              }}
+              className={cn(
+                'flex flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed p-6 cursor-pointer transition-colors',
+                dragOver ? 'border-primary bg-primary/5' : 'border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/50',
+                uploading && 'pointer-events-none opacity-60'
+              )}
+            >
+              {uploading ? (
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              ) : (
+                <Upload className="h-6 w-6 text-muted-foreground" />
+              )}
+              <span className="text-sm text-muted-foreground">
+                {uploading ? 'Uploading...' : 'Drop a PDF here or click to browse'}
+              </span>
+              <span className="text-xs text-muted-foreground/60">
+                {isEditing ? 'Max 10 MB' : 'Max 10 MB \u2022 Will be uploaded on save'}
+              </span>
+            </div>
+            <input
+              ref={pdfInputRef}
+              type="file"
+              accept="application/pdf"
+              className="hidden"
+              onChange={e => {
+                const file = e.target.files?.[0];
+                if (file) handlePdfAdd(file);
+                e.target.value = '';
+              }}
+            />
           </div>
 
           {/* Actions */}
