@@ -18,6 +18,7 @@ function flattenSettings(settings: Settings): Record<string, string | number | b
     'branding.teamName': settings.branding.teamName,
     'branding.tagline': settings.branding.tagline || DEFAULT_SETTINGS.branding.tagline!,
     'branding.logoUrl': settings.branding.logoUrl || '',
+    'stratbook.editPermission': settings.stratbook.editPermission,
   };
 }
 
@@ -43,6 +44,9 @@ export interface Settings {
     tagline?: string;
     logoUrl?: string;
   };
+  stratbook: {
+    editPermission: 'admin' | 'all';
+  };
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -66,6 +70,9 @@ const DEFAULT_SETTINGS: Settings = {
     teamName: 'Valorant Bot',
     tagline: 'Schedule Manager',
     logoUrl: '',
+  },
+  stratbook: {
+    editPermission: 'admin',
   },
 };
 
@@ -99,6 +106,7 @@ export async function loadSettingsAsync(): Promise<Settings> {
         discord: DEFAULT_SETTINGS.discord,
         scheduling: DEFAULT_SETTINGS.scheduling,
         branding: DEFAULT_SETTINGS.branding,
+        stratbook: DEFAULT_SETTINGS.stratbook,
       };
 
       // Save default settings to PostgreSQL
@@ -142,6 +150,9 @@ export async function loadSettingsAsync(): Promise<Settings> {
         teamName: settingsMap['branding.teamName'] || DEFAULT_SETTINGS.branding.teamName,
         tagline: settingsMap['branding.tagline'] || DEFAULT_SETTINGS.branding.tagline,
         logoUrl: settingsMap['branding.logoUrl'] || DEFAULT_SETTINGS.branding.logoUrl,
+      },
+      stratbook: {
+        editPermission: (settingsMap['stratbook.editPermission'] === 'all' ? 'all' : 'admin') as 'admin' | 'all',
       },
     };
     return cachedSettings;

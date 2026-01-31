@@ -1,10 +1,19 @@
 'use client';
 
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, type ReactNode } from 'react';
 
-interface BreadcrumbSub {
+export interface BreadcrumbTrailItem {
   label: string;
+  onClick: () => void;
+}
+
+export interface BreadcrumbSub {
+  /** Final (current) page label */
+  label: string;
+  /** Navigate back to the parent page */
   onNavigateBack: () => void;
+  /** Optional intermediate trail items (e.g. folder path) rendered between the tab and final label */
+  trail?: BreadcrumbTrailItem[];
 }
 
 interface BreadcrumbContextValue {

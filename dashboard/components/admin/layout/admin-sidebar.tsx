@@ -65,7 +65,7 @@ export function AdminSidebar({ userName, onLogout, ...props }: AdminSidebarProps
   ]
 
   const competitiveItems: NavItem[] = [
-    { title: "Matches", tab: "scrims", icon: Trophy, isActive: currentTab === 'scrims' },
+    { title: "Matches", tab: "matches", icon: Trophy, isActive: currentTab === 'matches' },
 
     { title: "Stratbook", tab: "stratbook", icon: BookOpen, isActive: currentTab === 'stratbook' },
   ]

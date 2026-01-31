@@ -23,6 +23,7 @@ app.use(helmet({
       fontSrc: ["'self'"],
       objectSrc: ["'none'"],
       frameSrc: ["'self'", "https://www.youtube.com", "https://www.youtube-nocookie.com"],
+      frameAncestors: ["'self'", "http://localhost:3000", "http://127.0.0.1:3000", ...(process.env.DASHBOARD_URL ? [process.env.DASHBOARD_URL] : [])],
       baseUri: ["'self'"],
       formAction: ["'self'"],
     },
@@ -32,7 +33,8 @@ app.use(helmet({
     includeSubDomains: true,
     preload: true,
   },
-  frameguard: { action: 'deny' },
+  crossOriginResourcePolicy: false,
+  frameguard: false,
   referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
 }));
 

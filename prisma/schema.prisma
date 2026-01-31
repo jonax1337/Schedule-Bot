@@ -119,6 +119,76 @@ enum UserRole {
   COACH
 }
 
+model StrategyFolder {
+  id         Int              @id @default(autoincrement())
+  name       String
+  parentId   Int?             @map("parent_id")
+  color      String?
+  sortOrder  Int              @default(0) @map("sort_order")
+  createdAt  DateTime         @default(now()) @map("created_at")
+  updatedAt  DateTime         @updatedAt @map("updated_at")
+
+  parent     StrategyFolder?  @relation("FolderTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children   StrategyFolder[] @relation("FolderTree")
+  strategies Strategy[]
+
+  @@unique([parentId, name])
+  @@map("strategy_folders")
+}
+
+model Strategy {
+  id         Int              @id @default(autoincrement())
+  title      String
+  map        String?
+  side       String?
+  tags       String           @default("")
+  agents     String           @default("")
+  content    Json             @default("{}")
+  folderId   Int?             @map("folder_id")
+  authorId   String           @map("author_id")
+  authorName String           @map("author_name")
+  createdAt  DateTime         @default(now()) @map("created_at")
+  updatedAt  DateTime         @updatedAt @map("updated_at")
+  folder     StrategyFolder?  @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  images     StrategyImage[]
+  files      StrategyFile[]
+
+  @@index([map])
+  @@index([side])
+  @@index([folderId])
+  @@map("strategies")
+}
+
+model StrategyImage {
+  id           Int       @id @default(autoincrement())
+  strategyId   Int?      @map("strategy_id")
+  filename     String    @unique
+  originalName String    @map("original_name")
+  mimeType     String    @map("mime_type")
+  size         Int
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  strategy     Strategy? @relation(fields: [strategyId], references: [id], onDelete: Cascade)
+
+  @@index([strategyId])
+  @@map("strategy_images")
+}
+
+model StrategyFile {
+  id           Int      @id @default(autoincrement())
+  strategyId   Int      @map("strategy_id")
+  filename     String   @unique
+  originalName String   @map("original_name")
+  mimeType     String   @map("mime_type")
+  size         Int
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  strategy     Strategy @relation(fields: [strategyId], references: [id], onDelete: Cascade)
+
+  @@index([strategyId])
+  @@map("strategy_files")
+}
+
 enum ScrimResult {
   WIN
   LOSS

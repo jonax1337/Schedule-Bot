@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Loader2, Plus, Trash2, PlaneTakeoff } from 'lucide-react';
 import { toast } from 'sonner';
 import { stagger, microInteractions, cn } from '@/lib/animations';
@@ -60,6 +61,7 @@ export function UserAbsences() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<number | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [userDiscordId, setUserDiscordId] = useState('');
 
@@ -304,7 +306,7 @@ export function UserAbsences() {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => deleteAbsenceHandler(absence.id)}
+                          onClick={() => setDeleteTarget(absence.id)}
                           disabled={deleting === absence.id}
                           className={cn(microInteractions.activePress, microInteractions.smooth)}
                         >
@@ -337,7 +339,7 @@ export function UserAbsences() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => deleteAbsenceHandler(absence.id)}
+                        onClick={() => setDeleteTarget(absence.id)}
                         disabled={deleting === absence.id}
                         className={cn(microInteractions.activePress, microInteractions.smooth)}
                       >
@@ -361,6 +363,32 @@ export function UserAbsences() {
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Absence</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this absence? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deleteTarget !== null) {
+                  deleteAbsenceHandler(deleteTarget);
+                  setDeleteTarget(null);
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* New Absence Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

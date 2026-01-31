@@ -611,6 +611,40 @@ export function Settings() {
         </CardContent>
       </Card>
 
+      <Card className={stagger(3, 'slow', 'slideUpScale')}>
+        <CardHeader>
+          <CardTitle>Stratbook</CardTitle>
+          <CardDescription>
+            Configure who can create and edit strategies
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="editPermission">Edit Permission</Label>
+            <Select
+              value={settings.stratbook?.editPermission || 'admin'}
+              onValueChange={(value) =>
+                setSettings({
+                  ...settings,
+                  stratbook: { ...settings.stratbook, editPermission: value as 'admin' | 'all' },
+                })
+              }
+            >
+              <SelectTrigger id="editPermission" className={cn("w-full", microInteractions.focusRing)}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent position="popper">
+                <SelectItem value="admin">Only Admins</SelectItem>
+                <SelectItem value="all">All Users</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-sm text-muted-foreground">
+              Controls who can create, edit, and delete strategies in the Stratbook
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="flex justify-end">
         <Button
           onClick={saveSettings}

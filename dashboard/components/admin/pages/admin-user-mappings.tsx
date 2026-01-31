@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Loader2, Trash2, UserPlus, Search, Users, Edit3, Edit, GripVertical, Shield, ShieldCheck, UserCheck, Headset, Check, ChevronsUpDown } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -238,6 +239,9 @@ export function UserMappings() {
   const [timezoneOpen, setTimezoneOpen] = useState(false);
   const [timezoneSearch, setTimezoneSearch] = useState('');
 
+  // Delete confirmation state
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+
   // Edit mode state
   const [editingMapping, setEditingMapping] = useState<UserMapping | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -384,10 +388,6 @@ export function UserMappings() {
   };
 
   const removeMapping = async (discordId: string) => {
-    if (!confirm('Are you sure you want to remove this mapping?')) {
-      return;
-    }
-
     try {
       const { getAuthHeaders } = await import('@/lib/auth');
       const response = await fetch(`${BOT_API_URL}/api/user-mappings/${discordId}`, {
@@ -754,7 +754,7 @@ export function UserMappings() {
                     role={roleKey}
                     mappings={groupedMappings[roleKey]}
                     onEdit={handleEdit}
-                    onRemove={removeMapping}
+                    onRemove={(id) => setDeleteTarget(id)}
                     index={index}
                   />
                 ))}
@@ -763,6 +763,32 @@ export function UserMappings() {
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove User Mapping</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove the mapping for &quot;{mappings.find(m => m.discordId === deleteTarget)?.displayName}&quot;? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deleteTarget) {
+                  removeMapping(deleteTarget);
+                  setDeleteTarget(null);
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Edit Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
