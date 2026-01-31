@@ -44,17 +44,8 @@ async function updatePollFooter(poll: Poll): Promise<void> {
     const remaining = poll.expiresAt.getTime() - Date.now();
     if (remaining <= 0) return;
 
-    const channel = await client.channels.fetch(config.discord.channelId);
-    if (!channel || !channel.isTextBased()) return;
-
-    const message = await channel.messages.fetch(poll.messageId);
-    const embed = message.embeds[0];
-    if (!embed) return;
-
-    const newEmbed = EmbedBuilder.from(embed);
-    newEmbed.setFooter({ text: `Poll closes in ${formatRemainingTime(remaining)}` });
-
-    await message.edit({ embeds: [newEmbed] });
+    // Reuse updatePollEmbed which rebuilds fields from in-memory state
+    await updatePollEmbed(poll);
   } catch {
     // Message may have been deleted
   }
