@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useRef, useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useEditor, EditorContent, NodeViewWrapper, ReactNodeViewRenderer, type JSONContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
@@ -13,7 +14,7 @@ import { common, createLowlight } from 'lowlight';
 import {
   Bold, Italic, Underline as UnderlineIcon, Strikethrough, Code, Link as LinkIcon,
   Heading1, Heading2, Heading3, List, ListOrdered, Quote, Minus, ImageIcon,
-  AlignLeft, AlignCenter, AlignRight, Undo, Redo,
+  AlignLeft, AlignCenter, AlignRight, Undo, Redo, X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -26,6 +27,7 @@ const lowlight = createLowlight(common);
 // --- Resizable Image Node View ---
 function ResizableImageView({ node, updateAttributes, selected, editor }: any) {
   const [resizing, setResizing] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
   const startX = useRef(0);
   const startWidth = useRef(0);
@@ -55,6 +57,15 @@ function ResizableImageView({ node, updateAttributes, selected, editor }: any) {
     document.addEventListener('mouseup', onMouseUp);
   }, [updateAttributes]);
 
+  useEffect(() => {
+    if (!lightboxOpen) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setLightboxOpen(false);
+    };
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [lightboxOpen]);
+
   return (
     <NodeViewWrapper data-drag-handle>
       <div
@@ -69,9 +80,11 @@ function ResizableImageView({ node, updateAttributes, selected, editor }: any) {
           className={cn(
             'rounded-lg max-w-full h-auto block',
             isEditable && selected && 'outline outline-2 outline-primary',
+            !isEditable && 'cursor-zoom-in',
           )}
           style={{ width: '100%' }}
           draggable={false}
+          onClick={!isEditable ? () => setLightboxOpen(true) : undefined}
         />
         {isEditable && selected && (
           <div
@@ -83,6 +96,26 @@ function ResizableImageView({ node, updateAttributes, selected, editor }: any) {
           </div>
         )}
       </div>
+      {lightboxOpen && createPortal(
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fadeIn"
+          onClick={() => setLightboxOpen(false)}
+        >
+          <button
+            className="absolute top-4 right-4 text-white/80 hover:text-white transition-colors"
+            onClick={() => setLightboxOpen(false)}
+          >
+            <X className="h-6 w-6" />
+          </button>
+          <img
+            src={node.attrs.src}
+            alt={node.attrs.alt || ''}
+            className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>,
+        document.body
+      )}
     </NodeViewWrapper>
   );
 }
