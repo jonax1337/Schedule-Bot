@@ -12,8 +12,8 @@ This is a Discord bot with web dashboard for managing E-Sports team scheduling a
 All components run from a single Node.js process that starts the bot, API server, and scheduler together.
 
 ### Technology Stack
-**Backend:** TypeScript 5.9, discord.js 14.25, Express 5.2, Prisma 7.3 (with @prisma/adapter-pg + pg native driver), node-cron 4.2, bcrypt 6, jsonwebtoken 9, Helmet 8, dotenv 17, Joi 18, @notionhq/client 2.3 (Notion API)
-**Frontend:** Next.js 16.1, React 19.2, TailwindCSS 4, Radix UI primitives, Recharts 3.7 (charts), next-themes, sonner (toasts), lucide-react (icons), cmdk (command palette), @dnd-kit (drag and drop)
+**Backend:** TypeScript 5.9, discord.js 14.25, Express 5.2, Prisma 7.3 (with @prisma/adapter-pg + pg native driver), node-cron 4.2, bcrypt 6, jsonwebtoken 9, Helmet 8, dotenv 17, Joi 18, multer 2 (file uploads)
+**Frontend:** Next.js 16.1, React 19.2, TailwindCSS 4, Radix UI primitives, Recharts 3.7 (charts), next-themes, sonner (toasts), lucide-react (icons), cmdk (command palette), @dnd-kit (drag and drop), TipTap 3.18 (rich text editor with extensions: code-block-lowlight, image, link, placeholder, text-align, underline), lowlight 3 (syntax highlighting), @tailwindcss/typography
 **Testing:** Vitest 4.0 with V8 coverage provider
 **Database:** PostgreSQL via Prisma ORM
 
@@ -126,7 +126,7 @@ src/
 │       ├── schedule.routes.ts  # Schedule CRUD + availability updates
 │       ├── scrim.routes.ts     # Scrim/match CRUD + stats
 │       ├── settings.routes.ts  # Bot settings management
-│       ├── stratbook.routes.ts # Notion-powered strategy viewer
+│       ├── strategy.routes.ts  # Local strategy management (CRUD, folders, file uploads)
 │       └── user-mapping.routes.ts # Player roster management
 ├── bot/
 │   ├── client.ts               # Discord client singleton
@@ -161,13 +161,14 @@ src/
 │   ├── recurring-availability.repository.ts # Recurring weekly availability CRUD
 │   ├── schedule.repository.ts  # Schedule + player queries, seeding, sync
 │   ├── scrim.repository.ts     # Match tracking CRUD + stats
+│   ├── strategy.repository.ts  # Strategy + folder CRUD, file management
 │   └── user-mapping.repository.ts # Roster management with auto-sort
 ├── services/                   # Business logic layer
 │   ├── absence.service.ts      # Absence CRUD with auth + date validation
 │   ├── recurring-availability.service.ts # Recurring availability business logic
 │   ├── schedule.service.ts     # Schedule analysis, availability validation
 │   ├── scrim.service.ts        # Scrim CRUD + stats + recent scrims
-│   ├── stratbook.service.ts    # Notion API integration with caching
+│   ├── strategy.service.ts     # Strategy CRUD with permission checks (admin vs all)
 │   └── user-mapping.service.ts # Roster CRUD with auto-sync to schedules
 └── shared/
     ├── config/config.ts        # Global config (env + DB settings)
@@ -229,8 +230,11 @@ dashboard/
 │   │   ├── nav-user.tsx        # User navigation (sidebar user menu)
 │   │   ├── matches.tsx         # Match history (maps, agents, VOD)
 │   │   ├── statistics.tsx      # Charts & analytics (Recharts, mobile-friendly)
-│   │   ├── stratbook.tsx       # Notion-powered strategy viewer
-│   │   ├── notion-renderer.tsx # Renders Notion blocks (headings, lists, code, images)
+│   │   ├── stratbook.tsx       # Local strategy browser with folder navigation
+│   │   ├── strategy-editor.tsx # TipTap WYSIWYG editor (images, links, code blocks)
+│   │   ├── strategy-viewer.tsx # Read-only strategy renderer using TipTap
+│   │   ├── strategy-form.tsx   # Strategy create/edit form
+│   │   ├── pdf-preview-dialog.tsx # PDF preview component
 │   │   ├── sidebar-branding-header.tsx # Reusable sidebar branding header
 │   │   └── sidebar-nav-group.tsx # Reusable sidebar navigation group
 │   ├── error-boundary.tsx       # React error boundary with retry UI
@@ -241,10 +245,10 @@ dashboard/
 │   │   ├── index.ts
 │   │   ├── theme-provider.tsx
 │   │   └── theme-toggle.tsx
-│   ├── ui/                     # Radix UI primitives (30 components)
+│   ├── ui/                     # Radix UI primitives (31 components)
 │   │   └── accordion, alert-dialog, avatar, badge, breadcrumb,
-│   │       button, card, chart, checkbox, collapsible, command, dialog,
-│   │       dropdown-menu, field, input, label, popover, scroll-area,
+│   │       button, card, chart, checkbox, collapsible, command, context-menu,
+│   │       dialog, dropdown-menu, field, input, label, popover, scroll-area,
 │   │       select, separator, sheet, sidebar, skeleton, slider,
 │   │       sonner, switch, table, tabs, textarea, tooltip
 │   └── user/                   # User portal components
@@ -339,9 +343,12 @@ settings.branding = {
   tagline,                    // Optional tagline (default: "Schedule Manager")
   logoUrl                     // Optional logo URL for sidebar branding
 }
+settings.stratbook = {
+  editPermission,             // 'admin' | 'all' - who can edit strategies (default: 'admin')
+}
 ```
 
-Features like change notifications, channel cleaning, poll duration, branding, and Discord OAuth use `loadSettings()` directly rather than the `config` export. Both are updated when `reloadConfig()` is called, but only the `config` fields are explicitly reassigned in `reloadConfig()`.
+Features like change notifications, channel cleaning, poll duration, branding, stratbook permissions, and Discord OAuth use `loadSettings()` directly rather than the `config` export. Both are updated when `reloadConfig()` is called, but only the `config` fields are explicitly reassigned in `reloadConfig()`.
 
 ### Branding Configuration
 The `branding` settings group allows customizing the team identity in the dashboard:
@@ -523,9 +530,25 @@ When a player's availability or a schedule reason changes, the bot can automatic
 - `POST /api/actions/clear-channel` - Clear channel messages (admin)
 - `POST /api/actions/pin-message` - Send and pin message (admin)
 
-### Stratbook
-- `GET /api/stratbook` - List strategies (query params: map, side). Response includes `configured` boolean flag
-- `GET /api/stratbook/:pageId` - Get single strategy content (recursive Notion blocks with children)
+### Strategies
+- `GET /api/strategies` - List strategies (query params: map, side, folderId)
+- `GET /api/strategies/:id` - Get single strategy by ID
+- `POST /api/strategies` - Create strategy (auth, validated)
+- `PUT /api/strategies/:id` - Update strategy (auth, validated)
+- `DELETE /api/strategies/:id` - Delete strategy (auth)
+- `POST /api/strategies/duplicate/:id` - Duplicate strategy (auth)
+- `PUT /api/strategies/move/:id` - Move strategy to folder (auth)
+- `POST /api/strategies/upload` - Upload image (auth, max 5MB)
+- `GET /api/strategies/uploads/:filename` - Serve uploaded images
+- `POST /api/strategies/:id/files` - Upload PDF (auth, max 10MB)
+- `GET /api/strategies/files/:filename` - Serve PDF files
+- `DELETE /api/strategies/files/:fileId` - Delete PDF file (auth)
+- `GET /api/strategies/folders` - List folders
+- `POST /api/strategies/folders` - Create folder (auth)
+- `PUT /api/strategies/folders/:id` - Rename folder (auth)
+- `PUT /api/strategies/folders/:id/color` - Update folder color (auth)
+- `DELETE /api/strategies/folders/:id` - Delete folder (auth)
+- `POST /api/strategies/folders/:id/duplicate` - Duplicate folder (auth)
 
 ### Discord & Admin
 - `GET /api/discord/channels` - List text channels (admin)
@@ -566,6 +589,7 @@ Data access is abstracted into repositories (sole data layer, no legacy alternat
 - `recurring-availability.repository.ts` - Recurring weekly availability CRUD, day-of-week queries, upsert
 - `schedule.repository.ts` - Schedule CRUD, `addMissingDays()`, `syncUserMappingsToSchedules()`, `applyRecurringToEmptySchedules()`, `clearRecurringFromSchedules()`, pagination
 - `scrim.repository.ts` - Scrim CRUD, stats aggregation, date range queries
+- `strategy.repository.ts` - Strategy CRUD, folder hierarchy, image/PDF file management
 - `user-mapping.repository.ts` - Roster CRUD with auto-`sortOrder` calculation and reordering on role changes
 
 ### Services Layer
@@ -574,7 +598,7 @@ Services provide business logic on top of repositories:
 - `recurring-availability.service.ts` - Recurring availability CRUD with authorization (users manage own entries only)
 - `schedule.service.ts` - Schedule analysis, availability validation (users can only edit their own unless admin), pagination
 - `scrim.service.ts` - Scrim CRUD, stats, recent scrims with date sorting
-- `stratbook.service.ts` - Fetches strategies from Notion API, caches results for 60 seconds, filters by map/side (server-side); tags/agents available in response for client-side filtering
+- `strategy.service.ts` - Strategy CRUD with permission checks (`stratbook.editPermission` setting), folder management, file upload handling
 - `user-mapping.service.ts` - Roster CRUD with automatic `syncUserMappingsToSchedules()` after changes
 
 Services are class-based with singleton exports (e.g., `export const scheduleService = new ScheduleService()`).
@@ -584,7 +608,7 @@ Services are class-based with singleton exports (e.g., `export const scheduleSer
 - **CORS** - Whitelist: localhost:3000, Railway URLs, custom DASHBOARD_URL
 - **Rate limiting** - `strictApiLimiter` on settings endpoints, `loginLimiter` on auth, general `apiLimiter` on all `/api`
 - **Input sanitization** - `sanitizeString()` removes `<>`, `javascript:`, event handlers
-- **Validation** - Joi schemas with `validate()` middleware on: user mappings, scrims, settings, polls, notifications, branding
+- **Validation** - Joi schemas with `validate()` middleware on: user mappings, scrims, settings, polls, notifications, branding, strategies
 - Poll duration validated as integer range 1-10080 minutes (free-form, not restricted to Discord-compatible values)
 - No caching headers on API responses
 
@@ -627,9 +651,9 @@ Components are organized by domain/role:
   - `layout/` - User layout wrapper and sidebar
   - `pages/` - User content pages (user-schedule, user-availability, user-recurring, user-absences)
 - `components/auth/` - Authentication UI
-- `components/shared/` - Shared across admin/user (agent-picker, matches, statistics, stratbook, notion-renderer, nav-user, sidebar-branding-header, sidebar-nav-group)
+- `components/shared/` - Shared across admin/user (agent-picker, matches, statistics, stratbook, strategy-editor, strategy-viewer, strategy-form, pdf-preview-dialog, nav-user, sidebar-branding-header, sidebar-nav-group)
 - `components/theme/` - Theme system (theme-toggle, theme-provider)
-- `components/ui/` - Radix UI primitives (30 components including chart)
+- `components/ui/` - Radix UI primitives (31 components including chart, context-menu)
 
 Admin pages export from `components/admin/pages/index.ts` which also re-exports shared components (Matches, AgentSelector, Statistics, Stratbook) for convenience.
 
@@ -649,33 +673,22 @@ The `Matches` component (`components/shared/matches.tsx`) provides match history
 - **Filtering** - Filter by date range and opponent
 - Used in both admin dashboard (Matches tab) and user portal (Matches tab)
 
-### Stratbook (Notion Integration)
-The `Stratbook` component (`components/shared/stratbook.tsx`) provides a read-only strategy viewer powered by Notion:
-- **Strategy List** - Fetches strategies from a Notion database with hardcoded property names: `Name` (title), `Map` (select), `Side` (select), `Tags` (multi_select), `Agents` (multi_select)
-- **Filtering** - Filter by map and side dropdowns; search queries name, tags, and agents (case-insensitive). Clear Filters button + "Showing X of Y strats" count
-- **Strategy Detail View** - Renders full Notion page content using `NotionRenderer` component
-- **Prefetch on Hover** - Hovering a strat card prefetches its content and caches it; file/PDF URLs are also prefetched via `<link rel="prefetch">`
-- **Visual Enhancements** - Map background images on cards, agent icons (`/assets/agents/`), side badges (Swords/Shield icons, red/blue), color-coded tags
+### Stratbook (Local Strategy Management)
+The strategy system uses a local PostgreSQL database with a TipTap rich text editor (replaced the previous Notion integration):
+- **Database Tables**: `strategy_folders` (hierarchical folders with colors), `strategies` (TipTap JSON content, map/side/tags/agents, folder assignment), `strategy_images` (uploaded image attachments), `strategy_files` (uploaded PDF attachments)
+- **Strategy List** (`components/shared/stratbook.tsx`) - Fetches from `/api/strategies`, supports folder hierarchy navigation with breadcrumbs
+- **Filtering** - Filter by map and side (server-side via query params); search by title, tags, and agents (client-side, case-insensitive). Folder navigation via sidebar or breadcrumbs
+- **Strategy Editor** (`components/shared/strategy-editor.tsx`) - TipTap WYSIWYG editor with image resizing, link editing, text alignment, code blocks with syntax highlighting (via lowlight)
+- **Strategy Viewer** (`components/shared/strategy-viewer.tsx`) - Read-only rendering using TipTap editor in non-editable mode
+- **Strategy Form** (`components/shared/strategy-form.tsx`) - Create/edit form with map, side, tags, agents fields
+- **File Uploads** - Images (max 5MB) and PDFs (max 10MB) stored locally via multer, served from `/api/strategies/uploads/` and `/api/strategies/files/`
+- **Folder Management** - Create, rename, color-code, duplicate, and delete folders; move strategies between folders
+- **Edit Permissions** - Controlled by `stratbook.editPermission` setting: `'admin'` (default) or `'all'` (any authenticated user)
+- **Visual Enhancements** - Map background images on cards, agent icons (`/assets/agents/`), side badges, color-coded tags
 - **Agent Name Normalization** - `normalizeAgentName()` converts "KAY/O" → "KAYO" to match asset filenames
-- **Caching** - 60-second in-memory cache on the backend (keyed by `strats:map:side` and `strat-content:pageId`)
-- **Graceful Degradation** - API returns `{ configured: false }` when Notion env vars are missing; frontend shows informational message
 - **Breadcrumb Navigation** - Uses `BreadcrumbContext` (`lib/breadcrumb-context.tsx`) for sub-page navigation
 - Available in both admin dashboard (Stratbook tab) and user portal (Stratbook tab)
-- Requires `NOTION_API_KEY` and `NOTION_STRATS_DB_ID` environment variables
-- **Note**: Tag filtering is client-side only (search); the API only filters by map and side server-side via Notion query
-
-### NotionRenderer (`components/shared/notion-renderer.tsx`)
-Renders Notion API blocks into React components. Supports 29+ block types:
-
-**Text & Structure:** `paragraph`, `heading_1/2/3` (with toggleable children support), `quote`, `divider`, `equation`, `callout` (emoji/image icons, colored backgrounds)
-**Lists:** `bulleted_list_item`, `numbered_list_item`, `to_do` (checkbox state) — consecutive items auto-grouped into `<ul>`/`<ol>`
-**Media:** `image` (with captions), `video` (YouTube/Vimeo embed detection with 16:9 responsive iframe, fallback to native `<video>`), `audio` (native player), `file` (download link), `pdf` (interactive collapsible viewer with toolbar: open in tab, download, expand/collapse)
-**Code:** `code` (language label badge, caption support)
-**Embeds:** `embed` (sandboxed iframe), `bookmark` / `link_preview` (Google favicon fetching)
-**Layout:** `column_list` + `column` (responsive flex, stacks on mobile), `table` + `table_row` (column/row header flags)
-**Sub-pages:** `child_page`, `child_database`, `synced_block`, `link_to_page`, `table_of_contents`, `breadcrumb`
-**Rich text:** bold, italic, strikethrough, underline, inline code, hyperlinks, 9 text colors + 9 background colors mapped to Tailwind classes
-**Fallback:** Unsupported blocks render as dashed border box with block type name
+- No external service dependencies (fully self-contained)
 
 ### Discord Avatar Integration
 User avatars from Discord are displayed throughout the dashboard:
@@ -801,10 +814,6 @@ Required .env variables:
 Optional for OAuth:
 - `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `DISCORD_REDIRECT_URI`
 
-Optional for Notion Stratbook:
-- `NOTION_API_KEY` - Notion API key for stratbook feature
-- `NOTION_STRATS_DB_ID` - Notion database ID containing strategies
-
 Optional for CORS/URLs:
 - `DASHBOARD_URL` - Dashboard URL for production CORS (defaults to localhost:3000)
 - `BOT_API_URL` - Backend API URL for dashboard server-side proxy (defaults to http://localhost:3001)
@@ -853,6 +862,10 @@ curl -X POST http://localhost:3001/api/actions/remind \
 - **scrims** - Match history (opponent, result, score_us, score_them, map, match_type, our_agents, their_agents as comma-separated strings, vod_url, notes)
 - **absences** - Player absence periods (user_id, start_date, end_date in DD.MM.YYYY, reason)
 - **recurring_availabilities** - Weekly recurring availability patterns (user_id, day_of_week 0-6, availability, active flag, unique on [userId, dayOfWeek])
+- **strategy_folders** - Folder hierarchy for strategies (name, color, parent_id for nesting)
+- **strategies** - Strategy content (title, map, side, tags/agents as comma-separated, content as TipTap JSON, folder_id)
+- **strategy_images** - Image attachments (strategy_id, filename, original_name, mime_type, size)
+- **strategy_files** - PDF attachments (strategy_id, filename, original_name, mime_type, size)
 - **settings** - Key-value store for bot configuration (dot-notation keys)
 
 ### Enums
