@@ -100,10 +100,10 @@ The main process follows this startup sequence:
 2. Initialize database if empty (create default settings, user mappings)
 3. Load settings from PostgreSQL `settings` table
 4. Seed next 14 days of schedule entries (ensures continuous availability)
-5. Start Discord bot (src/bot/client.ts)
-6. Wait for bot 'clientReady' event
-7. Start scheduler (node-cron jobs for daily posts and reminders)
-8. Start Express API server on port 3001
+5. Apply recurring availability to empty schedule entries (`applyRecurringToEmptySchedules()`)
+6. Start Express API server on port 3001 (early, so healthchecks pass while bot connects)
+7. Start Discord bot (src/bot/client.ts) + wait for 'clientReady' event
+8. Start scheduler (node-cron jobs for daily posts and reminders)
 
 Graceful shutdown is handled via SIGINT/SIGTERM handlers that stop the scheduler and destroy the Discord client.
 
@@ -564,7 +564,7 @@ Data access is abstracted into repositories (sole data layer, no legacy alternat
 - `database-initializer.ts` - First-run setup: creates tables, seeds default settings and schedules
 - `absence.repository.ts` - Absence CRUD, `isUserAbsentOnDate()`, `getAbsentUserIdsForDate()`, `getAbsentUserIdsForDates()` (batch)
 - `recurring-availability.repository.ts` - Recurring weekly availability CRUD, day-of-week queries, upsert
-- `schedule.repository.ts` - Schedule CRUD, `addMissingDays()`, `syncUserMappingsToSchedules()`, pagination
+- `schedule.repository.ts` - Schedule CRUD, `addMissingDays()`, `syncUserMappingsToSchedules()`, `applyRecurringToEmptySchedules()`, `clearRecurringFromSchedules()`, pagination
 - `scrim.repository.ts` - Scrim CRUD, stats aggregation, date range queries
 - `user-mapping.repository.ts` - Roster CRUD with auto-`sortOrder` calculation and reordering on role changes
 
