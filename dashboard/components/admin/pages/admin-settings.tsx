@@ -630,10 +630,10 @@ export function Settings() {
                 })
               }
             >
-              <SelectTrigger id="editPermission">
+              <SelectTrigger id="editPermission" className={cn("w-full", microInteractions.focusRing)}>
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent position="popper">
                 <SelectItem value="admin">Only Admins</SelectItem>
                 <SelectItem value="all">All Users</SelectItem>
               </SelectContent>
