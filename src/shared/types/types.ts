@@ -72,6 +72,8 @@ export interface ScrimEntry {
   theirAgents: string[]; // Enemy team composition (5 agents, optional)
   vodUrl: string; // YouTube URL for VOD review
   notes: string;
+  trackerUrl: string; // Tracker.gg match URL
+  trackerData: any | null; // Parsed match data from HenrikDev API
   createdAt: string; // ISO timestamp
   updatedAt: string; // ISO timestamp
 }

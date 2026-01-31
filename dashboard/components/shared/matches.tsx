@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Loader2, Plus, Edit, Trash2, TrendingUp, Trophy, Target, X, LayoutGrid, Table as TableIcon, Video, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Loader2, Plus, Edit, Trash2, TrendingUp, Trophy, Target, X, LayoutGrid, Table as TableIcon, Video, ArrowUpDown, ArrowUp, ArrowDown, ExternalLink, Download, ChevronDown, ChevronUp } from "lucide-react";
 import Image from 'next/image';
 import { toast } from "sonner";
 import { AgentSelector } from "./agent-picker";
@@ -54,6 +54,43 @@ function getTodayDate(): string {
   return `${day}.${month}.${year}`;
 }
 
+interface TrackerPlayerStats {
+  name: string;
+  tag: string;
+  team: string;
+  agent: string;
+  score: number;
+  kills: number;
+  deaths: number;
+  assists: number;
+  kd: number;
+  headshots: number;
+  bodyshots: number;
+  legshots: number;
+  headshotPct: number;
+  firstBloods: number;
+  firstDeaths: number;
+  multiKills: number;
+  plants: number;
+  defuses: number;
+  damagePerRound: number;
+  rank?: string;
+}
+
+interface TrackerMatchData {
+  matchId: string;
+  map: string;
+  mode: string;
+  startedAt: string;
+  duration: number;
+  roundsPlayed: number;
+  teams: {
+    red: { name: string; roundsWon: number; roundsLost: number; hasWon: boolean };
+    blue: { name: string; roundsWon: number; roundsLost: number; hasWon: boolean };
+  };
+  players: TrackerPlayerStats[];
+}
+
 interface ScrimEntry {
   id: string;
   date: string;
@@ -67,6 +104,8 @@ interface ScrimEntry {
   theirAgents: string[];
   vodUrl: string;
   notes: string;
+  trackerUrl: string;
+  trackerData: TrackerMatchData | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -84,6 +123,95 @@ interface ScrimStats {
       losses: number;
     };
   };
+}
+
+function ScoreboardTable({ trackerData }: { trackerData: TrackerMatchData }) {
+  const teams = ['Blue', 'Red'];
+
+  return (
+    <div className="space-y-4">
+      {/* Round Score */}
+      <div className="flex items-center justify-center gap-4 text-sm">
+        <span className="text-blue-400 font-semibold">Blue {trackerData.teams.blue.roundsWon}</span>
+        <span className="text-white/40">-</span>
+        <span className="text-red-400 font-semibold">{trackerData.teams.red.roundsWon} Red</span>
+        <span className="text-white/40 text-xs">({trackerData.roundsPlayed} rounds)</span>
+      </div>
+
+      {teams.map((team) => {
+        const teamPlayers = trackerData.players
+          .filter(p => p.team === team)
+          .sort((a, b) => b.score - a.score);
+
+        if (teamPlayers.length === 0) return null;
+
+        const teamColor = team === 'Blue' ? 'blue' : 'red';
+        const teamData = team === 'Blue' ? trackerData.teams.blue : trackerData.teams.red;
+
+        return (
+          <div key={team}>
+            <div className={`text-xs font-semibold mb-1 text-${teamColor}-400 flex items-center gap-2`}>
+              {team} Team {teamData.hasWon && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Winner</Badge>}
+            </div>
+            <div className="rounded-md border border-white/10 overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-white/10 text-white/50">
+                    <th className="text-left px-2 py-1.5 font-medium">Player</th>
+                    <th className="text-left px-2 py-1.5 font-medium">Agent</th>
+                    <th className="text-center px-2 py-1.5 font-medium">ACS</th>
+                    <th className="text-center px-2 py-1.5 font-medium">K</th>
+                    <th className="text-center px-2 py-1.5 font-medium">D</th>
+                    <th className="text-center px-2 py-1.5 font-medium">A</th>
+                    <th className="text-center px-2 py-1.5 font-medium">K/D</th>
+                    <th className="text-center px-2 py-1.5 font-medium hidden sm:table-cell">HS%</th>
+                    <th className="text-center px-2 py-1.5 font-medium hidden md:table-cell">ADR</th>
+                    <th className="text-center px-2 py-1.5 font-medium hidden md:table-cell">FB</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {teamPlayers.map((player, idx) => {
+                    const acs = trackerData.roundsPlayed > 0
+                      ? Math.round(player.score / trackerData.roundsPlayed)
+                      : 0;
+                    return (
+                      <tr key={idx} className="border-b border-white/5 hover:bg-white/5">
+                        <td className="px-2 py-1.5 text-white/90 font-medium whitespace-nowrap">
+                          {player.name}
+                          <span className="text-white/30">#{player.tag}</span>
+                        </td>
+                        <td className="px-2 py-1.5">
+                          <div className="flex items-center gap-1">
+                            <img
+                              src={`/assets/agents/${player.agent}_icon.webp`}
+                              alt={player.agent}
+                              className="w-4 h-4 rounded"
+                              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                            />
+                            <span className="text-white/60 hidden sm:inline">{player.agent}</span>
+                          </div>
+                        </td>
+                        <td className="text-center px-2 py-1.5 text-white/90 font-semibold">{acs}</td>
+                        <td className="text-center px-2 py-1.5 text-green-400">{player.kills}</td>
+                        <td className="text-center px-2 py-1.5 text-red-400">{player.deaths}</td>
+                        <td className="text-center px-2 py-1.5 text-white/60">{player.assists}</td>
+                        <td className={`text-center px-2 py-1.5 font-medium ${player.kd >= 1 ? 'text-green-400' : 'text-red-400'}`}>
+                          {player.kd.toFixed(2)}
+                        </td>
+                        <td className="text-center px-2 py-1.5 text-white/60 hidden sm:table-cell">{player.headshotPct}%</td>
+                        <td className="text-center px-2 py-1.5 text-white/60 hidden md:table-cell">{Math.round(player.damagePerRound)}</td>
+                        <td className="text-center px-2 py-1.5 text-white/60 hidden md:table-cell">{player.firstBloods}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 export function Matches() {
@@ -117,7 +245,11 @@ export function Matches() {
     theirAgents: [] as string[],
     vodUrl: '',
     notes: '',
+    trackerUrl: '',
+    trackerData: null as TrackerMatchData | null,
   });
+  const [fetchingTracker, setFetchingTracker] = useState(false);
+  const [expandedScoreboard, setExpandedScoreboard] = useState<string | null>(null);
 
   useEffect(() => {
     fetchScrims();
@@ -193,6 +325,8 @@ export function Matches() {
         theirAgents: formData.theirAgents,
         vodUrl: formData.vodUrl,
         notes: formData.notes,
+        trackerUrl: formData.trackerUrl,
+        trackerData: formData.trackerData,
       };
 
       // Import auth helpers
@@ -276,6 +410,8 @@ export function Matches() {
       theirAgents: scrim.theirAgents || [],
       vodUrl: scrim.vodUrl || '',
       notes: scrim.notes,
+      trackerUrl: scrim.trackerUrl || '',
+      trackerData: scrim.trackerData || null,
     });
     setIsAddDialogOpen(true);
   };
@@ -293,7 +429,42 @@ export function Matches() {
       theirAgents: [],
       vodUrl: '',
       notes: '',
+      trackerUrl: '',
+      trackerData: null,
     });
+  };
+
+  const fetchTrackerData = async () => {
+    if (!formData.trackerUrl) {
+      toast.error('Please enter a tracker.gg URL first');
+      return;
+    }
+
+    setFetchingTracker(true);
+    try {
+      const { getAuthHeaders } = await import('@/lib/auth');
+      const response = await fetch(`${BOT_API_URL}/api/scrims/tracker/fetch`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders(),
+        },
+        body: JSON.stringify({ trackerUrl: formData.trackerUrl }),
+      });
+
+      const data = await response.json();
+      if (data.success && data.trackerData) {
+        setFormData(prev => ({ ...prev, trackerData: data.trackerData }));
+        toast.success('Match data imported successfully!');
+      } else {
+        toast.error(data.error || 'Failed to fetch match data');
+      }
+    } catch (error) {
+      console.error('Error fetching tracker data:', error);
+      toast.error('Failed to fetch match data');
+    } finally {
+      setFetchingTracker(false);
+    }
   };
 
   const handleDialogOpenChange = (open: boolean) => {
@@ -666,6 +837,49 @@ export function Matches() {
                       />
                     </div>
                     
+                    {/* Tracker.gg Section */}
+                    <div className="space-y-4 pt-2 border-t">
+                      <div className="space-y-2">
+                        <Label htmlFor="trackerUrl">Tracker.gg Link</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            id="trackerUrl"
+                            type="url"
+                            placeholder="https://tracker.gg/valorant/match/..."
+                            value={formData.trackerUrl}
+                            onChange={(e) => setFormData({ ...formData, trackerUrl: e.target.value })}
+                            className={cn("flex-1", microInteractions.focusRing)}
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={fetchTrackerData}
+                            disabled={fetchingTracker || !formData.trackerUrl}
+                            className="shrink-0"
+                          >
+                            {fetchingTracker ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Download className="h-4 w-4" />
+                            )}
+                            <span className="ml-1 hidden sm:inline">Fetch</span>
+                          </Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Paste a tracker.gg match link to auto-import the scoreboard
+                        </p>
+                        {formData.trackerData && (
+                          <div className="rounded-md border bg-muted/50 p-3 text-sm">
+                            <div className="flex items-center gap-2 text-green-600 dark:text-green-400 font-medium">
+                              <Trophy className="h-4 w-4" />
+                              Scoreboard data loaded ({formData.trackerData.players.length} players, {formData.trackerData.roundsPlayed} rounds on {formData.trackerData.map})
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
                     {/* Additional Info Section */}
                     <div className="space-y-4 pt-2 border-t">
                       <div className="space-y-2">
@@ -1091,6 +1305,36 @@ export function Matches() {
                                   style={{ position: 'relative', zIndex: 20 }}
                                 />
                               </div>
+                            </AccordionContent>
+                          </AccordionItem>
+                        </Accordion>
+                      </div>
+                    )}
+
+                    {/* Scoreboard Accordion */}
+                    {scrim.trackerData && (
+                      <div className="relative z-10">
+                        <Accordion type="single" collapsible className={`border-t border-white/20 ${!vodId ? '' : ''}`}>
+                          <AccordionItem value="scoreboard" className="border-0">
+                            <AccordionTrigger className="px-4 py-3 hover:bg-white/10 text-white/70">
+                              <div className="flex items-center gap-2">
+                                <Target className="h-4 w-4" />
+                                <span className="font-medium">Scoreboard</span>
+                                {scrim.trackerUrl && (
+                                  <a
+                                    href={scrim.trackerUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="ml-1 opacity-60 hover:opacity-100"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <ExternalLink className="h-3 w-3" />
+                                  </a>
+                                )}
+                              </div>
+                            </AccordionTrigger>
+                            <AccordionContent className="px-4 pb-4">
+                              <ScoreboardTable trackerData={scrim.trackerData} />
                             </AccordionContent>
                           </AccordionItem>
                         </Accordion>

@@ -5,12 +5,8 @@ function generateScrimId(): string {
   return `scrim_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
 
-export async function getAllScrims(): Promise<ScrimEntry[]> {
-  const scrims = await prisma.scrim.findMany({
-    orderBy: { createdAt: 'desc' },
-  });
-
-  return scrims.map(s => ({
+function mapScrimToEntry(s: any): ScrimEntry {
+  return {
     id: s.id,
     date: s.date,
     opponent: s.opponent,
@@ -23,9 +19,19 @@ export async function getAllScrims(): Promise<ScrimEntry[]> {
     theirAgents: s.theirAgents.split(',').filter(Boolean),
     vodUrl: s.vodUrl,
     notes: s.notes,
+    trackerUrl: s.trackerUrl || '',
+    trackerData: s.trackerData || null,
     createdAt: s.createdAt.toISOString(),
     updatedAt: s.updatedAt.toISOString(),
-  }));
+  };
+}
+
+export async function getAllScrims(): Promise<ScrimEntry[]> {
+  const scrims = await prisma.scrim.findMany({
+    orderBy: { createdAt: 'desc' },
+  });
+
+  return scrims.map(s => mapScrimToEntry(s));
 }
 
 export async function getScrimById(id: string): Promise<ScrimEntry | null> {
@@ -34,23 +40,7 @@ export async function getScrimById(id: string): Promise<ScrimEntry | null> {
   });
 
   if (!scrim) return null;
-
-  return {
-    id: scrim.id,
-    date: scrim.date,
-    opponent: scrim.opponent,
-    result: scrim.result.toLowerCase() as 'win' | 'loss' | 'draw',
-    scoreUs: scrim.scoreUs,
-    scoreThem: scrim.scoreThem,
-    map: scrim.map,
-    matchType: scrim.matchType,
-    ourAgents: scrim.ourAgents.split(',').filter(Boolean),
-    theirAgents: scrim.theirAgents.split(',').filter(Boolean),
-    vodUrl: scrim.vodUrl,
-    notes: scrim.notes,
-    createdAt: scrim.createdAt.toISOString(),
-    updatedAt: scrim.updatedAt.toISOString(),
-  };
+  return mapScrimToEntry(scrim);
 }
 
 export async function addScrim(scrim: Omit<ScrimEntry, 'id' | 'createdAt' | 'updatedAt'>): Promise<ScrimEntry> {
@@ -70,27 +60,13 @@ export async function addScrim(scrim: Omit<ScrimEntry, 'id' | 'createdAt' | 'upd
       theirAgents: scrim.theirAgents.join(','),
       vodUrl: scrim.vodUrl,
       notes: scrim.notes,
+      trackerUrl: scrim.trackerUrl || '',
+      trackerData: scrim.trackerData || undefined,
     },
   });
 
   console.log('Added scrim:', newScrim.id);
-
-  return {
-    id: newScrim.id,
-    date: newScrim.date,
-    opponent: newScrim.opponent,
-    result: newScrim.result.toLowerCase() as 'win' | 'loss' | 'draw',
-    scoreUs: newScrim.scoreUs,
-    scoreThem: newScrim.scoreThem,
-    map: newScrim.map,
-    matchType: newScrim.matchType,
-    ourAgents: newScrim.ourAgents.split(',').filter(Boolean),
-    theirAgents: newScrim.theirAgents.split(',').filter(Boolean),
-    vodUrl: newScrim.vodUrl,
-    notes: newScrim.notes,
-    createdAt: newScrim.createdAt.toISOString(),
-    updatedAt: newScrim.updatedAt.toISOString(),
-  };
+  return mapScrimToEntry(newScrim);
 }
 
 export async function updateScrim(id: string, updates: Partial<Omit<ScrimEntry, 'id' | 'createdAt'>>): Promise<ScrimEntry | null> {
@@ -108,6 +84,8 @@ export async function updateScrim(id: string, updates: Partial<Omit<ScrimEntry, 
     if (updates.theirAgents !== undefined) updateData.theirAgents = updates.theirAgents.join(',');
     if (updates.vodUrl !== undefined) updateData.vodUrl = updates.vodUrl;
     if (updates.notes !== undefined) updateData.notes = updates.notes;
+    if (updates.trackerUrl !== undefined) updateData.trackerUrl = updates.trackerUrl;
+    if (updates.trackerData !== undefined) updateData.trackerData = updates.trackerData;
 
     const updatedScrim = await prisma.scrim.update({
       where: { id },
@@ -115,23 +93,7 @@ export async function updateScrim(id: string, updates: Partial<Omit<ScrimEntry, 
     });
 
     console.log('Updated scrim:', id);
-
-    return {
-      id: updatedScrim.id,
-      date: updatedScrim.date,
-      opponent: updatedScrim.opponent,
-      result: updatedScrim.result.toLowerCase() as 'win' | 'loss' | 'draw',
-      scoreUs: updatedScrim.scoreUs,
-      scoreThem: updatedScrim.scoreThem,
-      map: updatedScrim.map,
-      matchType: updatedScrim.matchType,
-      ourAgents: updatedScrim.ourAgents.split(',').filter(Boolean),
-      theirAgents: updatedScrim.theirAgents.split(',').filter(Boolean),
-      vodUrl: updatedScrim.vodUrl,
-      notes: updatedScrim.notes,
-      createdAt: updatedScrim.createdAt.toISOString(),
-      updatedAt: updatedScrim.updatedAt.toISOString(),
-    };
+    return mapScrimToEntry(updatedScrim);
   } catch (error) {
     console.error('Error updating scrim:', error);
     return null;

@@ -645,6 +645,68 @@ export function Settings() {
         </CardContent>
       </Card>
 
+      <Card className={stagger(4, 'slow', 'slideUpScale')}>
+        <CardHeader>
+          <CardTitle>Tracker.gg Integration</CardTitle>
+          <CardDescription>
+            Connect to the HenrikDev Valorant API to automatically import match scoreboards from tracker.gg links
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="henrikApiKey">HenrikDev API Key</Label>
+            <Input
+              id="henrikApiKey"
+              type="password"
+              value={settings.tracker?.henrikApiKey || ''}
+              onChange={(e) =>
+                setSettings({
+                  ...settings,
+                  tracker: { ...settings.tracker, henrikApiKey: e.target.value, region: settings.tracker?.region || 'eu' },
+                })
+              }
+              placeholder="Your HenrikDev API key"
+              className={microInteractions.focusRing}
+            />
+            <p className="text-sm text-muted-foreground">
+              Get a free API key at{' '}
+              <a href="https://docs.henrikdev.xyz" target="_blank" rel="noopener noreferrer" className="text-primary underline">
+                docs.henrikdev.xyz
+              </a>
+              {' '}(join their Discord to generate a key)
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="trackerRegion">Region</Label>
+            <Select
+              value={settings.tracker?.region || 'eu'}
+              onValueChange={(value) =>
+                setSettings({
+                  ...settings,
+                  tracker: { ...settings.tracker, henrikApiKey: settings.tracker?.henrikApiKey || '', region: value },
+                })
+              }
+            >
+              <SelectTrigger id="trackerRegion" className={cn("w-full", microInteractions.focusRing)}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent position="popper">
+                <SelectItem value="eu">Europe (EU)</SelectItem>
+                <SelectItem value="na">North America (NA)</SelectItem>
+                <SelectItem value="ap">Asia Pacific (AP)</SelectItem>
+                <SelectItem value="kr">Korea (KR)</SelectItem>
+                <SelectItem value="br">Brazil (BR)</SelectItem>
+                <SelectItem value="latam">Latin America (LATAM)</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-sm text-muted-foreground">
+              Your Valorant server region for match lookups
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="flex justify-end">
         <Button
           onClick={saveSettings}

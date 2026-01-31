@@ -27,8 +27,10 @@ export async function handleAddScrimCommand(interaction: ChatInputCommandInterac
       matchType: matchType || 'Scrim',
       ourAgents: [], // Discord bot doesn't support agent selection yet
       theirAgents: [], // Discord bot doesn't support agent selection yet
-      vodUrl: '', // Discord bot doesn't support VOD URL yet
+      vodUrl: '',
       notes,
+      trackerUrl: '',
+      trackerData: null,
     });
     
     const resultEmoji = result === 'win' ? '✅' : result === 'loss' ? '❌' : '➖';

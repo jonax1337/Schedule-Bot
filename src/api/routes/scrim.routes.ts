@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { verifyToken, requireAdmin, optionalAuth, AuthRequest } from '../../shared/middleware/auth.js';
 import { validate, addScrimSchema, updateScrimSchema, isValidDateFormat } from '../../shared/middleware/validation.js';
 import { getAllScrims, addScrim, updateScrim, deleteScrim, getScrimById, getScrimStats, getScrimsByDateRange } from '../../repositories/scrim.repository.js';
+import { extractMatchId, fetchTrackerData } from '../../services/tracker.service.js';
+import { loadSettings } from '../../shared/utils/settingsManager.js';
 import { logger } from '../../shared/utils/logger.js';
 
 const router = Router();
@@ -33,6 +35,37 @@ router.get('/range/:startDate/:endDate', optionalAuth, async (req: AuthRequest, 
   } catch (error) {
     logger.error('Error fetching scrims by range', error instanceof Error ? error.message : String(error));
     res.status(500).json({ success: false, error: 'Failed to fetch scrims' });
+  }
+});
+
+// Fetch tracker data from HenrikDev API (must be before /:id route)
+router.post('/tracker/fetch', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
+  try {
+    const { trackerUrl } = req.body;
+    if (!trackerUrl) {
+      return res.status(400).json({ success: false, error: 'trackerUrl is required' });
+    }
+
+    const matchId = extractMatchId(trackerUrl);
+    if (!matchId) {
+      return res.status(400).json({ success: false, error: 'Invalid tracker.gg URL. Expected format: https://tracker.gg/valorant/match/<match-id>' });
+    }
+
+    const settings = loadSettings();
+    if (!settings.tracker.henrikApiKey) {
+      return res.status(400).json({ success: false, error: 'HenrikDev API key not configured. Set it in Settings > Tracker.gg Integration.' });
+    }
+
+    const data = await fetchTrackerData(matchId, settings.tracker.henrikApiKey, settings.tracker.region);
+    if (!data) {
+      return res.status(502).json({ success: false, error: 'Failed to fetch match data from API. Check your API key and try again.' });
+    }
+
+    logger.success('Tracker data fetched', `Match ${matchId} by ${req.user?.username}`);
+    res.json({ success: true, trackerData: data });
+  } catch (error) {
+    logger.error('Failed to fetch tracker data', error instanceof Error ? error.message : String(error));
+    res.status(500).json({ success: false, error: 'Failed to fetch tracker data' });
   }
 });
 

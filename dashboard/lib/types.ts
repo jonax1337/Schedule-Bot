@@ -23,6 +23,10 @@ export interface Settings {
   stratbook: {
     editPermission: 'admin' | 'all';
   };
+  tracker: {
+    henrikApiKey: string;
+    region: string;
+  };
   admin?: {
     username: string;
     password: string;

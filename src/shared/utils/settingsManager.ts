@@ -19,6 +19,8 @@ function flattenSettings(settings: Settings): Record<string, string | number | b
     'branding.tagline': settings.branding.tagline || DEFAULT_SETTINGS.branding.tagline!,
     'branding.logoUrl': settings.branding.logoUrl || '',
     'stratbook.editPermission': settings.stratbook.editPermission,
+    'tracker.henrikApiKey': settings.tracker.henrikApiKey,
+    'tracker.region': settings.tracker.region,
   };
 }
 
@@ -47,6 +49,10 @@ export interface Settings {
   stratbook: {
     editPermission: 'admin' | 'all';
   };
+  tracker: {
+    henrikApiKey: string;
+    region: string;
+  };
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -73,6 +79,10 @@ const DEFAULT_SETTINGS: Settings = {
   },
   stratbook: {
     editPermission: 'admin',
+  },
+  tracker: {
+    henrikApiKey: '',
+    region: 'eu',
   },
 };
 
@@ -107,6 +117,7 @@ export async function loadSettingsAsync(): Promise<Settings> {
         scheduling: DEFAULT_SETTINGS.scheduling,
         branding: DEFAULT_SETTINGS.branding,
         stratbook: DEFAULT_SETTINGS.stratbook,
+        tracker: DEFAULT_SETTINGS.tracker,
       };
 
       // Save default settings to PostgreSQL
@@ -153,6 +164,10 @@ export async function loadSettingsAsync(): Promise<Settings> {
       },
       stratbook: {
         editPermission: (settingsMap['stratbook.editPermission'] === 'all' ? 'all' : 'admin') as 'admin' | 'all',
+      },
+      tracker: {
+        henrikApiKey: settingsMap['tracker.henrikApiKey'] || DEFAULT_SETTINGS.tracker.henrikApiKey,
+        region: settingsMap['tracker.region'] || DEFAULT_SETTINGS.tracker.region,
       },
     };
     return cachedSettings;

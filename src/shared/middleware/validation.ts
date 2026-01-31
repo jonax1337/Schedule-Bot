@@ -23,6 +23,8 @@ export const addScrimSchema = Joi.object({
   theirAgents: Joi.array().items(Joi.string().max(50)).max(5),
   vodUrl: Joi.string().uri({ scheme: ['http', 'https'] }).allow(''),
   notes: Joi.string().max(1000).allow(''),
+  trackerUrl: Joi.string().uri({ scheme: ['http', 'https'] }).allow(''),
+  trackerData: Joi.object().allow(null),
 });
 
 export const updateScrimSchema = Joi.object({
@@ -37,6 +39,8 @@ export const updateScrimSchema = Joi.object({
   theirAgents: Joi.array().items(Joi.string().max(50)).max(5),
   vodUrl: Joi.string().uri({ scheme: ['http', 'https'] }).allow(''),
   notes: Joi.string().max(1000).allow(''),
+  trackerUrl: Joi.string().uri({ scheme: ['http', 'https'] }).allow(''),
+  trackerData: Joi.object().allow(null),
 });
 
 export const createPollSchema = Joi.object({
@@ -77,6 +81,10 @@ export const settingsSchema = Joi.object({
   }).required(),
   stratbook: Joi.object({
     editPermission: Joi.string().valid('admin', 'all').required(),
+  }).required(),
+  tracker: Joi.object({
+    henrikApiKey: Joi.string().max(200).allow(''),
+    region: Joi.string().valid('eu', 'na', 'ap', 'kr', 'br', 'latam').required(),
   }).required(),
 });
 

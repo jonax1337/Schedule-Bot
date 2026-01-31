@@ -67,6 +67,8 @@ model Scrim {
   theirAgents String      @default("") @map("their_agents")
   vodUrl      String      @default("") @map("vod_url")
   notes       String      @default("")
+  trackerUrl  String      @default("") @map("tracker_url")
+  trackerData Json?       @map("tracker_data")
   createdAt   DateTime    @default(now()) @map("created_at")
   updatedAt   DateTime    @updatedAt @map("updated_at")
 

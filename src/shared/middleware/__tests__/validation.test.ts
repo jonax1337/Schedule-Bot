@@ -223,6 +223,10 @@ describe('settingsSchema', () => {
     stratbook: {
       editPermission: 'admin',
     },
+    tracker: {
+      henrikApiKey: '',
+      region: 'eu',
+    },
   };
 
   it('accepts valid settings', () => {
