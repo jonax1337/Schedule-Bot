@@ -414,7 +414,7 @@ export function Matches() {
       {/* Stats Cards */}
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className={cn(stagger(0, 'fast', 'slideUpScale'), microInteractions.hoverLift)}>
+          <Card className={stagger(0, 'fast', 'slideUpScale')}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Overall Record</CardTitle>
               <Trophy className="h-4 w-4 text-muted-foreground" />
@@ -429,7 +429,7 @@ export function Matches() {
             </CardContent>
           </Card>
 
-          <Card className={cn(stagger(1, 'fast', 'slideUpScale'), microInteractions.hoverLift)}>
+          <Card className={stagger(1, 'fast', 'slideUpScale')}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Win Rate</CardTitle>
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
@@ -442,7 +442,7 @@ export function Matches() {
             </CardContent>
           </Card>
 
-          <Card className={cn(stagger(2, 'fast', 'slideUpScale'), microInteractions.hoverLift)}>
+          <Card className={stagger(2, 'fast', 'slideUpScale')}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Maps Played</CardTitle>
               <Target className="h-4 w-4 text-muted-foreground" />
@@ -1042,7 +1042,7 @@ export function Matches() {
                                   key={`their-${idx}`}
                                   src={`/assets/agents/${agent}_icon.webp`}
                                   alt={agent}
-                                  className="w-6 h-6 sm:w-7 sm:h-7 rounded border-2 border-white/50"
+                                  className="w-6 h-6 sm:w-7 sm:h-7 rounded border-2 border-destructive/60"
                                   title={agent}
                                 />
                               ))}

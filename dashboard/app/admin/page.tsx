@@ -85,7 +85,7 @@ function AdminContent() {
         {currentTab === 'settings' && <Settings />}
         {currentTab === 'users' && <UserMappings />}
         {currentTab === 'schedule' && <ScheduleEditor />}
-        {currentTab === 'scrims' && <Matches />}
+        {currentTab === 'matches' && <Matches />}
         {currentTab === 'stratbook' && <Stratbook />}
         {currentTab === 'actions' && <Actions />}
         {currentTab === 'security' && <Security />}

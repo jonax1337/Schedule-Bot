@@ -290,7 +290,7 @@ export function AdminDashboard() {
               description: 'Update schedule reasons',
             },
             {
-              href: '/admin?tab=scrims',
+              href: '/admin?tab=matches',
               icon: Trophy,
               title: 'View Scrims',
               description: 'Match history & stats',

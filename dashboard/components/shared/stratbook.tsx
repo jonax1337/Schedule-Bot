@@ -564,7 +564,7 @@ export function Stratbook() {
         {/* Detail view */}
         {view === 'detail' && selectedStrat && (
           <div className="space-y-4">
-            <Card>
+            <Card className={stagger(0, 'fast', 'slideUpScale')}>
               <CardHeader className="space-y-1.5">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-2">
@@ -670,7 +670,7 @@ export function Stratbook() {
         {/* List view */}
         {view === 'list' && (
           <div className="space-y-6">
-            <Card>
+            <Card className={stagger(0, 'fast', 'slideUpScale')}>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
