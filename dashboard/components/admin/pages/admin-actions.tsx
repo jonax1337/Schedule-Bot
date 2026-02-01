@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Bell, Send, Vote, Calendar, Loader2, MessageSquare, ChevronsUpDown, Check, Trash2 } from "lucide-react";
+import { Bell, Send, Vote, Calendar, Loader2, MessageSquare, ChevronsUpDown, Check, Trash2, Timer } from "lucide-react";
 import { toast } from "sonner";
 import { stagger, microInteractions, cn } from "@/lib/animations";
 import { BOT_API_URL } from "@/lib/config";
@@ -48,6 +48,9 @@ export function Actions() {
   const [notifyMessage, setNotifyMessage] = useState("");
   const [userOpen, setUserOpen] = useState(false);
   const [userSearch, setUserSearch] = useState("");
+
+  // Training poll state
+  const [trainingPollDate, setTrainingPollDate] = useState("");
 
   // Pin message state
   const [pinMessage, setPinMessage] = useState("");
@@ -140,6 +143,10 @@ export function Actions() {
     handleAction('clear', '/api/actions/clear-channel', { includePinned });
     setClearDialogOpen(false);
     setIncludePinned(false);
+  };
+
+  const sendTrainingPoll = () => {
+    handleAction('training-poll', '/api/actions/training-poll', { date: trainingPollDate || undefined });
   };
 
   const sendPinMessage = () => {
@@ -248,6 +255,51 @@ export function Actions() {
       <Card className={stagger(2, 'fast', 'slideUpScale')}>
         <CardHeader>
           <CardTitle className="flex items-center">
+            <Timer className="mr-2 h-5 w-5" />
+            Training Start Poll
+          </CardTitle>
+          <CardDescription>
+            Create a training start time poll based on today's availability
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="trainingPollDate">Date (Optional)</Label>
+            <Input
+              id="trainingPollDate"
+              type="date"
+              value={trainingPollDate}
+              onChange={(e) => setTrainingPollDate(e.target.value)}
+              placeholder="Leave empty for today"
+              className={microInteractions.focusRing}
+            />
+            <p className="text-sm text-muted-foreground">
+              Leave empty for today. Requires enough players available.
+            </p>
+          </div>
+          <Button
+            onClick={sendTrainingPoll}
+            disabled={loading === 'training-poll'}
+            className={cn("w-full", microInteractions.activePress, microInteractions.smooth)}
+          >
+            {loading === 'training-poll' ? (
+              <>
+                <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                Creating...
+              </>
+            ) : (
+              <>
+                <Timer className="mr-1 h-4 w-4" />
+                Send Training Poll
+              </>
+            )}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card className={stagger(3, 'fast', 'slideUpScale')}>
+        <CardHeader>
+          <CardTitle className="flex items-center">
             <Vote className="mr-2 h-5 w-5" />
             Create Poll
           </CardTitle>
@@ -318,7 +370,7 @@ export function Actions() {
         </CardContent>
       </Card>
 
-      <Card className={stagger(3, 'fast', 'slideUpScale')}>
+      <Card className={stagger(4, 'fast', 'slideUpScale')}>
         <CardHeader>
           <CardTitle className="flex items-center">
             <MessageSquare className="mr-2 h-5 w-5" />
@@ -480,7 +532,7 @@ export function Actions() {
       </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className={stagger(4, 'fast', 'slideUpScale')}>
+        <Card className={stagger(5, 'fast', 'slideUpScale')}>
           <CardHeader>
             <CardTitle className="flex items-center">
               <MessageSquare className="mr-2 h-5 w-5" />
@@ -526,7 +578,7 @@ export function Actions() {
           </CardContent>
         </Card>
 
-        <Card className={stagger(5, 'fast', 'slideUpScale')}>
+        <Card className={stagger(6, 'fast', 'slideUpScale')}>
           <CardHeader>
             <CardTitle className="flex items-center">
               <Trash2 className="mr-2 h-5 w-5" />

@@ -240,6 +240,41 @@ router.post('/clear-channel', verifyToken, requireAdmin, async (req: AuthRequest
   }
 });
 
+// Send training start poll
+router.post('/training-poll', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
+  try {
+    const { date } = req.body;
+    const convertedDate = convertToDD_MM_YYYY(date);
+
+    const { getScheduleForDate } = await import('../../repositories/schedule.repository.js');
+    const { parseSchedule, analyzeSchedule } = await import('../../shared/utils/analyzer.js');
+    const { getAbsentUserIdsForDate } = await import('../../repositories/absence.repository.js');
+
+    const sheetData = await getScheduleForDate(convertedDate);
+    if (!sheetData) {
+      return res.status(404).json({ error: `No schedule data found for ${convertedDate}` });
+    }
+
+    const absentUserIds = await getAbsentUserIdsForDate(convertedDate);
+    const schedule = parseSchedule(sheetData, absentUserIds);
+    const result = analyzeSchedule(schedule);
+
+    if (!result.canProceed || !result.commonTimeRange) {
+      return res.status(400).json({ error: `Cannot create training poll: ${result.statusMessage}` });
+    }
+
+    const { createTrainingStartPoll } = await import('../../bot/interactions/trainingStartPoll.js');
+    await createTrainingStartPoll(result, convertedDate);
+
+    logger.success('Training poll created', `Date: ${convertedDate} by ${req.user?.username}`);
+    res.json({ success: true, message: `Training start poll created for ${convertedDate}` });
+  } catch (error) {
+    console.error('Error creating training poll:', error);
+    logger.error('Failed to create training poll', error instanceof Error ? error.message : String(error));
+    res.status(500).json({ error: 'Failed to create training poll' });
+  }
+});
+
 // Pin message to channel
 router.post('/pin-message', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
   try {
