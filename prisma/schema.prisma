@@ -66,6 +66,7 @@ model Scrim {
   ourAgents   String      @default("") @map("our_agents")
   theirAgents String      @default("") @map("their_agents")
   vodUrl      String      @default("") @map("vod_url")
+  matchLink   String      @default("") @map("match_link")
   notes       String      @default("")
   createdAt   DateTime    @default(now()) @map("created_at")
   updatedAt   DateTime    @updatedAt @map("updated_at")

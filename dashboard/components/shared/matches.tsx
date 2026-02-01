@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,13 +10,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Loader2, Plus, Edit, Trash2, TrendingUp, Trophy, Target, X, LayoutGrid, Table as TableIcon, Video, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Loader2, Plus, Edit, Trash2, TrendingUp, Trophy, Target, X, LayoutGrid, Table as TableIcon, Video, ArrowUpDown, ArrowUp, ArrowDown, ExternalLink } from "lucide-react";
 import Image from 'next/image';
 import { toast } from "sonner";
 import { AgentSelector } from "./agent-picker";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { stagger, microInteractions, loadingStates, cn } from '@/lib/animations';
 import { BOT_API_URL } from '@/lib/config';
 
@@ -66,6 +66,7 @@ interface ScrimEntry {
   ourAgents: string[];
   theirAgents: string[];
   vodUrl: string;
+  matchLink: string;
   notes: string;
   createdAt: string;
   updatedAt: string;
@@ -95,6 +96,7 @@ export function Matches() {
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
   const [teamName, setTeamName] = useState<string>('Our Team');
+  const [vodLightbox, setVodLightbox] = useState<string | null>(null);
   
   // Filter states
   const [filterMap, setFilterMap] = useState<string>('all');
@@ -116,6 +118,7 @@ export function Matches() {
     ourAgents: [] as string[],
     theirAgents: [] as string[],
     vodUrl: '',
+    matchLink: '',
     notes: '',
   });
 
@@ -192,6 +195,7 @@ export function Matches() {
         ourAgents: formData.ourAgents,
         theirAgents: formData.theirAgents,
         vodUrl: formData.vodUrl,
+        matchLink: formData.matchLink,
         notes: formData.notes,
       };
 
@@ -275,6 +279,7 @@ export function Matches() {
       ourAgents: scrim.ourAgents || [],
       theirAgents: scrim.theirAgents || [],
       vodUrl: scrim.vodUrl || '',
+      matchLink: scrim.matchLink || '',
       notes: scrim.notes,
     });
     setIsAddDialogOpen(true);
@@ -292,6 +297,7 @@ export function Matches() {
       ourAgents: [],
       theirAgents: [],
       vodUrl: '',
+      matchLink: '',
       notes: '',
     });
   };
@@ -680,7 +686,20 @@ export function Matches() {
                         />
                         <p className="text-xs text-muted-foreground">YouTube video URL for review</p>
                       </div>
-                      
+
+                      <div className="space-y-2">
+                        <Label htmlFor="matchLink">Match Link</Label>
+                        <Input
+                          id="matchLink"
+                          type="url"
+                          placeholder="https://..."
+                          value={formData.matchLink}
+                          onChange={(e) => setFormData({ ...formData, matchLink: e.target.value })}
+                          className={microInteractions.focusRing}
+                        />
+                        <p className="text-xs text-muted-foreground">External link to the match page</p>
+                      </div>
+
                       <div className="space-y-2">
                         <Label htmlFor="notes">Notes</Label>
                         <Input
@@ -836,6 +855,7 @@ export function Matches() {
                     <TableHead>Our Comp</TableHead>
                     <TableHead>Their Comp</TableHead>
                     <TableHead className="text-center">VOD</TableHead>
+                    <TableHead className="text-center">Link</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -887,15 +907,27 @@ export function Matches() {
                         )}
                       </TableCell>
                       <TableCell className="text-center">
-                        {scrim.vodUrl && (
+                        {(() => { const id = getYouTubeVideoId(scrim.vodUrl); return id ? (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => setVodLightbox(id)}
+                          >
+                            <Video className="h-4 w-4" />
+                          </Button>
+                        ) : null; })()}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {scrim.matchLink && (
                           <Button
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8"
                             asChild
                           >
-                            <a href={scrim.vodUrl} target="_blank" rel="noopener noreferrer">
-                              <Video className="h-4 w-4" />
+                            <a href={scrim.matchLink} target="_blank" rel="noopener noreferrer">
+                              <ExternalLink className="h-4 w-4" />
                             </a>
                           </Button>
                         )}
@@ -1066,34 +1098,31 @@ export function Matches() {
                       )}
                     </div>
                     
-                    {/* VOD Accordion */}
-                    {vodId && (
-                      <div className="relative z-10">
-                        <Accordion type="single" collapsible className="border-t border-white/20">
-                          <AccordionItem value="vod" className="border-0">
-                            <AccordionTrigger className="px-4 py-3 hover:bg-white/10 text-white/70">
-                              <div className="flex items-center gap-2">
-                                <Video className="h-4 w-4" />
-                                <span className="font-medium">Watch VOD Review</span>
-                              </div>
-                            </AccordionTrigger>
-                            <AccordionContent className="px-4 pb-4">
-                              <div className="aspect-video rounded-lg overflow-hidden border relative z-20">
-                                <iframe
-                                  width="100%"
-                                  height="100%"
-                                  src={`https://www.youtube.com/embed/${vodId}`}
-                                  title="VOD Review"
-                                  frameBorder="0"
-                                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                  allowFullScreen
-                                  className="w-full h-full relative z-20"
-                                  style={{ position: 'relative', zIndex: 20 }}
-                                />
-                              </div>
-                            </AccordionContent>
-                          </AccordionItem>
-                        </Accordion>
+                    {/* Footer: Links */}
+                    {(scrim.matchLink || vodId) && (
+                      <div className="relative z-10 border-t border-white/20">
+                        <div className="flex items-center gap-4 px-4 py-2.5">
+                          {scrim.matchLink && (
+                            <a
+                              href={scrim.matchLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 text-sm text-blue-400 hover:text-blue-300 transition-colors"
+                            >
+                              <ExternalLink className="h-3.5 w-3.5" />
+                              Match Link
+                            </a>
+                          )}
+                          {vodId && (
+                            <button
+                              onClick={() => setVodLightbox(vodId)}
+                              className="inline-flex items-center gap-1.5 text-sm text-white/70 hover:text-white transition-colors"
+                            >
+                              <Video className="h-3.5 w-3.5" />
+                              VOD Review
+                            </button>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1103,6 +1132,39 @@ export function Matches() {
           )}
         </CardContent>
       </Card>
+
+      {/* VOD Lightbox - portaled to body to escape sidebar stacking context */}
+      {vodLightbox && createPortal(
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fadeIn"
+          onClick={() => setVodLightbox(null)}
+        >
+          <div className="absolute top-4 right-4">
+            <button
+              className="text-white/80 hover:text-white transition-colors"
+              onClick={() => setVodLightbox(null)}
+            >
+              <X className="h-6 w-6" />
+            </button>
+          </div>
+          <div
+            className="w-[90vw] max-w-5xl aspect-video"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <iframe
+              width="100%"
+              height="100%"
+              src={`https://www.youtube.com/embed/${vodLightbox}?autoplay=1`}
+              title="VOD Review"
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              className="w-full h-full rounded-lg"
+            />
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

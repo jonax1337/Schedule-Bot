@@ -71,6 +71,7 @@ export interface ScrimEntry {
   ourAgents: string[]; // Our team composition (5 agents)
   theirAgents: string[]; // Enemy team composition (5 agents, optional)
   vodUrl: string; // YouTube URL for VOD review
+  matchLink: string; // External match link
   notes: string;
   createdAt: string; // ISO timestamp
   updatedAt: string; // ISO timestamp

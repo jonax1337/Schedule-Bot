@@ -22,6 +22,7 @@ export async function getAllScrims(): Promise<ScrimEntry[]> {
     ourAgents: s.ourAgents.split(',').filter(Boolean),
     theirAgents: s.theirAgents.split(',').filter(Boolean),
     vodUrl: s.vodUrl,
+    matchLink: s.matchLink,
     notes: s.notes,
     createdAt: s.createdAt.toISOString(),
     updatedAt: s.updatedAt.toISOString(),
@@ -47,6 +48,7 @@ export async function getScrimById(id: string): Promise<ScrimEntry | null> {
     ourAgents: scrim.ourAgents.split(',').filter(Boolean),
     theirAgents: scrim.theirAgents.split(',').filter(Boolean),
     vodUrl: scrim.vodUrl,
+    matchLink: scrim.matchLink,
     notes: scrim.notes,
     createdAt: scrim.createdAt.toISOString(),
     updatedAt: scrim.updatedAt.toISOString(),
@@ -69,6 +71,7 @@ export async function addScrim(scrim: Omit<ScrimEntry, 'id' | 'createdAt' | 'upd
       ourAgents: scrim.ourAgents.join(','),
       theirAgents: scrim.theirAgents.join(','),
       vodUrl: scrim.vodUrl,
+      matchLink: scrim.matchLink || '',
       notes: scrim.notes,
     },
   });
@@ -87,6 +90,7 @@ export async function addScrim(scrim: Omit<ScrimEntry, 'id' | 'createdAt' | 'upd
     ourAgents: newScrim.ourAgents.split(',').filter(Boolean),
     theirAgents: newScrim.theirAgents.split(',').filter(Boolean),
     vodUrl: newScrim.vodUrl,
+    matchLink: newScrim.matchLink,
     notes: newScrim.notes,
     createdAt: newScrim.createdAt.toISOString(),
     updatedAt: newScrim.updatedAt.toISOString(),
@@ -107,6 +111,7 @@ export async function updateScrim(id: string, updates: Partial<Omit<ScrimEntry, 
     if (updates.ourAgents !== undefined) updateData.ourAgents = updates.ourAgents.join(',');
     if (updates.theirAgents !== undefined) updateData.theirAgents = updates.theirAgents.join(',');
     if (updates.vodUrl !== undefined) updateData.vodUrl = updates.vodUrl;
+    if (updates.matchLink !== undefined) updateData.matchLink = updates.matchLink;
     if (updates.notes !== undefined) updateData.notes = updates.notes;
 
     const updatedScrim = await prisma.scrim.update({
@@ -128,6 +133,7 @@ export async function updateScrim(id: string, updates: Partial<Omit<ScrimEntry, 
       ourAgents: updatedScrim.ourAgents.split(',').filter(Boolean),
       theirAgents: updatedScrim.theirAgents.split(',').filter(Boolean),
       vodUrl: updatedScrim.vodUrl,
+      matchLink: updatedScrim.matchLink,
       notes: updatedScrim.notes,
       createdAt: updatedScrim.createdAt.toISOString(),
       updatedAt: updatedScrim.updatedAt.toISOString(),
