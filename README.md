@@ -90,7 +90,7 @@
 - **User Portal**: Self-service availability management with live database updates
 - **Schedule Editor**: Spreadsheet-like editor for schedule entries
 - **Scrim Manager**: Record opponents, results, VOD URLs, match links, and notes with automatic stats
-- **VOD Review**: Collaborative VOD analysis with embedded YouTube player, timestamped comments, and filtering by user/tags/mentions
+- **VOD Review**: Collaborative VOD analysis with embedded YouTube player, timestamped comments, inline editing, mention autocomplete, and filtering by user/tags/mentions — available as lightbox overlay and standalone fullscreen page (`/vod/[scrimId]`)
 - **Statistics Panel**: Team availability charts, scrim results visualization, win/loss streaks, and map composition analysis using Recharts
 - **Stratbook**: Local strategy management with TipTap rich text editor, folder hierarchy, map/side filtering, image and PDF uploads
 - **Discord Avatars**: Player avatars from Discord displayed in roster lists and user navigation
@@ -1223,6 +1223,7 @@ schedule-bot/
 │   │   │   ├── login/       # Admin login
 │   │   │   └── page.tsx     # Admin dashboard (tab-based)
 │   │   ├── auth/callback/   # Discord OAuth handler
+│   │   ├── vod/[scrimId]/   # Standalone VOD review page
 │   │   └── api/             # Next.js API proxy routes
 │   │       ├── bot-status/  # Proxies to /api/health
 │   │       ├── settings/    # Proxies to /api/settings
@@ -1313,7 +1314,7 @@ The `Matches` component (`components/shared/matches.tsx`) provides match history
 - **Agent Compositions** - Shows agent picks for both teams using agent icons from `public/assets/agents/`
 - **Create/Edit Dialog** - Form for adding or editing match records with agent picker
 - **Filtering** - Filter by date range and opponent
-- **VOD Review** - Lightbox overlay with embedded YouTube player and timestamped comment system
+- **VOD Review** - Lightbox overlay with embedded YouTube player and timestamped comment system; also accessible as standalone page at `/vod/[scrimId]`
 - Used in both admin dashboard (Matches tab) and user portal (Matches tab)
 
 ### VOD Review System
@@ -1324,6 +1325,9 @@ The `VodReview` component (`components/shared/vod-review.tsx`) provides collabor
 - **Timestamped Comments** - Users can add comments at specific video timestamps; clicking a comment seeks to that point
 - **Comment Filtering** - Filter by user, `#tags`, and `@mentions` within comments
 - **Auto-scroll** - Comments auto-scroll to track video playback, respects manual user scrolling
+- **Inline Editing** - Edit existing comments with timestamp updates
+- **Mention Autocomplete** - `MentionInput` component with `<@user>` autocomplete and `#tag` support
+- **Standalone Page** (`app/vod/[scrimId]/page.tsx`) - Fullscreen VOD review with match info header (date, opponent, score, map, result/match-type badges)
 - **Backend**: `vod-comment.repository.ts` → `vod-comment.service.ts` → `vod-comment.routes.ts` (full CRUD with owner/admin authorization)
 - **Database**: `vod_comments` table linked to scrims via `scrim_id` with cascade delete
 
