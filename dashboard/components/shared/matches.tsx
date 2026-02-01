@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Loader2, Plus, Edit, Trash2, TrendingUp, Trophy, Target, X, LayoutGrid, Table as TableIcon, Video, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Loader2, Plus, Edit, Trash2, TrendingUp, Trophy, Target, X, LayoutGrid, Table as TableIcon, Video, ArrowUpDown, ArrowUp, ArrowDown, ExternalLink } from "lucide-react";
 import Image from 'next/image';
 import { toast } from "sonner";
 import { AgentSelector } from "./agent-picker";
@@ -66,6 +66,7 @@ interface ScrimEntry {
   ourAgents: string[];
   theirAgents: string[];
   vodUrl: string;
+  matchLink: string;
   notes: string;
   createdAt: string;
   updatedAt: string;
@@ -116,6 +117,7 @@ export function Matches() {
     ourAgents: [] as string[],
     theirAgents: [] as string[],
     vodUrl: '',
+    matchLink: '',
     notes: '',
   });
 
@@ -192,6 +194,7 @@ export function Matches() {
         ourAgents: formData.ourAgents,
         theirAgents: formData.theirAgents,
         vodUrl: formData.vodUrl,
+        matchLink: formData.matchLink,
         notes: formData.notes,
       };
 
@@ -275,6 +278,7 @@ export function Matches() {
       ourAgents: scrim.ourAgents || [],
       theirAgents: scrim.theirAgents || [],
       vodUrl: scrim.vodUrl || '',
+      matchLink: scrim.matchLink || '',
       notes: scrim.notes,
     });
     setIsAddDialogOpen(true);
@@ -292,6 +296,7 @@ export function Matches() {
       ourAgents: [],
       theirAgents: [],
       vodUrl: '',
+      matchLink: '',
       notes: '',
     });
   };
@@ -680,7 +685,20 @@ export function Matches() {
                         />
                         <p className="text-xs text-muted-foreground">YouTube video URL for review</p>
                       </div>
-                      
+
+                      <div className="space-y-2">
+                        <Label htmlFor="matchLink">Match Link</Label>
+                        <Input
+                          id="matchLink"
+                          type="url"
+                          placeholder="https://..."
+                          value={formData.matchLink}
+                          onChange={(e) => setFormData({ ...formData, matchLink: e.target.value })}
+                          className={microInteractions.focusRing}
+                        />
+                        <p className="text-xs text-muted-foreground">External link to the match page</p>
+                      </div>
+
                       <div className="space-y-2">
                         <Label htmlFor="notes">Notes</Label>
                         <Input
@@ -836,6 +854,7 @@ export function Matches() {
                     <TableHead>Our Comp</TableHead>
                     <TableHead>Their Comp</TableHead>
                     <TableHead className="text-center">VOD</TableHead>
+                    <TableHead className="text-center">Link</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -896,6 +915,20 @@ export function Matches() {
                           >
                             <a href={scrim.vodUrl} target="_blank" rel="noopener noreferrer">
                               <Video className="h-4 w-4" />
+                            </a>
+                          </Button>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {scrim.matchLink && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            asChild
+                          >
+                            <a href={scrim.matchLink} target="_blank" rel="noopener noreferrer">
+                              <ExternalLink className="h-4 w-4" />
                             </a>
                           </Button>
                         )}
@@ -1066,6 +1099,21 @@ export function Matches() {
                       )}
                     </div>
                     
+                    {/* Match Link */}
+                    {scrim.matchLink && (
+                      <div className="relative z-10 border-t border-white/20 px-4 py-2">
+                        <a
+                          href={scrim.matchLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-sm text-blue-400 hover:text-blue-300 transition-colors"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                          Match Link
+                        </a>
+                      </div>
+                    )}
+
                     {/* VOD Accordion */}
                     {vodId && (
                       <div className="relative z-10">

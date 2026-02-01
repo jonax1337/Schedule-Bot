@@ -22,6 +22,7 @@ export const addScrimSchema = Joi.object({
   ourAgents: Joi.array().items(Joi.string().max(50)).max(5),
   theirAgents: Joi.array().items(Joi.string().max(50)).max(5),
   vodUrl: Joi.string().uri({ scheme: ['http', 'https'] }).allow(''),
+  matchLink: Joi.string().uri({ scheme: ['http', 'https'] }).allow(''),
   notes: Joi.string().max(1000).allow(''),
 });
 
@@ -36,6 +37,7 @@ export const updateScrimSchema = Joi.object({
   ourAgents: Joi.array().items(Joi.string().max(50)).max(5),
   theirAgents: Joi.array().items(Joi.string().max(50)).max(5),
   vodUrl: Joi.string().uri({ scheme: ['http', 'https'] }).allow(''),
+  matchLink: Joi.string().uri({ scheme: ['http', 'https'] }).allow(''),
   notes: Joi.string().max(1000).allow(''),
 });
 

@@ -28,6 +28,7 @@ export async function handleAddScrimCommand(interaction: ChatInputCommandInterac
       ourAgents: [], // Discord bot doesn't support agent selection yet
       theirAgents: [], // Discord bot doesn't support agent selection yet
       vodUrl: '', // Discord bot doesn't support VOD URL yet
+      matchLink: '', // Discord bot doesn't support match link yet
       notes,
     });
     
