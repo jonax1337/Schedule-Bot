@@ -214,55 +214,6 @@ export function AdminDashboard() {
         })}
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {[
-          {
-            title: 'Total Users',
-            icon: Users,
-            value: loading ? '...' : stats?.totalUsers || 0,
-            description: `${rosterBreakdown.mains} Main, ${rosterBreakdown.subs} Sub, ${rosterBreakdown.coaches} Coach`,
-          },
-          {
-            title: 'Upcoming Schedules',
-            icon: Calendar,
-            value: loading ? '...' : stats?.upcomingSchedules || 0,
-            description: 'Next 14 days',
-          },
-          {
-            title: 'Total Scrims',
-            icon: Trophy,
-            value: loading ? '...' : stats?.totalScrims || 0,
-            description: hasScrimData ? `Win Rate: ${overallStats.winRate.toFixed(1)}%` : 'Match history records',
-          },
-          {
-            title: 'Win Rate',
-            icon: Percent,
-            value: loading ? '...' : hasScrimData ? `${overallStats.winRate.toFixed(1)}%` : 'N/A',
-            description: hasScrimData ? `${overallStats.wins}W / ${overallStats.losses}L / ${overallStats.draws}D` : 'No match data',
-          },
-        ].map((stat, index) => {
-          const Icon = stat.icon;
-          return (
-            <Card
-              key={stat.title}
-              className={cn(
-                stagger(index, 'slow', 'slideUpScale')
-              )}
-            >
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-                <Icon className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stat.value}</div>
-                <p className="text-xs text-muted-foreground">{stat.description}</p>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-
       {/* Quick Actions */}
       <Card className="animate-slideUp">
         <CardHeader>
