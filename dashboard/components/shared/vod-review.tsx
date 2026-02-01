@@ -249,6 +249,8 @@ export function VodReview({ videoId, scrimId }: VodReviewProps) {
   const scrollViewportRef = useRef<HTMLDivElement>(null);
   const newCommentRef = useRef<HTMLTextAreaElement>(null);
   const editRef = useRef<HTMLTextAreaElement>(null);
+  const userScrolledRef = useRef(false);
+  const programmaticScrollRef = useRef(false);
   const user = getUser();
 
   // Measure video container height with ResizeObserver
@@ -300,6 +302,18 @@ export function VodReview({ videoId, scrimId }: VodReviewProps) {
     fetchComments();
   }, [fetchComments]);
 
+  // Detect user scroll to disable auto-scroll
+  useEffect(() => {
+    const viewport = scrollViewportRef.current;
+    if (!viewport) return;
+    const handleScroll = () => {
+      if (programmaticScrollRef.current) return;
+      userScrolledRef.current = true;
+    };
+    viewport.addEventListener('scroll', handleScroll);
+    return () => viewport.removeEventListener('scroll', handleScroll);
+  }, []);
+
   useEffect(() => {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
@@ -324,16 +338,25 @@ export function VodReview({ videoId, scrimId }: VodReviewProps) {
       lastHighlightedId.current = matchingComment.id;
       setHighlightedId(matchingComment.id);
 
-      const el = commentRefsMap.current.get(matchingComment.id);
-      const viewport = scrollViewportRef.current;
-      if (el && viewport) {
-        const elTop = el.offsetTop;
-        const elHeight = el.offsetHeight;
-        const viewportHeight = viewport.clientHeight;
-        viewport.scrollTo({
-          top: elTop - viewportHeight / 2 + elHeight / 2,
-          behavior: 'smooth',
-        });
+      // Auto-scroll only downward and only if user hasn't manually scrolled
+      if (!userScrolledRef.current) {
+        const el = commentRefsMap.current.get(matchingComment.id);
+        const viewport = scrollViewportRef.current;
+        if (el && viewport) {
+          const elTop = el.offsetTop;
+          const elHeight = el.offsetHeight;
+          const viewportHeight = viewport.clientHeight;
+          const targetScrollTop = elTop - viewportHeight / 2 + elHeight / 2;
+          // Only scroll if target is below current position
+          if (targetScrollTop > viewport.scrollTop) {
+            programmaticScrollRef.current = true;
+            viewport.scrollTo({
+              top: targetScrollTop,
+              behavior: 'smooth',
+            });
+            setTimeout(() => { programmaticScrollRef.current = false; }, 500);
+          }
+        }
       }
 
       if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current);
@@ -376,6 +399,8 @@ export function VodReview({ videoId, scrimId }: VodReviewProps) {
   const seekTo = (timestamp: number) => {
     if (playerRef.current) {
       playerRef.current.seekTo(timestamp, true);
+      // Reset user scroll flag so auto-scroll resumes from new position
+      userScrolledRef.current = false;
     }
   };
 
@@ -483,7 +508,15 @@ export function VodReview({ videoId, scrimId }: VodReviewProps) {
                     if (el) commentRefsMap.current.set(comment.id, el);
                     else commentRefsMap.current.delete(comment.id);
                   }}
+                  onClick={(e) => {
+                    // Don't seek if clicking buttons or editing
+                    if (editingId === comment.id) return;
+                    if ((e.target as HTMLElement).closest('button')) return;
+                    seekTo(comment.timestamp);
+                  }}
                   className={`rounded-md border p-2.5 transition-all duration-500 min-w-0 [overflow-wrap:anywhere] ${
+                    editingId === comment.id ? '' : 'cursor-pointer'
+                  } ${
                     highlightedId === comment.id
                       ? 'border-primary/60 bg-primary/10 ring-1 ring-primary/30'
                       : 'hover:bg-accent/50'
