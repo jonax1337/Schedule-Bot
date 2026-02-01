@@ -201,6 +201,7 @@ dashboard/
 │   │   ├── login/              # Admin login
 │   │   └── page.tsx            # Admin dashboard (tab-based)
 │   ├── auth/callback/          # Discord OAuth handler
+│   ├── vod/[scrimId]/          # Standalone VOD review page
 │   └── api/                    # Next.js API proxy routes (→ backend)
 │       ├── bot-status/         # Proxies to /api/health
 │       ├── settings/           # Proxies to /api/settings (GET + POST)
@@ -640,6 +641,7 @@ Next.js App Router structure:
 - `/admin/login` - Admin login page
 - `/admin` - Admin dashboard (tab-based: dashboard, statistics, settings, users, schedule, scrims, stratbook, actions, security, logs)
 - `/auth/callback` - Discord OAuth callback handler
+- `/vod/[scrimId]` - Standalone fullscreen VOD review page (YouTube player + timestamped comments)
 
 Admin sidebar navigation is organized into four logical groups:
 - **Overview:** Dashboard, Statistics
@@ -692,8 +694,11 @@ The `VodReview` component (`components/shared/vod-review.tsx`) provides collabor
 - **Timestamped Comments** - Users can add comments at specific video timestamps; clicking a comment seeks to that point
 - **Comment Filtering** - Filter by user, `#tags`, and `@mentions` within comments
 - **Auto-scroll** - Comments auto-scroll to track video playback, respects manual user scrolling
+- **Inline Editing** - Edit existing comments with timestamp updates
+- **Mention Autocomplete** - `MentionInput` component with `<@user>` autocomplete and `#tag` support
 - **Backend**: `vod-comment.repository.ts` → `vod-comment.service.ts` → `vod-comment.routes.ts` (full CRUD with owner/admin authorization)
 - **Database**: `vod_comments` table linked to scrims via `scrim_id` with cascade delete
+- **Standalone Page** (`app/vod/[scrimId]/page.tsx`) - Fullscreen VOD review with match info header (date, opponent, score, map, result/match-type badges), independent from the embedded lightbox in Matches
 
 ### Stratbook (Local Strategy Management)
 The strategy system uses a local PostgreSQL database with a TipTap rich text editor (replaced the previous Notion integration):
