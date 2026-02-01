@@ -357,6 +357,8 @@ export default function VodRoomPage() {
         const data = await res.json();
         if (data.success && data.scrim) {
           setScrim(data.scrim);
+          const s = data.scrim;
+          document.title = `VOD Review – vs ${s.opponent} ${s.scoreUs}:${s.scoreThem} (${s.map || 'N/A'}) – ${s.date}`;
         }
       } catch {
         toast.error('Failed to load scrim data');
