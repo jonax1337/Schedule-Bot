@@ -29,6 +29,16 @@ export interface Settings {
   };
 }
 
+export interface VodComment {
+  id: number;
+  scrimId: string;
+  userName: string;
+  timestamp: number;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ActionResponse {
   success: boolean;
   message?: string;

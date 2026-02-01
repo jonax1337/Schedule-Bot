@@ -18,6 +18,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { stagger, microInteractions, loadingStates, cn } from '@/lib/animations';
 import { BOT_API_URL } from '@/lib/config';
+import { VodReview } from './vod-review';
 
 // Helper to extract YouTube video ID from URL
 function getYouTubeVideoId(url: string): string | null {
@@ -96,7 +97,7 @@ export function Matches() {
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
   const [teamName, setTeamName] = useState<string>('Our Team');
-  const [vodLightbox, setVodLightbox] = useState<string | null>(null);
+  const [vodLightbox, setVodLightbox] = useState<{ videoId: string; scrimId: string } | null>(null);
   
   // Filter states
   const [filterMap, setFilterMap] = useState<string>('all');
@@ -912,7 +913,7 @@ export function Matches() {
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8"
-                            onClick={() => setVodLightbox(id)}
+                            onClick={() => setVodLightbox({ videoId: id, scrimId: scrim.id })}
                           >
                             <Video className="h-4 w-4" />
                           </Button>
@@ -1115,7 +1116,7 @@ export function Matches() {
                           )}
                           {vodId && (
                             <button
-                              onClick={() => setVodLightbox(vodId)}
+                              onClick={() => setVodLightbox({ videoId: vodId, scrimId: scrim.id })}
                               className="inline-flex items-center gap-1.5 text-sm text-white/70 hover:text-white transition-colors"
                             >
                               <Video className="h-3.5 w-3.5" />
@@ -1133,13 +1134,13 @@ export function Matches() {
         </CardContent>
       </Card>
 
-      {/* VOD Lightbox - portaled to body to escape sidebar stacking context */}
+      {/* VOD Review Lightbox - portaled to body to escape sidebar stacking context */}
       {vodLightbox && createPortal(
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fadeIn"
+          className="fixed inset-0 z-50 bg-black/95 backdrop-blur-sm animate-fadeIn p-4 flex flex-col"
           onClick={() => setVodLightbox(null)}
         >
-          <div className="absolute top-4 right-4">
+          <div className="absolute top-4 right-4 z-10">
             <button
               className="text-white/80 hover:text-white transition-colors"
               onClick={() => setVodLightbox(null)}
@@ -1148,18 +1149,12 @@ export function Matches() {
             </button>
           </div>
           <div
-            className="w-[90vw] max-w-5xl aspect-video"
+            className="w-full max-w-7xl mx-auto my-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <iframe
-              width="100%"
-              height="100%"
-              src={`https://www.youtube.com/embed/${vodLightbox}?autoplay=1`}
-              title="VOD Review"
-              frameBorder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              className="w-full h-full rounded-lg"
+            <VodReview
+              videoId={vodLightbox.videoId}
+              scrimId={vodLightbox.scrimId}
             />
           </div>
         </div>,

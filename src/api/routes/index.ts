@@ -15,6 +15,7 @@ import adminRoutes from './admin.routes.js';
 import absenceRoutes from './absence.routes.js';
 import strategyRoutes from './strategy.routes.js';
 import recurringAvailabilityRoutes from './recurring-availability.routes.js';
+import vodCommentRoutes from './vod-comment.routes.js';
 
 const router = Router();
 
@@ -30,6 +31,7 @@ router.use('/admin', adminRoutes);
 router.use('/absences', absenceRoutes);
 router.use('/strategies', strategyRoutes);
 router.use('/recurring-availability', recurringAvailabilityRoutes);
+router.use('/vod-comments', vodCommentRoutes);
 
 // Schedule details routes (defined directly to avoid path issues)
 router.get('/schedule-details-batch', optionalAuth, async (req: AuthRequest, res) => {
