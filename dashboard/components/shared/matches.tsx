@@ -1085,7 +1085,7 @@ export function Matches() {
                       </div>
 
                       {/* Map and Date - Below */}
-                      <div className="flex flex-col items-center justify-center gap-1 mt-3 text-xs text-white/70">
+                      <div className="flex flex-col items-center justify-center gap-0.5 -mt-0.5 text-xs text-white/70">
                         {scrim.map && (
                           <span className="font-medium">{scrim.map}</span>
                         )}
