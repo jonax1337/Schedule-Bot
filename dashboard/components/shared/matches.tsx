@@ -1099,49 +1099,63 @@ export function Matches() {
                       )}
                     </div>
                     
-                    {/* Match Link */}
-                    {scrim.matchLink && (
-                      <div className="relative z-10 border-t border-white/20 px-4 py-2">
-                        <a
-                          href={scrim.matchLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 text-sm text-blue-400 hover:text-blue-300 transition-colors"
-                        >
-                          <ExternalLink className="h-3.5 w-3.5" />
-                          Match Link
-                        </a>
-                      </div>
-                    )}
-
-                    {/* VOD Accordion */}
-                    {vodId && (
-                      <div className="relative z-10">
-                        <Accordion type="single" collapsible className="border-t border-white/20">
-                          <AccordionItem value="vod" className="border-0">
-                            <AccordionTrigger className="px-4 py-3 hover:bg-white/10 text-white/70">
-                              <div className="flex items-center gap-2">
-                                <Video className="h-4 w-4" />
-                                <span className="font-medium">Watch VOD Review</span>
-                              </div>
-                            </AccordionTrigger>
-                            <AccordionContent className="px-4 pb-4">
-                              <div className="aspect-video rounded-lg overflow-hidden border relative z-20">
-                                <iframe
-                                  width="100%"
-                                  height="100%"
-                                  src={`https://www.youtube.com/embed/${vodId}`}
-                                  title="VOD Review"
-                                  frameBorder="0"
-                                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                  allowFullScreen
-                                  className="w-full h-full relative z-20"
-                                  style={{ position: 'relative', zIndex: 20 }}
-                                />
-                              </div>
-                            </AccordionContent>
-                          </AccordionItem>
-                        </Accordion>
+                    {/* Footer: Links & VOD */}
+                    {(scrim.matchLink || vodId) && (
+                      <div className="relative z-10 border-t border-white/20">
+                        {/* Links row */}
+                        {(scrim.matchLink || vodId) && (
+                          <div className="flex items-center gap-4 px-4 py-2.5">
+                            {scrim.matchLink && (
+                              <a
+                                href={scrim.matchLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 text-sm text-blue-400 hover:text-blue-300 transition-colors"
+                              >
+                                <ExternalLink className="h-3.5 w-3.5" />
+                                Match Link
+                              </a>
+                            )}
+                            {vodId && !scrim.matchLink && (
+                              <Accordion type="single" collapsible className="w-full -my-2.5">
+                                <AccordionItem value="vod" className="border-0">
+                                  <AccordionTrigger className="py-2.5 hover:bg-white/10 text-white/70">
+                                    <div className="flex items-center gap-2">
+                                      <Video className="h-4 w-4" />
+                                      <span className="font-medium text-sm">Watch VOD Review</span>
+                                    </div>
+                                  </AccordionTrigger>
+                                  <AccordionContent className="pb-3">
+                                    <div className="aspect-video rounded-lg overflow-hidden border relative z-20">
+                                      <iframe
+                                        width="100%"
+                                        height="100%"
+                                        src={`https://www.youtube.com/embed/${vodId}`}
+                                        title="VOD Review"
+                                        frameBorder="0"
+                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                        allowFullScreen
+                                        className="w-full h-full relative z-20"
+                                        style={{ position: 'relative', zIndex: 20 }}
+                                      />
+                                    </div>
+                                  </AccordionContent>
+                                </AccordionItem>
+                              </Accordion>
+                            )}
+                            {vodId && scrim.matchLink && (
+                              <a
+                                href={scrim.vodUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 text-sm text-white/70 hover:text-white transition-colors"
+                              >
+                                <Video className="h-3.5 w-3.5" />
+                                VOD Review
+                              </a>
+                            )}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
