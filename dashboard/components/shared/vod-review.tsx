@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import YouTube, { YouTubeEvent } from 'react-youtube';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -9,6 +9,7 @@ import {
   Popover,
   PopoverAnchor,
   PopoverContent,
+  PopoverTrigger,
 } from '@/components/ui/popover';
 import {
   Command,
@@ -18,7 +19,7 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command';
-import { Loader2, MessageSquare, Edit, Trash2, Send, Clock, X, Check } from 'lucide-react';
+import { Loader2, MessageSquare, Edit, Trash2, Send, Clock, X, Check, Filter, Hash, User, AtSign } from 'lucide-react';
 import { toast } from 'sonner';
 import { getUser, getAuthHeaders } from '@/lib/auth';
 import { BOT_API_URL } from '@/lib/config';
@@ -44,19 +45,56 @@ function formatTimestamp(seconds: number): string {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
+/** Extract all #tags from a comment's content */
+function extractTags(content: string): string[] {
+  const matches = content.match(/#(\w+)/g);
+  if (!matches) return [];
+  return [...new Set(matches.map(m => m.slice(1)))];
+}
+
+// Tag colors - cycle through these for different tags
+const TAG_COLORS = [
+  'text-emerald-600 dark:text-emerald-400 bg-emerald-500/15',
+  'text-amber-600 dark:text-amber-400 bg-amber-500/15',
+  'text-rose-600 dark:text-rose-400 bg-rose-500/15',
+  'text-violet-600 dark:text-violet-400 bg-violet-500/15',
+  'text-cyan-600 dark:text-cyan-400 bg-cyan-500/15',
+  'text-orange-600 dark:text-orange-400 bg-orange-500/15',
+];
+
+function getTagColor(tag: string): string {
+  let hash = 0;
+  for (let i = 0; i < tag.length; i++) hash = (hash * 31 + tag.charCodeAt(i)) | 0;
+  return TAG_COLORS[Math.abs(hash) % TAG_COLORS.length];
+}
+
 /**
- * Render comment text with <@Name> mention tokens highlighted as badges.
+ * Render comment text with <@Name> mentions and #tag tokens highlighted as badges.
  */
-function CommentText({ text }: { text: string }) {
-  const parts = text.split(/(<@[^>]+>)/g);
+function CommentText({ text, onTagClick }: { text: string; onTagClick?: (tag: string) => void }) {
+  // Split on both mention tokens and hashtags
+  const parts = text.split(/(<@[^>]+>|#\w+)/g);
   return (
     <p className="text-sm whitespace-pre-wrap [overflow-wrap:anywhere]">
       {parts.map((part, i) => {
         const mentionMatch = part.match(/^<@(.+)>$/);
         if (mentionMatch) {
           return (
-            <span key={i} className="inline-flex items-center gap-0.5 text-blue-600 dark:text-blue-400 font-semibold bg-blue-500/15 dark:bg-blue-400/15 rounded px-1 py-0.5 text-sm">
+            <span key={i} className="inline-flex items-center gap-0.5 text-blue-600 dark:text-blue-400 font-medium bg-blue-500/15 dark:bg-blue-400/15 rounded px-0.5 text-xs">
               @{mentionMatch[1]}
+            </span>
+          );
+        }
+        const tagMatch = part.match(/^#(\w+)$/);
+        if (tagMatch) {
+          const tag = tagMatch[1];
+          return (
+            <span
+              key={i}
+              onClick={(e) => { e.stopPropagation(); onTagClick?.(tag); }}
+              className={`inline-flex items-center gap-0.5 font-medium rounded px-0.5 text-xs cursor-pointer hover:opacity-80 ${getTagColor(tag)}`}
+            >
+              {tagMatch[1]}
             </span>
           );
         }
@@ -68,7 +106,6 @@ function CommentText({ text }: { text: string }) {
 
 /**
  * Auto-growing textarea with @mention Popover+Command combobox.
- * Shows raw <@Name> tokens in the textarea; badges only render in CommentText display.
  */
 function MentionInput({
   value,
@@ -96,7 +133,6 @@ function MentionInput({
   const mentionStartPos = useRef<number>(-1);
   const savedCursorPos = useRef<number>(-1);
 
-  // Auto-resize textarea to fit content
   const autoResize = useCallback(() => {
     const el = textareaRef.current;
     if (!el) return;
@@ -235,11 +271,16 @@ export function VodReview({ videoId, scrimId }: VodReviewProps) {
   const [newComment, setNewComment] = useState('');
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editContent, setEditContent] = useState('');
+  const [editTimestamp, setEditTimestamp] = useState<number | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [highlightedId, setHighlightedId] = useState<number | null>(null);
   const [videoHeight, setVideoHeight] = useState<number>(0);
   const [isPaused, setIsPaused] = useState(false);
   const [mentionUsers, setMentionUsers] = useState<MentionUser[]>([]);
+  const [filterUser, setFilterUser] = useState<string | null>(null);
+  const [filterTag, setFilterTag] = useState<string | null>(null);
+  const [filterMentioned, setFilterMentioned] = useState<string | null>(null); // null | "__all__" | userName
+  const [filterOpen, setFilterOpen] = useState(false);
   const playerRef = useRef<ReturnType<YouTubeEvent['target']['getInternalPlayer']> | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const commentRefsMap = useRef<Map<number, HTMLDivElement>>(new Map());
@@ -252,6 +293,43 @@ export function VodReview({ videoId, scrimId }: VodReviewProps) {
   const userScrolledRef = useRef(false);
   const programmaticScrollRef = useRef(false);
   const user = getUser();
+
+  // Derive unique users and tags from comments
+  const allUsers = useMemo(() => [...new Set(comments.map(c => c.userName))].sort(), [comments]);
+  const allTags = useMemo(() => {
+    const tags = new Set<string>();
+    comments.forEach(c => extractTags(c.content).forEach(t => tags.add(t)));
+    return [...tags].sort();
+  }, [comments]);
+  const allMentionedUsers = useMemo(() => {
+    const users = new Set<string>();
+    comments.forEach(c => {
+      const matches = c.content.match(/<@([^>]+)>/g);
+      if (matches) matches.forEach(m => users.add(m.slice(2, -1)));
+    });
+    return [...users].sort();
+  }, [comments]);
+
+  // Filter comments
+  const filteredComments = useMemo(() => {
+    let result = comments;
+    if (filterUser) {
+      result = result.filter(c => c.userName === filterUser);
+    }
+    if (filterTag) {
+      result = result.filter(c => extractTags(c.content).includes(filterTag));
+    }
+    if (filterMentioned) {
+      if (filterMentioned === '__all__') {
+        result = result.filter(c => /<@[^>]+>/.test(c.content));
+      } else {
+        result = result.filter(c => c.content.includes(`<@${filterMentioned}>`));
+      }
+    }
+    return result;
+  }, [comments, filterUser, filterTag, filterMentioned]);
+
+  const hasActiveFilter = filterUser !== null || filterTag !== null || filterMentioned !== null;
 
   // Measure video container height with ResizeObserver
   useEffect(() => {
@@ -323,9 +401,9 @@ export function VodReview({ videoId, scrimId }: VodReviewProps) {
 
   // Auto-scroll and highlight comment when video reaches its timestamp
   useEffect(() => {
-    if (comments.length === 0) return;
+    if (filteredComments.length === 0) return;
 
-    const matchingComment = [...comments]
+    const matchingComment = [...filteredComments]
       .reverse()
       .find(c => currentTime >= c.timestamp && currentTime <= c.timestamp + 5);
 
@@ -347,7 +425,6 @@ export function VodReview({ videoId, scrimId }: VodReviewProps) {
           const elHeight = el.offsetHeight;
           const viewportHeight = viewport.clientHeight;
           const targetScrollTop = elTop - viewportHeight / 2 + elHeight / 2;
-          // Only scroll if target is below current position
           if (targetScrollTop > viewport.scrollTop) {
             programmaticScrollRef.current = true;
             viewport.scrollTo({
@@ -368,7 +445,7 @@ export function VodReview({ videoId, scrimId }: VodReviewProps) {
         }, 3000);
       }
     }
-  }, [currentTime, comments, isPaused]);
+  }, [currentTime, filteredComments, isPaused]);
 
   // When video resumes playing, clear highlight after delay
   useEffect(() => {
@@ -399,7 +476,6 @@ export function VodReview({ videoId, scrimId }: VodReviewProps) {
   const seekTo = (timestamp: number) => {
     if (playerRef.current) {
       playerRef.current.seekTo(timestamp, true);
-      // Reset user scroll flag so auto-scroll resumes from new position
       userScrolledRef.current = false;
     }
   };
@@ -427,15 +503,20 @@ export function VodReview({ videoId, scrimId }: VodReviewProps) {
   const handleUpdateComment = async (id: number) => {
     if (!editContent.trim()) return;
     try {
+      const body: { content: string; timestamp?: number } = { content: editContent.trim() };
+      if (editTimestamp !== null) {
+        body.timestamp = editTimestamp;
+      }
       const res = await fetch(`${BOT_API_URL}/api/vod-comments/${id}`, {
         method: 'PUT',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ content: editContent.trim() }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (data.success) {
         setEditingId(null);
         setEditContent('');
+        setEditTimestamp(null);
         fetchComments();
       } else {
         toast.error(data.error || 'Failed to update comment');
@@ -462,6 +543,16 @@ export function VodReview({ videoId, scrimId }: VodReviewProps) {
     }
   };
 
+  const startEditing = (comment: VodComment) => {
+    setEditingId(comment.id);
+    setEditContent(comment.content);
+    setEditTimestamp(null); // null = unchanged
+  };
+
+  const handleTagClick = (tag: string) => {
+    setFilterTag(prev => prev === tag ? null : tag);
+  };
+
   return (
     <div className="flex flex-col lg:flex-row gap-4 w-full lg:items-start">
       {/* Video Player */}
@@ -485,10 +576,143 @@ export function VodReview({ videoId, scrimId }: VodReviewProps) {
         className="w-full lg:w-96 flex flex-col rounded-lg border bg-card text-card-foreground shadow-sm overflow-hidden shrink-0"
         style={{ height: videoHeight > 0 ? `${videoHeight}px` : undefined, maxHeight: videoHeight > 0 ? `${videoHeight}px` : '50vh' }}
       >
-        <div className="flex items-center gap-2 px-4 py-3 border-b shrink-0">
-          <MessageSquare className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm font-medium">Comments ({comments.length})</span>
+        {/* Header with filter */}
+        <div className="flex items-center justify-between px-4 py-3 border-b shrink-0">
+          <div className="flex items-center gap-2">
+            <MessageSquare className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Comments ({filteredComments.length}{hasActiveFilter ? `/${comments.length}` : ''})</span>
+          </div>
+          {(allUsers.length > 1 || allTags.length > 0 || allMentionedUsers.length > 0) && (
+            <Popover open={filterOpen} onOpenChange={setFilterOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="icon" className={`h-7 w-7 ${hasActiveFilter ? 'text-primary' : ''}`}>
+                  <Filter className="h-3.5 w-3.5" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-56 p-2" align="end" side="bottom" sideOffset={4}>
+                <div className="space-y-3">
+                  {/* Author filter */}
+                  {allUsers.length > 1 && (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground px-1">
+                        <User className="h-3 w-3" />
+                        <span>Author</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {allUsers.map(u => (
+                          <button
+                            key={u}
+                            onClick={() => { setFilterUser(prev => prev === u ? null : u); }}
+                            className={`px-2 py-0.5 rounded text-xs font-medium transition-colors cursor-pointer ${
+                              filterUser === u
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-muted hover:bg-accent'
+                            }`}
+                          >
+                            {u}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {/* Mentioned filter */}
+                  {allMentionedUsers.length > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground px-1">
+                        <AtSign className="h-3 w-3" />
+                        <span>Mentioned</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        <button
+                          onClick={() => setFilterMentioned(prev => prev === '__all__' ? null : '__all__')}
+                          className={`px-2 py-0.5 rounded text-xs font-medium transition-colors cursor-pointer ${
+                            filterMentioned === '__all__'
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-muted hover:bg-accent'
+                          }`}
+                        >
+                          All
+                        </button>
+                        {allMentionedUsers.map(u => (
+                          <button
+                            key={u}
+                            onClick={() => setFilterMentioned(prev => prev === u ? null : u)}
+                            className={`px-2 py-0.5 rounded text-xs font-medium transition-colors cursor-pointer ${
+                              filterMentioned === u
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-muted hover:bg-accent'
+                            }`}
+                          >
+                            {u}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {/* Tag filter */}
+                  {allTags.length > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground px-1">
+                        <Hash className="h-3 w-3" />
+                        <span>Tags</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {allTags.map(tag => (
+                          <button
+                            key={tag}
+                            onClick={() => handleTagClick(tag)}
+                            className={`px-2 py-0.5 rounded text-xs font-medium transition-colors cursor-pointer ${
+                              filterTag === tag
+                                ? 'bg-primary text-primary-foreground'
+                                : `${getTagColor(tag)} hover:opacity-80`
+                            }`}
+                          >
+                            {tag}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {/* Clear filters */}
+                  {hasActiveFilter && (
+                    <button
+                      onClick={() => { setFilterUser(null); setFilterTag(null); setFilterMentioned(null); }}
+                      className="w-full text-xs text-muted-foreground hover:text-foreground py-1 cursor-pointer"
+                    >
+                      Clear filters
+                    </button>
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
+          )}
         </div>
+
+        {/* Active filter badges */}
+        {hasActiveFilter && (
+          <div className="flex items-center gap-1.5 px-4 py-2 border-b shrink-0 flex-wrap">
+            {filterUser && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
+                <User className="h-3 w-3" />
+                {filterUser}
+                <button onClick={() => setFilterUser(null)} className="hover:text-primary/70 cursor-pointer"><X className="h-3 w-3" /></button>
+              </span>
+            )}
+            {filterMentioned && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-500/15 text-blue-600 dark:text-blue-400">
+                <AtSign className="h-3 w-3" />
+                {filterMentioned === '__all__' ? 'All Mentions' : filterMentioned}
+                <button onClick={() => setFilterMentioned(null)} className="hover:opacity-70 cursor-pointer"><X className="h-3 w-3" /></button>
+              </span>
+            )}
+            {filterTag && (
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${getTagColor(filterTag)}`}>
+                {filterTag}
+                <button onClick={() => setFilterTag(null)} className="hover:opacity-70 cursor-pointer"><X className="h-3 w-3" /></button>
+              </span>
+            )}
+          </div>
+        )}
 
         <ScrollArea className="flex-1 min-h-0" viewportRef={scrollViewportRef}>
           <div className="p-3 space-y-2">
@@ -496,12 +720,12 @@ export function VodReview({ videoId, scrimId }: VodReviewProps) {
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
               </div>
-            ) : comments.length === 0 ? (
+            ) : filteredComments.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground text-sm">
-                No comments yet
+                {hasActiveFilter ? 'No matching comments' : 'No comments yet'}
               </div>
             ) : (
-              comments.map((comment) => (
+              filteredComments.map((comment) => (
                 <div
                   key={comment.id}
                   ref={(el) => {
@@ -509,9 +733,9 @@ export function VodReview({ videoId, scrimId }: VodReviewProps) {
                     else commentRefsMap.current.delete(comment.id);
                   }}
                   onClick={(e) => {
-                    // Don't seek if clicking buttons or editing
                     if (editingId === comment.id) return;
                     if ((e.target as HTMLElement).closest('button')) return;
+                    if ((e.target as HTMLElement).closest('textarea')) return;
                     seekTo(comment.timestamp);
                   }}
                   className={`rounded-md border p-2.5 transition-all duration-500 min-w-0 [overflow-wrap:anywhere] ${
@@ -524,6 +748,22 @@ export function VodReview({ videoId, scrimId }: VodReviewProps) {
                 >
                   {editingId === comment.id ? (
                     <div className="space-y-2">
+                      {/* Editable timestamp */}
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setEditTimestamp(currentTime)}
+                          className="flex items-center gap-1 text-xs font-mono text-primary hover:underline cursor-pointer"
+                          title="Click to set timestamp to current video time"
+                        >
+                          <Clock className="h-3 w-3" />
+                          {formatTimestamp(editTimestamp ?? comment.timestamp)}
+                        </button>
+                        {editTimestamp !== null && editTimestamp !== comment.timestamp && (
+                          <span className="text-[10px] text-muted-foreground">
+                            (was {formatTimestamp(comment.timestamp)})
+                          </span>
+                        )}
+                      </div>
                       <MentionInput
                         textareaRef={editRef}
                         value={editContent}
@@ -531,13 +771,13 @@ export function VodReview({ videoId, scrimId }: VodReviewProps) {
                         onSubmit={() => handleUpdateComment(comment.id)}
                         mentionUsers={mentionUsers}
                         autoFocus
-                        onEscape={() => { setEditingId(null); setEditContent(''); }}
+                        onEscape={() => { setEditingId(null); setEditContent(''); setEditTimestamp(null); }}
                       />
                       <div className="flex gap-1.5">
                         <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => handleUpdateComment(comment.id)}>
                           <Check className="h-3.5 w-3.5" />
                         </Button>
-                        <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => { setEditingId(null); setEditContent(''); }}>
+                        <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => { setEditingId(null); setEditContent(''); setEditTimestamp(null); }}>
                           <X className="h-3.5 w-3.5" />
                         </Button>
                       </div>
@@ -547,7 +787,7 @@ export function VodReview({ videoId, scrimId }: VodReviewProps) {
                       <div className="flex items-center justify-between gap-2 mb-1">
                         <div className="flex items-center gap-2">
                           <button
-                            onClick={() => seekTo(comment.timestamp)}
+                            onClick={(e) => { e.stopPropagation(); seekTo(comment.timestamp); }}
                             className="flex items-center gap-1 text-xs font-mono text-primary hover:underline cursor-pointer"
                           >
                             <Clock className="h-3 w-3" />
@@ -562,7 +802,7 @@ export function VodReview({ videoId, scrimId }: VodReviewProps) {
                                 size="icon"
                                 variant="ghost"
                                 className="h-6 w-6"
-                                onClick={() => { setEditingId(comment.id); setEditContent(comment.content); }}
+                                onClick={() => startEditing(comment)}
                               >
                                 <Edit className="h-3 w-3" />
                               </Button>
@@ -578,7 +818,7 @@ export function VodReview({ videoId, scrimId }: VodReviewProps) {
                           </div>
                         )}
                       </div>
-                      <CommentText text={comment.content} />
+                      <CommentText text={comment.content} onTagClick={handleTagClick} />
                     </>
                   )}
                 </div>
@@ -597,7 +837,7 @@ export function VodReview({ videoId, scrimId }: VodReviewProps) {
             <div className="flex gap-2">
               <MentionInput
                 textareaRef={newCommentRef}
-                placeholder="Comment... (@ to mention)"
+                placeholder="Comment... (@ mention, # tag)"
                 value={newComment}
                 onChange={setNewComment}
                 onSubmit={handleAddComment}
