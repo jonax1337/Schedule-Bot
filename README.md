@@ -89,9 +89,10 @@
 - **Admin Panel**: Manage configuration and restart services with one click
 - **User Portal**: Self-service availability management with live database updates
 - **Schedule Editor**: Spreadsheet-like editor for schedule entries
-- **Scrim Manager**: Record opponents, results, VOD URLs, and notes with automatic stats
+- **Scrim Manager**: Record opponents, results, VOD URLs, match links, and notes with automatic stats
+- **VOD Review**: Collaborative VOD analysis with embedded YouTube player, timestamped comments, and filtering by user/tags/mentions
 - **Statistics Panel**: Team availability charts, scrim results visualization, win/loss streaks, and map composition analysis using Recharts
-- **Stratbook**: Notion-powered read-only strategy viewer with map/side filtering and rich content rendering
+- **Stratbook**: Local strategy management with TipTap rich text editor, folder hierarchy, map/side filtering, image and PDF uploads
 - **Discord Avatars**: Player avatars from Discord displayed in roster lists and user navigation
 - **Live Logs**: Stream bot activity, warnings, and errors from the API server
 - **User Management**: Register/unregister Discord users and sync mappings
@@ -240,10 +241,10 @@ The main process follows this startup sequence (defined in `src/index.ts`):
 2. **Initialize database** if empty (create default settings, user mappings)
 3. **Load settings** from PostgreSQL `settings` table
 4. **Seed schedule** (ensures next 14 days of schedule entries exist)
-5. **Start Discord bot** (`src/bot/client.ts`)
-6. **Wait for bot 'clientReady'** event
-7. **Start scheduler** (node-cron jobs for daily posts and reminders)
-8. **Start Express API server** on port 3001
+5. **Apply recurring availability** to empty schedule entries
+6. **Start Express API server** on port 3001 (early, so healthchecks pass while bot connects)
+7. **Start Discord bot** (`src/bot/client.ts`) + wait for 'clientReady' event
+8. **Start scheduler** (node-cron jobs for daily posts and reminders)
 
 **Graceful shutdown** is handled via SIGINT/SIGTERM handlers that stop the scheduler and destroy the Discord client.
 
@@ -308,9 +309,12 @@ settings.branding = {
   tagline,                    // Optional tagline (default: "Schedule Manager")
   logoUrl                     // Optional logo URL for sidebar branding
 }
+settings.stratbook = {
+  editPermission,             // 'admin' | 'all' - who can edit strategies (default: 'admin')
+}
 ```
 
-Features like change notifications, channel cleaning, poll duration, branding, and Discord OAuth use `loadSettings()` directly rather than the `config` export.
+Features like change notifications, channel cleaning, poll duration, branding, stratbook permissions, and Discord OAuth use `loadSettings()` directly rather than the `config` export.
 
 ---
 
@@ -327,15 +331,20 @@ Features like change notifications, channel cleaning, poll duration, branding, a
 - **Authentication**: JWT (jsonwebtoken 9), bcrypt 6
 - **Security**: Helmet 8, CORS, Rate Limiting (express-rate-limit)
 - **Validation**: Joi 18
+- **File Uploads**: multer 2 (images max 5MB, PDFs max 10MB)
 - **Config**: dotenv 17
-- **Notion**: @notionhq/client 2.3 (Stratbook integration)
 
 ### Frontend
 - **Framework**: Next.js 16+ (App Router)
 - **UI Library**: React 19+
 - **Styling**: TailwindCSS 4
-- **Components**: Radix UI Primitives (30 components)
-- **Drag & Drop**: @dnd-kit
+- **Components**: Radix UI Primitives (31 components)
+- **Rich Text Editor**: TipTap 3.18 (with extensions: code-block-lowlight, image, link, placeholder, text-align, underline)
+- **Syntax Highlighting**: lowlight 3
+- **Charts**: Recharts 3.7
+- **Video**: react-youtube 10
+- **Drag & Drop**: @dnd-kit (core, sortable, utilities, modifiers)
+- **Component Variants**: class-variance-authority 0.7
 - **Icons**: Lucide React
 - **Theme**: next-themes (Dark Mode)
 - **Notifications**: Sonner (toasts)
@@ -343,11 +352,16 @@ Features like change notifications, channel cleaning, poll duration, branding, a
 
 ### Database Schema
 - **schedules**: Daily schedules with date, reason, focus
-- **schedule_players**: Player availability per schedule (with CASCADE delete)
-- **user_mappings**: Discord ID → Dashboard user mapping (includes per-user timezone)
-- **scrims**: Match tracking data
+- **schedule_players**: Player availability per schedule (CASCADE delete)
+- **user_mappings**: Discord ID → Dashboard user mapping (includes per-user timezone, is_admin flag)
+- **scrims**: Match tracking data (CASCADE deletes vod_comments)
+- **vod_comments**: Timestamped comments on VOD replays
 - **absences**: Planned absences
 - **recurring_availabilities**: Weekly recurring availability patterns
+- **strategy_folders**: Folder hierarchy for strategies (with colors)
+- **strategies**: Strategy content (TipTap JSON, map/side/tags/agents)
+- **strategy_images**: Image attachments for strategies
+- **strategy_files**: PDF attachments for strategies
 - **settings**: Persistent bot configuration
 
 ---
@@ -719,18 +733,57 @@ The migration creates the following tables:
 - **Unique**: `(user_id, day_of_week)`
 
 **6. scrims**
-- `id` (TEXT PRIMARY KEY)
+- `id` (TEXT PRIMARY KEY) - Format: `scrim_${timestamp}_${random}`
 - `date` (TEXT)
 - `opponent` (TEXT)
 - `result` (ScrimResult ENUM) - WIN, LOSS, DRAW
 - `score_us`, `score_them` (INTEGER)
 - `map`, `match_type` (TEXT)
-- `our_agents`, `their_agents` (TEXT)
-- `vod_url`, `notes` (TEXT)
+- `our_agents`, `their_agents` (TEXT) - Comma-separated agent names
+- `vod_url`, `match_link`, `notes` (TEXT)
 - `created_at`, `updated_at` (TIMESTAMP)
 - **Index**: `date`
 
-**7. settings**
+**7. vod_comments**
+- `id` (SERIAL PRIMARY KEY)
+- `scrim_id` (TEXT FK → scrims.id) - CASCADE DELETE
+- `user_name` (TEXT)
+- `timestamp` (INTEGER) - Video timestamp in seconds
+- `content` (TEXT)
+- `created_at`, `updated_at` (TIMESTAMP)
+- **Index**: `(scrim_id, timestamp)`
+
+**8. strategy_folders**
+- `id` (SERIAL PRIMARY KEY)
+- `name` (TEXT)
+- `color` (TEXT) - Hex color code
+- `parent_id` (INTEGER FK, nullable) - For nested folders
+- `created_at`, `updated_at` (TIMESTAMP)
+
+**9. strategies**
+- `id` (SERIAL PRIMARY KEY)
+- `title` (TEXT)
+- `map`, `side` (TEXT)
+- `tags`, `agents` (TEXT) - Comma-separated
+- `content` (TEXT) - TipTap JSON
+- `folder_id` (INTEGER FK → strategy_folders.id, nullable)
+- `created_at`, `updated_at` (TIMESTAMP)
+
+**10. strategy_images**
+- `id` (SERIAL PRIMARY KEY)
+- `strategy_id` (INTEGER FK → strategies.id)
+- `filename`, `original_name`, `mime_type` (TEXT)
+- `size` (INTEGER)
+- `created_at` (TIMESTAMP)
+
+**11. strategy_files**
+- `id` (SERIAL PRIMARY KEY)
+- `strategy_id` (INTEGER FK → strategies.id)
+- `filename`, `original_name`, `mime_type` (TEXT)
+- `size` (INTEGER)
+- `created_at` (TIMESTAMP)
+
+**12. settings**
 - `id` (SERIAL PRIMARY KEY)
 - `key` (TEXT UNIQUE)
 - `value` (TEXT) - JSON serialized
@@ -781,10 +834,6 @@ ADMIN_PASSWORD_HASH=your_bcrypt_hash_here
 # JWT Secret (generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
 JWT_SECRET=your_jwt_secret_here_min_32_chars
 
-# Notion Stratbook (Optional)
-NOTION_API_KEY=your_notion_api_key_here
-NOTION_STRATS_DB_ID=your_notion_database_id_here
-
 # Dashboard URL (for CORS)
 DASHBOARD_URL=http://localhost:3000
 
@@ -802,8 +851,6 @@ NEXT_PUBLIC_BOT_API_URL=http://localhost:3001  # Backend API URL for client-side
 - **DATABASE_URL**: PostgreSQL connection string
 - **ADMIN_USERNAME / ADMIN_PASSWORD_HASH**: Admin dashboard credentials
 - **JWT_SECRET**: Random 32+ character string for JWT signing
-- **NOTION_API_KEY**: Notion API key for stratbook feature (optional)
-- **NOTION_STRATS_DB_ID**: Notion database ID containing strategies (optional)
 - **DASHBOARD_URL**: Dashboard URL for production CORS (defaults to localhost:3000)
 - **BOT_API_URL**: Backend API URL for dashboard server-side proxy (defaults to http://localhost:3001)
 - **NEXT_PUBLIC_BOT_API_URL**: Backend API URL for dashboard client-side (defaults to http://localhost:3001)
@@ -840,6 +887,7 @@ Settings are stored in the `settings` table and can be modified via:
 - `branding.teamName`: Team display name (default: "Valorant Bot")
 - `branding.tagline`: Subtitle text (default: "Schedule Manager")
 - `branding.logoUrl`: Custom logo URL for sidebar branding
+- `stratbook.editPermission`: Who can edit strategies — `'admin'` (default) or `'all'`
 
 ---
 
@@ -946,8 +994,8 @@ Sidebar is organized into four groups:
 4. **Users**: Manage player registrations and roster
 
 **Competitive:**
-5. **Matches**: Track scrim results, VOD links, and agent compositions
-6. **Stratbook**: View team strategies from Notion
+5. **Matches**: Track scrim results, VOD links, VOD review, and agent compositions
+6. **Stratbook**: Manage team strategies with TipTap editor, folders, and file uploads
 
 **System:**
 7. **Settings**: Configure Discord, scheduling, and branding settings
@@ -962,8 +1010,8 @@ Tab-based interface for users:
 2. **Availability**: Set your own availability for upcoming days
 3. **Recurring**: Manage weekly recurring availability defaults
 4. **Absences**: View and manage planned absences
-5. **Matches**: Browse match history and stats
-6. **Stratbook**: Browse team strategies from Notion
+5. **Matches**: Browse match history, VOD review, and stats
+6. **Stratbook**: Browse and manage team strategies
 7. **Statistics**: Team analytics with charts
 
 Select your username from dropdown (or login with Discord) to access personalized features.
@@ -1064,9 +1112,24 @@ POST /api/recurring-availability/bulk    # Bulk set for multiple days
 DELETE /api/recurring-availability/:dayOfWeek # Remove specific day
 DELETE /api/recurring-availability       # Remove all entries
 
-# Stratbook
-GET /api/stratbook                       # List strategies (optional: map, side filters)
-GET /api/stratbook/:pageId               # Get strategy content (Notion blocks)
+# Strategies
+GET /api/strategies                      # List strategies (query: map, side, folderId)
+GET /api/strategies/:id                  # Get single strategy
+POST /api/strategies                     # Create strategy (auth)
+PUT /api/strategies/:id                  # Update strategy (auth)
+DELETE /api/strategies/:id               # Delete strategy (auth)
+POST /api/strategies/duplicate/:id       # Duplicate strategy (auth)
+PUT /api/strategies/move/:id             # Move to folder (auth)
+POST /api/strategies/upload              # Upload image (auth, max 5MB)
+POST /api/strategies/:id/files           # Upload PDF (auth, max 10MB)
+GET /api/strategies/folders              # List folders
+POST /api/strategies/folders             # Create folder (auth)
+
+# VOD Comments
+GET /api/vod-comments/scrim/:scrimId     # Get comments for a scrim (auth)
+POST /api/vod-comments                   # Create comment (auth)
+PUT /api/vod-comments/:id                # Update (owner or admin)
+DELETE /api/vod-comments/:id             # Delete (owner or admin)
 
 # Admin Utilities
 POST /api/admin/generate-password-hash (admin)
@@ -1103,8 +1166,9 @@ schedule-bot/
 │   │       ├── schedule.routes.ts  # Schedule CRUD + availability updates
 │   │       ├── scrim.routes.ts     # Scrim/match CRUD + stats
 │   │       ├── settings.routes.ts  # Bot settings management
-│   │       ├── stratbook.routes.ts # Notion-powered strategy viewer
-│   │       └── user-mapping.routes.ts # Player roster management
+│   │       ├── strategy.routes.ts # Local strategy management (CRUD, folders, files)
+│   │       ├── user-mapping.routes.ts # Player roster management
+│   │       └── vod-comment.routes.ts  # VOD comment CRUD endpoints
 │   ├── bot/
 │   │   ├── client.ts        # Discord client singleton
 │   │   ├── commands/        # Slash command definitions and handlers
@@ -1123,14 +1187,17 @@ schedule-bot/
 │   │   ├── recurring-availability.repository.ts # Recurring weekly availability CRUD
 │   │   ├── schedule.repository.ts     # Schedule queries, seeding, sync
 │   │   ├── scrim.repository.ts        # Match tracking CRUD
-│   │   └── user-mapping.repository.ts # Roster management
+│   │   ├── strategy.repository.ts    # Strategy + folder + file CRUD
+│   │   ├── user-mapping.repository.ts # Roster management
+│   │   └── vod-comment.repository.ts  # VOD comment CRUD
 │   ├── services/            # Business logic layer
 │   │   ├── absence.service.ts         # Absence CRUD with auth + date validation
 │   │   ├── recurring-availability.service.ts # Recurring availability business logic
 │   │   ├── schedule.service.ts        # Schedule analysis, validation
 │   │   ├── scrim.service.ts           # Scrim CRUD + stats
-│   │   ├── stratbook.service.ts       # Notion API integration with caching
-│   │   └── user-mapping.service.ts    # Roster CRUD with auto-sync
+│   │   ├── strategy.service.ts        # Strategy CRUD with permission checks
+│   │   ├── user-mapping.service.ts    # Roster CRUD with auto-sync
+│   │   └── vod-comment.service.ts     # VOD comment CRUD with auth
 │   └── shared/
 │       ├── config/config.ts           # Global config (env + DB settings)
 │       ├── middleware/
@@ -1169,16 +1236,20 @@ schedule-bot/
 │   │   ├── shared/          # Shared across admin/user
 │   │   │   ├── agent-picker.tsx      # Valorant agent selector
 │   │   │   ├── nav-user.tsx          # User navigation menu
-│   │   │   ├── matches.tsx           # Match history component
+│   │   │   ├── matches.tsx           # Match history + VOD review
 │   │   │   ├── statistics.tsx        # Charts & analytics
-│   │   │   ├── stratbook.tsx         # Notion-powered strategy viewer
-│   │   │   ├── notion-renderer.tsx   # Renders Notion blocks
+│   │   │   ├── stratbook.tsx         # Strategy browser with folders
+│   │   │   ├── strategy-editor.tsx   # TipTap WYSIWYG editor
+│   │   │   ├── strategy-viewer.tsx   # Read-only strategy renderer
+│   │   │   ├── strategy-form.tsx     # Strategy create/edit form
+│   │   │   ├── pdf-preview-dialog.tsx # PDF preview component
+│   │   │   ├── vod-review.tsx        # VOD review (YouTube + comments)
 │   │   │   ├── sidebar-branding-header.tsx # Reusable sidebar branding header
 │   │   │   └── sidebar-nav-group.tsx # Reusable sidebar navigation group
 │   │   ├── error-boundary.tsx       # React error boundary with retry UI
 │   │   ├── auth/            # Auth components (login-form)
 │   │   ├── theme/           # Theme system (provider, toggle)
-│   │   ├── ui/              # Radix UI primitives (30 components)
+│   │   ├── ui/              # Radix UI primitives (31 components)
 │   │   └── user/            # User portal components
 │   │       ├── layout/      # user-layout-wrapper, user-sidebar
 │   │       └── pages/       # User content pages (user-schedule, user-availability, user-recurring, user-absences)
@@ -1189,12 +1260,14 @@ schedule-bot/
 │   │   ├── api.ts           # API client (apiGet, apiPost, etc.)
 │   │   ├── auth.ts          # JWT token management
 │   │   ├── breadcrumb-context.tsx # Breadcrumb navigation context
+│   │   ├── config.ts        # Dashboard config constants (BOT_API_URL, timeouts)
+│   │   ├── timezone.ts      # Timezone React Context + conversion utils
 │   │   ├── types.ts         # Frontend type definitions
 │   │   ├── utils.ts         # Tailwind merge utility (cn)
 │   │   └── animations.ts    # Animation utilities (stagger, presets)
 │   └── public/
 │       └── assets/
-│           ├── agents/      # Valorant agent icons (32 .webp files)
+│           ├── agents/      # Valorant agent icons (28 .webp files)
 │           └── maps/        # Valorant map images (12 .webp files)
 ├── prisma/                  # Prisma ORM
 │   ├── schema.prisma        # Database schema
@@ -1216,9 +1289,9 @@ Components are organized by domain/role:
   - `layout/` - User layout wrapper and sidebar
   - `pages/` - User content pages (user-schedule, user-availability, user-recurring, user-absences)
 - **`components/auth/`** - Authentication UI
-- **`components/shared/`** - Shared across admin/user (agent-picker, matches, statistics, stratbook, notion-renderer, nav-user, sidebar-branding-header, sidebar-nav-group)
+- **`components/shared/`** - Shared across admin/user (agent-picker, matches, statistics, stratbook, strategy-editor, strategy-viewer, strategy-form, pdf-preview-dialog, vod-review, nav-user, sidebar-branding-header, sidebar-nav-group)
 - **`components/theme/`** - Theme system (theme-toggle, theme-provider)
-- **`components/ui/`** - Radix UI primitives (30 components including chart)
+- **`components/ui/`** - Radix UI primitives (31 components including chart, context-menu)
 
 Admin pages export from `components/admin/pages/index.ts` which also re-exports shared components (Matches, AgentSelector, Statistics, Stratbook) for convenience.
 
@@ -1240,21 +1313,36 @@ The `Matches` component (`components/shared/matches.tsx`) provides match history
 - **Agent Compositions** - Shows agent picks for both teams using agent icons from `public/assets/agents/`
 - **Create/Edit Dialog** - Form for adding or editing match records with agent picker
 - **Filtering** - Filter by date range and opponent
+- **VOD Review** - Lightbox overlay with embedded YouTube player and timestamped comment system
 - Used in both admin dashboard (Matches tab) and user portal (Matches tab)
 
-### Stratbook (Notion Integration)
+### VOD Review System
 
-The `Stratbook` component (`components/shared/stratbook.tsx`) provides a read-only strategy viewer powered by Notion:
+The `VodReview` component (`components/shared/vod-review.tsx`) provides collaborative VOD analysis:
 
-- **Strategy List** - Fetches strategies from a Notion database with properties: Name, Map, Side, Tags, Agents
-- **Filtering** - Filter by map and side, with search functionality
-- **Strategy Detail View** - Renders full Notion page content using `NotionRenderer` component
-- **NotionRenderer** (`components/shared/notion-renderer.tsx`) - Renders Notion blocks including headings, paragraphs, lists, code blocks, images, callouts, toggles, and more
-- **Caching** - 60-second in-memory cache on the backend for performance
-- **Graceful Degradation** - Shows informational message when Notion is not configured (missing API key)
+- **YouTube Player** - Embedded via `react-youtube`, synced with comment timestamps
+- **Timestamped Comments** - Users can add comments at specific video timestamps; clicking a comment seeks to that point
+- **Comment Filtering** - Filter by user, `#tags`, and `@mentions` within comments
+- **Auto-scroll** - Comments auto-scroll to track video playback, respects manual user scrolling
+- **Backend**: `vod-comment.repository.ts` → `vod-comment.service.ts` → `vod-comment.routes.ts` (full CRUD with owner/admin authorization)
+- **Database**: `vod_comments` table linked to scrims via `scrim_id` with cascade delete
+
+### Stratbook (Local Strategy Management)
+
+The strategy system uses a local PostgreSQL database with a TipTap rich text editor:
+
+- **Database Tables**: `strategy_folders` (hierarchical folders with colors), `strategies` (TipTap JSON content, map/side/tags/agents, folder assignment), `strategy_images` (uploaded image attachments), `strategy_files` (uploaded PDF attachments)
+- **Strategy List** (`components/shared/stratbook.tsx`) - Fetches from `/api/strategies`, supports folder hierarchy navigation with breadcrumbs
+- **Filtering** - Filter by map and side (server-side via query params); search by title, tags, and agents (client-side, case-insensitive)
+- **Strategy Editor** (`components/shared/strategy-editor.tsx`) - TipTap WYSIWYG editor with image resizing, link editing, text alignment, code blocks with syntax highlighting
+- **Strategy Viewer** (`components/shared/strategy-viewer.tsx`) - Read-only rendering using TipTap editor in non-editable mode
+- **Strategy Form** (`components/shared/strategy-form.tsx`) - Create/edit form with map, side, tags, agents fields
+- **File Uploads** - Images (max 5MB) and PDFs (max 10MB) stored locally via multer
+- **Folder Management** - Create, rename, color-code, duplicate, and delete folders; move strategies between folders
+- **Edit Permissions** - Controlled by `stratbook.editPermission` setting: `'admin'` (default) or `'all'` (any authenticated user)
 - **Breadcrumb Navigation** - Uses `BreadcrumbContext` (`lib/breadcrumb-context.tsx`) for sub-page navigation
 - Available in both admin dashboard (Stratbook tab) and user portal (Stratbook tab)
-- Requires `NOTION_API_KEY` and `NOTION_STRATS_DB_ID` environment variables
+- No external service dependencies (fully self-contained)
 
 ### Discord Avatar Integration
 
@@ -1315,9 +1403,11 @@ Data access is abstracted into repositories (sole data layer):
 - **`database-initializer.ts`** - First-run setup: creates tables, seeds default settings and schedules
 - **`absence.repository.ts`** - Absence CRUD, `isUserAbsentOnDate()`, `getAbsentUserIdsForDate()`, `getAbsentUserIdsForDates()` (batch)
 - **`recurring-availability.repository.ts`** - Recurring weekly availability CRUD, day-of-week queries, upsert
-- **`schedule.repository.ts`** - Schedule CRUD, `addMissingDays()`, `syncUserMappingsToSchedules()`, pagination
+- **`schedule.repository.ts`** - Schedule CRUD, `addMissingDays()`, `syncUserMappingsToSchedules()`, `applyRecurringToEmptySchedules()`, pagination
 - **`scrim.repository.ts`** - Scrim CRUD, stats aggregation, date range queries
+- **`strategy.repository.ts`** - Strategy CRUD, folder hierarchy, image/PDF file management
 - **`user-mapping.repository.ts`** - Roster CRUD with auto-`sortOrder` calculation and reordering on role changes
+- **`vod-comment.repository.ts`** - VOD comment CRUD, queries by scrim ID
 
 ### Services Layer
 
@@ -1327,8 +1417,9 @@ Services provide business logic on top of repositories:
 - **`recurring-availability.service.ts`** - Recurring availability CRUD with authorization (users manage own entries only)
 - **`schedule.service.ts`** - Schedule analysis, availability validation (users can only edit their own unless admin), pagination
 - **`scrim.service.ts`** - Scrim CRUD, stats, recent scrims with date sorting
-- **`stratbook.service.ts`** - Fetches strategies from Notion API, caches results for 60 seconds, filters by map/side/tags
+- **`strategy.service.ts`** - Strategy CRUD with permission checks (`stratbook.editPermission` setting), folder management, file upload handling
 - **`user-mapping.service.ts`** - Roster CRUD with automatic `syncUserMappingsToSchedules()` after changes
+- **`vod-comment.service.ts`** - VOD comment CRUD with authorization (owner or admin can edit/delete)
 
 Services are class-based with singleton exports (e.g., `export const scheduleService = new ScheduleService()`)
 

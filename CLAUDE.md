@@ -13,7 +13,7 @@ All components run from a single Node.js process that starts the bot, API server
 
 ### Technology Stack
 **Backend:** TypeScript 5.9, discord.js 14.25, Express 5.2, Prisma 7.3 (with @prisma/adapter-pg + pg native driver), node-cron 4.2, bcrypt 6, jsonwebtoken 9, Helmet 8, dotenv 17, Joi 18, multer 2 (file uploads)
-**Frontend:** Next.js 16.1, React 19.2, TailwindCSS 4, Radix UI primitives, Recharts 3.7 (charts), next-themes, sonner (toasts), lucide-react (icons), cmdk (command palette), @dnd-kit (drag and drop), TipTap 3.18 (rich text editor with extensions: code-block-lowlight, image, link, placeholder, text-align, underline), lowlight 3 (syntax highlighting), @tailwindcss/typography
+**Frontend:** Next.js 16.1, React 19.2, TailwindCSS 4, Radix UI primitives, Recharts 3.7 (charts), next-themes, sonner (toasts), lucide-react (icons), cmdk (command palette), @dnd-kit (core, sortable, utilities, modifiers - drag and drop), TipTap 3.18 (rich text editor with extensions: code-block-lowlight, image, link, placeholder, text-align, underline), lowlight 3 (syntax highlighting), @tailwindcss/typography, react-youtube 10 (YouTube video player), class-variance-authority 0.7 (component variants)
 **Testing:** Vitest 4.0 with V8 coverage provider
 **Database:** PostgreSQL via Prisma ORM
 
@@ -127,7 +127,8 @@ src/
 │       ├── scrim.routes.ts     # Scrim/match CRUD + stats
 │       ├── settings.routes.ts  # Bot settings management
 │       ├── strategy.routes.ts  # Local strategy management (CRUD, folders, file uploads)
-│       └── user-mapping.routes.ts # Player roster management
+│       ├── user-mapping.routes.ts # Player roster management
+│       └── vod-comment.routes.ts  # VOD comment CRUD endpoints
 ├── bot/
 │   ├── client.ts               # Discord client singleton
 │   ├── commands/
@@ -162,14 +163,16 @@ src/
 │   ├── schedule.repository.ts  # Schedule + player queries, seeding, sync
 │   ├── scrim.repository.ts     # Match tracking CRUD + stats
 │   ├── strategy.repository.ts  # Strategy + folder CRUD, file management
-│   └── user-mapping.repository.ts # Roster management with auto-sort
+│   ├── user-mapping.repository.ts # Roster management with auto-sort
+│   └── vod-comment.repository.ts  # VOD comment CRUD (timestamped comments on scrims)
 ├── services/                   # Business logic layer
 │   ├── absence.service.ts      # Absence CRUD with auth + date validation
 │   ├── recurring-availability.service.ts # Recurring availability business logic
 │   ├── schedule.service.ts     # Schedule analysis, availability validation
 │   ├── scrim.service.ts        # Scrim CRUD + stats + recent scrims
 │   ├── strategy.service.ts     # Strategy CRUD with permission checks (admin vs all)
-│   └── user-mapping.service.ts # Roster CRUD with auto-sync to schedules
+│   ├── user-mapping.service.ts # Roster CRUD with auto-sync to schedules
+│   └── vod-comment.service.ts  # VOD comment business logic with auth
 └── shared/
     ├── config/config.ts        # Global config (env + DB settings)
     ├── middleware/
@@ -235,6 +238,7 @@ dashboard/
 │   │   ├── strategy-viewer.tsx # Read-only strategy renderer using TipTap
 │   │   ├── strategy-form.tsx   # Strategy create/edit form
 │   │   ├── pdf-preview-dialog.tsx # PDF preview component
+│   │   ├── vod-review.tsx        # VOD review UI (YouTube player, timestamped comments, filtering)
 │   │   ├── sidebar-branding-header.tsx # Reusable sidebar branding header
 │   │   └── sidebar-nav-group.tsx # Reusable sidebar navigation group
 │   ├── error-boundary.tsx       # React error boundary with retry UI
@@ -550,6 +554,12 @@ When a player's availability or a schedule reason changes, the bot can automatic
 - `DELETE /api/strategies/folders/:id` - Delete folder (auth)
 - `POST /api/strategies/folders/:id/duplicate` - Duplicate folder (auth)
 
+### VOD Comments
+- `GET /api/vod-comments/scrim/:scrimId` - Get all comments for a scrim (auth required)
+- `POST /api/vod-comments` - Create comment (auth required, validated)
+- `PUT /api/vod-comments/:id` - Update comment (auth required, owner or admin)
+- `DELETE /api/vod-comments/:id` - Delete comment (auth required, owner or admin)
+
 ### Discord & Admin
 - `GET /api/discord/channels` - List text channels (admin)
 - `GET /api/discord/roles` - List server roles (admin)
@@ -567,7 +577,7 @@ When a player's availability or a schedule reason changes, the bot can automatic
 - Generator uses `prisma-client` provider (Prisma 7.x style, not `prisma-client-js`)
 - Migrations are in `prisma/migrations/` and must be run on deploy
 - Date format is DD.MM.YYYY stored as TEXT (not DATE type) for consistency with legacy system
-- Cascade deletes: deleting a Schedule deletes all its SchedulePlayers
+- Cascade deletes: deleting a Schedule deletes all its SchedulePlayers; deleting a Scrim deletes all its VodComments
 - Prisma client outputs to custom path: `src/generated/prisma` (not default node_modules)
 - Always import from: `import { PrismaClient } from '../generated/prisma/client.js'`
 - After schema changes: run `npx prisma generate` to regenerate client in custom location
@@ -591,6 +601,7 @@ Data access is abstracted into repositories (sole data layer, no legacy alternat
 - `scrim.repository.ts` - Scrim CRUD, stats aggregation, date range queries
 - `strategy.repository.ts` - Strategy CRUD, folder hierarchy, image/PDF file management
 - `user-mapping.repository.ts` - Roster CRUD with auto-`sortOrder` calculation and reordering on role changes
+- `vod-comment.repository.ts` - VOD comment CRUD, queries by scrim ID
 
 ### Services Layer
 Services provide business logic on top of repositories:
@@ -600,6 +611,7 @@ Services provide business logic on top of repositories:
 - `scrim.service.ts` - Scrim CRUD, stats, recent scrims with date sorting
 - `strategy.service.ts` - Strategy CRUD with permission checks (`stratbook.editPermission` setting), folder management, file upload handling
 - `user-mapping.service.ts` - Roster CRUD with automatic `syncUserMappingsToSchedules()` after changes
+- `vod-comment.service.ts` - VOD comment CRUD with authorization (owner or admin can edit/delete)
 
 Services are class-based with singleton exports (e.g., `export const scheduleService = new ScheduleService()`).
 
@@ -672,6 +684,16 @@ The `Matches` component (`components/shared/matches.tsx`) provides match history
 - **Create/Edit Dialog** - Form for adding or editing match records with agent picker
 - **Filtering** - Filter by date range and opponent
 - Used in both admin dashboard (Matches tab) and user portal (Matches tab)
+- **VOD Review** - Lightbox overlay with embedded YouTube player and timestamped comment system (via `vod-review.tsx`)
+
+### VOD Review System
+The `VodReview` component (`components/shared/vod-review.tsx`) provides collaborative VOD analysis:
+- **YouTube Player** - Embedded via `react-youtube`, synced with comment timestamps
+- **Timestamped Comments** - Users can add comments at specific video timestamps; clicking a comment seeks to that point
+- **Comment Filtering** - Filter by user, `#tags`, and `@mentions` within comments
+- **Auto-scroll** - Comments auto-scroll to track video playback, respects manual user scrolling
+- **Backend**: `vod-comment.repository.ts` → `vod-comment.service.ts` → `vod-comment.routes.ts` (full CRUD with owner/admin authorization)
+- **Database**: `vod_comments` table linked to scrims via `scrim_id` with cascade delete
 
 ### Stratbook (Local Strategy Management)
 The strategy system uses a local PostgreSQL database with a TipTap rich text editor (replaced the previous Notion integration):
@@ -859,7 +881,8 @@ curl -X POST http://localhost:3001/api/actions/remind \
 - **schedules** - One row per date (DD.MM.YYYY), has reason/focus fields
 - **schedule_players** - Many rows per schedule, one per player per date, stores availability and sort_order
 - **user_mappings** - Master roster with discord_id, discord_username, display_name, role, sort_order, user_timezone (optional), is_admin (boolean, default false — grants admin privileges via JWT)
-- **scrims** - Match history (opponent, result, score_us, score_them, map, match_type, our_agents, their_agents as comma-separated strings, vod_url, notes)
+- **scrims** - Match history (opponent, result, score_us, score_them, map, match_type, our_agents, their_agents as comma-separated strings, vod_url, match_link, notes, has vod_comments relation)
+- **vod_comments** - Timestamped comments on VOD replays (scrim_id, user_name, timestamp in seconds, content; cascade delete with scrim; index on [scrimId, timestamp])
 - **absences** - Player absence periods (user_id, start_date, end_date in DD.MM.YYYY, reason)
 - **recurring_availabilities** - Weekly recurring availability patterns (user_id, day_of_week 0-6, availability, active flag, unique on [userId, dayOfWeek])
 - **strategy_folders** - Folder hierarchy for strategies (name, color, parent_id for nesting)
