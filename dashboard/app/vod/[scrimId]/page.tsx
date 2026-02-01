@@ -36,6 +36,7 @@ interface ScrimData {
   map: string;
   matchType?: string;
   vodUrl: string;
+  notes: string;
 }
 
 interface MentionUser {
@@ -578,27 +579,45 @@ export default function VodRoomPage() {
     );
   }
 
-  const resultColor = scrim.result === 'win' ? 'text-emerald-500' : scrim.result === 'loss' ? 'text-red-500' : 'text-amber-500';
+  const resultColor = scrim.result === 'win' ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' : scrim.result === 'loss' ? 'bg-red-500/15 text-red-600 dark:text-red-400' : 'bg-amber-500/15 text-amber-600 dark:text-amber-400';
+  const resultIcon = scrim.result === 'win' ? 'W' : scrim.result === 'loss' ? 'L' : 'D';
 
   return (
     <div className="flex flex-col h-screen bg-background">
       {/* Top bar */}
-      <div className="flex items-center gap-3 px-4 py-2 border-b shrink-0 bg-card">
-        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => router.back()}>
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
+      <div className="flex items-center justify-between px-4 py-2.5 border-b shrink-0 bg-card">
         <div className="flex items-center gap-3 min-w-0">
-          <span className="font-semibold truncate">
-            vs {scrim.opponent}
-          </span>
-          <span className={`text-sm font-medium ${resultColor}`}>
-            {scrim.result.toUpperCase()} {scrim.scoreUs}-{scrim.scoreThem}
-          </span>
-          {scrim.map && (
-            <span className="text-sm text-muted-foreground">{scrim.map}</span>
-          )}
-          <span className="text-sm text-muted-foreground">{scrim.date}</span>
+          <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => router.back()}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+
+          <div className="flex items-center gap-2.5 min-w-0">
+            {/* Result badge */}
+            <span className={`inline-flex items-center justify-center rounded-md px-2 py-0.5 text-xs font-bold shrink-0 ${resultColor}`}>
+              {resultIcon} {scrim.scoreUs}-{scrim.scoreThem}
+            </span>
+
+            {/* Opponent */}
+            <span className="font-semibold truncate">vs {scrim.opponent}</span>
+
+            {/* Separator */}
+            <span className="text-muted-foreground/40 shrink-0">|</span>
+
+            {/* Map */}
+            {scrim.map && (
+              <span className="text-sm text-muted-foreground shrink-0">{scrim.map}</span>
+            )}
+
+            {/* Match type tag (e.g. Premier, Ranked, Scrim) */}
+            {scrim.matchType && (
+              <span className="inline-flex items-center rounded-md bg-primary/10 text-primary px-2 py-0.5 text-xs font-medium shrink-0">
+                {scrim.matchType}
+              </span>
+            )}
+          </div>
         </div>
+
+        <span className="text-xs text-muted-foreground shrink-0 ml-4">{scrim.date}</span>
       </div>
 
       {/* Main content: video + chat */}

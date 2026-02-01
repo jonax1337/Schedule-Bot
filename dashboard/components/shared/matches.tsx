@@ -1148,7 +1148,7 @@ export function Matches() {
               onClick={(e) => e.stopPropagation()}
             >
               <Maximize2 className="h-4 w-4" />
-              Open Room
+              Fullscreen
             </Link>
             <button
               className="text-white/80 hover:text-white transition-colors"
