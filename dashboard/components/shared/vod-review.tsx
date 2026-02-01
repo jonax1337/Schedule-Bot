@@ -80,7 +80,7 @@ function CommentText({ text, onTagClick }: { text: string; onTagClick?: (tag: st
         const mentionMatch = part.match(/^<@(.+)>$/);
         if (mentionMatch) {
           return (
-            <span key={i} className="inline-flex items-center gap-0.5 text-blue-600 dark:text-blue-400 font-medium bg-blue-500/15 dark:bg-blue-400/15 rounded px-0.5 text-xs">
+            <span key={i} className="inline-flex items-center gap-0.5 text-blue-600 dark:text-blue-400 font-bold bg-blue-500/15 dark:bg-blue-400/15 rounded px-1 py-px text-xs">
               @{mentionMatch[1]}
             </span>
           );
@@ -92,7 +92,7 @@ function CommentText({ text, onTagClick }: { text: string; onTagClick?: (tag: st
             <span
               key={i}
               onClick={(e) => { e.stopPropagation(); onTagClick?.(tag); }}
-              className={`inline-flex items-center gap-0.5 font-medium rounded px-0.5 text-xs cursor-pointer hover:opacity-80 ${getTagColor(tag)}`}
+              className={`inline-flex items-center gap-0.5 font-bold rounded px-1 py-px text-xs cursor-pointer hover:opacity-80 ${getTagColor(tag)}`}
             >
               {tagMatch[1]}
             </span>
@@ -278,8 +278,8 @@ export function VodReview({ videoId, scrimId }: VodReviewProps) {
   const [isPaused, setIsPaused] = useState(false);
   const [mentionUsers, setMentionUsers] = useState<MentionUser[]>([]);
   const [filterUser, setFilterUser] = useState<string | null>(null);
-  const [filterTag, setFilterTag] = useState<string | null>(null);
-  const [filterMentioned, setFilterMentioned] = useState<string | null>(null); // null | "__all__" | userName
+  const [filterTags, setFilterTags] = useState<string[]>([]);
+  const [filterMentioned, setFilterMentioned] = useState<string[]>([]); // [] | ["__all__"] | ["user1", "user2"]
   const [filterOpen, setFilterOpen] = useState(false);
   const playerRef = useRef<ReturnType<YouTubeEvent['target']['getInternalPlayer']> | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -316,20 +316,23 @@ export function VodReview({ videoId, scrimId }: VodReviewProps) {
     if (filterUser) {
       result = result.filter(c => c.userName === filterUser);
     }
-    if (filterTag) {
-      result = result.filter(c => extractTags(c.content).includes(filterTag));
+    if (filterTags.length > 0) {
+      result = result.filter(c => {
+        const tags = extractTags(c.content);
+        return filterTags.some(t => tags.includes(t));
+      });
     }
-    if (filterMentioned) {
-      if (filterMentioned === '__all__') {
+    if (filterMentioned.length > 0) {
+      if (filterMentioned.includes('__all__')) {
         result = result.filter(c => /<@[^>]+>/.test(c.content));
       } else {
-        result = result.filter(c => c.content.includes(`<@${filterMentioned}>`));
+        result = result.filter(c => filterMentioned.some(u => c.content.includes(`<@${u}>`)));
       }
     }
     return result;
-  }, [comments, filterUser, filterTag, filterMentioned]);
+  }, [comments, filterUser, filterTags, filterMentioned]);
 
-  const hasActiveFilter = filterUser !== null || filterTag !== null || filterMentioned !== null;
+  const hasActiveFilter = filterUser !== null || filterTags.length > 0 || filterMentioned.length > 0;
 
   // Measure video container height with ResizeObserver
   useEffect(() => {
@@ -550,7 +553,7 @@ export function VodReview({ videoId, scrimId }: VodReviewProps) {
   };
 
   const handleTagClick = (tag: string) => {
-    setFilterTag(prev => prev === tag ? null : tag);
+    setFilterTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]);
   };
 
   return (
@@ -624,9 +627,9 @@ export function VodReview({ videoId, scrimId }: VodReviewProps) {
                       </div>
                       <div className="flex flex-wrap gap-1">
                         <button
-                          onClick={() => setFilterMentioned(prev => prev === '__all__' ? null : '__all__')}
+                          onClick={() => setFilterMentioned(prev => prev.includes('__all__') ? prev.filter(x => x !== '__all__') : ['__all__'])}
                           className={`px-2 py-0.5 rounded text-xs font-medium transition-colors cursor-pointer ${
-                            filterMentioned === '__all__'
+                            filterMentioned.includes('__all__')
                               ? 'bg-primary text-primary-foreground'
                               : 'bg-muted hover:bg-accent'
                           }`}
@@ -636,9 +639,12 @@ export function VodReview({ videoId, scrimId }: VodReviewProps) {
                         {allMentionedUsers.map(u => (
                           <button
                             key={u}
-                            onClick={() => setFilterMentioned(prev => prev === u ? null : u)}
+                            onClick={() => setFilterMentioned(prev => {
+                              const without = prev.filter(x => x !== '__all__');
+                              return without.includes(u) ? without.filter(x => x !== u) : [...without, u];
+                            })}
                             className={`px-2 py-0.5 rounded text-xs font-medium transition-colors cursor-pointer ${
-                              filterMentioned === u
+                              filterMentioned.includes(u)
                                 ? 'bg-primary text-primary-foreground'
                                 : 'bg-muted hover:bg-accent'
                             }`}
@@ -662,7 +668,7 @@ export function VodReview({ videoId, scrimId }: VodReviewProps) {
                             key={tag}
                             onClick={() => handleTagClick(tag)}
                             className={`px-2 py-0.5 rounded text-xs font-medium transition-colors cursor-pointer ${
-                              filterTag === tag
+                              filterTags.includes(tag)
                                 ? 'bg-primary text-primary-foreground'
                                 : `${getTagColor(tag)} hover:opacity-80`
                             }`}
@@ -676,7 +682,7 @@ export function VodReview({ videoId, scrimId }: VodReviewProps) {
                   {/* Clear filters */}
                   {hasActiveFilter && (
                     <button
-                      onClick={() => { setFilterUser(null); setFilterTag(null); setFilterMentioned(null); }}
+                      onClick={() => { setFilterUser(null); setFilterTags([]); setFilterMentioned([]); }}
                       className="w-full text-xs text-muted-foreground hover:text-foreground py-1 cursor-pointer"
                     >
                       Clear filters
@@ -698,19 +704,19 @@ export function VodReview({ videoId, scrimId }: VodReviewProps) {
                 <button onClick={() => setFilterUser(null)} className="hover:text-primary/70 cursor-pointer"><X className="h-3 w-3" /></button>
               </span>
             )}
-            {filterMentioned && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-500/15 text-blue-600 dark:text-blue-400">
+            {filterMentioned.map(m => (
+              <span key={m} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-500/15 text-blue-600 dark:text-blue-400">
                 <AtSign className="h-3 w-3" />
-                {filterMentioned === '__all__' ? 'All Mentions' : filterMentioned}
-                <button onClick={() => setFilterMentioned(null)} className="hover:opacity-70 cursor-pointer"><X className="h-3 w-3" /></button>
+                {m === '__all__' ? 'All Mentions' : m}
+                <button onClick={() => setFilterMentioned(prev => prev.filter(x => x !== m))} className="hover:opacity-70 cursor-pointer"><X className="h-3 w-3" /></button>
               </span>
-            )}
-            {filterTag && (
-              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${getTagColor(filterTag)}`}>
-                {filterTag}
-                <button onClick={() => setFilterTag(null)} className="hover:opacity-70 cursor-pointer"><X className="h-3 w-3" /></button>
+            ))}
+            {filterTags.map(tag => (
+              <span key={tag} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${getTagColor(tag)}`}>
+                {tag}
+                <button onClick={() => setFilterTags(prev => prev.filter(t => t !== tag))} className="hover:opacity-70 cursor-pointer"><X className="h-3 w-3" /></button>
               </span>
-            )}
+            ))}
           </div>
         )}
 
