@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1132,8 +1133,8 @@ export function Matches() {
         </CardContent>
       </Card>
 
-      {/* VOD Lightbox */}
-      {vodLightbox && (
+      {/* VOD Lightbox - portaled to body to escape sidebar stacking context */}
+      {vodLightbox && createPortal(
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fadeIn"
           onClick={() => setVodLightbox(null)}
@@ -1161,7 +1162,8 @@ export function Matches() {
               className="w-full h-full rounded-lg"
             />
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
