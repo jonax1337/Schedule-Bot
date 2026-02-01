@@ -140,7 +140,7 @@ export function AdminSidebar({ userName, onLogout, ...props }: AdminSidebarProps
         </SidebarMenu>
         {user && (
           <>
-            <SidebarSeparator />
+            <SidebarSeparator className="mx-0" />
             <NavUser user={user} onLogout={onLogout} role={userRole} />
           </>
         )}

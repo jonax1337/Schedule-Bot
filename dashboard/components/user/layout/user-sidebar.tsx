@@ -137,7 +137,7 @@ export function UserSidebar({ userName, onLogout, ...props }: UserSidebarProps) 
         )}
         {user && (
           <>
-            {isAdmin && <SidebarSeparator />}
+            {isAdmin && <SidebarSeparator className="mx-0" />}
             <NavUser user={user} onLogout={onLogout} role={userRole} />
           </>
         )}
