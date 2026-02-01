@@ -26,6 +26,7 @@ import { Loader2, MessageSquare, Edit, Trash2, Send, Clock, X, Check, Filter, Ha
 import { toast } from 'sonner';
 import { getUser, getAuthHeaders } from '@/lib/auth';
 import { BOT_API_URL } from '@/lib/config';
+import { useBranding } from '@/hooks/use-branding';
 import type { VodComment } from '@/lib/types';
 
 interface ScrimData {
@@ -312,6 +313,7 @@ export default function VodRoomPage() {
   const userScrolledRef = useRef(false);
   const programmaticScrollRef = useRef(false);
   const user = getUser();
+  const { teamName } = useBranding();
 
   const allUsers = useMemo(() => [...new Set(comments.map(c => c.userName))].sort(), [comments]);
   const allTags = useMemo(() => {
@@ -357,8 +359,6 @@ export default function VodRoomPage() {
         const data = await res.json();
         if (data.success && data.scrim) {
           setScrim(data.scrim);
-          const s = data.scrim;
-          document.title = `VOD Review – vs ${s.opponent} ${s.scoreUs}:${s.scoreThem} (${s.map || 'N/A'}) – ${s.date}`;
         }
       } catch {
         toast.error('Failed to load scrim data');
@@ -367,6 +367,13 @@ export default function VodRoomPage() {
       }
     })();
   }, [scrimId]);
+
+  // Update document title when scrim data or branding loads
+  useEffect(() => {
+    if (scrim) {
+      document.title = `VOD – ${teamName} vs ${scrim.opponent} (${scrim.map || 'N/A'}) – ${scrim.date}`;
+    }
+  }, [scrim, teamName]);
 
   // Fetch mention users
   useEffect(() => {
@@ -575,7 +582,7 @@ export default function VodRoomPage() {
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-background gap-4">
         <p className="text-muted-foreground">VOD not found or no video URL available.</p>
-        <Button variant="outline" onClick={() => router.back()}>
+        <Button variant="outline" onClick={() => router.push('/?tab=matches')}>
           <ArrowLeft className="h-4 w-4 mr-2" />
           Go Back
         </Button>
@@ -619,7 +626,7 @@ export default function VodRoomPage() {
       {/* Top bar */}
       <div className="flex items-center justify-between px-4 py-2.5 border-b shrink-0 bg-card">
         <div className="flex items-center gap-3 min-w-0">
-          <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => router.back()}>
+          <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => router.push('/?tab=matches')}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
 
