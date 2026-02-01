@@ -564,7 +564,7 @@ export function VodReview({ videoId, scrimId }: VodReviewProps) {
           <YouTube
             videoId={videoId}
             opts={{
-              playerVars: { autoplay: 1 },
+              playerVars: { autoplay: 0 },
             }}
             onReady={onPlayerReady}
             onStateChange={onPlayerStateChange}
