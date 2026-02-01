@@ -40,7 +40,35 @@ export function AdminSidebar({ userName, onLogout, ...props }: AdminSidebarProps
   const pathname = usePathname()
   const router = useRouter()
   const [currentTab, setCurrentTab] = React.useState('dashboard')
+  const [userRole, setUserRole] = React.useState<string | undefined>(undefined)
+  const [avatarUrl, setAvatarUrl] = React.useState("")
   const branding = useBranding({ tagline: 'Bot Configuration' })
+
+  React.useEffect(() => {
+    const fetchUserInfo = async () => {
+      if (!userName) return
+      try {
+        const { BOT_API_URL } = await import('@/lib/config')
+        const { getAuthHeaders } = await import('@/lib/auth')
+        const response = await fetch(`${BOT_API_URL}/api/user-mappings`, {
+          headers: getAuthHeaders(),
+        })
+        if (response.ok) {
+          const data = await response.json()
+          const userMapping = data.mappings.find((m: any) => m.displayName === userName)
+          if (userMapping) {
+            setUserRole(userMapping.role.toLowerCase())
+            if (userMapping.avatarUrl) {
+              setAvatarUrl(userMapping.avatarUrl)
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch user info:', error)
+      }
+    }
+    fetchUserInfo()
+  }, [userName])
 
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -79,8 +107,8 @@ export function AdminSidebar({ userName, onLogout, ...props }: AdminSidebarProps
 
   const user = userName ? {
     name: userName,
-    email: "Admin",
-    avatar: "",
+    email: "",
+    avatar: avatarUrl,
   } : undefined
 
   return (
@@ -113,7 +141,7 @@ export function AdminSidebar({ userName, onLogout, ...props }: AdminSidebarProps
         {user && (
           <>
             <SidebarSeparator />
-            <NavUser user={user} onLogout={onLogout} />
+            <NavUser user={user} onLogout={onLogout} role={userRole} />
           </>
         )}
       </SidebarFooter>
