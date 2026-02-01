@@ -15,7 +15,6 @@ import { toast } from "sonner";
 import { AgentSelector } from "./agent-picker";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { stagger, microInteractions, loadingStates, cn } from '@/lib/animations';
 import { BOT_API_URL } from '@/lib/config';
 
@@ -96,6 +95,7 @@ export function Matches() {
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
   const [teamName, setTeamName] = useState<string>('Our Team');
+  const [vodLightbox, setVodLightbox] = useState<string | null>(null);
   
   // Filter states
   const [filterMap, setFilterMap] = useState<string>('all');
@@ -906,18 +906,16 @@ export function Matches() {
                         )}
                       </TableCell>
                       <TableCell className="text-center">
-                        {scrim.vodUrl && (
+                        {(() => { const id = getYouTubeVideoId(scrim.vodUrl); return id ? (
                           <Button
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8"
-                            asChild
+                            onClick={() => setVodLightbox(id)}
                           >
-                            <a href={scrim.vodUrl} target="_blank" rel="noopener noreferrer">
-                              <Video className="h-4 w-4" />
-                            </a>
+                            <Video className="h-4 w-4" />
                           </Button>
-                        )}
+                        ) : null; })()}
                       </TableCell>
                       <TableCell className="text-center">
                         {scrim.matchLink && (
@@ -1099,63 +1097,31 @@ export function Matches() {
                       )}
                     </div>
                     
-                    {/* Footer: Links & VOD */}
+                    {/* Footer: Links */}
                     {(scrim.matchLink || vodId) && (
                       <div className="relative z-10 border-t border-white/20">
-                        {/* Links row */}
-                        {(scrim.matchLink || vodId) && (
-                          <div className="flex items-center gap-4 px-4 py-2.5">
-                            {scrim.matchLink && (
-                              <a
-                                href={scrim.matchLink}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1.5 text-sm text-blue-400 hover:text-blue-300 transition-colors"
-                              >
-                                <ExternalLink className="h-3.5 w-3.5" />
-                                Match Link
-                              </a>
-                            )}
-                            {vodId && !scrim.matchLink && (
-                              <Accordion type="single" collapsible className="w-full -my-2.5">
-                                <AccordionItem value="vod" className="border-0">
-                                  <AccordionTrigger className="py-2.5 hover:bg-white/10 text-white/70">
-                                    <div className="flex items-center gap-2">
-                                      <Video className="h-4 w-4" />
-                                      <span className="font-medium text-sm">Watch VOD Review</span>
-                                    </div>
-                                  </AccordionTrigger>
-                                  <AccordionContent className="pb-3">
-                                    <div className="aspect-video rounded-lg overflow-hidden border relative z-20">
-                                      <iframe
-                                        width="100%"
-                                        height="100%"
-                                        src={`https://www.youtube.com/embed/${vodId}`}
-                                        title="VOD Review"
-                                        frameBorder="0"
-                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                        allowFullScreen
-                                        className="w-full h-full relative z-20"
-                                        style={{ position: 'relative', zIndex: 20 }}
-                                      />
-                                    </div>
-                                  </AccordionContent>
-                                </AccordionItem>
-                              </Accordion>
-                            )}
-                            {vodId && scrim.matchLink && (
-                              <a
-                                href={scrim.vodUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1.5 text-sm text-white/70 hover:text-white transition-colors"
-                              >
-                                <Video className="h-3.5 w-3.5" />
-                                VOD Review
-                              </a>
-                            )}
-                          </div>
-                        )}
+                        <div className="flex items-center gap-4 px-4 py-2.5">
+                          {scrim.matchLink && (
+                            <a
+                              href={scrim.matchLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 text-sm text-blue-400 hover:text-blue-300 transition-colors"
+                            >
+                              <ExternalLink className="h-3.5 w-3.5" />
+                              Match Link
+                            </a>
+                          )}
+                          {vodId && (
+                            <button
+                              onClick={() => setVodLightbox(vodId)}
+                              className="inline-flex items-center gap-1.5 text-sm text-white/70 hover:text-white transition-colors"
+                            >
+                              <Video className="h-3.5 w-3.5" />
+                              VOD Review
+                            </button>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1165,6 +1131,38 @@ export function Matches() {
           )}
         </CardContent>
       </Card>
+
+      {/* VOD Lightbox */}
+      {vodLightbox && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fadeIn"
+          onClick={() => setVodLightbox(null)}
+        >
+          <div className="absolute top-4 right-4">
+            <button
+              className="text-white/80 hover:text-white transition-colors"
+              onClick={() => setVodLightbox(null)}
+            >
+              <X className="h-6 w-6" />
+            </button>
+          </div>
+          <div
+            className="w-[90vw] max-w-5xl aspect-video"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <iframe
+              width="100%"
+              height="100%"
+              src={`https://www.youtube.com/embed/${vodLightbox}?autoplay=1`}
+              title="VOD Review"
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              className="w-full h-full rounded-lg"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
