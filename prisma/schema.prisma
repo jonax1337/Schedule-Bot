@@ -55,24 +55,39 @@ model UserMapping {
 }
 
 model Scrim {
-  id          String      @id
+  id          String       @id
   date        String
   opponent    String
   result      ScrimResult
-  scoreUs     Int         @default(0) @map("score_us")
-  scoreThem   Int         @default(0) @map("score_them")
-  map         String      @default("")
-  matchType   String      @default("") @map("match_type")
-  ourAgents   String      @default("") @map("our_agents")
-  theirAgents String      @default("") @map("their_agents")
-  vodUrl      String      @default("") @map("vod_url")
-  matchLink   String      @default("") @map("match_link")
-  notes       String      @default("")
-  createdAt   DateTime    @default(now()) @map("created_at")
-  updatedAt   DateTime    @updatedAt @map("updated_at")
+  scoreUs     Int          @default(0) @map("score_us")
+  scoreThem   Int          @default(0) @map("score_them")
+  map         String       @default("")
+  matchType   String       @default("") @map("match_type")
+  ourAgents   String       @default("") @map("our_agents")
+  theirAgents String       @default("") @map("their_agents")
+  vodUrl      String       @default("") @map("vod_url")
+  matchLink   String       @default("") @map("match_link")
+  notes       String       @default("")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+  comments    VodComment[]
 
   @@index([date])
   @@map("scrims")
+}
+
+model VodComment {
+  id        Int      @id @default(autoincrement())
+  scrimId   String   @map("scrim_id")
+  userName  String   @map("user_name")
+  timestamp Int
+  content   String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  scrim     Scrim    @relation(fields: [scrimId], references: [id], onDelete: Cascade)
+
+  @@index([scrimId, timestamp])
+  @@map("vod_comments")
 }
 
 model Absence {

@@ -173,6 +173,17 @@ export const updateStrategySchema = Joi.object({
   content: Joi.object(),
 }).min(1);
 
+export const createVodCommentSchema = Joi.object({
+  scrimId: Joi.string().required(),
+  timestamp: Joi.number().integer().min(0).max(86400).required(),
+  content: Joi.string().min(1).max(1000).required(),
+});
+
+export const updateVodCommentSchema = Joi.object({
+  timestamp: Joi.number().integer().min(0).max(86400),
+  content: Joi.string().min(1).max(1000),
+}).min(1);
+
 export function isValidDateFormat(date: string): boolean {
   return datePattern.test(date);
 }

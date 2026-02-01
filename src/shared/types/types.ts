@@ -77,6 +77,16 @@ export interface ScrimEntry {
   updatedAt: string; // ISO timestamp
 }
 
+export interface VodComment {
+  id: number;
+  scrimId: string;
+  userName: string;
+  timestamp: number;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ScrimStats {
   totalScrims: number;
   wins: number;
