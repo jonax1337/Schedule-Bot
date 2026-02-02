@@ -1,5 +1,5 @@
 export const VALORANT_MAPS = [
-  'Abyss', 'Ascent', 'Bind', 'Breeze', 'Corrode', 'Drift', 'Fracture',
+  'Abyss', 'Ascent', 'Bind', 'Breeze', 'Corrode', 'Fracture',
   'Haven', 'Icebox', 'Lotus', 'Pearl', 'Split', 'Sunset',
 ] as const;
 
