@@ -4,6 +4,7 @@ import { getUserMappings } from '../../repositories/user-mapping.repository.js';
 import { getAbsentUserIdsForDate } from '../../repositories/absence.repository.js';
 import { getTodayFormatted, normalizeDateFormat } from '../../shared/utils/dateFormatter.js';
 import { createAvailabilityButtons } from './interactive.js';
+import { logger } from '../../shared/utils/logger.js';
 
 /**
  * Create a "Set Timezone" button row for users without a timezone set.
@@ -21,14 +22,14 @@ export async function sendRemindersToUsersWithoutEntry(client: Client, date?: st
   const targetDate = date || getTodayFormatted();
   const normalizedDate = normalizeDateFormat(targetDate);
   
-  console.log(`Checking for users without availability entry for ${normalizedDate}...`);
+  logger.info(`Checking for users without availability entry for ${normalizedDate}`);
 
   try {
     const userMappings = await getUserMappings();
     const scheduleData = await getScheduleForDate(normalizedDate);
 
     if (!scheduleData) {
-      console.log(`No schedule data found for ${normalizedDate}, skipping reminders.`);
+      logger.info(`No schedule data found for ${normalizedDate}, skipping reminders`);
       return;
     }
 
@@ -74,17 +75,17 @@ export async function sendRemindersToUsersWithoutEntry(client: Client, date?: st
           });
 
           remindersSent++;
-          console.log(`Sent reminder to ${mapping.discordUsername} (${mapping.displayName})`);
+          logger.info(`Sent reminder to ${mapping.discordUsername} (${mapping.displayName})`);
         } catch (error) {
-          console.error(`Failed to send reminder to ${mapping.discordUsername}:`, error);
+          logger.error(`Failed to send reminder to ${mapping.discordUsername}`, error instanceof Error ? error.message : String(error));
         }
       }
     }
 
     const nonCoachCount = userMappings.filter(m => m.role !== 'coach').length;
-    console.log(`Reminders sent: ${remindersSent}/${nonCoachCount} players`);
+    logger.info(`Reminders sent: ${remindersSent}/${nonCoachCount} players`);
   } catch (error) {
-    console.error('Error sending reminders:', error);
+    logger.error('Error sending reminders', error instanceof Error ? error.message : String(error));
   }
 }
 
@@ -107,7 +108,7 @@ export async function sendReminderToUser(client: Client, userId: string, date: s
 
     return true;
   } catch (error) {
-    console.error(`Failed to send reminder to user ${userId}:`, error);
+    logger.error(`Failed to send reminder to user ${userId}`, error instanceof Error ? error.message : String(error));
     return false;
   }
 }

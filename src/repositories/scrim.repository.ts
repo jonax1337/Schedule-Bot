@@ -1,5 +1,6 @@
 import { prisma } from './database.repository.js';
 import type { ScrimEntry, ScrimStats } from '../shared/types/types.js';
+import { logger } from '../shared/utils/logger.js';
 
 function generateScrimId(): string {
   return `scrim_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -76,7 +77,7 @@ export async function addScrim(scrim: Omit<ScrimEntry, 'id' | 'createdAt' | 'upd
     },
   });
 
-  console.log('Added scrim:', newScrim.id);
+  logger.info('Added scrim', newScrim.id);
 
   return {
     id: newScrim.id,
@@ -119,7 +120,7 @@ export async function updateScrim(id: string, updates: Partial<Omit<ScrimEntry, 
       data: updateData,
     });
 
-    console.log('Updated scrim:', id);
+    logger.info('Updated scrim', id);
 
     return {
       id: updatedScrim.id,
@@ -139,7 +140,7 @@ export async function updateScrim(id: string, updates: Partial<Omit<ScrimEntry, 
       updatedAt: updatedScrim.updatedAt.toISOString(),
     };
   } catch (error) {
-    console.error('Error updating scrim:', error);
+    logger.error('Error updating scrim', error instanceof Error ? error.message : String(error));
     return null;
   }
 }
@@ -150,10 +151,10 @@ export async function deleteScrim(id: string): Promise<boolean> {
       where: { id },
     });
 
-    console.log('Deleted scrim:', id);
+    logger.info('Deleted scrim', id);
     return true;
   } catch (error) {
-    console.error('Error deleting scrim:', error);
+    logger.error('Error deleting scrim', error instanceof Error ? error.message : String(error));
     return false;
   }
 }

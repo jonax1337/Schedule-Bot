@@ -2,6 +2,7 @@ import { getUserMappings } from '../../repositories/user-mapping.repository.js';
 import { getScheduleForDate } from '../../repositories/schedule.repository.js';
 import { getAbsentUserIdsForDate } from '../../repositories/absence.repository.js';
 import { parseSchedule, analyzeSchedule } from './analyzer.js';
+import { logger } from './logger.js';
 
 export interface ScheduleDetail {
   status: string;
@@ -78,7 +79,7 @@ export async function getScheduleDetails(date: string): Promise<ScheduleDetail |
       absentPlayers,
     };
   } catch (error) {
-    console.error(`[ScheduleDetails] Error fetching details for ${date}:`, error);
+    logger.error(`[ScheduleDetails] Error fetching details for ${date}`, error instanceof Error ? error.message : String(error));
     return null;
   }
 }

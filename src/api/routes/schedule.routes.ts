@@ -1,7 +1,6 @@
 import { Router } from 'express';
-import { verifyToken, requireAdmin, AuthRequest } from '../../shared/middleware/auth.js';
+import { verifyToken, requireAdmin, AuthRequest, resolveCurrentUser, requireOwnershipOrAdmin } from '../../shared/middleware/auth.js';
 import { sanitizeString } from '../../shared/middleware/validation.js';
-import { getUserMappings } from '../../repositories/user-mapping.repository.js';
 import { updatePlayerAvailability } from '../../repositories/schedule.repository.js';
 import { getScheduleDetails, getScheduleDetailsBatch } from '../../shared/utils/scheduleDetails.js';
 import { isUserAbsentOnDate } from '../../repositories/absence.repository.js';
@@ -18,7 +17,7 @@ router.get('/next14', verifyToken, async (req: AuthRequest, res) => {
     const schedules = await getNext14DaysSchedule();
     res.json({ success: true, schedules });
   } catch (error) {
-    console.error('Error fetching next 14 days schedule:', error);
+    logger.error('Error fetching next 14 days schedule', error instanceof Error ? error.message : String(error));
     res.status(500).json({ success: false, error: 'Failed to fetch schedule' });
   }
 });
@@ -31,7 +30,7 @@ router.get('/paginated', verifyToken, requireAdmin, async (req: AuthRequest, res
     const result = await getSchedulesPaginated(offset);
     res.json({ success: true, ...result });
   } catch (error) {
-    console.error('Error fetching paginated schedules:', error);
+    logger.error('Error fetching paginated schedules', error instanceof Error ? error.message : String(error));
     res.status(500).json({ success: false, error: 'Failed to fetch schedules' });
   }
 });
@@ -74,30 +73,18 @@ router.post('/update-reason', verifyToken, requireAdmin, async (req: AuthRequest
       res.status(500).json({ error: 'Failed to update schedule reason' });
     }
   } catch (error) {
-    console.error('Error updating schedule reason:', error);
     logger.error('Failed to update schedule reason', error instanceof Error ? error.message : String(error));
     res.status(500).json({ error: 'Failed to update schedule reason' });
   }
 });
 
 // Update player availability
-router.post('/update-availability', verifyToken, async (req: AuthRequest, res) => {
+router.post('/update-availability', verifyToken, resolveCurrentUser, requireOwnershipOrAdmin(req => req.body?.userId), async (req: AuthRequest, res) => {
   try {
     const { date, userId, availability } = req.body;
-    
+
     if (!date || !userId || availability === undefined) {
       return res.status(400).json({ error: 'Date, userId, and availability are required' });
-    }
-    
-    // Users can only edit their own availability
-    if (req.user?.role === 'user') {
-      const mappings = await getUserMappings();
-      const userMapping = mappings.find(m => m.displayName === req.user?.username);
-
-      if (!userMapping || userMapping.discordId !== userId) {
-        logger.warn('Availability update denied', `User ${req.user?.username} tried to edit ${userId}`);
-        return res.status(403).json({ error: 'You can only edit your own availability' });
-      }
     }
 
     // Check if user is absent on this date
@@ -136,7 +123,6 @@ router.post('/update-availability', verifyToken, async (req: AuthRequest, res) =
       res.status(500).json({ error: 'Failed to update availability' });
     }
   } catch (error) {
-    console.error('Error updating availability:', error);
     logger.error('Failed to update availability', error instanceof Error ? error.message : String(error));
     res.status(500).json({ error: 'Failed to update availability' });
   }

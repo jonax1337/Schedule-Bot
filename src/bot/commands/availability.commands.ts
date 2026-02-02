@@ -3,6 +3,7 @@ import { getUserMapping, updateUserMapping } from '../../repositories/user-mappi
 import { createDateSelectMenu, sendWeekOverview, sendMySchedule } from '../interactions/interactive.js';
 import { isValidTimezone, getTimezoneAbbreviation } from '../../shared/utils/timezoneConverter.js';
 import { config } from '../../shared/config/config.js';
+import { logger } from '../../shared/utils/logger.js';
 
 /**
  * Handle /set command - Set your availability for upcoming days
@@ -27,7 +28,7 @@ export async function handleAvailabilityCommand(interaction: ChatInputCommandInt
       components: [dateSelectMenu],
     });
   } catch (error) {
-    console.error('Error handling availability command:', error);
+    logger.error('Error handling availability command', error instanceof Error ? error.message : String(error));
     await interaction.editReply({
       content: 'An error occurred. Please try again later.',
     });
@@ -84,7 +85,7 @@ export async function handleSetTimezoneCommand(interaction: ChatInputCommandInte
       content: `✅ Your timezone has been set to **${timezone}** (${abbr}).${isSame ? '\n\nThis matches the bot timezone — no conversion will be applied.' : `\n\n⏰ Your time inputs will be automatically converted from ${abbr} → ${botAbbr} when setting availability.`}`,
     });
   } catch (error) {
-    console.error('Error setting timezone:', error);
+    logger.error('Error setting timezone', error instanceof Error ? error.message : String(error));
     await interaction.editReply({
       content: 'An error occurred while setting your timezone.',
     });
@@ -122,7 +123,7 @@ export async function handleRemoveTimezoneCommand(interaction: ChatInputCommandI
       content: `✅ Your personal timezone (**${oldTz}**) has been removed.\n\nThe bot default timezone (${config.scheduling.timezone} / ${botAbbr}) will be used — no conversion will be applied.`,
     });
   } catch (error) {
-    console.error('Error removing timezone:', error);
+    logger.error('Error removing timezone', error instanceof Error ? error.message : String(error));
     await interaction.editReply({
       content: 'An error occurred while removing your timezone.',
     });

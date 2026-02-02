@@ -2,6 +2,7 @@ import { Client, GatewayIntentBits, Partials } from 'discord.js';
 import { config } from '../shared/config/config.js';
 import { handleReady } from './events/ready.event.js';
 import { handleInteraction } from './events/interaction.event.js';
+import { logger } from '../shared/utils/logger.js';
 
 /**
  * Discord Bot Client
@@ -39,7 +40,7 @@ client.on('messageReactionAdd', async (reaction, user) => {
     await handlePollReaction(reaction as any, user as any, true);
     await handleTrainingPollReaction(reaction as any, user as any, true);
   } catch (error) {
-    console.error('Error handling reaction add:', error);
+    logger.error('Error handling reaction add', error instanceof Error ? error.message : String(error));
   }
 });
 
@@ -54,7 +55,7 @@ client.on('messageReactionRemove', async (reaction, user) => {
     await handlePollReaction(reaction as any, user as any, false);
     await handleTrainingPollReaction(reaction as any, user as any, false);
   } catch (error) {
-    console.error('Error handling reaction remove:', error);
+    logger.error('Error handling reaction remove', error instanceof Error ? error.message : String(error));
   }
 });
 

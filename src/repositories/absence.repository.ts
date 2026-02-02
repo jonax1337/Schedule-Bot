@@ -168,38 +168,47 @@ export async function isUserAbsentOnDate(userId: string, date: string): Promise<
  * Get all absent user IDs for a specific date
  */
 export async function getAbsentUserIdsForDate(date: string): Promise<string[]> {
-  const allAbsences = await prisma.absence.findMany();
+  const absences = await prisma.absence.findMany({
+    select: { userId: true, startDate: true, endDate: true },
+  });
 
-  const absentUserIds: string[] = [];
-  for (const absence of allAbsences) {
+  const absentUserIds = new Set<string>();
+  for (const absence of absences) {
     if (isDateInRange(date, absence.startDate, absence.endDate)) {
-      if (!absentUserIds.includes(absence.userId)) {
-        absentUserIds.push(absence.userId);
-      }
+      absentUserIds.add(absence.userId);
     }
   }
 
-  return absentUserIds;
+  return [...absentUserIds];
 }
 
 /**
  * Get absent user IDs for multiple dates (batch operation)
  * Returns a map of date -> array of absent user IDs
+ * Pre-parses absence dates once for efficiency across multiple date checks.
  */
 export async function getAbsentUserIdsForDates(dates: string[]): Promise<Record<string, string[]>> {
-  const allAbsences = await prisma.absence.findMany();
+  const absences = await prisma.absence.findMany({
+    select: { userId: true, startDate: true, endDate: true },
+  });
+
+  // Pre-parse absence dates once instead of re-parsing per date
+  const parsedAbsences = absences.map(a => ({
+    userId: a.userId,
+    start: parseGermanDate(a.startDate),
+    end: parseGermanDate(a.endDate),
+  }));
 
   const result: Record<string, string[]> = {};
   for (const date of dates) {
-    const absentUserIds: string[] = [];
-    for (const absence of allAbsences) {
-      if (isDateInRange(date, absence.startDate, absence.endDate)) {
-        if (!absentUserIds.includes(absence.userId)) {
-          absentUserIds.push(absence.userId);
-        }
+    const d = parseGermanDate(date);
+    const userIds = new Set<string>();
+    for (const absence of parsedAbsences) {
+      if (d >= absence.start && d <= absence.end) {
+        userIds.add(absence.userId);
       }
     }
-    result[date] = absentUserIds;
+    result[date] = [...userIds];
   }
 
   return result;

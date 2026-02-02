@@ -52,7 +52,6 @@ router.post('/schedule', verifyToken, requireAdmin, async (req: AuthRequest, res
     logger.success('Manual schedule post', `Date: ${convertedDate || 'today'} by ${req.user?.username}`);
     res.json({ success: true, message: 'Schedule posted successfully' });
   } catch (error) {
-    console.error('Error posting schedule:', error);
     logger.error('Failed to post schedule', error instanceof Error ? error.message : String(error));
     res.status(500).json({ error: 'Failed to post schedule' });
   }
@@ -68,7 +67,6 @@ router.post('/remind', verifyToken, requireAdmin, async (req: AuthRequest, res) 
     logger.success('Manual reminder sent', `Date: ${convertedDate || 'today'} by ${req.user?.username}`);
     res.json({ success: true, message: 'Reminders sent successfully' });
   } catch (error) {
-    console.error('Error sending reminders:', error);
     logger.error('Failed to send reminders', error instanceof Error ? error.message : String(error));
     res.status(500).json({ error: 'Failed to send reminders' });
   }
@@ -84,7 +82,6 @@ router.post('/poll', verifyToken, requireAdmin, validate(createPollSchema), asyn
     logger.success('Poll created', `By ${req.user?.username}`);
     res.json({ success: true, message: 'Poll created successfully' });
   } catch (error) {
-    console.error('Error creating poll:', error);
     logger.error('Failed to create poll', error instanceof Error ? error.message : String(error));
     res.status(500).json({ error: 'Failed to create poll' });
   }
@@ -157,7 +154,7 @@ router.post('/notify', verifyToken, requireAdmin, validate(notificationSchema), 
         await user.send({ embeds: [notificationEmbed] });
         successCount++;
       } catch (error) {
-        console.error(`Failed to send notification to ${recipientNames[i]}:`, error);
+        logger.error(`Failed to send notification to ${recipientNames[i]}`, error instanceof Error ? error.message : String(error));
         failedUsers.push(recipientNames[i]);
       }
     }
@@ -172,7 +169,6 @@ router.post('/notify', verifyToken, requireAdmin, validate(notificationSchema), 
       failedUsers
     });
   } catch (error) {
-    console.error('Error sending notification:', error);
     logger.error('Failed to send notification', error instanceof Error ? error.message : String(error));
     res.status(500).json({ error: 'Failed to send notification' });
   }
@@ -221,7 +217,7 @@ router.post('/clear-channel', verifyToken, requireAdmin, async (req: AuthRequest
           await msg.delete();
           totalDeleted++;
         } catch (err) {
-          console.error('Failed to delete old message:', err);
+          logger.error('Failed to delete old message', err instanceof Error ? err.message : String(err));
         }
       }
     }
@@ -234,7 +230,6 @@ router.post('/clear-channel', verifyToken, requireAdmin, async (req: AuthRequest
       deletedCount: totalDeleted
     });
   } catch (error) {
-    console.error('Error clearing channel:', error);
     logger.error('Failed to clear channel', error instanceof Error ? error.message : String(error));
     res.status(500).json({ error: 'Failed to clear channel' });
   }
@@ -269,7 +264,6 @@ router.post('/training-poll', verifyToken, requireAdmin, async (req: AuthRequest
     logger.success('Training poll created', `Date: ${convertedDate} by ${req.user?.username}`);
     res.json({ success: true, message: `Training start poll created for ${convertedDate}` });
   } catch (error) {
-    console.error('Error creating training poll:', error);
     logger.error('Failed to create training poll', error instanceof Error ? error.message : String(error));
     res.status(500).json({ error: 'Failed to create training poll' });
   }
@@ -305,7 +299,6 @@ router.post('/pin-message', verifyToken, requireAdmin, async (req: AuthRequest, 
       messageId: sentMessage.id
     });
   } catch (error) {
-    console.error('Error pinning message:', error);
     logger.error('Failed to pin message', error instanceof Error ? error.message : String(error));
     res.status(500).json({ error: 'Failed to pin message' });
   }

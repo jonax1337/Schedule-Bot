@@ -1,24 +1,20 @@
 import { Router } from 'express';
-import { verifyToken, requireAdmin, AuthRequest } from '../../shared/middleware/auth.js';
+import { verifyToken, requireAdmin, AuthRequest, resolveCurrentUser, resolveTargetUser, requireOwnershipOrAdmin } from '../../shared/middleware/auth.js';
 import { sanitizeString, validate, absenceCreateSchema, absenceUpdateSchema, isValidDateFormat } from '../../shared/middleware/validation.js';
 import { absenceService } from '../../services/absence.service.js';
-import { getUserMappings } from '../../repositories/user-mapping.repository.js';
 import { logger } from '../../shared/utils/logger.js';
 
 const router = Router();
 
 // Get absences for the logged-in user
-router.get('/my', verifyToken, async (req: AuthRequest, res) => {
+router.get('/my', verifyToken, resolveCurrentUser, async (req: AuthRequest, res) => {
   try {
-    const mappings = await getUserMappings();
-    const userMapping = mappings.find(m => m.displayName === req.user?.username);
-
-    if (!userMapping) {
-      // User not in roster (e.g. admin account) - return empty absences
+    if (!req.resolvedUser) {
+      // Admin account without user mapping - return empty absences
       return res.json({ success: true, absences: [] });
     }
 
-    const absences = await absenceService.getAbsencesForUser(userMapping.discordId);
+    const absences = await absenceService.getAbsencesForUser(req.resolvedUser.discordId);
     res.json({ success: true, absences });
   } catch (error) {
     logger.error('Error fetching user absences', error instanceof Error ? error.message : String(error));
@@ -27,7 +23,7 @@ router.get('/my', verifyToken, async (req: AuthRequest, res) => {
 });
 
 // Get all absences (admin only) or absences for a specific user
-router.get('/', verifyToken, async (req: AuthRequest, res) => {
+router.get('/', verifyToken, resolveCurrentUser, async (req: AuthRequest, res) => {
   try {
     const userId = req.query.userId as string;
     const isAdmin = req.user?.role === 'admin';
@@ -39,12 +35,8 @@ router.get('/', verifyToken, async (req: AuthRequest, res) => {
       }
 
       // Non-admin users can only query their own absences
-      if (!isAdmin) {
-        const mappings = await getUserMappings();
-        const userMapping = mappings.find(m => m.displayName === req.user?.username);
-        if (!userMapping || userMapping.discordId !== userId) {
-          return res.status(403).json({ error: 'You can only view your own absences' });
-        }
+      if (!isAdmin && req.resolvedUser?.discordId !== userId) {
+        return res.status(403).json({ error: 'You can only view your own absences' });
       }
 
       const absences = await absenceService.getAbsencesForUser(userId);
@@ -93,23 +85,11 @@ router.get('/by-dates', verifyToken, async (req: AuthRequest, res) => {
 });
 
 // Create an absence
-router.post('/', verifyToken, validate(absenceCreateSchema), async (req: AuthRequest, res) => {
+router.post('/', verifyToken, validate(absenceCreateSchema), resolveTargetUser, async (req: AuthRequest, res) => {
   try {
-    const { userId, startDate, endDate, reason } = req.body;
-
-    // Determine the target userId
-    let targetUserId = userId;
+    const { startDate, endDate, reason } = req.body;
     const isAdmin = req.user?.role === 'admin';
-
-    if (!isAdmin || !userId) {
-      // For non-admins, always use their own userId
-      const mappings = await getUserMappings();
-      const userMapping = mappings.find(m => m.displayName === req.user?.username);
-      if (!userMapping) {
-        return res.status(404).json({ error: 'User mapping not found' });
-      }
-      targetUserId = userMapping.discordId;
-    }
+    const targetUserId = req.targetUserId!;
 
     const sanitizedReason = sanitizeString(reason || '');
 
@@ -135,7 +115,7 @@ router.post('/', verifyToken, validate(absenceCreateSchema), async (req: AuthReq
 });
 
 // Update an absence
-router.put('/:id', verifyToken, validate(absenceUpdateSchema), async (req: AuthRequest, res) => {
+router.put('/:id', verifyToken, validate(absenceUpdateSchema), resolveTargetUser, async (req: AuthRequest, res) => {
   try {
     const id = parseInt(req.params.id as string);
     if (isNaN(id)) {
@@ -144,17 +124,7 @@ router.put('/:id', verifyToken, validate(absenceUpdateSchema), async (req: AuthR
 
     const { startDate, endDate, reason } = req.body;
     const isAdmin = req.user?.role === 'admin';
-
-    // Determine requesting userId
-    let requestingUserId: string | undefined;
-    if (!isAdmin) {
-      const mappings = await getUserMappings();
-      const userMapping = mappings.find(m => m.displayName === req.user?.username);
-      if (!userMapping) {
-        return res.status(404).json({ error: 'User mapping not found' });
-      }
-      requestingUserId = userMapping.discordId;
-    }
+    const requestingUserId = isAdmin ? undefined : req.targetUserId;
 
     const updateData: { startDate?: string; endDate?: string; reason?: string } = {};
     if (startDate) updateData.startDate = startDate;
@@ -176,7 +146,7 @@ router.put('/:id', verifyToken, validate(absenceUpdateSchema), async (req: AuthR
 });
 
 // Delete an absence
-router.delete('/:id', verifyToken, async (req: AuthRequest, res) => {
+router.delete('/:id', verifyToken, resolveTargetUser, async (req: AuthRequest, res) => {
   try {
     const id = parseInt(req.params.id as string);
     if (isNaN(id)) {
@@ -184,16 +154,7 @@ router.delete('/:id', verifyToken, async (req: AuthRequest, res) => {
     }
 
     const isAdmin = req.user?.role === 'admin';
-
-    let requestingUserId: string | undefined;
-    if (!isAdmin) {
-      const mappings = await getUserMappings();
-      const userMapping = mappings.find(m => m.displayName === req.user?.username);
-      if (!userMapping) {
-        return res.status(404).json({ error: 'User mapping not found' });
-      }
-      requestingUserId = userMapping.discordId;
-    }
+    const requestingUserId = isAdmin ? undefined : req.targetUserId;
 
     const result = await absenceService.deleteAbsence(id, requestingUserId, isAdmin);
 

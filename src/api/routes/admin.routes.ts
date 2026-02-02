@@ -25,7 +25,6 @@ router.post('/generate-password-hash', verifyToken, requireAdmin, async (req: Au
     logger.success('Password hash generated', `by ${req.user?.username}`);
     res.json({ success: true, hash });
   } catch (error) {
-    console.error('Error generating password hash:', error);
     logger.error('Failed to generate password hash', error instanceof Error ? error.message : String(error));
     res.status(500).json({ error: 'Failed to generate password hash' });
   }
@@ -40,7 +39,6 @@ router.post('/generate-jwt-secret', verifyToken, requireAdmin, async (req: AuthR
     logger.success('JWT secret generated', `by ${req.user?.username}`);
     res.json({ success: true, secret });
   } catch (error) {
-    console.error('Error generating JWT secret:', error);
     logger.error('Failed to generate JWT secret', error instanceof Error ? error.message : String(error));
     res.status(500).json({ error: 'Failed to generate JWT secret' });
   }

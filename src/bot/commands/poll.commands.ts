@@ -5,6 +5,7 @@ import { parseSchedule, analyzeSchedule } from '../../shared/utils/analyzer.js';
 import { getTodayFormatted } from '../../shared/utils/dateFormatter.js';
 import { convertTimeToUnixTimestamp } from '../embeds/embed.js';
 import { config } from '../../shared/config/config.js';
+import { logger } from '../../shared/utils/logger.js';
 
 /**
  * Handle /poll command - Create a quick poll (Admin)
@@ -36,7 +37,7 @@ export async function handleQuickPollCommand(interaction: ChatInputCommandIntera
       content: `✅ Poll created! It will close in ${durationText}.`,
     });
   } catch (error) {
-    console.error('Error creating quick poll:', error);
+    logger.error('Error creating quick poll', error instanceof Error ? error.message : String(error));
     await interaction.editReply({
       content: 'An error occurred while creating the poll.',
     });
@@ -60,7 +61,7 @@ export async function handleTrainingStartPollCommand(interaction: ChatInputComma
       content: `${statusEmoji} Training start time poll is now **${statusText}**.\n\n${newState ? 'A poll will be automatically created after each schedule post asking when to start training.' : 'No automatic polls will be created.'}`,
     });
   } catch (error) {
-    console.error('Error toggling training start poll:', error);
+    logger.error('Error toggling training start poll', error instanceof Error ? error.message : String(error));
     await interaction.editReply({
       content: 'An error occurred while toggling the training start poll feature.',
     });
@@ -110,7 +111,7 @@ export async function handleSendTrainingPollCommand(interaction: ChatInputComman
       content: `✅ Training start time poll sent for **${targetDate}**!\n\n⏰ Available time: <t:${startTs}:t> - <t:${endTs}:t>`,
     });
   } catch (error) {
-    console.error('Error sending training start poll:', error);
+    logger.error('Error sending training start poll', error instanceof Error ? error.message : String(error));
     await interaction.editReply({
       content: 'An error occurred while sending the training start poll.',
     });
