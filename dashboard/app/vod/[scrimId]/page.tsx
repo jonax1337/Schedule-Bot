@@ -653,7 +653,7 @@ export default function VodRoomPage() {
             {scrim.matchType && getMatchTypeBadge(scrim.matchType)}
 
             {/* Opponent */}
-            <span className="font-semibold truncate">{scrim.opponent}</span>
+            <span className="font-semibold truncate">{teamName} vs {scrim.opponent}</span>
 
             {/* Map */}
             {scrim.map && (
@@ -669,6 +669,7 @@ export default function VodRoomPage() {
 
             {/* Result badge */}
             {getResultBadge(scrim.result)}
+            
           </div>
         </div>
       </div>
