@@ -315,6 +315,13 @@ export default function VodRoomPage() {
   const user = getUser();
   const { teamName } = useBranding();
 
+  // Auth guard: redirect to login if not authenticated
+  useEffect(() => {
+    if (!user) {
+      router.push('/login');
+    }
+  }, [user, router]);
+
   const allUsers = useMemo(() => [...new Set(comments.map(c => c.userName))].sort(), [comments]);
   const allTags = useMemo(() => {
     const tags = new Set<string>();
@@ -397,7 +404,7 @@ export default function VodRoomPage() {
 
   const fetchComments = useCallback(async () => {
     try {
-      const res = await fetch(`${BOT_API_URL}/api/vod-comments/scrim/${scrimId}`);
+      const res = await fetch(`${BOT_API_URL}/api/vod-comments/scrim/${scrimId}`, { headers: getAuthHeaders() });
       const data = await res.json();
       if (data.success) setComments(data.comments);
     } catch {
@@ -570,6 +577,14 @@ export default function VodRoomPage() {
 
   const videoId = scrim?.vodUrl ? getYouTubeVideoId(scrim.vodUrl) : null;
 
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
   if (scrimLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-background">
@@ -646,7 +661,11 @@ export default function VodRoomPage() {
             )}
 
             {/* Score */}
-            <span className="font-semibold tabular-nums shrink-0">{scrim.scoreUs}:{scrim.scoreThem}</span>
+            <span className="font-semibold tabular-nums shrink-0 flex items-center gap-0.5">
+              <span className="text-green-500">{scrim.scoreUs}</span>
+              <span className="text-muted-foreground">:</span>
+              <span className="text-red-500">{scrim.scoreThem}</span>
+            </span>
 
             {/* Result badge */}
             {getResultBadge(scrim.result)}
