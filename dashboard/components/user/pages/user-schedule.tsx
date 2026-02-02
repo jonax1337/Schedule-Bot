@@ -761,7 +761,7 @@ export function UserSchedule() {
                     </div>
                   )}
 
-                  <div className="space-y-1.5 rounded-lg border">
+                  <div className="space-y-1.5">
                     {selectedDate.players
                       .sort((a, b) => {
                         const roleOrder = { main: 0, sub: 1, coach: 2 };
@@ -771,7 +771,7 @@ export function UserSchedule() {
                         <div
                           key={player.name}
                           className={cn(
-                            "flex items-center justify-between p-2 rounded-md bg-muted/30",
+                            "flex items-center justify-between p-2 rounded-md border bg-muted/30",
                             player.status === 'absent' && 'bg-purple-500/10 opacity-60'
                           )}
                         >
