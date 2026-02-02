@@ -2,7 +2,8 @@ import { EmbedBuilder, Message, MessageReaction, User, TextChannel } from 'disco
 import { client } from '../client.js';
 import { config } from '../../shared/config/config.js';
 import { logger, getErrorMessage } from '../../shared/utils/logger.js';
-import { formatRemainingTime, startPollTimers as startTimers, clearPollTimers as clearTimers, handleVoteToggle, fetchPollMessage } from './pollBase.js';
+import { formatRemainingTime, startPollTimers as startTimers, clearPollTimers as clearTimers, handleVoteToggle, fetchPollMessage, POLL_EMOJIS } from './pollBase.js';
+import { COLORS } from '../embeds/embed.js';
 
 interface PollOption {
   emoji: string;
@@ -52,10 +53,8 @@ export async function createQuickPoll(
   createdBy: string,
   durationMinutes: number = 60
 ): Promise<Message> {
-  const emojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
-
   const pollOptions: PollOption[] = options.slice(0, 10).map((opt, i) => ({
-    emoji: emojis[i],
+    emoji: POLL_EMOJIS[i],
     label: opt,
     votes: [],
   }));
@@ -63,7 +62,7 @@ export async function createQuickPoll(
   const durationMs = durationMinutes * 60 * 1000;
 
   const embed = new EmbedBuilder()
-    .setColor(0xf39c12)
+    .setColor(COLORS.WARNING)
     .setTitle(question)
     .setDescription('React to vote!')
     .setFooter({ text: `Poll closes in ${formatRemainingTime(durationMs)}` })
@@ -190,7 +189,7 @@ async function closePoll(messageId: string): Promise<void> {
     }
 
     const embed = new EmbedBuilder()
-      .setColor(0xe74c3c)
+      .setColor(COLORS.ERROR)
       .setTitle(`${poll.question} — CLOSED`)
       .setDescription(resultText)
       .setFooter({ text: 'Poll closed' })
@@ -215,8 +214,6 @@ export async function recoverQuickPolls(): Promise<void> {
     if (!channel || !(channel instanceof TextChannel)) return;
 
     const messages = await channel.messages.fetch({ limit: 50 });
-    const emojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
-
     for (const message of messages.values()) {
       if (!message.author.bot || message.author.id !== client.user?.id) continue;
 
@@ -264,7 +261,7 @@ export async function recoverQuickPolls(): Promise<void> {
       const options: PollOption[] = [];
       for (let i = 0; i < (embed.fields?.length || 0); i++) {
         const field = embed.fields![i];
-        const emoji = emojis[i];
+        const emoji = POLL_EMOJIS[i];
         if (!emoji) break;
 
         // Extract label from field name like "1️⃣ Option text"

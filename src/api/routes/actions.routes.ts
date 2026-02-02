@@ -92,16 +92,9 @@ router.post('/notify', verifyToken, requireAdmin, validate(notificationSchema), 
   try {
     const { type, target, title, message, specificUserId } = req.body;
 
-    // Get color and emoji based on type
-    const typeConfig = {
-      info: { color: 0x3498db, emoji: '📢' },
-      success: { color: 0x2ecc71, emoji: '✅' },
-      warning: { color: 0xf39c12, emoji: '⚠️' },
-      error: { color: 0xe74c3c, emoji: '❌' },
-    };
-    
-    const config = typeConfig[type as keyof typeof typeConfig];
-    if (!config) {
+    const { NOTIFICATION_TYPE_CONFIG } = await import('../../bot/embeds/embed.js');
+    const notifConfig = NOTIFICATION_TYPE_CONFIG[type];
+    if (!notifConfig) {
       return res.status(400).json({ error: 'Invalid notification type' });
     }
     
@@ -138,8 +131,8 @@ router.post('/notify', verifyToken, requireAdmin, validate(notificationSchema), 
     // Create notification embed
     const { EmbedBuilder } = await import('discord.js');
     const notificationEmbed = new EmbedBuilder()
-      .setColor(config.color)
-      .setTitle(`${config.emoji} ${title}`)
+      .setColor(notifConfig.color)
+      .setTitle(`${notifConfig.emoji} ${title}`)
       .setDescription(message)
       .setFooter({ text: `Sent by ${req.user?.username || 'Admin'}` })
       .setTimestamp();
@@ -241,18 +234,12 @@ router.post('/training-poll', verifyToken, requireAdmin, async (req: AuthRequest
     const { date } = req.body;
     const convertedDate = convertToDD_MM_YYYY(date);
 
-    const { getScheduleForDate } = await import('../../repositories/schedule.repository.js');
-    const { parseSchedule, analyzeSchedule } = await import('../../shared/utils/analyzer.js');
-    const { getAbsentUserIdsForDate } = await import('../../repositories/absence.repository.js');
+    const { getAnalyzedSchedule } = await import('../../shared/utils/scheduleDetails.js');
 
-    const sheetData = await getScheduleForDate(convertedDate);
-    if (!sheetData) {
+    const result = await getAnalyzedSchedule(convertedDate);
+    if (!result) {
       return res.status(404).json({ error: `No schedule data found for ${convertedDate}` });
     }
-
-    const absentUserIds = await getAbsentUserIdsForDate(convertedDate);
-    const schedule = parseSchedule(sheetData, absentUserIds);
-    const result = analyzeSchedule(schedule);
 
     if (!result.canProceed || !result.commonTimeRange) {
       return res.status(400).json({ error: `Cannot create training poll: ${result.statusMessage}` });

@@ -9,9 +9,10 @@ import { toast } from 'sonner';
 import { Loader2, Calendar, Save, RefreshCw, ChevronLeft, ChevronRight, X, PlaneTakeoff } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import Image from 'next/image';
-import { stagger, microInteractions, loadingStates } from '@/lib/animations';
+import { stagger, microInteractions } from '@/lib/animations';
 import { cn } from '@/lib/utils';
 import { BOT_API_URL } from '@/lib/config';
+import { getAuthHeaders } from '@/lib/auth';
 import { useTimezone, getTimezoneAbbr } from '@/lib/timezone';
 import { getWeekdayName, getReasonBadgeClasses, SCHEDULE_REASON_SUGGESTIONS } from '@/lib/date-utils';
 
@@ -62,7 +63,7 @@ export function ScheduleEditor() {
   const loadData = async (page: number = 0) => {
     setLoading(true);
     try {
-      const { getAuthHeaders } = await import('@/lib/auth');
+
 
       // Load user mappings and schedules
       const [mappingsRes, schedulesRes] = await Promise.all([
@@ -138,7 +139,7 @@ export function ScheduleEditor() {
       : availability;
     setSaving(true);
     try {
-      const { getAuthHeaders } = await import('@/lib/auth');
+
       const response = await fetch(`${BOT_API_URL}/api/schedule/update-availability`, {
         method: 'POST',
         headers: getAuthHeaders(),
@@ -190,7 +191,7 @@ export function ScheduleEditor() {
 
     setSaving(true);
     try {
-      const { getAuthHeaders } = await import('@/lib/auth');
+
       const response = await fetch(`${BOT_API_URL}/api/schedule/update-reason`, {
         method: 'POST',
         headers: getAuthHeaders(),

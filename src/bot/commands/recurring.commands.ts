@@ -1,7 +1,8 @@
 import { ChatInputCommandInteraction, EmbedBuilder, MessageFlags } from 'discord.js';
-import { getUserMapping } from '../../repositories/user-mapping.repository.js';
 import { recurringAvailabilityService } from '../../services/recurring-availability.service.js';
 import { logger, getErrorMessage } from '../../shared/utils/logger.js';
+import { requireRegisteredUser } from '../utils/command-helpers.js';
+import { COLORS } from '../embeds/embed.js';
 
 const DAY_MAP: Record<string, number> = {
   sun: 0, sunday: 0,
@@ -53,13 +54,8 @@ export async function handleSetRecurringCommand(interaction: ChatInputCommandInt
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   try {
-    const userMapping = await getUserMapping(interaction.user.id);
-    if (!userMapping) {
-      await interaction.editReply({
-        content: '❌ You are not registered yet. Please contact an admin to register you with `/register`.',
-      });
-      return;
-    }
+    const userMapping = await requireRegisteredUser(interaction);
+    if (!userMapping) return;
 
     const daysInput = interaction.options.getString('days', true);
     const timeInput = interaction.options.getString('time', true);
@@ -115,13 +111,8 @@ export async function handleMyRecurringCommand(interaction: ChatInputCommandInte
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   try {
-    const userMapping = await getUserMapping(interaction.user.id);
-    if (!userMapping) {
-      await interaction.editReply({
-        content: '❌ You are not registered yet.',
-      });
-      return;
-    }
+    const userMapping = await requireRegisteredUser(interaction);
+    if (!userMapping) return;
 
     const entries = await recurringAvailabilityService.getForUser(interaction.user.id);
 
@@ -134,7 +125,7 @@ export async function handleMyRecurringCommand(interaction: ChatInputCommandInte
 
     const embed = new EmbedBuilder()
       .setTitle('🔄 Your Recurring Schedule')
-      .setColor(0x5865F2)
+      .setColor(COLORS.DISCORD_BLURPLE)
       .setDescription('This schedule is auto-applied to new days. Override specific dates with `/set`.');
 
     // Build a full week view
@@ -169,13 +160,8 @@ export async function handleClearRecurringCommand(interaction: ChatInputCommandI
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   try {
-    const userMapping = await getUserMapping(interaction.user.id);
-    if (!userMapping) {
-      await interaction.editReply({
-        content: '❌ You are not registered yet.',
-      });
-      return;
-    }
+    const userMapping = await requireRegisteredUser(interaction);
+    if (!userMapping) return;
 
     const dayInput = interaction.options.getString('day', true).toLowerCase().trim();
 

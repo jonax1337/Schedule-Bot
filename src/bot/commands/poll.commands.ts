@@ -1,7 +1,5 @@
-import { ChatInputCommandInteraction, MessageFlags, EmbedBuilder } from 'discord.js';
-import { getScheduleForDate } from '../../repositories/schedule.repository.js';
-import { getAbsentUserIdsForDate } from '../../repositories/absence.repository.js';
-import { parseSchedule, analyzeSchedule } from '../../shared/utils/analyzer.js';
+import { ChatInputCommandInteraction, MessageFlags } from 'discord.js';
+import { getAnalyzedSchedule } from '../../shared/utils/scheduleDetails.js';
 import { getTodayFormatted } from '../../shared/utils/dateFormatter.js';
 import { convertTimeToUnixTimestamp } from '../embeds/embed.js';
 import { config } from '../../shared/config/config.js';
@@ -78,19 +76,15 @@ export async function handleSendTrainingPollCommand(interaction: ChatInputComman
     const dateOption = interaction.options.getString('date');
     const targetDate = dateOption || getTodayFormatted();
 
-    // Fetch schedule data for the date
-    const sheetData = await getScheduleForDate(targetDate);
+    // Fetch and analyze schedule data for the date
+    const result = await getAnalyzedSchedule(targetDate);
 
-    if (!sheetData) {
+    if (!result) {
       await interaction.editReply({
         content: `❌ No schedule data found for ${targetDate}.`,
       });
       return;
     }
-
-    const absentUserIds = await getAbsentUserIdsForDate(targetDate);
-    const schedule = parseSchedule(sheetData, absentUserIds);
-    const result = analyzeSchedule(schedule);
 
     // Check if training can proceed
     if (!result.canProceed || !result.commonTimeRange) {

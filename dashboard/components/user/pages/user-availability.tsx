@@ -1,19 +1,21 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2, XCircle, Clock, CheckSquare, Square, Check, PlaneTakeoff, CalendarDays, RefreshCw, Trash2 } from 'lucide-react';
+import { Loader2, XCircle, Clock, CheckSquare, Check, PlaneTakeoff, CalendarDays, RefreshCw, Trash2 } from 'lucide-react';
+import { PageSpinner } from '@/components/ui/page-spinner';
 import { toast } from 'sonner';
 import { stagger, microInteractions } from '@/lib/animations';
 import { cn } from '@/lib/utils';
 import { BOT_API_URL } from '@/lib/config';
+import { getAuthHeaders } from '@/lib/auth';
 import { useTimezone, getTimezoneAbbr } from '@/lib/timezone';
-import { parseDDMMYYYY, getWeekdayName } from '@/lib/date-utils';
+import { parseDDMMYYYY, getWeekdayName, formatDateToDDMMYYYY } from '@/lib/date-utils';
+import { useUserDiscordId } from '@/hooks/use-user-discord-id';
 
 interface AbsenceData {
   id: number;
@@ -45,10 +47,10 @@ interface DateEntry {
 }
 
 export function UserAvailability() {
-  const router = useRouter();
+  const { user, isLoading: authLoading } = useUserDiscordId();
+  const userName = user?.userName || '';
+  const userDiscordId = user?.discordId || '';
   const { convertRangeToLocal, convertRangeToBot, isConverting, userTimezone, botTimezone, botTimezoneLoaded, timezoneVersion } = useTimezone();
-  const [userName, setUserName] = useState('');
-  const [userDiscordId, setUserDiscordId] = useState('');
   const [entries, setEntries] = useState<DateEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -59,26 +61,9 @@ export function UserAvailability() {
   const autoSaveTimeoutsRef = useRef<Record<string, NodeJS.Timeout>>({});
 
   useEffect(() => {
-    if (!botTimezoneLoaded) return;
-
-    const checkAuthAndLoad = async () => {
-      try {
-        const savedUser = localStorage.getItem('selectedUser');
-        if (!savedUser) {
-          router.replace('/login');
-          return;
-        }
-
-        setUserName(savedUser);
-        await loadData(savedUser);
-      } catch (error) {
-        console.error('Auth check failed:', error);
-        router.push('/login');
-      }
-    };
-
-    checkAuthAndLoad();
-  }, [router, botTimezoneLoaded, timezoneVersion]);
+    if (authLoading || !userDiscordId || !botTimezoneLoaded) return;
+    loadData();
+  }, [authLoading, userDiscordId, botTimezoneLoaded, timezoneVersion]);
 
   // Cleanup timeouts on unmount
   useEffect(() => {
@@ -89,36 +74,17 @@ export function UserAvailability() {
     };
   }, []);
 
-  const loadData = async (user: string) => {
+  const loadData = async () => {
     setLoading(true);
     try {
-      const { getAuthHeaders } = await import('@/lib/auth');
+
       const headers = getAuthHeaders();
-
-      // First fetch mappings to get the user's Discord ID
-      const mappingsRes = await fetch(`${BOT_API_URL}/api/user-mappings`, { headers });
-      if (!mappingsRes.ok) {
-        toast.error('Failed to load user mappings');
-        setLoading(false);
-        return;
-      }
-
-      const mappingsData = await mappingsRes.json().catch(() => ({ mappings: [] }));
-      const userMapping = mappingsData.mappings.find((m: any) => m.displayName === user);
-
-      if (!userMapping) {
-        toast.error('User mapping not found');
-        setLoading(false);
-        return;
-      }
-
-      setUserDiscordId(userMapping.discordId);
 
       // Fetch absences, schedule, and recurring in parallel
       const [absencesRes, scheduleRes, recurringRes] = await Promise.all([
-        fetch(`${BOT_API_URL}/api/absences?userId=${userMapping.discordId}`, { headers }),
+        fetch(`${BOT_API_URL}/api/absences?userId=${userDiscordId}`, { headers }),
         fetch(`${BOT_API_URL}/api/schedule/next14`, { headers }),
-        fetch(`${BOT_API_URL}/api/recurring-availability?userId=${userMapping.discordId}`, { headers }),
+        fetch(`${BOT_API_URL}/api/recurring-availability?userId=${userDiscordId}`, { headers }),
       ]);
 
       // Parse responses with safe JSON handling
@@ -148,20 +114,14 @@ export function UserAvailability() {
       const dateEntries: DateEntry[] = [];
 
       const today = new Date();
-      const formatDate = (d: Date): string => {
-        const day = String(d.getDate()).padStart(2, '0');
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const year = d.getFullYear();
-        return `${day}.${month}.${year}`;
-      };
 
       for (let i = 0; i < 14; i++) {
         const date = new Date(today);
         date.setDate(today.getDate() + i);
-        const dateStr = formatDate(date);
+        const dateStr = formatDateToDDMMYYYY(date);
 
         const schedule = schedules.find((s: any) => s.date === dateStr);
-        const player = schedule?.players?.find((p: any) => p.userId === userMapping.discordId);
+        const player = schedule?.players?.find((p: any) => p.userId === userDiscordId);
         const availability = player?.availability || '';
         const dayOfWeek = date.getDay();
         const recurringValue = recurringMap.get(dayOfWeek);
@@ -222,7 +182,7 @@ export function UserAvailability() {
     try {
       const localValue = `${timeFrom}-${timeTo}`;
       const botValue = convertRangeToBot(localValue);
-      const { getAuthHeaders } = await import('@/lib/auth');
+
 
       const response = await fetch(`${BOT_API_URL}/api/schedule/update-availability`, {
         method: 'POST',
@@ -280,7 +240,7 @@ export function UserAvailability() {
     ));
 
     try {
-      const { getAuthHeaders } = await import('@/lib/auth');
+
 
       const response = await fetch(`${BOT_API_URL}/api/schedule/update-availability`, {
         method: 'POST',
@@ -340,7 +300,7 @@ export function UserAvailability() {
     ));
 
     try {
-      const { getAuthHeaders } = await import('@/lib/auth');
+
 
       const response = await fetch(`${BOT_API_URL}/api/schedule/update-availability`, {
         method: 'POST',
@@ -396,7 +356,7 @@ export function UserAvailability() {
     ));
 
     try {
-      const { getAuthHeaders } = await import('@/lib/auth');
+
       const response = await fetch(`${BOT_API_URL}/api/schedule/update-availability`, {
         method: 'POST',
         headers: getAuthHeaders(),
@@ -498,7 +458,7 @@ export function UserAvailability() {
     try {
       const localValue = `${bulkTimeFrom}-${bulkTimeTo}`;
       const botValue = convertRangeToBot(localValue);
-      const { getAuthHeaders } = await import('@/lib/auth');
+
 
       const updates = Array.from(selectedDates).map(date =>
         fetch(`${BOT_API_URL}/api/schedule/update-availability`, {
@@ -552,7 +512,7 @@ export function UserAvailability() {
 
     setSaving(true);
     try {
-      const { getAuthHeaders } = await import('@/lib/auth');
+
 
       const updates = Array.from(selectedDates).map(date =>
         fetch(`${BOT_API_URL}/api/schedule/update-availability`, {
@@ -604,7 +564,7 @@ export function UserAvailability() {
 
     setSaving(true);
     try {
-      const { getAuthHeaders } = await import('@/lib/auth');
+
 
       const updates = Array.from(selectedDates).map(date =>
         fetch(`${BOT_API_URL}/api/schedule/update-availability`, {
@@ -649,13 +609,7 @@ export function UserAvailability() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-[400px] flex items-center justify-center">
-        <div className="animate-scaleIn">
-          <Loader2 className="w-8 h-8 animate-spin" />
-        </div>
-      </div>
-    );
+    return <PageSpinner />;
   }
 
   return (

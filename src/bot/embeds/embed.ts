@@ -3,11 +3,13 @@ import { getOverlapDuration } from '../../shared/utils/analyzer.js';
 import { config } from '../../shared/config/config.js';
 import type { ScheduleResult, PlayerAvailability } from '../../shared/types/types.js';
 
-const COLORS = {
+export const COLORS = {
   SUCCESS: 0x2ecc71,
   WARNING: 0xf39c12,
   ERROR: 0xe74c3c,
   OFF_DAY: 0x9b59b6,
+  INFO: 0x3498db,
+  DISCORD_BLURPLE: 0x5865F2,
 };
 
 const THUMBNAIL_URL = 'https://cdn-icons-png.flaticon.com/512/3652/3652191.png';
@@ -161,28 +163,23 @@ export function buildPollEmbed(question: string, options: string[]): EmbedBuilde
     .setTimestamp();
 }
 
+export const NOTIFICATION_TYPE_CONFIG: Record<string, { color: number; emoji: string }> = {
+  info: { color: COLORS.INFO, emoji: '📢' },
+  success: { color: COLORS.SUCCESS, emoji: '✅' },
+  warning: { color: COLORS.WARNING, emoji: '⚠️' },
+  error: { color: COLORS.ERROR, emoji: '❌' },
+};
+
 export function buildNotificationEmbed(
   type: 'info' | 'success' | 'warning' | 'error',
   title: string,
   message: string
 ): EmbedBuilder {
-  const colorMap = {
-    info: 0x3498db,
-    success: COLORS.SUCCESS,
-    warning: COLORS.WARNING,
-    error: COLORS.ERROR,
-  };
-
-  const emojiMap = {
-    info: 'ℹ️',
-    success: '✅',
-    warning: '⚠️',
-    error: '❌',
-  };
+  const typeConfig = NOTIFICATION_TYPE_CONFIG[type];
 
   return new EmbedBuilder()
-    .setColor(colorMap[type])
-    .setTitle(`${emojiMap[type]} ${title}`)
+    .setColor(typeConfig.color)
+    .setTitle(`${typeConfig.emoji} ${title}`)
     .setDescription(message)
     .setTimestamp();
 }

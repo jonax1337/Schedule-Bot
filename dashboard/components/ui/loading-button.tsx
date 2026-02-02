@@ -2,9 +2,12 @@
 
 import * as React from "react";
 import { Loader2 } from "lucide-react";
-import { Button, type ButtonProps } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 
-interface LoadingButtonProps extends ButtonProps {
+interface LoadingButtonProps extends React.ComponentProps<"button"> {
+  variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
+  size?: "default" | "xs" | "sm" | "lg" | "icon" | "icon-xs" | "icon-sm" | "icon-lg";
+  asChild?: boolean;
   loading?: boolean;
   loadingText?: string;
   icon?: React.ComponentType<{ className?: string }>;

@@ -30,3 +30,24 @@ export function getReasonBadgeClasses(reason: string): string {
 }
 
 export const SCHEDULE_REASON_SUGGESTIONS = ['Training', 'Off-Day', 'VOD-Review', 'Scrims', 'Premier', 'Tournament'];
+
+export const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+export const WEEKDAY_NAMES_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+export function formatDateToDDMMYYYY(date: Date): string {
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}.${month}.${year}`;
+}
+
+export function getTodayDDMMYYYY(): string {
+  return formatDateToDDMMYYYY(new Date());
+}
+
+export function isoToDDMMYYYY(isoStr: string): string {
+  if (!isoStr) return '';
+  const [year, month, day] = isoStr.split('-');
+  return `${day}.${month}.${year}`;
+}

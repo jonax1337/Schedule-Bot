@@ -1,11 +1,9 @@
 "use client"
 
-import { useState } from "react"
 import {
   ChevronsUpDown,
   LogOut,
   Globe,
-  Check,
 } from "lucide-react"
 
 import {
@@ -28,19 +26,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command"
+import { TimezonePicker } from "@/components/ui/timezone-picker"
 import { useTimezone, getTimezoneAbbr } from "@/lib/timezone"
 
 export function NavUser({
@@ -58,13 +44,6 @@ export function NavUser({
 }) {
   const { isMobile } = useSidebar()
   const { userTimezone, setUserTimezone } = useTimezone()
-  const [tzOpen, setTzOpen] = useState(false)
-  const [tzSearch, setTzSearch] = useState("")
-
-  const allTimezones = Intl.supportedValuesOf('timeZone')
-  const filteredTimezones = tzSearch
-    ? allTimezones.filter(tz => tz.toLowerCase().includes(tzSearch.toLowerCase()))
-    : allTimezones
 
   // Get initials from name
   const getInitials = (name: string) => {
@@ -122,47 +101,15 @@ export function NavUser({
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem asChild onSelect={(e) => e.preventDefault()}>
-                <Popover open={tzOpen} onOpenChange={setTzOpen}>
-                  <PopoverTrigger asChild>
-                    <button className="flex w-full items-center gap-2 px-2 py-1.5 text-sm rounded-sm hover:bg-accent cursor-pointer">
-                      <Globe className="h-4 w-4 text-muted-foreground" />
-                      <span className="flex-1 text-left">Timezone</span>
-                      <span className="text-xs text-muted-foreground">{getTimezoneAbbr(userTimezone)}</span>
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[300px] p-0" side="right" align="start">
-                    <Command>
-                      <CommandInput
-                        placeholder="Search timezone..."
-                        value={tzSearch}
-                        onValueChange={setTzSearch}
-                      />
-                      <CommandList>
-                        <CommandEmpty>No timezone found.</CommandEmpty>
-                        <CommandGroup>
-                          {filteredTimezones.map((tz) => (
-                            <CommandItem
-                              key={tz}
-                              value={tz}
-                              onSelect={() => {
-                                setUserTimezone(tz)
-                                setTzOpen(false)
-                                setTzSearch("")
-                              }}
-                            >
-                              <Check
-                                className={`mr-2 h-4 w-4 ${
-                                  userTimezone === tz ? "opacity-100" : "opacity-0"
-                                }`}
-                              />
-                              {tz}
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
+                <div className="flex w-full items-center gap-2 px-2 py-1.5">
+                  <Globe className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <TimezonePicker
+                    value={userTimezone}
+                    onChange={setUserTimezone}
+                    placeholder={getTimezoneAbbr(userTimezone)}
+                    className="flex-1 h-8 text-sm"
+                  />
+                </div>
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />

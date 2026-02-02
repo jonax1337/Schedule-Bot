@@ -3,6 +3,7 @@ import { getScheduleForDate } from '../../repositories/schedule.repository.js';
 import { getUserMappings } from '../../repositories/user-mapping.repository.js';
 import { getAbsentUserIdsForDate } from '../../repositories/absence.repository.js';
 import { getTodayFormatted, normalizeDateFormat } from '../../shared/utils/dateFormatter.js';
+import { COLORS } from '../embeds/embed.js';
 import { createAvailabilityButtons } from './interactive.js';
 import { logger, getErrorMessage } from '../../shared/utils/logger.js';
 
@@ -59,7 +60,7 @@ export async function sendRemindersToUsersWithoutEntry(client: Client, date?: st
           const user = await client.users.fetch(mapping.discordId);
           
           const embed = new EmbedBuilder()
-            .setColor(0xf39c12)
+            .setColor(COLORS.WARNING)
             .setTitle('Availability Reminder')
             .setDescription(`You haven't set your availability for **${normalizedDate}** yet.\n\nPlease set your availability using the buttons below.`)
             .setTimestamp();
@@ -95,7 +96,7 @@ export async function sendReminderToUser(client: Client, userId: string, date: s
     const normalizedDate = normalizeDateFormat(date);
     
     const embed = new EmbedBuilder()
-      .setColor(0xf39c12)
+      .setColor(COLORS.WARNING)
       .setTitle('Availability Reminder')
       .setDescription(`You haven't set your availability for **${normalizedDate}** yet.\n\nPlease set your availability using the buttons below.`)
       .setFooter({ text: 'Schedule Bot' })

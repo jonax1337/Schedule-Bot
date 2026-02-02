@@ -9,18 +9,23 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Loader2, Plus, Edit, Trash2, TrendingUp, Trophy, Target, X, LayoutGrid, Table as TableIcon, Video, ArrowUpDown, ArrowUp, ArrowDown, ExternalLink } from "lucide-react";
+import { PageSpinner } from '@/components/ui/page-spinner';
 import Link from 'next/link';
 import Image from 'next/image';
 import { toast } from "sonner";
 import { AgentSelector } from "./agent-picker";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { stagger, microInteractions, loadingStates } from '@/lib/animations';
+import { stagger, microInteractions } from '@/lib/animations';
 import { cn } from '@/lib/utils';
 import { BOT_API_URL } from '@/lib/config';
+import { getAuthHeaders } from '@/lib/auth';
 import { VodReview } from './vod-review';
+import { type ScrimEntry, type ScrimStats } from '@/lib/types';
+import { VALORANT_MAPS } from '@/lib/constants';
+import { getTodayDDMMYYYY } from '@/lib/date-utils';
 
 // Helper to extract YouTube video ID from URL
 function getYouTubeVideoId(url: string): string | null {
@@ -36,59 +41,12 @@ function getYouTubeVideoId(url: string): string | null {
   return null;
 }
 
-const VALORANT_MAPS = [
-  'Abyss', 'Ascent', 'Bind', 'Breeze', 'Corrode', 'Fracture',
-  'Haven', 'Icebox', 'Lotus', 'Pearl', 'Split', 'Sunset'
-];
-
 const MATCH_TYPES = [
   'Scrim',
   'Tournament',
   'Premier',
   'Custom',
 ];
-
-// Helper to get today's date in DD.MM.YYYY format
-function getTodayDate(): string {
-  const today = new Date();
-  const day = String(today.getDate()).padStart(2, '0');
-  const month = String(today.getMonth() + 1).padStart(2, '0');
-  const year = today.getFullYear();
-  return `${day}.${month}.${year}`;
-}
-
-interface ScrimEntry {
-  id: string;
-  date: string;
-  opponent: string;
-  result: 'win' | 'loss' | 'draw';
-  scoreUs: number;
-  scoreThem: number;
-  map: string;
-  matchType?: string;
-  ourAgents: string[];
-  theirAgents: string[];
-  vodUrl: string;
-  matchLink: string;
-  notes: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface ScrimStats {
-  totalScrims: number;
-  wins: number;
-  losses: number;
-  draws: number;
-  winRate: number;
-  mapStats: {
-    [mapName: string]: {
-      played: number;
-      wins: number;
-      losses: number;
-    };
-  };
-}
 
 export function Matches() {
   const [scrims, setScrims] = useState<ScrimEntry[]>([]);
@@ -111,7 +69,7 @@ export function Matches() {
   
   // Form state
   const [formData, setFormData] = useState({
-    date: getTodayDate(),
+    date: getTodayDDMMYYYY(),
     opponent: '',
     result: 'loss' as 'win' | 'loss' | 'draw',
     scoreUs: 0 as number | string,
@@ -202,9 +160,6 @@ export function Matches() {
         notes: formData.notes,
       };
 
-      // Import auth helpers
-      const { getAuthHeaders } = await import('@/lib/auth');
-      
       let response;
       if (editingScrim) {
         response = await fetch(`${BOT_API_URL}/api/scrims/${editingScrim.id}`, {
@@ -246,9 +201,6 @@ export function Matches() {
 
   const handleDelete = async (id: string) => {
     try {
-      // Import auth helpers
-      const { getAuthHeaders } = await import('@/lib/auth');
-      
       const response = await fetch(`${BOT_API_URL}/api/scrims/${id}`, {
         method: 'DELETE',
         headers: getAuthHeaders(),
@@ -283,14 +235,14 @@ export function Matches() {
       theirAgents: scrim.theirAgents || [],
       vodUrl: scrim.vodUrl || '',
       matchLink: scrim.matchLink || '',
-      notes: scrim.notes,
+      notes: scrim.notes || '',
     });
     setIsAddDialogOpen(true);
   };
 
   const resetForm = () => {
     setFormData({
-      date: getTodayDate(),
+      date: getTodayDDMMYYYY(),
       opponent: '',
       result: 'loss',
       scoreUs: 0,
@@ -409,13 +361,7 @@ export function Matches() {
   }, [scrims, filterMap, filterResult, filterMatchType, sortBy]);
 
   if (loading) {
-    return (
-      <div className="min-h-[400px] flex items-center justify-center">
-        <div className="animate-scaleIn">
-          <Loader2 className="w-8 h-8 animate-spin" />
-        </div>
-      </div>
-    );
+    return <PageSpinner />;
   }
 
   return (
@@ -469,30 +415,19 @@ export function Matches() {
       )}
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Match</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this match? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (deleteTarget) {
-                  handleDelete(deleteTarget);
-                  setDeleteTarget(null);
-                }
-              }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Delete Match"
+        description="Are you sure you want to delete this match? This action cannot be undone."
+        confirmLabel="Delete"
+        onConfirm={() => {
+          if (deleteTarget) {
+            handleDelete(deleteTarget);
+            setDeleteTarget(null);
+          }
+        }}
+      />
 
       {/* Scrims List */}
       <Card className={stagger(3, 'fast', 'slideUpScale')}>
@@ -910,7 +845,7 @@ export function Matches() {
                         )}
                       </TableCell>
                       <TableCell className="text-center">
-                        {(() => { const id = getYouTubeVideoId(scrim.vodUrl); return id ? (
+                        {(() => { const id = scrim.vodUrl ? getYouTubeVideoId(scrim.vodUrl) : null; return id ? (
                           <Button
                             variant="ghost"
                             size="icon"
@@ -985,7 +920,7 @@ export function Matches() {
             // Cards View
             <div className="space-y-4">
               {filteredScrims.map((scrim) => {
-                const vodId = getYouTubeVideoId(scrim.vodUrl);
+                const vodId = scrim.vodUrl ? getYouTubeVideoId(scrim.vodUrl) : null;
                 
                 return (
                   <div

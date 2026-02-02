@@ -1,9 +1,7 @@
 import { TextChannel, EmbedBuilder, Client } from 'discord.js';
 import { config } from '../../shared/config/config.js';
-import { getScheduleForDate } from '../../repositories/schedule.repository.js';
-import { getAbsentUserIdsForDate } from '../../repositories/absence.repository.js';
-import { parseSchedule, analyzeSchedule } from '../../shared/utils/analyzer.js';
-import { buildScheduleEmbed } from '../embeds/embed.js';
+import { getAnalyzedSchedule } from '../../shared/utils/scheduleDetails.js';
+import { buildScheduleEmbed, COLORS } from '../embeds/embed.js';
 import { getTodayFormatted } from '../../shared/utils/dateFormatter.js';
 import { logger, getErrorMessage } from '../../shared/utils/logger.js';
 import type { ScheduleStatus, ScheduleResult } from '../../shared/types/types.js';
@@ -29,55 +27,21 @@ export async function postScheduleToChannel(date?: string, clientInstance?: Clie
     const settings = loadSettings();
 
     if (settings.scheduling.cleanChannelBeforePost) {
-      try {
-        const messages = await channel.messages.fetch({ limit: 100 });
-        const messagestoDelete = messages.filter(msg => !msg.pinned);
-
-        if (messagestoDelete.size > 0) {
-          const recentMessages = messagestoDelete.filter(msg =>
-            Date.now() - msg.createdTimestamp < 14 * 24 * 60 * 60 * 1000
-          );
-
-          if (recentMessages.size > 1) {
-            await channel.bulkDelete(recentMessages);
-            logger.info('Channel cleaned', `Deleted ${recentMessages.size} messages`);
-          } else if (recentMessages.size === 1) {
-            await recentMessages.first()?.delete();
-            logger.info('Channel cleaned', 'Deleted 1 message');
-          }
-
-          const oldMessages = messagestoDelete.filter(msg =>
-            Date.now() - msg.createdTimestamp >= 14 * 24 * 60 * 60 * 1000
-          );
-
-          for (const msg of oldMessages.values()) {
-            try {
-              await msg.delete();
-            } catch (err) {
-              logger.warn('Could not delete old message', getErrorMessage(err));
-            }
-          }
-        }
-      } catch (error) {
-        logger.error('Channel cleaning failed', getErrorMessage(error));
-      }
+      await cleanScheduleChannel(channel);
     }
 
     const displayDate = targetDate;
-    const sheetData = await getScheduleForDate(targetDate);
+    const result = await getAnalyzedSchedule(targetDate);
 
-    if (!sheetData) {
+    if (!result) {
       const embed = new EmbedBuilder()
         .setTitle(displayDate)
         .setDescription('No schedule data available for this date.')
-        .setColor(0xe74c3c);
+        .setColor(COLORS.ERROR);
       await channel.send({ embeds: [embed] });
       return;
     }
 
-    const absentUserIds = await getAbsentUserIdsForDate(targetDate);
-    const schedule = parseSchedule(sheetData, absentUserIds);
-    const result = analyzeSchedule(schedule);
     const embed = buildScheduleEmbed(result);
 
     // Ping role if configured
@@ -98,7 +62,7 @@ export async function postScheduleToChannel(date?: string, clientInstance?: Clie
         new EmbedBuilder()
           .setTitle('Error')
           .setDescription('Failed to fetch schedule data')
-          .setColor(0xe74c3c)
+          .setColor(COLORS.ERROR)
       ],
     });
   }
@@ -108,13 +72,8 @@ export async function postScheduleToChannel(date?: string, clientInstance?: Clie
  * Get current schedule status for a date
  */
 export async function getScheduleStatus(date: string): Promise<{ status: ScheduleStatus; result: ScheduleResult } | null> {
-  const sheetData = await getScheduleForDate(date);
-  if (!sheetData) return null;
-
-  const absentUserIds = await getAbsentUserIdsForDate(date);
-  const schedule = parseSchedule(sheetData, absentUserIds);
-  const result = analyzeSchedule(schedule);
-
+  const result = await getAnalyzedSchedule(date);
+  if (!result) return null;
   return { status: result.status, result };
 }
 
@@ -143,7 +102,7 @@ function getStatusLabel(status: ScheduleStatus): string {
 /**
  * Clean all non-pinned messages from the schedule channel
  */
-async function cleanScheduleChannel(channel: TextChannel): Promise<void> {
+export async function cleanScheduleChannel(channel: TextChannel): Promise<void> {
   try {
     const messages = await channel.messages.fetch({ limit: 100 });
     const messagesToDelete = messages.filter(msg => !msg.pinned);

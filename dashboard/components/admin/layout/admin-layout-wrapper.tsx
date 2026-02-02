@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator"
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage } from "@/components/ui/breadcrumb"
 import { ThemeToggle } from "@/components/theme"
 import { BreadcrumbProvider, useBreadcrumbSub } from "@/lib/breadcrumb-context"
+import { getUser, logout } from '@/lib/auth'
 
 interface AdminLayoutWrapperProps {
   children: React.ReactNode
@@ -37,7 +38,7 @@ function AdminLayoutWrapperInner({ children }: AdminLayoutWrapperProps) {
 
   useEffect(() => {
     const checkAuth = async () => {
-      const { getUser } = await import('@/lib/auth')
+
       const user = getUser()
       if (user?.username) {
         setUserName(user.username)
@@ -47,7 +48,7 @@ function AdminLayoutWrapperInner({ children }: AdminLayoutWrapperProps) {
   }, [])
 
   const handleLogout = async () => {
-    const { logout } = await import('@/lib/auth')
+
     await logout()
     router.push('/')
   }

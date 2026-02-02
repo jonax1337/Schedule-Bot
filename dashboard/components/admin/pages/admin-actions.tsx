@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { stagger, microInteractions } from "@/lib/animations";
 import { cn } from "@/lib/utils";
 import { BOT_API_URL } from "@/lib/config";
+import { getAuthHeaders } from '@/lib/auth';
 import type { DiscordMember } from "@/lib/types";
 
 export function Actions() {
@@ -63,7 +64,7 @@ export function Actions() {
 
   const loadMembers = async () => {
     try {
-      const { getAuthHeaders } = await import('@/lib/auth');
+
       const response = await fetch(`${BOT_API_URL}/api/discord/members`, {
         headers: getAuthHeaders()
       });
@@ -77,7 +78,7 @@ export function Actions() {
   const handleAction = async (action: string, endpoint: string, body: any) => {
     setLoading(action);
     try {
-      const { getAuthHeaders } = await import('@/lib/auth');
+
       const response = await fetch(`${BOT_API_URL}${endpoint}`, {
         method: 'POST',
         headers: {

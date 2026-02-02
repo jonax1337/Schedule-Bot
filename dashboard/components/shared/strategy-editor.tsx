@@ -17,6 +17,7 @@ import {
   AlignLeft, AlignCenter, AlignRight, Undo, Redo, X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getAuthHeaders } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
@@ -198,7 +199,7 @@ export function StrategyEditor({ content, onChange, editable = true }: StrategyE
     formData.append('image', file);
 
     try {
-      const { getAuthHeaders } = await import('@/lib/auth');
+
       const headers = getAuthHeaders();
       // Remove Content-Type so browser sets multipart boundary
       delete (headers as any)['Content-Type'];

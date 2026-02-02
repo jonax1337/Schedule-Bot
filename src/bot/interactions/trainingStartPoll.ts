@@ -2,10 +2,10 @@ import { client } from '../client.js';
 import { EmbedBuilder, TextChannel, MessageReaction, User, Message } from 'discord.js';
 import { config } from '../../shared/config/config.js';
 import { updateSetting, getSetting } from '../../shared/utils/settingsManager.js';
-import { convertTimeToUnixTimestamp } from '../embeds/embed.js';
+import { convertTimeToUnixTimestamp, COLORS } from '../embeds/embed.js';
 import type { ScheduleResult } from '../../shared/types/types.js';
 import { logger, getErrorMessage } from '../../shared/utils/logger.js';
-import { formatRemainingTime, startPollTimers as startTimers, clearPollTimers as clearTimers, handleVoteToggle, fetchPollMessage } from './pollBase.js';
+import { formatRemainingTime, startPollTimers as startTimers, clearPollTimers as clearTimers, handleVoteToggle, fetchPollMessage, POLL_EMOJIS } from './pollBase.js';
 import { timeToMinutes, minutesToTime } from '../../shared/utils/dateFormatter.js';
 
 interface TrainingPollOption {
@@ -99,7 +99,6 @@ export async function createTrainingStartPoll(
   const endMinutes = timeToMinutes(timeRange.end);
 
   // Generate time options (every 30 minutes within the available window)
-  const emojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
   const maxOptions = 10;
 
   // Calculate interval based on duration to fit within max options
@@ -119,7 +118,7 @@ export async function createTrainingStartPoll(
     const timestamp = convertTimeToUnixTimestamp(date, timeStr, config.scheduling.timezone);
 
     options.push({
-      emoji: emojis[options.length],
+      emoji: POLL_EMOJIS[options.length],
       timeStr,
       timestamp,
       votes: [],
@@ -137,7 +136,7 @@ export async function createTrainingStartPoll(
     const endTs = convertTimeToUnixTimestamp(date, timeRange.end, config.scheduling.timezone);
 
     const embed = new EmbedBuilder()
-      .setColor(0xf39c12)
+      .setColor(COLORS.WARNING)
       .setTitle('When do you want to start?')
       .setDescription(
         `⏰ Available window: <t:${startTs}:t> - <t:${endTs}:t>\n\nReact to vote!`
@@ -267,7 +266,7 @@ async function closeTrainingPoll(messageId: string): Promise<void> {
     resultText += `\n✅ **Start time:** <t:${winnerTimestamp}:t>`;
 
     const embed = new EmbedBuilder()
-      .setColor(0xe74c3c)
+      .setColor(COLORS.ERROR)
       .setTitle('Training Start Poll — CLOSED')
       .setDescription(resultText)
       .setFooter({ text: 'Poll closed' })
@@ -293,8 +292,6 @@ export async function recoverTrainingPolls(): Promise<void> {
     if (!channel || !(channel instanceof TextChannel)) return;
 
     const messages = await channel.messages.fetch({ limit: 50 });
-    const emojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
-
     for (const message of messages.values()) {
       if (!message.author.bot || message.author.id !== client.user?.id) continue;
 
@@ -319,7 +316,7 @@ export async function recoverTrainingPolls(): Promise<void> {
       // If already expired, close it now
       if (expiresAt.getTime() <= Date.now()) {
         // Reconstruct poll to close it properly
-        const options = reconstructOptionsFromMessage(message, emojis);
+        const options = reconstructOptionsFromMessage(message);
         if (options.length === 0) continue;
 
         const poll: TrainingPoll = {
@@ -335,7 +332,7 @@ export async function recoverTrainingPolls(): Promise<void> {
       }
 
       // Still active — reconstruct and re-register
-      const options = reconstructOptionsFromMessage(message, emojis);
+      const options = reconstructOptionsFromMessage(message);
       if (options.length === 0) continue;
 
       const poll: TrainingPoll = {
@@ -357,7 +354,7 @@ export async function recoverTrainingPolls(): Promise<void> {
 /**
  * Reconstruct poll options from a message's reactions and embed fields.
  */
-function reconstructOptionsFromMessage(message: Message, emojis: string[]): TrainingPollOption[] {
+function reconstructOptionsFromMessage(message: Message): TrainingPollOption[] {
   const options: TrainingPollOption[] = [];
   const embed = message.embeds[0];
   if (!embed || !embed.fields) return options;
@@ -367,7 +364,7 @@ function reconstructOptionsFromMessage(message: Message, emojis: string[]): Trai
 
   for (let i = 0; i < realFields.length; i++) {
     const field = realFields[i];
-    const emoji = emojis[i];
+    const emoji = POLL_EMOJIS[i];
     if (!emoji) break;
 
     // Extract timestamp from field name like "1️⃣ <t:1234567890:t>"

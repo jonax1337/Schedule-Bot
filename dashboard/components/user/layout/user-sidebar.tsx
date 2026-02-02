@@ -27,6 +27,9 @@ import {
   SidebarSeparator,
 } from "@/components/ui/sidebar"
 import { useBranding } from "@/hooks/use-branding"
+import { useSidebarUserInfo } from "@/hooks/use-sidebar"
+import { getAuthHeaders } from "@/lib/auth"
+import { BOT_API_URL } from "@/lib/config"
 
 interface UserSidebarProps extends React.ComponentProps<typeof Sidebar> {
   userName?: string
@@ -36,18 +39,15 @@ interface UserSidebarProps extends React.ComponentProps<typeof Sidebar> {
 export function UserSidebar({ userName, onLogout, ...props }: UserSidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
-  const [userRole, setUserRole] = React.useState<string | undefined>(undefined)
   const [isAdmin, setIsAdmin] = React.useState(false)
-  const [avatarUrl, setAvatarUrl] = React.useState("")
+  const { userRole, avatarUrl } = useSidebarUserInfo(userName ?? null)
   const branding = useBranding()
 
   React.useEffect(() => {
-    const fetchUserRole = async () => {
+    const fetchAdminStatus = async () => {
       if (!userName) return
 
       try {
-        const { BOT_API_URL } = await import('@/lib/config')
-        const { getAuthHeaders } = await import('@/lib/auth')
         const response = await fetch(`${BOT_API_URL}/api/user-mappings`, {
           headers: getAuthHeaders(),
         })
@@ -55,11 +55,7 @@ export function UserSidebar({ userName, onLogout, ...props }: UserSidebarProps) 
           const data = await response.json()
           const userMapping = data.mappings.find((m: any) => m.displayName === userName)
           if (userMapping) {
-            setUserRole(userMapping.role.toLowerCase())
             setIsAdmin(!!userMapping.isAdmin)
-            if (userMapping.avatarUrl) {
-              setAvatarUrl(userMapping.avatarUrl)
-            }
           }
         }
       } catch (error) {
@@ -67,7 +63,7 @@ export function UserSidebar({ userName, onLogout, ...props }: UserSidebarProps) 
       }
     }
 
-    fetchUserRole()
+    fetchAdminStatus()
   }, [userName])
 
   const [currentTab, setCurrentTab] = React.useState('schedule')
@@ -104,7 +100,7 @@ export function UserSidebar({ userName, onLogout, ...props }: UserSidebarProps) 
   const user = userName ? {
     name: userName,
     email: "",
-    avatar: avatarUrl,
+    avatar: avatarUrl ?? "",
   } : undefined
 
   return (
@@ -138,7 +134,7 @@ export function UserSidebar({ userName, onLogout, ...props }: UserSidebarProps) 
         {user && (
           <>
             {isAdmin && <SidebarSeparator className="mx-0" />}
-            <NavUser user={user} onLogout={onLogout} role={userRole} />
+            <NavUser user={user} onLogout={onLogout} role={userRole || undefined} />
           </>
         )}
       </SidebarFooter>

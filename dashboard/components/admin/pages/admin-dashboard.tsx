@@ -6,7 +6,9 @@ import { Activity, Users, Calendar, Trophy, TrendingUp, Clock, Percent, BarChart
 import { stagger, microInteractions } from '@/lib/animations';
 import { cn } from '@/lib/utils';
 import { BOT_API_URL } from '@/lib/config';
+import { getAuthHeaders } from '@/lib/auth';
 import { parseDDMMYYYY } from '@/lib/date-utils';
+import { type ScheduleDay, type ScrimEntry } from '@/lib/types';
 
 interface DashboardStats {
   totalUsers: number;
@@ -19,25 +21,6 @@ interface BotStatus {
   status: 'running' | 'offline';
   botReady: boolean;
   uptime?: number;
-}
-
-interface ScheduleDay {
-  date: string;
-  players: {
-    userId: string;
-    displayName: string;
-    role: string;
-    availability: string;
-    sortOrder: number;
-  }[];
-  reason: string;
-  focus: string;
-}
-
-interface ScrimEntry {
-  id: string;
-  date: string;
-  result: 'win' | 'loss' | 'draw';
 }
 
 interface UserMapping {
@@ -64,7 +47,7 @@ export function AdminDashboard() {
   const loadStats = async () => {
     setLoading(true);
     try {
-      const { getAuthHeaders } = await import('@/lib/auth');
+
 
       const [usersRes, schedulesRes, scrimsRes] = await Promise.all([
         fetch(`${BOT_API_URL}/api/user-mappings`, { headers: getAuthHeaders() }),

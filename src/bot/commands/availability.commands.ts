@@ -1,9 +1,10 @@
 import { ChatInputCommandInteraction, MessageFlags } from 'discord.js';
-import { getUserMapping, updateUserMapping } from '../../repositories/user-mapping.repository.js';
+import { updateUserMapping } from '../../repositories/user-mapping.repository.js';
 import { createDateSelectMenu, sendWeekOverview, sendMySchedule } from '../interactions/interactive.js';
 import { isValidTimezone, getTimezoneAbbreviation } from '../../shared/utils/timezoneConverter.js';
 import { config } from '../../shared/config/config.js';
 import { logger, getErrorMessage } from '../../shared/utils/logger.js';
+import { requireRegisteredUser } from '../utils/command-helpers.js';
 
 /**
  * Handle /set command - Set your availability for upcoming days
@@ -12,14 +13,8 @@ export async function handleAvailabilityCommand(interaction: ChatInputCommandInt
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   try {
-    const userMapping = await getUserMapping(interaction.user.id);
-    
-    if (!userMapping) {
-      await interaction.editReply({
-        content: '❌ You are not registered yet. Please contact an admin to register you with `/register`.'
-      });
-      return;
-    }
+    const userMapping = await requireRegisteredUser(interaction);
+    if (!userMapping) return;
 
     const dateSelectMenu = await createDateSelectMenu();
 
@@ -56,14 +51,8 @@ export async function handleSetTimezoneCommand(interaction: ChatInputCommandInte
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   try {
-    const userMapping = await getUserMapping(interaction.user.id);
-
-    if (!userMapping) {
-      await interaction.editReply({
-        content: '❌ You are not registered yet. Please contact an admin to register you with `/register`.',
-      });
-      return;
-    }
+    const userMapping = await requireRegisteredUser(interaction);
+    if (!userMapping) return;
 
     const timezone = interaction.options.getString('timezone', true);
 
@@ -99,14 +88,8 @@ export async function handleRemoveTimezoneCommand(interaction: ChatInputCommandI
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   try {
-    const userMapping = await getUserMapping(interaction.user.id);
-
-    if (!userMapping) {
-      await interaction.editReply({
-        content: '❌ You are not registered yet.',
-      });
-      return;
-    }
+    const userMapping = await requireRegisteredUser(interaction);
+    if (!userMapping) return;
 
     if (!userMapping.timezone) {
       await interaction.editReply({

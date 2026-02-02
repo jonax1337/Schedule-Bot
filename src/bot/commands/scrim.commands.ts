@@ -1,6 +1,7 @@
 import { ChatInputCommandInteraction, MessageFlags, EmbedBuilder } from 'discord.js';
 import { addScrim, getAllScrims, getScrimStats } from '../../repositories/scrim.repository.js';
 import { logger, getErrorMessage } from '../../shared/utils/logger.js';
+import { COLORS } from '../embeds/embed.js';
 
 /**
  * Handle /add-scrim command - Add a scrim result (Admin)
@@ -83,7 +84,7 @@ export async function handleViewScrimsCommand(interaction: ChatInputCommandInter
     
     const embed = new EmbedBuilder()
       .setTitle('📋 Recent Scrims')
-      .setColor(0x3498db)
+      .setColor(COLORS.INFO)
       .setDescription(
         sortedScrims.map((scrim, index) => {
           const resultEmoji = scrim.result === 'win' ? '✅' : scrim.result === 'loss' ? '❌' : '➖';
@@ -121,7 +122,7 @@ export async function handleScrimStatsCommand(interaction: ChatInputCommandInter
     
     const embed = new EmbedBuilder()
       .setTitle('📊 Scrim Statistics')
-      .setColor(0x2ecc71)
+      .setColor(COLORS.SUCCESS)
       .addFields(
         {
           name: '📈 Overall Record',

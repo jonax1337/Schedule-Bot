@@ -3,6 +3,19 @@ import { getScheduleForDate } from '../../repositories/schedule.repository.js';
 import { getAbsentUserIdsForDate } from '../../repositories/absence.repository.js';
 import { parseSchedule, analyzeSchedule } from './analyzer.js';
 import { logger, getErrorMessage } from './logger.js';
+import type { ScheduleResult } from '../types/types.js';
+
+/**
+ * Fetch schedule for a date, apply absences, parse, and analyze in one call.
+ * Returns the full ScheduleResult or null if no schedule exists.
+ */
+export async function getAnalyzedSchedule(date: string): Promise<ScheduleResult | null> {
+  const scheduleData = await getScheduleForDate(date);
+  if (!scheduleData) return null;
+  const absentUserIds = await getAbsentUserIdsForDate(date);
+  const parsed = parseSchedule(scheduleData, absentUserIds);
+  return analyzeSchedule(parsed);
+}
 
 export interface ScheduleDetail {
   status: string;
@@ -19,12 +32,8 @@ export interface ScheduleDetail {
  */
 export async function getScheduleDetails(date: string): Promise<ScheduleDetail | null> {
   try {
-    const scheduleData = await getScheduleForDate(date);
-    if (!scheduleData) return null;
-
-    const absentUserIds = await getAbsentUserIdsForDate(date);
-    const schedule = parseSchedule(scheduleData, absentUserIds);
-    const status = analyzeSchedule(schedule);
+    const status = await getAnalyzedSchedule(date);
+    if (!status) return null;
 
     // Extract player lists from schedule - filter by role
     const mainPlayers = status.schedule.players.filter(p => p.role === 'MAIN');
@@ -89,14 +98,9 @@ export async function getScheduleDetails(date: string): Promise<ScheduleDetail |
  */
 export async function getScheduleDetailsBatch(dates: string[]): Promise<{ [date: string]: ScheduleDetail }> {
   const results: { [date: string]: ScheduleDetail } = {};
-  
-  // Fetch all at once
-  for (const date of dates) {
-    const details = await getScheduleDetails(date);
-    if (details) {
-      results[date] = details;
-    }
-  }
-  
+  const details = await Promise.all(dates.map(date => getScheduleDetails(date)));
+  dates.forEach((date, i) => {
+    if (details[i]) results[date] = details[i];
+  });
   return results;
 }
