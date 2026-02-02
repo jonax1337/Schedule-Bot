@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Loader2, Plus, Edit, Trash2, TrendingUp, Trophy, Target, X, LayoutGrid, Table as TableIcon, Video, ArrowUpDown, ArrowUp, ArrowDown, ExternalLink, Maximize2 } from "lucide-react";
+import { Loader2, Plus, Edit, Trash2, TrendingUp, Trophy, Target, X, LayoutGrid, Table as TableIcon, Video, ArrowUpDown, ArrowUp, ArrowDown, ExternalLink } from "lucide-react";
 import Link from 'next/link';
 import Image from 'next/image';
 import { toast } from "sonner";
@@ -1144,11 +1144,11 @@ export function Matches() {
           <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
             <Link
               href={`/vod/${vodLightbox.scrimId}`}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white/10 text-white/80 hover:text-white hover:bg-white/20 transition-colors text-sm font-medium"
+              className="text-white/80 hover:text-white transition-colors"
               onClick={(e) => e.stopPropagation()}
+              title="Open in new tab"
             >
-              <Maximize2 className="h-4 w-4" />
-              Fullscreen
+              <ExternalLink className="h-6 w-6" />
             </Link>
             <button
               className="text-white/80 hover:text-white transition-colors"
@@ -1158,7 +1158,7 @@ export function Matches() {
             </button>
           </div>
           <div
-            className="w-full max-w-7xl mx-auto my-auto"
+            className="w-full max-w-[1600px] mx-auto my-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <VodReview
