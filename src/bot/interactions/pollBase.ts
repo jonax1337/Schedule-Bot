@@ -1,6 +1,3 @@
-import { client } from '../client.js';
-import { config } from '../../shared/config/config.js';
-import type { Message, MessageReaction, User } from 'discord.js';
 
 export const POLL_EMOJIS = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
 
@@ -65,15 +62,3 @@ export function handleVoteToggle(option: BasePollOption, userId: string, added: 
   }
 }
 
-/**
- * Fetch a message from the configured Discord channel.
- */
-export async function fetchPollMessage(messageId: string): Promise<Message | null> {
-  try {
-    const channel = await client.channels.fetch(config.discord.channelId);
-    if (!channel || !channel.isTextBased()) return null;
-    return await (channel as any).messages.fetch(messageId);
-  } catch {
-    return null;
-  }
-}

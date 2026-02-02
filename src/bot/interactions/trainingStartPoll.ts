@@ -5,7 +5,7 @@ import { updateSetting, getSetting } from '../../shared/utils/settingsManager.js
 import { convertTimeToUnixTimestamp, COLORS } from '../embeds/embed.js';
 import type { ScheduleResult } from '../../shared/types/types.js';
 import { logger, getErrorMessage } from '../../shared/utils/logger.js';
-import { formatRemainingTime, startPollTimers as startTimers, clearPollTimers as clearTimers, handleVoteToggle, fetchPollMessage, POLL_EMOJIS } from './pollBase.js';
+import { formatRemainingTime, startPollTimers as startTimers, clearPollTimers as clearTimers, handleVoteToggle, POLL_EMOJIS } from './pollBase.js';
 import { timeToMinutes, minutesToTime } from '../../shared/utils/dateFormatter.js';
 
 interface TrainingPollOption {

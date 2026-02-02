@@ -2,7 +2,7 @@ import { EmbedBuilder, Message, MessageReaction, User, TextChannel } from 'disco
 import { client } from '../client.js';
 import { config } from '../../shared/config/config.js';
 import { logger, getErrorMessage } from '../../shared/utils/logger.js';
-import { formatRemainingTime, startPollTimers as startTimers, clearPollTimers as clearTimers, handleVoteToggle, fetchPollMessage, POLL_EMOJIS } from './pollBase.js';
+import { formatRemainingTime, startPollTimers as startTimers, clearPollTimers as clearTimers, handleVoteToggle, POLL_EMOJIS } from './pollBase.js';
 import { COLORS } from '../embeds/embed.js';
 
 interface PollOption {
