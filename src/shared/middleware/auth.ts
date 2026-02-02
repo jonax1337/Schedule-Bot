@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
 import { logger } from '../utils/logger.js';
+import { getUserMappings } from '../../repositories/user-mapping.repository.js';
 
 if (!process.env.JWT_SECRET) {
   logger.error('JWT_SECRET not set', 'Set JWT_SECRET in .env before starting the server.');
@@ -10,11 +11,23 @@ const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = '24h';
 const JWT_ALGORITHM = 'HS256' as const;
 
+export interface ResolvedUserMapping {
+  discordId: string;
+  discordUsername: string;
+  displayName: string;
+  role: string;
+  timezone?: string | null;
+}
+
 export interface AuthRequest extends Request {
   user?: {
     username: string;
     role: 'admin' | 'user';
   };
+  /** The user mapping for the currently logged-in user (set by resolveCurrentUser) */
+  resolvedUser?: ResolvedUserMapping;
+  /** The target userId for the operation (set by resolveTargetUser) */
+  targetUserId?: string;
 }
 
 export function generateToken(username: string, role: 'admin' | 'user' = 'admin'): string {
@@ -79,6 +92,78 @@ export function optionalAuth(req: AuthRequest, res: Response, next: NextFunction
   } catch (error) {
     // Token invalid, but continue without user
   }
-  
+
   next();
+}
+
+/**
+ * Middleware: Resolve the current logged-in user to their userMapping.
+ * Sets `req.resolvedUser` with the mapping. Admins skip resolution.
+ * Must be used after `verifyToken`.
+ */
+export async function resolveCurrentUser(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  if (req.user?.role === 'admin') {
+    return next();
+  }
+
+  try {
+    const mappings = await getUserMappings();
+    const mapping = mappings.find(m => m.displayName === req.user?.username);
+    if (!mapping) {
+      res.status(404).json({ error: 'User mapping not found' });
+      return;
+    }
+    req.resolvedUser = mapping;
+    next();
+  } catch (error) {
+    logger.error('Error resolving current user', error instanceof Error ? error.message : String(error));
+    res.status(500).json({ error: 'Failed to resolve user' });
+  }
+}
+
+/**
+ * Middleware: Resolve the target userId for write operations.
+ * Admins can specify a userId in body or query; non-admins always get their own.
+ * Sets `req.targetUserId`. Must be used after `verifyToken`.
+ */
+export async function resolveTargetUser(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  const isAdmin = req.user?.role === 'admin';
+  const requestedUserId = (req.body?.userId || req.query?.userId) as string | undefined;
+
+  if (isAdmin && requestedUserId) {
+    req.targetUserId = requestedUserId;
+    return next();
+  }
+
+  try {
+    const mappings = await getUserMappings();
+    const mapping = mappings.find(m => m.displayName === req.user?.username);
+    if (!mapping) {
+      res.status(404).json({ error: 'User mapping not found' });
+      return;
+    }
+    req.resolvedUser = mapping;
+    req.targetUserId = mapping.discordId;
+    next();
+  } catch (error) {
+    logger.error('Error resolving target user', error instanceof Error ? error.message : String(error));
+    res.status(500).json({ error: 'Failed to resolve user' });
+  }
+}
+
+/**
+ * Factory: Check that the current user owns the resource or is admin.
+ * Must be used after `resolveCurrentUser`.
+ */
+export function requireOwnershipOrAdmin(getUserId: (req: AuthRequest) => string | undefined) {
+  return (req: AuthRequest, res: Response, next: NextFunction): void => {
+    if (req.user?.role === 'admin') {
+      return next();
+    }
+    const targetUserId = getUserId(req);
+    if (!targetUserId || req.resolvedUser?.discordId === targetUserId) {
+      return next();
+    }
+    res.status(403).json({ error: 'You can only manage your own data' });
+  };
 }

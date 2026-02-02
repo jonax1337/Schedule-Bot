@@ -32,7 +32,7 @@ router.get('/channels', verifyToken, requireAdmin, async (req: AuthRequest, res)
 
     res.json(textChannels);
   } catch (error) {
-    console.error('Error fetching channels:', error);
+    logger.error('Error fetching channels', error instanceof Error ? error.message : String(error));
     res.status(500).json({ error: 'Failed to fetch channels' });
   }
 });
@@ -58,7 +58,7 @@ router.get('/roles', verifyToken, requireAdmin, async (req: AuthRequest, res) =>
 
     res.json(roleList);
   } catch (error) {
-    console.error('Error fetching roles:', error);
+    logger.error('Error fetching roles', error instanceof Error ? error.message : String(error));
     res.status(500).json({ error: 'Failed to fetch roles' });
   }
 });
@@ -93,8 +93,8 @@ router.get('/members', verifyToken, requireAdmin, async (req: AuthRequest, res) 
 
     res.json({ members: memberList, cached: false });
   } catch (error) {
-    console.error('Error fetching members:', error);
-    
+    logger.error('Error fetching members', error instanceof Error ? error.message : String(error));
+
     if (membersCache) {
       logger.warn('Using expired members cache due to error');
       return res.json({ members: membersCache, cached: true, expired: true });

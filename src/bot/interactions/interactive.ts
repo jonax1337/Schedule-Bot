@@ -22,6 +22,7 @@ import { getTodayFormatted, addDays, normalizeDateFormat, isDateAfterOrEqual } f
 import { getScheduleStatus, checkAndNotifyStatusChange } from '../utils/schedule-poster.js';
 import { config } from '../../shared/config/config.js';
 import { convertTimeRangeBetweenTimezones, getTimezoneAbbreviation, isValidTimezone } from '../../shared/utils/timezoneConverter.js';
+import { logger } from '../../shared/utils/logger.js';
 import { client } from '../client.js';
 
 export async function createDateNavigationButtons(currentDate: string): Promise<ActionRowBuilder<ButtonBuilder>> {
@@ -564,7 +565,7 @@ export async function handleInfoModal(
         await user.send({ embeds: [infoEmbed] });
         successCount++;
       } catch (error) {
-        console.error(`Failed to send info to ${recipientNames[i]}:`, error);
+        logger.error(`Failed to send info to ${recipientNames[i]}`, error instanceof Error ? error.message : String(error));
         failedUsers.push(recipientNames[i]);
       }
     }
@@ -583,7 +584,7 @@ export async function handleInfoModal(
 
     await interaction.editReply({ content: confirmMessage });
   } catch (error) {
-    console.error('Error handling info modal:', error);
+    logger.error('Error handling info modal', error instanceof Error ? error.message : String(error));
     await interaction.editReply({
       content: 'An error occurred. Please try again later.',
     });
