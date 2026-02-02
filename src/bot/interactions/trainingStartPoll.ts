@@ -92,7 +92,28 @@ export async function createTrainingStartPoll(
   }
 
   // Get poll duration from settings (in minutes)
-  const pollDurationMinutes = getSetting('scheduling', 'pollDurationMinutes') || 60;
+  let pollDurationMinutes = getSetting('scheduling', 'pollDurationMinutes') || 60;
+
+  // Cap poll duration so it closes at least 30 minutes before the common time window starts
+  const timeRange = scheduleResult.commonTimeRange;
+  const windowStartTimestamp = convertTimeToUnixTimestamp(date, timeRange.start, config.scheduling.timezone);
+  const msUntil30MinBefore = (windowStartTimestamp * 1000) - 30 * 60 * 1000 - Date.now();
+
+  if (msUntil30MinBefore <= 0) {
+    logger.info('Training start poll skipped: less than 30 minutes until time window starts');
+    return;
+  }
+
+  const maxDurationMinutes = Math.floor(msUntil30MinBefore / 60_000);
+  if (maxDurationMinutes < 1) {
+    logger.info('Training start poll skipped: not enough time for a meaningful poll');
+    return;
+  }
+
+  if (pollDurationMinutes > maxDurationMinutes) {
+    logger.info(`Training start poll duration capped: ${pollDurationMinutes}min → ${maxDurationMinutes}min (30min before window at ${timeRange.start})`);
+    pollDurationMinutes = maxDurationMinutes;
+  }
 
   const channel = await client.channels.fetch(config.discord.channelId);
   if (!channel || !(channel instanceof TextChannel)) {
@@ -100,7 +121,6 @@ export async function createTrainingStartPoll(
     return;
   }
 
-  const timeRange = scheduleResult.commonTimeRange;
   const startMinutes = timeToMinutes(timeRange.start);
   const endMinutes = timeToMinutes(timeRange.end);
 

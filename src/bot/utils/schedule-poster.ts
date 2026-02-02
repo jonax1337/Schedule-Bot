@@ -253,6 +253,15 @@ export async function checkAndNotifyStatusChange(
     }
 
     const newStatus = current.status;
+
+    // Suppress notifications when Off-Day is already active and a player changes availability
+    // (the schedule status stays OFF_DAY regardless, so no update is needed).
+    // Transitions to/from Off-Day (reason changes) should still send updates.
+    if (newStatus === 'OFF_DAY' && previousStatus === 'OFF_DAY') {
+      logger.info('Change notification: skipped (Off-Day active)');
+      return;
+    }
+
     const oldPriority = STATUS_PRIORITY[previousStatus];
     const newPriority = STATUS_PRIORITY[newStatus];
 
