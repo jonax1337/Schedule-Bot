@@ -761,7 +761,7 @@ export function UserSchedule() {
                     </div>
                   )}
 
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5 rounded-lg border">
                     {selectedDate.players
                       .sort((a, b) => {
                         const roleOrder = { main: 0, sub: 1, coach: 2 };
