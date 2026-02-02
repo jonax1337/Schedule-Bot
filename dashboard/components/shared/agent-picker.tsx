@@ -5,13 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { X } from "lucide-react";
 import { microInteractions, stagger } from "@/lib/animations";
 import { cn } from "@/lib/utils";
-
-const VALORANT_AGENTS = [
-  'Astra', 'Breach', 'Brimstone', 'Chamber', 'Clove', 'Cypher', 'Deadlock',
-  'Fade', 'Gekko', 'Harbor', 'Iso', 'Jett', 'KAYO', 'Killjoy', 'Neon', 'Omen',
-  'Phoenix', 'Raze', 'Reyna', 'Sage', 'Skye', 'Sova', 'Tejo', 'Veto',
-  'Viper', 'Vyse', 'Waylay', 'Yoru'
-].sort();
+import { VALORANT_AGENTS } from "@/lib/constants";
 
 interface AgentPickerProps {
   open: boolean;

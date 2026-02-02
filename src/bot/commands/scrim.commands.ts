@@ -1,6 +1,7 @@
 import { ChatInputCommandInteraction, MessageFlags, EmbedBuilder } from 'discord.js';
 import { addScrim, getAllScrims, getScrimStats } from '../../repositories/scrim.repository.js';
 import { logger, getErrorMessage } from '../../shared/utils/logger.js';
+import { parseDDMMYYYY } from '../../shared/utils/dateFormatter.js';
 import { COLORS } from '../embeds/embed.js';
 
 /**
@@ -72,14 +73,7 @@ export async function handleViewScrimsCommand(interaction: ChatInputCommandInter
     
     // Sort by date (newest first) and limit
     const sortedScrims = scrims
-      .sort((a, b) => {
-        // Parse DD.MM.YYYY dates for comparison
-        const parseDate = (dateStr: string) => {
-          const [day, month, year] = dateStr.split('.').map(Number);
-          return new Date(year, month - 1, day).getTime();
-        };
-        return parseDate(b.date) - parseDate(a.date);
-      })
+      .sort((a, b) => parseDDMMYYYY(b.date).getTime() - parseDDMMYYYY(a.date).getTime())
       .slice(0, limit);
     
     const embed = new EmbedBuilder()

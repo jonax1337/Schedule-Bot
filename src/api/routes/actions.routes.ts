@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { verifyToken, requireAdmin, AuthRequest } from '../../shared/middleware/auth.js';
 import { validate, createPollSchema, notificationSchema } from '../../shared/middleware/validation.js';
-import { postScheduleToChannel } from '../../bot/utils/schedule-poster.js';
+import { postScheduleToChannel, cleanScheduleChannel } from '../../bot/utils/schedule-poster.js';
 import { sendRemindersToUsersWithoutEntry } from '../../bot/interactions/reminder.js';
 import { createQuickPoll } from '../../bot/interactions/polls.js';
 import { client } from '../../bot/client.js';
@@ -17,29 +17,13 @@ const router = Router();
  */
 function convertToDD_MM_YYYY(dateStr: string | undefined): string {
   if (!dateStr) return getTodayFormatted();
-  
-  // Check if already in DD.MM.YYYY format
-  if (/^\d{2}\.\d{2}\.\d{4}$/.test(dateStr)) {
-    return dateStr;
-  }
-  
-  // Convert from YYYY-MM-DD to DD.MM.YYYY
+  if (/^\d{2}\.\d{2}\.\d{4}$/.test(dateStr)) return dateStr;
   if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
     const [year, month, day] = dateStr.split('-');
     return `${day}.${month}.${year}`;
   }
-  
-  // Try to parse as Date object
-  try {
-    const date = new Date(dateStr);
-    if (!isNaN(date.getTime())) {
-      return formatDateToDDMMYYYY(date);
-    }
-  } catch (e) {
-    // Ignore parse errors
-  }
-  
-  return dateStr;
+  const date = new Date(dateStr);
+  return isNaN(date.getTime()) ? dateStr : formatDateToDDMMYYYY(date);
 }
 
 // Post schedule manually
@@ -173,52 +157,18 @@ router.post('/clear-channel', verifyToken, requireAdmin, async (req: AuthRequest
     const { includePinned } = req.body;
     const { loadSettings } = await import('../../shared/utils/settingsManager.js');
     const settings = loadSettings();
-    
+
     const channel = await client.channels.fetch(settings.discord.channelId);
     if (!channel || !(channel instanceof TextChannel)) {
       return res.status(404).json({ error: 'Channel not found or not a text channel' });
     }
 
-    let totalDeleted = 0;
-    
-    // Fetch and delete messages in batches
-    const messages = await channel.messages.fetch({ limit: 100 });
-    const messagesToDelete = includePinned ? messages : messages.filter(msg => !msg.pinned);
-    
-    if (messagesToDelete.size > 0) {
-      // Separate recent messages (< 14 days) from old messages
-      const recentMessages = messagesToDelete.filter(msg => 
-        Date.now() - msg.createdTimestamp < 14 * 24 * 60 * 60 * 1000
-      );
-      
-      // Bulk delete recent messages (Discord API limitation)
-      if (recentMessages.size > 1) {
-        await channel.bulkDelete(recentMessages);
-        totalDeleted += recentMessages.size;
-      } else if (recentMessages.size === 1) {
-        await recentMessages.first()?.delete();
-        totalDeleted += 1;
-      }
-      
-      // Delete old messages individually (> 14 days)
-      const oldMessages = messagesToDelete.filter(msg => 
-        Date.now() - msg.createdTimestamp >= 14 * 24 * 60 * 60 * 1000
-      );
-      
-      for (const msg of oldMessages.values()) {
-        try {
-          await msg.delete();
-          totalDeleted++;
-        } catch (err) {
-          logger.error('Failed to delete old message', getErrorMessage(err));
-        }
-      }
-    }
-    
+    const totalDeleted = await cleanScheduleChannel(channel, !!includePinned);
+
     const pinnedInfo = includePinned ? 'including pinned' : 'kept pinned';
     logger.success('Channel cleared', `Deleted ${totalDeleted} messages (${pinnedInfo}) by ${req.user?.username}`);
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: `Channel cleared successfully. Deleted ${totalDeleted} message(s)${includePinned ? ' (including pinned)' : ', kept pinned messages'}.`,
       deletedCount: totalDeleted
     });

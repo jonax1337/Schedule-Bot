@@ -45,17 +45,7 @@ import {
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { BOT_API_URL } from '@/lib/config';
 import { getAuthHeaders, getAuthToken } from '@/lib/auth';
-
-const FOLDER_COLORS = [
-  { label: 'None', value: null },
-  { label: 'Red', value: '#ef4444' },
-  { label: 'Orange', value: '#f97316' },
-  { label: 'Yellow', value: '#eab308' },
-  { label: 'Green', value: '#22c55e' },
-  { label: 'Blue', value: '#3b82f6' },
-  { label: 'Purple', value: '#a855f7' },
-  { label: 'Pink', value: '#ec4899' },
-];
+import { FOLDER_COLORS, normalizeAgentName } from '@/lib/constants';
 
 interface FolderEntry {
   id: number;
@@ -78,11 +68,6 @@ interface StratEntry {
   files?: { id: number; filename: string; originalName: string; size: number }[];
   createdAt: string;
   updatedAt: string;
-}
-
-
-function normalizeAgentName(name: string): string {
-  return name.replace(/\//g, '');
 }
 
 type View = 'list' | 'detail' | 'create' | 'edit';

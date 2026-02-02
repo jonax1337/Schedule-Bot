@@ -24,29 +24,9 @@ import { BOT_API_URL } from '@/lib/config';
 import { getAuthHeaders } from '@/lib/auth';
 import { VodReview } from './vod-review';
 import { type ScrimEntry, type ScrimStats } from '@/lib/types';
-import { VALORANT_MAPS } from '@/lib/constants';
-import { getTodayDDMMYYYY } from '@/lib/date-utils';
-
-// Helper to extract YouTube video ID from URL
-function getYouTubeVideoId(url: string): string | null {
-  if (!url) return null;
-  const patterns = [
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
-    /^([a-zA-Z0-9_-]{11})$/
-  ];
-  for (const pattern of patterns) {
-    const match = url.match(pattern);
-    if (match) return match[1];
-  }
-  return null;
-}
-
-const MATCH_TYPES = [
-  'Scrim',
-  'Tournament',
-  'Premier',
-  'Custom',
-];
+import { VALORANT_MAPS, MATCH_TYPES } from '@/lib/constants';
+import { getTodayDDMMYYYY, parseDDMMYYYY } from '@/lib/date-utils';
+import { getYouTubeVideoId } from '@/lib/vod-utils';
 
 export function Matches() {
   const [scrims, setScrims] = useState<ScrimEntry[]>([]);
@@ -113,11 +93,7 @@ export function Matches() {
       if (data.success) {
         // Sort by date (newest first)
         const sorted = data.scrims.sort((a: ScrimEntry, b: ScrimEntry) => {
-          const parseDate = (dateStr: string) => {
-            const [day, month, year] = dateStr.split('.').map(Number);
-            return new Date(year, month - 1, day).getTime();
-          };
-          return parseDate(b.date) - parseDate(a.date);
+          return parseDDMMYYYY(b.date).getTime() - parseDDMMYYYY(a.date).getTime();
         });
         setScrims(sorted);
       }
@@ -340,14 +316,8 @@ export function Matches() {
     // Sort by date if sortBy is set
     if (sortBy) {
       return filtered.sort((a, b) => {
-        // Parse DD.MM.YYYY format to Date objects
-        const parseDate = (dateStr: string) => {
-          const [day, month, year] = dateStr.split('.');
-          return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-        };
-
-        const dateA = parseDate(a.date);
-        const dateB = parseDate(b.date);
+        const dateA = parseDDMMYYYY(a.date);
+        const dateB = parseDDMMYYYY(b.date);
 
         if (sortBy === 'date-desc') {
           return dateB.getTime() - dateA.getTime(); // Newest first

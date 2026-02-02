@@ -1,5 +1,6 @@
 import { prisma } from './database.repository.js';
 import { logger, getErrorMessage } from '../shared/utils/logger.js';
+import { formatDateToDDMMYYYY } from '../shared/utils/dateFormatter.js';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 
@@ -140,10 +141,7 @@ async function initializeScheduleEntries(): Promise<void> {
     const date = new Date(today);
     date.setDate(date.getDate() + i);
 
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-    const dateStr = `${day}.${month}.${year}`;
+    const dateStr = formatDateToDDMMYYYY(date);
 
     entries.push({
       date: dateStr,

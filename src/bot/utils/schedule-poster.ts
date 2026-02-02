@@ -102,21 +102,24 @@ function getStatusLabel(status: ScheduleStatus): string {
 /**
  * Clean all non-pinned messages from the schedule channel
  */
-export async function cleanScheduleChannel(channel: TextChannel): Promise<void> {
+export async function cleanScheduleChannel(channel: TextChannel, includePinned = false): Promise<number> {
   try {
     const messages = await channel.messages.fetch({ limit: 100 });
-    const messagesToDelete = messages.filter(msg => !msg.pinned);
+    const messagesToDelete = includePinned ? messages : messages.filter(msg => !msg.pinned);
 
-    if (messagesToDelete.size === 0) return;
+    if (messagesToDelete.size === 0) return 0;
 
+    let totalDeleted = 0;
     const recentMessages = messagesToDelete.filter(msg =>
       Date.now() - msg.createdTimestamp < 14 * 24 * 60 * 60 * 1000
     );
 
     if (recentMessages.size > 1) {
       await channel.bulkDelete(recentMessages);
+      totalDeleted += recentMessages.size;
     } else if (recentMessages.size === 1) {
       await recentMessages.first()?.delete();
+      totalDeleted += 1;
     }
 
     const oldMessages = messagesToDelete.filter(msg =>
@@ -126,14 +129,17 @@ export async function cleanScheduleChannel(channel: TextChannel): Promise<void> 
     for (const msg of oldMessages.values()) {
       try {
         await msg.delete();
+        totalDeleted++;
       } catch (err) {
         logger.warn('Could not delete old message', getErrorMessage(err));
       }
     }
 
-    logger.info('Channel cleaned for status update', `Removed ${messagesToDelete.size} message(s)`);
+    logger.info('Channel cleaned', `Removed ${totalDeleted} message(s)`);
+    return totalDeleted;
   } catch (error) {
     logger.error('Channel cleaning failed', getErrorMessage(error));
+    return 0;
   }
 }
 

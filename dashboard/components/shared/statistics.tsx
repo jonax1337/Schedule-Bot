@@ -36,6 +36,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { BOT_API_URL } from '@/lib/config';
 import { getAuthHeaders } from '@/lib/auth';
 import { type ScrimEntry, type ScrimStats, type ScheduleDay } from '@/lib/types';
+import { parseDDMMYYYY } from '@/lib/date-utils';
 
 type AvailabilityRange = 'next14' | 'last14' | 'last30' | 'last60';
 
@@ -74,11 +75,6 @@ const mapStatsConfig: ChartConfig = {
   wins: { label: 'Wins', color: 'oklch(0.723 0.219 149.579)' },
   losses: { label: 'Losses', color: 'oklch(0.577 0.245 27.325)' },
 };
-
-function parseDDMMYYYY(dateStr: string): Date {
-  const [day, month, year] = dateStr.split('.').map(Number);
-  return new Date(year, month - 1, day);
-}
 
 function computeStatsFromScrims(scrims: ScrimEntry[]): ScrimStats {
   const stats: ScrimStats = {
