@@ -4,7 +4,7 @@ import { getUserMappings } from '../../repositories/user-mapping.repository.js';
 import { getAbsentUserIdsForDate } from '../../repositories/absence.repository.js';
 import { getTodayFormatted, normalizeDateFormat } from '../../shared/utils/dateFormatter.js';
 import { createAvailabilityButtons } from './interactive.js';
-import { logger } from '../../shared/utils/logger.js';
+import { logger, getErrorMessage } from '../../shared/utils/logger.js';
 
 /**
  * Create a "Set Timezone" button row for users without a timezone set.
@@ -77,7 +77,7 @@ export async function sendRemindersToUsersWithoutEntry(client: Client, date?: st
           remindersSent++;
           logger.info(`Sent reminder to ${mapping.discordUsername} (${mapping.displayName})`);
         } catch (error) {
-          logger.error(`Failed to send reminder to ${mapping.discordUsername}`, error instanceof Error ? error.message : String(error));
+          logger.error(`Failed to send reminder to ${mapping.discordUsername}`, getErrorMessage(error));
         }
       }
     }
@@ -85,7 +85,7 @@ export async function sendRemindersToUsersWithoutEntry(client: Client, date?: st
     const nonCoachCount = userMappings.filter(m => m.role !== 'coach').length;
     logger.info(`Reminders sent: ${remindersSent}/${nonCoachCount} players`);
   } catch (error) {
-    logger.error('Error sending reminders', error instanceof Error ? error.message : String(error));
+    logger.error('Error sending reminders', getErrorMessage(error));
   }
 }
 
@@ -108,7 +108,7 @@ export async function sendReminderToUser(client: Client, userId: string, date: s
 
     return true;
   } catch (error) {
-    logger.error(`Failed to send reminder to user ${userId}`, error instanceof Error ? error.message : String(error));
+    logger.error(`Failed to send reminder to user ${userId}`, getErrorMessage(error));
     return false;
   }
 }

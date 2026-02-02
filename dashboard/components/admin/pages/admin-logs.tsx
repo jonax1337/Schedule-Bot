@@ -11,7 +11,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2, RefreshCw, Terminal, AlertCircle, Info, CheckCircle, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
-import { stagger, microInteractions, loadingStates, cn } from "@/lib/animations";
+import { stagger, microInteractions, loadingStates } from "@/lib/animations";
+import { cn } from "@/lib/utils";
 
 interface LogEntry {
   timestamp: string;

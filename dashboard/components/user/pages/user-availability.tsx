@@ -9,9 +9,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2, XCircle, Clock, CheckSquare, Square, Check, PlaneTakeoff, CalendarDays, RefreshCw, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { stagger, microInteractions, cn } from '@/lib/animations';
+import { stagger, microInteractions } from '@/lib/animations';
+import { cn } from '@/lib/utils';
 import { BOT_API_URL } from '@/lib/config';
 import { useTimezone, getTimezoneAbbr } from '@/lib/timezone';
+import { parseDDMMYYYY, getWeekdayName } from '@/lib/date-utils';
 
 interface AbsenceData {
   id: number;
@@ -21,25 +23,13 @@ interface AbsenceData {
   reason: string;
 }
 
-function parseGermanDate(dateStr: string): Date {
-  const [day, month, year] = dateStr.split('.');
-  return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-}
-
 function isDateInAbsence(date: string, absences: AbsenceData[]): boolean {
-  const d = parseGermanDate(date);
+  const d = parseDDMMYYYY(date);
   return absences.some(a => {
-    const start = parseGermanDate(a.startDate);
-    const end = parseGermanDate(a.endDate);
+    const start = parseDDMMYYYY(a.startDate);
+    const end = parseDDMMYYYY(a.endDate);
     return d >= start && d <= end;
   });
-}
-
-function getWeekdayName(dateStr: string): string {
-  const [day, month, year] = dateStr.split('.');
-  const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-  const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  return weekdays[date.getDay()];
 }
 
 interface DateEntry {

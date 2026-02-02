@@ -1,5 +1,5 @@
 import { prisma } from '../../repositories/database.repository.js';
-import { logger } from './logger.js';
+import { logger, getErrorMessage } from './logger.js';
 
 function flattenSettings(settings: Settings): Record<string, string | number | boolean> {
   return {
@@ -157,7 +157,7 @@ export async function loadSettingsAsync(): Promise<Settings> {
     };
     return cachedSettings;
   } catch (error) {
-    logger.error('Error loading settings', error instanceof Error ? error.message : String(error));
+    logger.error('Error loading settings', getErrorMessage(error));
     cachedSettings = { ...DEFAULT_SETTINGS };
     return cachedSettings;
   }
@@ -181,7 +181,7 @@ export async function saveSettings(settings: Settings): Promise<void> {
     cachedSettings = { ...settings };
     logger.success('Settings saved');
   } catch (error) {
-    logger.error('Error saving settings', error instanceof Error ? error.message : String(error));
+    logger.error('Error saving settings', getErrorMessage(error));
     throw error;
   }
 }

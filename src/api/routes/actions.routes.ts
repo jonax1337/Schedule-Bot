@@ -5,7 +5,7 @@ import { postScheduleToChannel } from '../../bot/utils/schedule-poster.js';
 import { sendRemindersToUsersWithoutEntry } from '../../bot/interactions/reminder.js';
 import { createQuickPoll } from '../../bot/interactions/polls.js';
 import { client } from '../../bot/client.js';
-import { logger } from '../../shared/utils/logger.js';
+import { logger, getErrorMessage } from '../../shared/utils/logger.js';
 import { formatDateToDDMMYYYY, getTodayFormatted } from '../../shared/utils/dateFormatter.js';
 import { TextChannel } from 'discord.js';
 
@@ -52,7 +52,7 @@ router.post('/schedule', verifyToken, requireAdmin, async (req: AuthRequest, res
     logger.success('Manual schedule post', `Date: ${convertedDate || 'today'} by ${req.user?.username}`);
     res.json({ success: true, message: 'Schedule posted successfully' });
   } catch (error) {
-    logger.error('Failed to post schedule', error instanceof Error ? error.message : String(error));
+    logger.error('Failed to post schedule', getErrorMessage(error));
     res.status(500).json({ error: 'Failed to post schedule' });
   }
 });
@@ -67,7 +67,7 @@ router.post('/remind', verifyToken, requireAdmin, async (req: AuthRequest, res) 
     logger.success('Manual reminder sent', `Date: ${convertedDate || 'today'} by ${req.user?.username}`);
     res.json({ success: true, message: 'Reminders sent successfully' });
   } catch (error) {
-    logger.error('Failed to send reminders', error instanceof Error ? error.message : String(error));
+    logger.error('Failed to send reminders', getErrorMessage(error));
     res.status(500).json({ error: 'Failed to send reminders' });
   }
 });
@@ -82,7 +82,7 @@ router.post('/poll', verifyToken, requireAdmin, validate(createPollSchema), asyn
     logger.success('Poll created', `By ${req.user?.username}`);
     res.json({ success: true, message: 'Poll created successfully' });
   } catch (error) {
-    logger.error('Failed to create poll', error instanceof Error ? error.message : String(error));
+    logger.error('Failed to create poll', getErrorMessage(error));
     res.status(500).json({ error: 'Failed to create poll' });
   }
 });
@@ -154,7 +154,7 @@ router.post('/notify', verifyToken, requireAdmin, validate(notificationSchema), 
         await user.send({ embeds: [notificationEmbed] });
         successCount++;
       } catch (error) {
-        logger.error(`Failed to send notification to ${recipientNames[i]}`, error instanceof Error ? error.message : String(error));
+        logger.error(`Failed to send notification to ${recipientNames[i]}`, getErrorMessage(error));
         failedUsers.push(recipientNames[i]);
       }
     }
@@ -169,7 +169,7 @@ router.post('/notify', verifyToken, requireAdmin, validate(notificationSchema), 
       failedUsers
     });
   } catch (error) {
-    logger.error('Failed to send notification', error instanceof Error ? error.message : String(error));
+    logger.error('Failed to send notification', getErrorMessage(error));
     res.status(500).json({ error: 'Failed to send notification' });
   }
 });
@@ -217,7 +217,7 @@ router.post('/clear-channel', verifyToken, requireAdmin, async (req: AuthRequest
           await msg.delete();
           totalDeleted++;
         } catch (err) {
-          logger.error('Failed to delete old message', err instanceof Error ? err.message : String(err));
+          logger.error('Failed to delete old message', getErrorMessage(err));
         }
       }
     }
@@ -230,7 +230,7 @@ router.post('/clear-channel', verifyToken, requireAdmin, async (req: AuthRequest
       deletedCount: totalDeleted
     });
   } catch (error) {
-    logger.error('Failed to clear channel', error instanceof Error ? error.message : String(error));
+    logger.error('Failed to clear channel', getErrorMessage(error));
     res.status(500).json({ error: 'Failed to clear channel' });
   }
 });
@@ -264,7 +264,7 @@ router.post('/training-poll', verifyToken, requireAdmin, async (req: AuthRequest
     logger.success('Training poll created', `Date: ${convertedDate} by ${req.user?.username}`);
     res.json({ success: true, message: `Training start poll created for ${convertedDate}` });
   } catch (error) {
-    logger.error('Failed to create training poll', error instanceof Error ? error.message : String(error));
+    logger.error('Failed to create training poll', getErrorMessage(error));
     res.status(500).json({ error: 'Failed to create training poll' });
   }
 });
@@ -299,7 +299,7 @@ router.post('/pin-message', verifyToken, requireAdmin, async (req: AuthRequest, 
       messageId: sentMessage.id
     });
   } catch (error) {
-    logger.error('Failed to pin message', error instanceof Error ? error.message : String(error));
+    logger.error('Failed to pin message', getErrorMessage(error));
     res.status(500).json({ error: 'Failed to pin message' });
   }
 });

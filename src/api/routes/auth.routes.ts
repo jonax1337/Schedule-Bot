@@ -4,7 +4,7 @@ import { verifyPassword } from '../../shared/middleware/passwordManager.js';
 import { generateToken } from '../../shared/middleware/auth.js';
 import { getUserMappings } from '../../repositories/user-mapping.repository.js';
 import { config } from '../../shared/config/config.js';
-import { logger } from '../../shared/utils/logger.js';
+import { logger, getErrorMessage } from '../../shared/utils/logger.js';
 import { initiateDiscordAuth, handleDiscordCallback, getUserFromSession, logout } from '../controllers/auth.controller.js';
 
 const router = Router();
@@ -44,7 +44,7 @@ router.post('/admin/login', loginLimiter, async (req, res) => {
       res.status(401).json({ success: false, error: 'Invalid credentials' });
     }
   } catch (error) {
-    logger.error('Login error', error instanceof Error ? error.message : String(error));
+    logger.error('Login error', getErrorMessage(error));
     res.status(500).json({ success: false, error: 'Login failed' });
   }
 });
@@ -81,7 +81,7 @@ router.post('/user/login', loginLimiter, async (req, res) => {
       }
     });
   } catch (error) {
-    logger.error('User login error', error instanceof Error ? error.message : String(error));
+    logger.error('User login error', getErrorMessage(error));
     res.status(500).json({ success: false, error: 'Login failed' });
   }
 });

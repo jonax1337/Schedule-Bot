@@ -13,15 +13,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Bell, Send, Vote, Calendar, Loader2, MessageSquare, ChevronsUpDown, Check, Trash2, Timer } from "lucide-react";
 import { toast } from "sonner";
-import { stagger, microInteractions, cn } from "@/lib/animations";
+import { stagger, microInteractions } from "@/lib/animations";
+import { cn } from "@/lib/utils";
 import { BOT_API_URL } from "@/lib/config";
-
-interface DiscordMember {
-  id: string;
-  username: string;
-  displayName: string;
-  avatar: string | null;
-}
+import type { DiscordMember } from "@/lib/types";
 
 export function Actions() {
   const [loading, setLoading] = useState<string | null>(null);

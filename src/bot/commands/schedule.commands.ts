@@ -6,7 +6,7 @@ import { buildScheduleEmbed } from '../embeds/embed.js';
 import { createDateNavigationButtons } from '../interactions/interactive.js';
 import { postScheduleToChannel } from '../utils/schedule-poster.js';
 import { formatDateToDDMMYYYY, getTodayFormatted } from '../../shared/utils/dateFormatter.js';
-import { logger } from '../../shared/utils/logger.js';
+import { logger, getErrorMessage } from '../../shared/utils/logger.js';
 
 /**
  * Handle /schedule command - Check team availability for a specific date
@@ -51,7 +51,7 @@ export async function handleScheduleCommand(interaction: ChatInputCommandInterac
       components: [navigationButtons]
     });
   } catch (error) {
-    logger.error('Error handling schedule command', error instanceof Error ? error.message : String(error));
+    logger.error('Error handling schedule command', getErrorMessage(error));
     const embed = new EmbedBuilder()
       .setTitle('Error')
       .setDescription('An error occurred. Please try again later.')
@@ -89,7 +89,7 @@ export async function handlePostScheduleCommand(interaction: ChatInputCommandInt
       content: `✅ Schedule posted to channel for **${displayDate}**!`,
     });
   } catch (error) {
-    logger.error('Error posting schedule', error instanceof Error ? error.message : String(error));
+    logger.error('Error posting schedule', getErrorMessage(error));
     await interaction.editReply({
       content: '❌ An error occurred while posting the schedule.',
     });

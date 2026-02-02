@@ -44,3 +44,10 @@ export interface ActionResponse {
   message?: string;
   error?: string;
 }
+
+export interface DiscordMember {
+  id: string;
+  username: string;
+  displayName: string;
+  avatar: string | null;
+}

@@ -11,8 +11,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Loader2, Plus, Trash2, PlaneTakeoff } from 'lucide-react';
 import { toast } from 'sonner';
-import { stagger, microInteractions, cn } from '@/lib/animations';
+import { stagger, microInteractions } from '@/lib/animations';
+import { cn } from '@/lib/utils';
 import { BOT_API_URL } from '@/lib/config';
+import { parseDDMMYYYY, getWeekdayName } from '@/lib/date-utils';
 
 interface Absence {
   id: number;
@@ -28,13 +30,6 @@ function formatDateFromInput(isoDate: string): string {
   if (!isoDate) return '';
   const [year, month, day] = isoDate.split('-');
   return `${day}.${month}.${year}`;
-}
-
-function getWeekdayName(dateStr: string): string {
-  const [day, month, year] = dateStr.split('.');
-  const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-  const weekdays = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
-  return weekdays[date.getDay()];
 }
 
 function isAbsenceActive(absence: Absence): boolean {

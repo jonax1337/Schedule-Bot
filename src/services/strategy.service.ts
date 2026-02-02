@@ -110,7 +110,7 @@ export class StrategyService {
   }
 
   /** Extract image filenames from Tiptap JSON content */
-  private extractImageFilenames(content: any): string[] {
+  extractImageFilenames(content: any): string[] {
     const filenames: string[] = [];
     const walk = (node: any) => {
       if (!node) return;

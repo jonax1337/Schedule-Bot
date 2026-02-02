@@ -3,8 +3,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Activity, Users, Calendar, Trophy, TrendingUp, Clock, Percent, BarChart3, Zap, Settings, Terminal } from 'lucide-react';
-import { stagger, microInteractions, cn } from '@/lib/animations';
+import { stagger, microInteractions } from '@/lib/animations';
+import { cn } from '@/lib/utils';
 import { BOT_API_URL } from '@/lib/config';
+import { parseDDMMYYYY } from '@/lib/date-utils';
 
 interface DashboardStats {
   totalUsers: number;
@@ -42,11 +44,6 @@ interface UserMapping {
   discordId: string;
   displayName: string;
   role: string;
-}
-
-function parseDDMMYYYY(dateStr: string): Date {
-  const [day, month, year] = dateStr.split('.').map(Number);
-  return new Date(year, month - 1, day);
 }
 
 export function AdminDashboard() {

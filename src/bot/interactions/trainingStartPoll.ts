@@ -4,7 +4,9 @@ import { config } from '../../shared/config/config.js';
 import { updateSetting, getSetting } from '../../shared/utils/settingsManager.js';
 import { convertTimeToUnixTimestamp } from '../embeds/embed.js';
 import type { ScheduleResult } from '../../shared/types/types.js';
-import { logger } from '../../shared/utils/logger.js';
+import { logger, getErrorMessage } from '../../shared/utils/logger.js';
+import { formatRemainingTime, startPollTimers as startTimers, clearPollTimers as clearTimers, handleVoteToggle, fetchPollMessage } from './pollBase.js';
+import { timeToMinutes, minutesToTime } from '../../shared/utils/dateFormatter.js';
 
 interface TrainingPollOption {
   emoji: string;
@@ -25,53 +27,25 @@ interface TrainingPoll {
 const activeTrainingPolls = new Map<string, TrainingPoll>();
 
 /**
- * Format remaining time as a human-readable string.
- */
-function formatRemainingTime(ms: number): string {
-  if (ms <= 0) return '0 minutes';
-  const totalMinutes = Math.ceil(ms / 60_000);
-  if (totalMinutes < 60) return `${totalMinutes} minute${totalMinutes !== 1 ? 's' : ''}`;
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  if (minutes === 0) return `${hours} hour${hours !== 1 ? 's' : ''}`;
-  return `${hours}h ${minutes}m`;
-}
-
-/**
- * Update the footer of a poll embed with remaining time.
- */
-async function updatePollFooter(poll: TrainingPoll): Promise<void> {
-  try {
-    const remaining = poll.expiresAt.getTime() - Date.now();
-    if (remaining <= 0) return;
-
-    // Reuse updateTrainingPollEmbed which rebuilds fields from in-memory state
-    await updateTrainingPollEmbed(poll);
-  } catch {
-    // Message may have been deleted
-  }
-}
-
-/**
  * Start close timer and countdown interval for a poll.
  */
 function startPollTimers(poll: TrainingPoll): void {
-  const remaining = poll.expiresAt.getTime() - Date.now();
-  if (remaining <= 0) {
-    closeTrainingPoll(poll.messageId);
-    return;
+  const timers = startTimers(
+    poll.expiresAt,
+    () => closeTrainingPoll(poll.messageId),
+    () => updateTrainingPollEmbed(poll),
+  );
+  if (timers) {
+    poll.closeTimer = timers.closeTimer;
+    poll.countdownTimer = timers.countdownTimer;
   }
-
-  poll.closeTimer = setTimeout(() => closeTrainingPoll(poll.messageId), remaining);
-  poll.countdownTimer = setInterval(() => updatePollFooter(poll), 60_000);
 }
 
 /**
  * Clear all timers for a poll.
  */
 function clearPollTimers(poll: TrainingPoll): void {
-  if (poll.closeTimer) clearTimeout(poll.closeTimer);
-  if (poll.countdownTimer) clearInterval(poll.countdownTimer);
+  clearTimers(poll);
 }
 
 /**
@@ -199,7 +173,7 @@ export async function createTrainingStartPoll(
 
     logger.info(`Training start poll created for ${date} (duration: ${pollDurationMinutes} minutes)`);
   } catch (error) {
-    logger.error('Error creating training start poll', error instanceof Error ? error.message : String(error));
+    logger.error('Error creating training start poll', getErrorMessage(error));
   }
 }
 
@@ -219,16 +193,7 @@ export async function handleTrainingPollReaction(
   const option = poll.options.find(opt => opt.emoji === reaction.emoji.name);
   if (!option) return;
 
-  if (added) {
-    if (!option.votes.includes(user.id)) {
-      option.votes.push(user.id);
-    }
-  } else {
-    const index = option.votes.indexOf(user.id);
-    if (index > -1) {
-      option.votes.splice(index, 1);
-    }
-  }
+  handleVoteToggle(option, user.id, added);
 
   await updateTrainingPollEmbed(poll);
 }
@@ -261,7 +226,7 @@ async function updateTrainingPollEmbed(poll: TrainingPoll): Promise<void> {
 
     await message.edit({ embeds: [newEmbed] });
   } catch (error) {
-    logger.error('Error updating training poll embed', error instanceof Error ? error.message : String(error));
+    logger.error('Error updating training poll embed', getErrorMessage(error));
   }
 }
 
@@ -314,7 +279,7 @@ async function closeTrainingPoll(messageId: string): Promise<void> {
 
     logger.info(`Training poll closed for ${poll.date} - Winner timestamp: ${winnerTimestamp}`);
   } catch (error) {
-    logger.error('Error closing training poll', error instanceof Error ? error.message : String(error));
+    logger.error('Error closing training poll', getErrorMessage(error));
   }
 }
 
@@ -385,7 +350,7 @@ export async function recoverTrainingPolls(): Promise<void> {
       logger.info(`Recovered active training poll: ${message.id} (closes in ${formatRemainingTime(expiresAt.getTime() - Date.now())})`);
     }
   } catch (error) {
-    logger.error('Error recovering training polls', error instanceof Error ? error.message : String(error));
+    logger.error('Error recovering training polls', getErrorMessage(error));
   }
 }
 
@@ -485,13 +450,3 @@ function addPollFields(
   });
 }
 
-function timeToMinutes(time: string): number {
-  const [hours, minutes] = time.split(':').map(Number);
-  return hours * 60 + minutes;
-}
-
-function minutesToTime(minutes: number): string {
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
-}

@@ -29,7 +29,8 @@ import {
   CartesianGrid,
 } from 'recharts';
 import { Target, Map, BarChart3, Flame, Swords, Loader2, ChevronDown } from 'lucide-react';
-import { stagger, cn } from '@/lib/animations';
+import { stagger } from '@/lib/animations';
+import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { BOT_API_URL } from '@/lib/config';
 

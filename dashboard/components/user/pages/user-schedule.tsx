@@ -10,9 +10,11 @@ import { CheckCircle2, XCircle, Clock, Loader2, Edit2, Save, X, Palmtree, PlaneT
 import Image from 'next/image';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { stagger, microInteractions, cn } from '@/lib/animations';
+import { stagger, microInteractions } from '@/lib/animations';
+import { cn } from '@/lib/utils';
 import { BOT_API_URL } from '@/lib/config';
 import { useTimezone, getTimezoneAbbr } from '@/lib/timezone';
+import { getReasonBadgeClasses } from '@/lib/date-utils';
 
 interface PlayerStatus {
   name: string;
@@ -64,15 +66,6 @@ export function UserSchedule() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [editingReason, setEditingReason] = useState(false);
   const [reasonValue, setReasonValue] = useState('');
-
-  const PREDEFINED_SUGGESTIONS = [
-    'Training',
-    'Off-Day',
-    'VOD-Review',
-    'Scrims',
-    'Premier',
-    'Tournament',
-  ];
 
   useEffect(() => {
     if (!botTimezoneLoaded) return;
@@ -594,16 +587,9 @@ export function UserSchedule() {
             <div className="flex items-center gap-2 animate-fadeIn stagger-1">
               <DialogTitle>{selectedDate?.date} - {selectedDate?.weekday}</DialogTitle>
               {selectedDate && (
-                <span 
+                <span
                   className={
-                    `inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
-                      selectedDate.reason === 'Premier' ? 'bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300' :
-                      selectedDate.reason === 'Off-Day' ? 'bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300' :
-                      selectedDate.reason === 'VOD-Review' ? 'bg-cyan-100 dark:bg-cyan-950 text-cyan-700 dark:text-cyan-300' :
-                      selectedDate.reason === 'Scrims' ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300' :
-                      selectedDate.reason === 'Tournament' ? 'bg-yellow-100 dark:bg-yellow-950 text-yellow-700 dark:text-yellow-300' :
-                      'bg-green-100 dark:bg-green-950 text-green-700 dark:text-green-300'
-                    }`
+                    `inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${getReasonBadgeClasses(selectedDate.reason || 'Training')}`
                   }
                 >
                   {selectedDate.reason === 'Premier' && (

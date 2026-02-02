@@ -3,7 +3,7 @@ import { verifyToken, requireAdmin, optionalAuth, AuthRequest } from '../../shar
 import { validate, addUserMappingSchema, updateUserMappingSchema, reorderUserMappingsSchema } from '../../shared/middleware/validation.js';
 import { getUserMappings, addUserMapping, updateUserMapping, removeUserMapping, reorderUserMappingsBatch } from '../../repositories/user-mapping.repository.js';
 import { syncUserMappingsToSchedules } from '../../repositories/schedule.repository.js';
-import { logger } from '../../shared/utils/logger.js';
+import { logger, getErrorMessage } from '../../shared/utils/logger.js';
 import { client } from '../../bot/client.js';
 import { config } from '../../shared/config/config.js';
 
@@ -46,7 +46,7 @@ router.get('/', optionalAuth, async (req: AuthRequest, res) => {
       res.json({ success: true, mappings: safeMappings });
     }
   } catch (error) {
-    logger.error('Failed to fetch user mappings', error instanceof Error ? error.message : String(error));
+    logger.error('Failed to fetch user mappings', getErrorMessage(error));
     res.status(500).json({ success: false, error: 'Failed to fetch user mappings' });
   }
 });
@@ -62,7 +62,7 @@ router.post('/', verifyToken, requireAdmin, validate(addUserMappingSchema), asyn
     logger.success('User mapping added', `${mapping.displayName} by ${req.user?.username}`);
     res.json({ success: true, message: 'User mapping added successfully' });
   } catch (error) {
-    logger.error('Failed to add user mapping', error instanceof Error ? error.message : String(error));
+    logger.error('Failed to add user mapping', getErrorMessage(error));
     res.status(500).json({ error: 'Failed to add user mapping' });
   }
 });
@@ -78,7 +78,7 @@ router.put('/reorder', verifyToken, requireAdmin, validate(reorderUserMappingsSc
     logger.success('User mappings reordered', `${orderings.length} mappings by ${req.user?.username}`);
     res.json({ success: true, message: 'User mappings reordered successfully' });
   } catch (error) {
-    logger.error('Failed to reorder user mappings', error instanceof Error ? error.message : String(error));
+    logger.error('Failed to reorder user mappings', getErrorMessage(error));
     res.status(500).json({ error: 'Failed to reorder user mappings' });
   }
 });
@@ -104,7 +104,7 @@ router.put('/:discordId', verifyToken, requireAdmin, validate(updateUserMappingS
     logger.success('User mapping updated', `${discordUsername} → ${displayName} by ${req.user?.username}`);
     res.json({ success: true, message: 'User mapping updated successfully' });
   } catch (error) {
-    logger.error('Failed to update user mapping', error instanceof Error ? error.message : String(error));
+    logger.error('Failed to update user mapping', getErrorMessage(error));
     res.status(500).json({ error: 'Failed to update user mapping' });
   }
 });
@@ -124,7 +124,7 @@ router.delete('/:discordId', verifyToken, requireAdmin, async (req: AuthRequest,
       res.status(404).json({ error: 'User mapping not found' });
     }
   } catch (error) {
-    logger.error('Failed to remove user mapping', error instanceof Error ? error.message : String(error));
+    logger.error('Failed to remove user mapping', getErrorMessage(error));
     res.status(500).json({ error: 'Failed to remove user mapping' });
   }
 });

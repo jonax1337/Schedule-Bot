@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { verifyToken, requireAdmin, AuthRequest } from '../../shared/middleware/auth.js';
 import { client } from '../../bot/client.js';
 import { config } from '../../shared/config/config.js';
-import { logger } from '../../shared/utils/logger.js';
+import { logger, getErrorMessage } from '../../shared/utils/logger.js';
 import { ChannelType } from 'discord.js';
 
 const router = Router();
@@ -32,7 +32,7 @@ router.get('/channels', verifyToken, requireAdmin, async (req: AuthRequest, res)
 
     res.json(textChannels);
   } catch (error) {
-    logger.error('Error fetching channels', error instanceof Error ? error.message : String(error));
+    logger.error('Error fetching channels', getErrorMessage(error));
     res.status(500).json({ error: 'Failed to fetch channels' });
   }
 });
@@ -58,7 +58,7 @@ router.get('/roles', verifyToken, requireAdmin, async (req: AuthRequest, res) =>
 
     res.json(roleList);
   } catch (error) {
-    logger.error('Error fetching roles', error instanceof Error ? error.message : String(error));
+    logger.error('Error fetching roles', getErrorMessage(error));
     res.status(500).json({ error: 'Failed to fetch roles' });
   }
 });
@@ -93,7 +93,7 @@ router.get('/members', verifyToken, requireAdmin, async (req: AuthRequest, res) 
 
     res.json({ members: memberList, cached: false });
   } catch (error) {
-    logger.error('Error fetching members', error instanceof Error ? error.message : String(error));
+    logger.error('Error fetching members', getErrorMessage(error));
 
     if (membersCache) {
       logger.warn('Using expired members cache due to error');

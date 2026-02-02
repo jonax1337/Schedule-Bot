@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { X } from "lucide-react";
-import { microInteractions, gridStagger, stagger, cn } from "@/lib/animations";
+import { microInteractions, stagger } from "@/lib/animations";
+import { cn } from "@/lib/utils";
 
 const VALORANT_AGENTS = [
   'Astra', 'Breach', 'Brimstone', 'Chamber', 'Clove', 'Cypher', 'Deadlock',
@@ -39,9 +40,6 @@ export function AgentPicker({
           {VALORANT_AGENTS.map((agent, index) => {
             const isSelected = selectedAgents.includes(agent);
             const canSelect = selectedAgents.length < maxAgents || isSelected;
-            const row = Math.floor(index / 6);
-            const col = index % 6;
-
             return (
               <button
                 key={agent}
@@ -51,7 +49,7 @@ export function AgentPicker({
                   "relative aspect-square rounded-md overflow-hidden border-2 transition-all",
                   isSelected ? 'border-primary ring-2 ring-primary' : 'border-transparent hover:border-gray-400',
                   !canSelect ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer hover:scale-105',
-                  gridStagger(row, col, 6, 'fast', 'scaleIn'),
+                  stagger(index, 'fast', 'scaleIn'),
                   microInteractions.smooth
                 )}
                 title={agent}

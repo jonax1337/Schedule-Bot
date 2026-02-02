@@ -1,7 +1,8 @@
 import { EmbedBuilder, Message, MessageReaction, User, TextChannel } from 'discord.js';
 import { client } from '../client.js';
 import { config } from '../../shared/config/config.js';
-import { logger } from '../../shared/utils/logger.js';
+import { logger, getErrorMessage } from '../../shared/utils/logger.js';
+import { formatRemainingTime, startPollTimers as startTimers, clearPollTimers as clearTimers, handleVoteToggle, fetchPollMessage } from './pollBase.js';
 
 interface PollOption {
   emoji: string;
@@ -24,53 +25,25 @@ interface Poll {
 const activePolls = new Map<string, Poll>();
 
 /**
- * Format remaining time as a human-readable string.
- */
-function formatRemainingTime(ms: number): string {
-  if (ms <= 0) return '0 minutes';
-  const totalMinutes = Math.ceil(ms / 60_000);
-  if (totalMinutes < 60) return `${totalMinutes} minute${totalMinutes !== 1 ? 's' : ''}`;
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  if (minutes === 0) return `${hours} hour${hours !== 1 ? 's' : ''}`;
-  return `${hours}h ${minutes}m`;
-}
-
-/**
- * Update the footer of a poll embed with remaining time.
- */
-async function updatePollFooter(poll: Poll): Promise<void> {
-  try {
-    const remaining = poll.expiresAt.getTime() - Date.now();
-    if (remaining <= 0) return;
-
-    // Reuse updatePollEmbed which rebuilds fields from in-memory state
-    await updatePollEmbed(poll);
-  } catch {
-    // Message may have been deleted
-  }
-}
-
-/**
  * Start close timer and countdown interval for a poll.
  */
 function startPollTimers(poll: Poll): void {
-  const remaining = poll.expiresAt.getTime() - Date.now();
-  if (remaining <= 0) {
-    closePoll(poll.messageId);
-    return;
+  const timers = startTimers(
+    poll.expiresAt,
+    () => closePoll(poll.messageId),
+    () => updatePollEmbed(poll),
+  );
+  if (timers) {
+    poll.closeTimer = timers.closeTimer;
+    poll.countdownTimer = timers.countdownTimer;
   }
-
-  poll.closeTimer = setTimeout(() => closePoll(poll.messageId), remaining);
-  poll.countdownTimer = setInterval(() => updatePollFooter(poll), 60_000);
 }
 
 /**
  * Clear all timers for a poll.
  */
 function clearPollTimers(poll: Poll): void {
-  if (poll.closeTimer) clearTimeout(poll.closeTimer);
-  if (poll.countdownTimer) clearInterval(poll.countdownTimer);
+  clearTimers(poll);
 }
 
 export async function createQuickPoll(
@@ -143,16 +116,7 @@ export async function handlePollReaction(
   const option = poll.options.find(opt => opt.emoji === reaction.emoji.name);
   if (!option) return;
 
-  if (added) {
-    if (!option.votes.includes(user.id)) {
-      option.votes.push(user.id);
-    }
-  } else {
-    const index = option.votes.indexOf(user.id);
-    if (index > -1) {
-      option.votes.splice(index, 1);
-    }
-  }
+  handleVoteToggle(option, user.id, added);
 
   await updatePollEmbed(poll);
 }
@@ -185,7 +149,7 @@ async function updatePollEmbed(poll: Poll): Promise<void> {
 
     await message.edit({ embeds: [newEmbed] });
   } catch (error) {
-    logger.error('Error updating poll embed', error instanceof Error ? error.message : String(error));
+    logger.error('Error updating poll embed', getErrorMessage(error));
   }
 }
 
@@ -238,7 +202,7 @@ async function closePoll(messageId: string): Promise<void> {
 
     logger.info(`Poll closed: ${poll.question} - Winner: ${winnerLabel}`);
   } catch (error) {
-    logger.error('Error closing poll', error instanceof Error ? error.message : String(error));
+    logger.error('Error closing poll', getErrorMessage(error));
   }
 }
 
@@ -341,7 +305,7 @@ export async function recoverQuickPolls(): Promise<void> {
       logger.info(`Recovered active quick poll: ${message.id} (closes in ${formatRemainingTime(expiresAt.getTime() - Date.now())})`);
     }
   } catch (error) {
-    logger.error('Error recovering quick polls', error instanceof Error ? error.message : String(error));
+    logger.error('Error recovering quick polls', getErrorMessage(error));
   }
 }
 

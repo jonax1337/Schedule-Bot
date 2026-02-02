@@ -9,9 +9,11 @@ import { toast } from 'sonner';
 import { Loader2, Calendar, Save, RefreshCw, ChevronLeft, ChevronRight, X, PlaneTakeoff } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import Image from 'next/image';
-import { stagger, microInteractions, loadingStates, cn } from '@/lib/animations';
+import { stagger, microInteractions, loadingStates } from '@/lib/animations';
+import { cn } from '@/lib/utils';
 import { BOT_API_URL } from '@/lib/config';
 import { useTimezone, getTimezoneAbbr } from '@/lib/timezone';
+import { getWeekdayName, getReasonBadgeClasses, SCHEDULE_REASON_SUGGESTIONS } from '@/lib/date-utils';
 
 interface UserMapping {
   discordId: string;
@@ -51,15 +53,6 @@ export function ScheduleEditor() {
   const [reasonDialogOpen, setReasonDialogOpen] = useState(false);
   const [selectedDateForReason, setSelectedDateForReason] = useState<string | null>(null);
   const [reasonValue, setReasonValue] = useState('');
-
-  const PREDEFINED_SUGGESTIONS = [
-    'Training',
-    'Off-Day',
-    'VOD-Review',
-    'Scrims',
-    'Premier',
-    'Tournament',
-  ];
 
   useEffect(() => {
     if (!botTimezoneLoaded) return;
@@ -289,13 +282,6 @@ export function ScheduleEditor() {
             </TableHeader>
             <TableBody>
               {schedules.map((schedule, index) => {
-                // Parse date and get weekday
-                const getWeekday = (dateStr: string) => {
-                  const [day, month, year] = dateStr.split('.');
-                  const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-                  return date.toLocaleDateString('en-US', { weekday: 'long' });
-                };
-
                 const isWeekend = (() => {
                   const [day, month, year] = schedule.date.split('.');
                   const d = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
@@ -307,7 +293,7 @@ export function ScheduleEditor() {
                   <TableCell className={cn("sticky left-0 z-10", isWeekend ? 'bg-muted/30' : 'bg-background')}>
                     <div className="flex flex-col">
                       <span className="font-medium">{schedule.date}</span>
-                      <span className="text-xs text-muted-foreground">{getWeekday(schedule.date)}</span>
+                      <span className="text-xs text-muted-foreground">{getWeekdayName(schedule.date)}</span>
                     </div>
                   </TableCell>
                   <TableCell className="p-1">
@@ -318,14 +304,7 @@ export function ScheduleEditor() {
                       className={cn("h-8 w-full justify-start text-xs p-1", microInteractions.smooth)}
                     >
                       <div className={
-                        `inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
-                          schedule.reason === 'Premier' ? 'bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300' :
-                          schedule.reason === 'Off-Day' ? 'bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300' :
-                          schedule.reason === 'VOD-Review' ? 'bg-cyan-100 dark:bg-cyan-950 text-cyan-700 dark:text-cyan-300' :
-                          schedule.reason === 'Scrims' ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300' :
-                          schedule.reason === 'Tournament' ? 'bg-yellow-100 dark:bg-yellow-950 text-yellow-700 dark:text-yellow-300' :
-                          'bg-green-100 dark:bg-green-950 text-green-700 dark:text-green-300'
-                        }`
+                        `inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${getReasonBadgeClasses(schedule.reason || 'Training')}`
                       }>
                         {schedule.reason === 'Premier' && (
                           <Image
@@ -465,7 +444,7 @@ export function ScheduleEditor() {
                   )}
                 </div>
                 <div className="flex flex-wrap gap-1.5 mt-2">
-                  {PREDEFINED_SUGGESTIONS.map((suggestion) => (
+                  {SCHEDULE_REASON_SUGGESTIONS.map((suggestion) => (
                     <Button
                       key={suggestion}
                       variant="outline"

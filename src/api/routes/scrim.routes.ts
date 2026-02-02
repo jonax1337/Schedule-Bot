@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { verifyToken, requireAdmin, optionalAuth, AuthRequest } from '../../shared/middleware/auth.js';
 import { validate, addScrimSchema, updateScrimSchema, isValidDateFormat } from '../../shared/middleware/validation.js';
 import { getAllScrims, addScrim, updateScrim, deleteScrim, getScrimById, getScrimStats, getScrimsByDateRange } from '../../repositories/scrim.repository.js';
-import { logger } from '../../shared/utils/logger.js';
+import { logger, getErrorMessage } from '../../shared/utils/logger.js';
 
 const router = Router();
 
@@ -12,7 +12,7 @@ router.get('/stats/summary', optionalAuth, async (req: AuthRequest, res) => {
     const stats = await getScrimStats();
     res.json({ success: true, stats });
   } catch (error) {
-    logger.error('Error fetching scrim stats', error instanceof Error ? error.message : String(error));
+    logger.error('Error fetching scrim stats', getErrorMessage(error));
     res.status(500).json({ success: false, error: 'Failed to fetch scrim stats' });
   }
 });
@@ -31,7 +31,7 @@ router.get('/range/:startDate/:endDate', optionalAuth, async (req: AuthRequest, 
     const scrims = await getScrimsByDateRange(startDate, endDate);
     res.json({ success: true, scrims });
   } catch (error) {
-    logger.error('Error fetching scrims by range', error instanceof Error ? error.message : String(error));
+    logger.error('Error fetching scrims by range', getErrorMessage(error));
     res.status(500).json({ success: false, error: 'Failed to fetch scrims' });
   }
 });
@@ -42,7 +42,7 @@ router.get('/', optionalAuth, async (req, res) => {
     const scrims = await getAllScrims();
     res.json({ success: true, scrims });
   } catch (error) {
-    logger.error('Error fetching scrims', error instanceof Error ? error.message : String(error));
+    logger.error('Error fetching scrims', getErrorMessage(error));
     res.status(500).json({ success: false, error: 'Failed to fetch scrims' });
   }
 });
@@ -58,7 +58,7 @@ router.get('/:id', optionalAuth, async (req: AuthRequest, res) => {
       res.status(404).json({ success: false, error: 'Scrim not found' });
     }
   } catch (error) {
-    logger.error('Error fetching scrim', error instanceof Error ? error.message : String(error));
+    logger.error('Error fetching scrim', getErrorMessage(error));
     res.status(500).json({ success: false, error: 'Failed to fetch scrim' });
   }
 });
@@ -72,7 +72,7 @@ router.post('/', verifyToken, requireAdmin, validate(addScrimSchema), async (req
     logger.success('Scrim added', `${scrimData.opponent} by ${req.user?.username}`);
     res.json({ success: true, scrim });
   } catch (error) {
-    logger.error('Failed to add scrim', error instanceof Error ? error.message : String(error));
+    logger.error('Failed to add scrim', getErrorMessage(error));
     res.status(500).json({ success: false, error: 'Failed to add scrim' });
   }
 });
@@ -92,7 +92,7 @@ router.put('/:id', verifyToken, requireAdmin, validate(updateScrimSchema), async
       res.status(404).json({ success: false, error: 'Scrim not found' });
     }
   } catch (error) {
-    logger.error('Failed to update scrim', error instanceof Error ? error.message : String(error));
+    logger.error('Failed to update scrim', getErrorMessage(error));
     res.status(500).json({ success: false, error: 'Failed to update scrim' });
   }
 });
@@ -110,7 +110,7 @@ router.delete('/:id', verifyToken, requireAdmin, async (req: AuthRequest, res) =
       res.status(404).json({ success: false, error: 'Scrim not found' });
     }
   } catch (error) {
-    logger.error('Failed to delete scrim', error instanceof Error ? error.message : String(error));
+    logger.error('Failed to delete scrim', getErrorMessage(error));
     res.status(500).json({ success: false, error: 'Failed to delete scrim' });
   }
 });

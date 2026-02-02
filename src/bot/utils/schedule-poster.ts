@@ -5,7 +5,7 @@ import { getAbsentUserIdsForDate } from '../../repositories/absence.repository.j
 import { parseSchedule, analyzeSchedule } from '../../shared/utils/analyzer.js';
 import { buildScheduleEmbed } from '../embeds/embed.js';
 import { getTodayFormatted } from '../../shared/utils/dateFormatter.js';
-import { logger } from '../../shared/utils/logger.js';
+import { logger, getErrorMessage } from '../../shared/utils/logger.js';
 import type { ScheduleStatus, ScheduleResult } from '../../shared/types/types.js';
 
 /**
@@ -54,12 +54,12 @@ export async function postScheduleToChannel(date?: string, clientInstance?: Clie
             try {
               await msg.delete();
             } catch (err) {
-              logger.warn('Could not delete old message', err instanceof Error ? err.message : String(err));
+              logger.warn('Could not delete old message', getErrorMessage(err));
             }
           }
         }
       } catch (error) {
-        logger.error('Channel cleaning failed', error instanceof Error ? error.message : String(error));
+        logger.error('Channel cleaning failed', getErrorMessage(error));
       }
     }
 
@@ -92,7 +92,7 @@ export async function postScheduleToChannel(date?: string, clientInstance?: Clie
     const { createTrainingStartPoll } = await import('../interactions/trainingStartPoll.js');
     await createTrainingStartPoll(result, displayDate);
   } catch (error) {
-    logger.error('Schedule post failed', error instanceof Error ? error.message : String(error));
+    logger.error('Schedule post failed', getErrorMessage(error));
     await channel.send({
       embeds: [
         new EmbedBuilder()
@@ -168,13 +168,13 @@ async function cleanScheduleChannel(channel: TextChannel): Promise<void> {
       try {
         await msg.delete();
       } catch (err) {
-        logger.warn('Could not delete old message', err instanceof Error ? err.message : String(err));
+        logger.warn('Could not delete old message', getErrorMessage(err));
       }
     }
 
     logger.info('Channel cleaned for status update', `Removed ${messagesToDelete.size} message(s)`);
   } catch (error) {
-    logger.error('Channel cleaning failed', error instanceof Error ? error.message : String(error));
+    logger.error('Channel cleaning failed', getErrorMessage(error));
   }
 }
 
@@ -306,7 +306,7 @@ export async function checkAndNotifyStatusChange(
       await createTrainingStartPoll(current.result, date);
     }
   } catch (error) {
-    logger.error('Schedule change notification error', error instanceof Error ? error.message : String(error));
+    logger.error('Schedule change notification error', getErrorMessage(error));
   } finally {
     notificationInProgress = false;
   }

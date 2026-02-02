@@ -1,10 +1,11 @@
-import type { 
-  DaySchedule, 
-  ScheduleResult, 
-  TimeRange, 
+import type {
+  DaySchedule,
+  ScheduleResult,
+  TimeRange,
   PlayerAvailability,
-  ScheduleData 
+  ScheduleData
 } from '../types/types.js';
+import { timeToMinutes, minutesToTime } from './dateFormatter.js';
 
 /**
  * Parse raw schedule data into structured format
@@ -171,18 +172,6 @@ function calculateCommonTimeRange(players: PlayerAvailability[]): TimeRange | nu
   
   if (availablePlayers.length === 0) return null;
 
-  // Convert times to minutes for easier comparison
-  const timeToMinutes = (time: string): number => {
-    const [hours, minutes] = time.split(':').map(Number);
-    return hours * 60 + minutes;
-  };
-
-  const minutesToTime = (minutes: number): string => {
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
-  };
-
   // Find latest start time and earliest end time
   let latestStart = 0;
   let earliestEnd = 24 * 60; // 24:00 in minutes
@@ -211,11 +200,6 @@ function calculateCommonTimeRange(players: PlayerAvailability[]): TimeRange | nu
  */
 export function getOverlapDuration(timeRange: TimeRange | null): number {
   if (!timeRange) return 0;
-
-  const timeToMinutes = (time: string): number => {
-    const [hours, minutes] = time.split(':').map(Number);
-    return hours * 60 + minutes;
-  };
 
   const start = timeToMinutes(timeRange.start);
   const end = timeToMinutes(timeRange.end);

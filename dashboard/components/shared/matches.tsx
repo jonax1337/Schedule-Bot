@@ -17,7 +17,8 @@ import { toast } from "sonner";
 import { AgentSelector } from "./agent-picker";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { stagger, microInteractions, loadingStates, cn } from '@/lib/animations';
+import { stagger, microInteractions, loadingStates } from '@/lib/animations';
+import { cn } from '@/lib/utils';
 import { BOT_API_URL } from '@/lib/config';
 import { VodReview } from './vod-review';
 

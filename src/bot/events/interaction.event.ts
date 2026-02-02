@@ -1,6 +1,6 @@
 import { Interaction } from 'discord.js';
 import { handleCommand } from '../commands/index.js';
-import { logger } from '../../shared/utils/logger.js';
+import { logger, getErrorMessage } from '../../shared/utils/logger.js';
 import {
   handleDateNavigation,
   handleAvailabilityButton,
@@ -72,6 +72,6 @@ export async function handleInteraction(interaction: Interaction): Promise<void>
       return;
     }
   } catch (error) {
-    logger.error('Error handling interaction', error instanceof Error ? error.message : String(error));
+    logger.error('Error handling interaction', getErrorMessage(error));
   }
 }

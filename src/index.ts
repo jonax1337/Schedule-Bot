@@ -3,7 +3,7 @@ import { startScheduler, stopScheduler, getNextScheduledTime } from './jobs/sche
 import { connectDatabase, disconnectDatabase } from './repositories/database.repository.js';
 import { config, reloadConfig } from './shared/config/config.js';
 import { startApiServer } from './api/server.js';
-import { logger } from './shared/utils/logger.js';
+import { logger, getErrorMessage } from './shared/utils/logger.js';
 
 async function main(): Promise<void> {
   logger.info('Valorant Schedule Bot starting');
@@ -12,7 +12,7 @@ async function main(): Promise<void> {
   try {
     await connectDatabase();
   } catch (error) {
-    logger.error('PostgreSQL connection failed', error instanceof Error ? error.message : String(error));
+    logger.error('PostgreSQL connection failed', getErrorMessage(error));
     process.exit(1);
   }
 
@@ -21,7 +21,7 @@ async function main(): Promise<void> {
     const { initializeDatabaseIfEmpty } = await import('./repositories/database-initializer.js');
     await initializeDatabaseIfEmpty();
   } catch (error) {
-    logger.error('Database initialization failed', error instanceof Error ? error.message : String(error));
+    logger.error('Database initialization failed', getErrorMessage(error));
   }
 
   // Load settings from PostgreSQL
@@ -29,7 +29,7 @@ async function main(): Promise<void> {
     await reloadConfig();
     logger.success('Settings loaded', `Post time: ${config.scheduling.dailyPostTime}, Timezone: ${config.scheduling.timezone}`);
   } catch (error) {
-    logger.error('Settings load failed', error instanceof Error ? error.message : String(error));
+    logger.error('Settings load failed', getErrorMessage(error));
   }
 
   // Ensure next 14 days have schedule entries
@@ -38,7 +38,7 @@ async function main(): Promise<void> {
     await addMissingDays();
     await applyRecurringToEmptySchedules();
   } catch (error) {
-    logger.error('Schedule verification failed', error instanceof Error ? error.message : String(error));
+    logger.error('Schedule verification failed', getErrorMessage(error));
   }
 
   // Start API server early so healthchecks pass while bot connects
@@ -80,6 +80,6 @@ process.on('SIGTERM', async () => {
 });
 
 main().catch(error => {
-  logger.error('Fatal error', error instanceof Error ? error.message : String(error));
+  logger.error('Fatal error', getErrorMessage(error));
   process.exit(1);
 });

@@ -9,7 +9,8 @@ import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Shield, Loader2, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { setAuthToken, setUser } from '@/lib/auth';
-import { microInteractions, cn } from '@/lib/animations';
+import { microInteractions } from '@/lib/animations';
+import { cn } from '@/lib/utils';
 import { BOT_API_URL } from '@/lib/config';
 
 export default function AdminLogin() {

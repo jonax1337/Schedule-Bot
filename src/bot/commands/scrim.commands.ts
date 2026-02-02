@@ -1,6 +1,6 @@
 import { ChatInputCommandInteraction, MessageFlags, EmbedBuilder } from 'discord.js';
 import { addScrim, getAllScrims, getScrimStats } from '../../repositories/scrim.repository.js';
-import { logger } from '../../shared/utils/logger.js';
+import { logger, getErrorMessage } from '../../shared/utils/logger.js';
 
 /**
  * Handle /add-scrim command - Add a scrim result (Admin)
@@ -44,7 +44,7 @@ export async function handleAddScrimCommand(interaction: ChatInputCommandInterac
                `${notes ? `Notes: ${notes}` : ''}`,
     });
   } catch (error) {
-    logger.error('Error adding scrim', error instanceof Error ? error.message : String(error));
+    logger.error('Error adding scrim', getErrorMessage(error));
     await interaction.editReply({
       content: '❌ An error occurred while adding the scrim.',
     });
@@ -96,7 +96,7 @@ export async function handleViewScrimsCommand(interaction: ChatInputCommandInter
     
     await interaction.editReply({ embeds: [embed] });
   } catch (error) {
-    logger.error('Error viewing scrims', error instanceof Error ? error.message : String(error));
+    logger.error('Error viewing scrims', getErrorMessage(error));
     await interaction.editReply({
       content: '❌ An error occurred while fetching scrims.',
     });
@@ -156,7 +156,7 @@ export async function handleScrimStatsCommand(interaction: ChatInputCommandInter
     
     await interaction.editReply({ embeds: [embed] });
   } catch (error) {
-    logger.error('Error fetching scrim stats', error instanceof Error ? error.message : String(error));
+    logger.error('Error fetching scrim stats', getErrorMessage(error));
     await interaction.editReply({
       content: '❌ An error occurred while fetching statistics.',
     });

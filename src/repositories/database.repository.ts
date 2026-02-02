@@ -2,7 +2,7 @@ import 'dotenv/config';
 import { PrismaClient } from '../generated/prisma/client.js';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
-import { logger } from '../shared/utils/logger.js';
+import { logger, getErrorMessage } from '../shared/utils/logger.js';
 
 const globalForPrisma = global as unknown as { prisma: PrismaClient };
 
@@ -30,7 +30,7 @@ export async function connectDatabase(): Promise<void> {
     await prisma.$connect();
     logger.success('Database connected');
   } catch (error) {
-    logger.error('Database connection failed', error instanceof Error ? error.message : String(error));
+    logger.error('Database connection failed', getErrorMessage(error));
     throw error;
   }
 }

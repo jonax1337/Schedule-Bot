@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
-import { logger } from '../utils/logger.js';
+import { logger, getErrorMessage } from '../utils/logger.js';
 import { getUserMappings } from '../../repositories/user-mapping.repository.js';
 
 if (!process.env.JWT_SECRET) {
@@ -116,7 +116,7 @@ export async function resolveCurrentUser(req: AuthRequest, res: Response, next: 
     req.resolvedUser = mapping;
     next();
   } catch (error) {
-    logger.error('Error resolving current user', error instanceof Error ? error.message : String(error));
+    logger.error('Error resolving current user', getErrorMessage(error));
     res.status(500).json({ error: 'Failed to resolve user' });
   }
 }
@@ -146,7 +146,7 @@ export async function resolveTargetUser(req: AuthRequest, res: Response, next: N
     req.targetUserId = mapping.discordId;
     next();
   } catch (error) {
-    logger.error('Error resolving target user', error instanceof Error ? error.message : String(error));
+    logger.error('Error resolving target user', getErrorMessage(error));
     res.status(500).json({ error: 'Failed to resolve user' });
   }
 }

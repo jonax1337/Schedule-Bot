@@ -1,5 +1,5 @@
 import { prisma } from './database.repository.js';
-import { logger } from '../shared/utils/logger.js';
+import { logger, getErrorMessage } from '../shared/utils/logger.js';
 
 export interface FolderItem {
   id: number;
@@ -165,7 +165,7 @@ export async function updateStrategy(id: number, data: UpdateStrategyData): Prom
     logger.success('Strategy updated', `"${strategy.title}" (ID: ${id})`);
     return toDetail(strategy);
   } catch (error) {
-    logger.error('Error updating strategy', error instanceof Error ? error.message : String(error));
+    logger.error('Error updating strategy', getErrorMessage(error));
     return null;
   }
 }
@@ -176,7 +176,7 @@ export async function deleteStrategy(id: number): Promise<boolean> {
     logger.success('Strategy deleted', `ID: ${id}`);
     return true;
   } catch (error) {
-    logger.error('Error deleting strategy', error instanceof Error ? error.message : String(error));
+    logger.error('Error deleting strategy', getErrorMessage(error));
     return false;
   }
 }

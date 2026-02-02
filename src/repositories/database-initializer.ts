@@ -1,5 +1,5 @@
 import { prisma } from './database.repository.js';
-import { logger } from '../shared/utils/logger.js';
+import { logger, getErrorMessage } from '../shared/utils/logger.js';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 
@@ -98,7 +98,7 @@ async function isDatabaseEmpty(): Promise<boolean> {
     const settingsCount = await prisma.setting.count();
     return settingsCount === 0;
   } catch (error) {
-    logger.error('Error checking database status', error instanceof Error ? error.message : String(error));
+    logger.error('Error checking database status', getErrorMessage(error));
     return false;
   }
 }
@@ -120,7 +120,7 @@ async function initializeDefaultSettings(): Promise<void> {
         },
       });
     } catch (error) {
-      logger.error(`Failed to create setting: ${key}`, error instanceof Error ? error.message : String(error));
+      logger.error(`Failed to create setting: ${key}`, getErrorMessage(error));
     }
   }
 
@@ -162,7 +162,7 @@ async function initializeScheduleEntries(): Promise<void> {
     }
     logger.success('Schedule entries created', `${entries.length} entries`);
   } catch (error) {
-    logger.error('Error creating schedule entries', error instanceof Error ? error.message : String(error));
+    logger.error('Error creating schedule entries', getErrorMessage(error));
   }
 }
 
@@ -181,7 +181,7 @@ export async function initializeDatabaseIfEmpty(): Promise<void> {
     try {
       await createDatabaseTables();
     } catch (error) {
-      logger.error('Failed to create database tables', error instanceof Error ? error.message : String(error));
+      logger.error('Failed to create database tables', getErrorMessage(error));
       throw error;
     }
   }
@@ -205,7 +205,7 @@ export async function initializeDatabaseIfEmpty(): Promise<void> {
     logger.success('Database initialized', 'Default settings and schedule entries created');
     logger.info('Configure discord.channelId and register users via /register command');
   } catch (error) {
-    logger.error('Database initialization failed', error instanceof Error ? error.message : String(error));
+    logger.error('Database initialization failed', getErrorMessage(error));
     throw error;
   }
 }

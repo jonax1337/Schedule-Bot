@@ -2,7 +2,8 @@ import { prisma } from './database.repository.js';
 import { getUserMappings } from './user-mapping.repository.js';
 import { getAllActiveRecurring } from './recurring-availability.repository.js';
 import type { ScheduleData, SchedulePlayerData } from '../shared/types/types.js';
-import { logger } from '../shared/utils/logger.js';
+import { logger, getErrorMessage } from '../shared/utils/logger.js';
+import { parseDDMMYYYY } from '../shared/utils/dateFormatter.js';
 
 /**
  * Get schedule for a specific date with all players
@@ -74,16 +75,10 @@ export async function getSchedulesForDates(dates: string[]): Promise<ScheduleDat
     },
   });
 
-  // Convert DD.MM.YYYY to Date for proper sorting
-  const parseGermanDate = (dateStr: string): Date => {
-    const [day, month, year] = dateStr.split('.');
-    return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-  };
-
   // Sort schedules by actual date (earliest first)
   const sortedSchedules = schedules.sort((a, b) => {
-    const dateA = parseGermanDate(a.date);
-    const dateB = parseGermanDate(b.date);
+    const dateA = parseDDMMYYYY(a.date);
+    const dateB = parseDDMMYYYY(b.date);
     return dateA.getTime() - dateB.getTime();
   });
 
@@ -193,7 +188,7 @@ export async function updatePlayerAvailability(
 
     return true;
   } catch (error) {
-    logger.error('Error updating player availability', error instanceof Error ? error.message : String(error));
+    logger.error('Error updating player availability', getErrorMessage(error));
     return false;
   }
 }
@@ -463,7 +458,7 @@ export async function updateScheduleReason(
     });
     return true;
   } catch (error) {
-    logger.error('Error updating schedule reason', error instanceof Error ? error.message : String(error));
+    logger.error('Error updating schedule reason', getErrorMessage(error));
     return false;
   }
 }

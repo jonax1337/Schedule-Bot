@@ -1,7 +1,7 @@
 import { ChatInputCommandInteraction, EmbedBuilder, MessageFlags } from 'discord.js';
 import { getUserMapping } from '../../repositories/user-mapping.repository.js';
 import { recurringAvailabilityService } from '../../services/recurring-availability.service.js';
-import { logger } from '../../shared/utils/logger.js';
+import { logger, getErrorMessage } from '../../shared/utils/logger.js';
 
 const DAY_MAP: Record<string, number> = {
   sun: 0, sunday: 0,
@@ -103,7 +103,7 @@ export async function handleSetRecurringCommand(interaction: ChatInputCommandInt
       content: `✅ Recurring schedule set!\n\n📅 **${dayNames}** → **${displayValue}**\n\nThis will be auto-applied when new schedule days are created. You can always override for specific dates using \`/set\`.`,
     });
   } catch (error) {
-    logger.error('Error in set-recurring command', error instanceof Error ? error.message : String(error));
+    logger.error('Error in set-recurring command', getErrorMessage(error));
     await interaction.editReply({ content: 'An error occurred. Please try again later.' });
   }
 }
@@ -157,7 +157,7 @@ export async function handleMyRecurringCommand(interaction: ChatInputCommandInte
 
     await interaction.editReply({ embeds: [embed] });
   } catch (error) {
-    logger.error('Error in my-recurring command', error instanceof Error ? error.message : String(error));
+    logger.error('Error in my-recurring command', getErrorMessage(error));
     await interaction.editReply({ content: 'An error occurred. Please try again later.' });
   }
 }
@@ -209,7 +209,7 @@ export async function handleClearRecurringCommand(interaction: ChatInputCommandI
       content: `✅ Recurring entry for **${WEEKDAY_NAMES[dayNum]}** removed.`,
     });
   } catch (error) {
-    logger.error('Error in clear-recurring command', error instanceof Error ? error.message : String(error));
+    logger.error('Error in clear-recurring command', getErrorMessage(error));
     await interaction.editReply({ content: 'An error occurred. Please try again later.' });
   }
 }
