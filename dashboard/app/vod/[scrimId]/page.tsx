@@ -318,7 +318,7 @@ export default function VodRoomPage() {
   // Auth guard: redirect to login if not authenticated
   useEffect(() => {
     if (!user) {
-      router.push('/login');
+      router.push(`/login?redirect=${encodeURIComponent(window.location.pathname)}`);
     }
   }, [user, router]);
 

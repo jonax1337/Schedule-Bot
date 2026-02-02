@@ -24,8 +24,9 @@ function LoginContent() {
           const isValid = await validateToken();
           
           if (isValid) {
-            // Token is valid, redirect to home
-            router.push('/');
+            // Token is valid, redirect to original page or home
+            const redirect = searchParams.get('redirect');
+            router.push(redirect || '/');
             return;
           } else {
             // Token is invalid, clean up and stay on login page
@@ -52,7 +53,7 @@ function LoginContent() {
   return (
     <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
       <div className="w-full max-w-sm animate-scaleIn">
-        <LoginForm />
+        <LoginForm redirectTo={searchParams.get('redirect')} />
       </div>
     </div>
   );

@@ -64,9 +64,11 @@ function CallbackContent() {
         setStatus('success');
         setMessage(`Welcome back, ${data.user.username}!`);
 
-        // Redirect to dashboard after 1 second
+        // Redirect to original page or dashboard after 1 second
+        const loginRedirect = localStorage.getItem('loginRedirect');
+        if (loginRedirect) localStorage.removeItem('loginRedirect');
         setTimeout(() => {
-          router.push('/');
+          router.push(loginRedirect || '/');
         }, 1000);
       } catch (error) {
         console.error('Callback error:', error);

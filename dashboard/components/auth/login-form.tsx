@@ -31,8 +31,9 @@ interface Settings {
 
 export function LoginForm({
   className,
+  redirectTo,
   ...props
-}: React.ComponentProps<"div">) {
+}: React.ComponentProps<"div"> & { redirectTo?: string | null }) {
   const router = useRouter();
   const [columns, setColumns] = useState<Array<{ displayName: string; discordId: string }>>([]);
   const [selectedUser, setSelectedUser] = useState('');
@@ -108,7 +109,7 @@ export function LoginForm({
         localStorage.setItem('selectedUser', selectedUser);
         
         toast.success('Login successful!');
-        router.push('/');
+        router.push(redirectTo || '/');
       } else {
         const errorData = await response.json();
         toast.error(errorData.error || 'Login failed');
@@ -121,6 +122,9 @@ export function LoginForm({
 
   const handleDiscordLogin = async () => {
     setDiscordLoading(true);
+    if (redirectTo) {
+      localStorage.setItem('loginRedirect', redirectTo);
+    }
     try {
       const response = await fetch(`${BOT_API_URL}/api/auth/discord`);
       if (response.ok) {
