@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { verifyToken, requireAdmin, AuthRequest, resolveCurrentUser, resolveTargetUser, requireOwnershipOrAdmin } from '../../shared/middleware/auth.js';
 import { sanitizeString, validate, absenceCreateSchema, absenceUpdateSchema, isValidDateFormat } from '../../shared/middleware/validation.js';
 import { absenceService } from '../../services/absence.service.js';
-import { logger } from '../../shared/utils/logger.js';
+import { logger, getErrorMessage } from '../../shared/utils/logger.js';
 
 const router = Router();
 
@@ -17,7 +17,7 @@ router.get('/my', verifyToken, resolveCurrentUser, async (req: AuthRequest, res)
     const absences = await absenceService.getAbsencesForUser(req.resolvedUser.discordId);
     res.json({ success: true, absences });
   } catch (error) {
-    logger.error('Error fetching user absences', error instanceof Error ? error.message : String(error));
+    logger.error('Error fetching user absences', getErrorMessage(error));
     res.status(500).json({ error: 'Failed to fetch absences' });
   }
 });
@@ -50,7 +50,7 @@ router.get('/', verifyToken, resolveCurrentUser, async (req: AuthRequest, res) =
       res.json({ success: true, absences });
     }
   } catch (error) {
-    logger.error('Error fetching absences', error instanceof Error ? error.message : String(error));
+    logger.error('Error fetching absences', getErrorMessage(error));
     res.status(500).json({ error: 'Failed to fetch absences' });
   }
 });
@@ -79,7 +79,7 @@ router.get('/by-dates', verifyToken, async (req: AuthRequest, res) => {
     const absentByDate = await absenceService.getAbsentUserIdsForDates(dates);
     res.json({ success: true, absentByDate });
   } catch (error) {
-    logger.error('Error fetching absences by dates', error instanceof Error ? error.message : String(error));
+    logger.error('Error fetching absences by dates', getErrorMessage(error));
     res.status(500).json({ error: 'Failed to fetch absences' });
   }
 });
@@ -109,7 +109,7 @@ router.post('/', verifyToken, validate(absenceCreateSchema), resolveTargetUser, 
     logger.success('Absence created', `${targetUserId}: ${startDate} - ${endDate}`);
     res.json({ success: true, absence: result.absence });
   } catch (error) {
-    logger.error('Failed to create absence', error instanceof Error ? error.message : String(error));
+    logger.error('Failed to create absence', getErrorMessage(error));
     res.status(500).json({ error: 'Failed to create absence' });
   }
 });
@@ -140,7 +140,7 @@ router.put('/:id', verifyToken, validate(absenceUpdateSchema), resolveTargetUser
     logger.success('Absence updated', `ID: ${id}`);
     res.json({ success: true, absence: result.absence });
   } catch (error) {
-    logger.error('Error updating absence', error instanceof Error ? error.message : String(error));
+    logger.error('Error updating absence', getErrorMessage(error));
     res.status(500).json({ error: 'Failed to update absence' });
   }
 });
@@ -165,7 +165,7 @@ router.delete('/:id', verifyToken, resolveTargetUser, async (req: AuthRequest, r
     logger.success('Absence deleted', `ID: ${id}`);
     res.json({ success: true, message: 'Absence deleted' });
   } catch (error) {
-    logger.error('Error deleting absence', error instanceof Error ? error.message : String(error));
+    logger.error('Error deleting absence', getErrorMessage(error));
     res.status(500).json({ error: 'Failed to delete absence' });
   }
 });

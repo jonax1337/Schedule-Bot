@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { microInteractions } from "@/lib/animations";
+import { setAuthToken, setUser } from '@/lib/auth';
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -99,7 +100,7 @@ export function LoginForm({
         const data = await response.json();
         
         // Import auth helpers
-        const { setAuthToken, setUser } = await import('@/lib/auth');
+
         
         // Store token and user info
         setAuthToken(data.token);

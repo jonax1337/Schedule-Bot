@@ -1,7 +1,7 @@
 import { ChatInputCommandInteraction, MessageFlags } from 'discord.js';
 import { sendRemindersToUsersWithoutEntry } from '../interactions/reminder.js';
 import { createInfoModal } from '../interactions/interactive.js';
-import { logger } from '../../shared/utils/logger.js';
+import { logger, getErrorMessage } from '../../shared/utils/logger.js';
 
 /**
  * Handle /remind command - Manually send reminders to users without availability entry (Admin)
@@ -25,7 +25,7 @@ export async function handleSendRemindersCommand(interaction: ChatInputCommandIn
       content: `✅ Reminders sent successfully! Check console for details.`,
     });
   } catch (error) {
-    logger.error('Error handling send-reminders command', error instanceof Error ? error.message : String(error));
+    logger.error('Error handling send-reminders command', getErrorMessage(error));
     await interaction.editReply({
       content: 'An error occurred. Please try again later.',
     });
@@ -46,7 +46,7 @@ export async function handleInfoCommand(interaction: ChatInputCommandInteraction
 
     await interaction.showModal(createInfoModal(modalId));
   } catch (error) {
-    logger.error('Error handling info command', error instanceof Error ? error.message : String(error));
+    logger.error('Error handling info command', getErrorMessage(error));
     if (interaction.isRepliable() && !interaction.replied) {
       await interaction.reply({
         content: 'An error occurred. Please try again later.',

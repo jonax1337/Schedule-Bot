@@ -7,13 +7,13 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { Settings as SettingsType } from "@/lib/types";
-import { Loader2, Save, Hash, AtSign, ChevronsUpDown, Check } from "lucide-react";
+import { Loader2, Save, Hash, AtSign } from "lucide-react";
+import { TimezonePicker } from "@/components/ui/timezone-picker";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { stagger, microInteractions, loadingStates } from '@/lib/animations';
+import { isAuthenticated, getAuthHeaders } from '@/lib/auth';
 
 interface DiscordChannel {
   id: string;
@@ -33,15 +33,6 @@ export function Settings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [loadingDiscord, setLoadingDiscord] = useState(true);
-  const [timezoneOpen, setTimezoneOpen] = useState(false);
-  const [timezoneSearch, setTimezoneSearch] = useState("");
-
-  // Get all available timezones
-  const allTimezones = Intl.supportedValuesOf('timeZone');
-  const filteredTimezones = timezoneSearch
-    ? allTimezones.filter(tz => tz.toLowerCase().includes(timezoneSearch.toLowerCase()))
-    : allTimezones;
-
   useEffect(() => {
     loadSettings();
     loadDiscordData();
@@ -72,7 +63,7 @@ export function Settings() {
   const loadDiscordData = async () => {
     try {
       // Import auth helpers
-      const { isAuthenticated, getAuthHeaders } = await import('@/lib/auth');
+
 
       // Only load Discord data if authenticated
       if (!isAuthenticated()) {
@@ -107,7 +98,7 @@ export function Settings() {
     setSaving(true);
     try {
       const { BOT_API_URL } = await import('@/lib/config');
-      const { getAuthHeaders } = await import('@/lib/auth');
+
 
       const response = await fetch(`${BOT_API_URL}/api/settings`, {
         method: 'POST',
@@ -369,56 +360,16 @@ export function Settings() {
 
           <div className="space-y-2">
             <Label htmlFor="timezone">Timezone</Label>
-            <Popover open={timezoneOpen} onOpenChange={setTimezoneOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  id="timezone"
-                  variant="outline"
-                  role="combobox"
-                  aria-expanded={timezoneOpen}
-                  className={cn("w-full justify-between font-normal", microInteractions.focusRing)}
-                >
-                  {settings.scheduling.timezone}
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                <Command shouldFilter={false}>
-                  <CommandInput
-                    placeholder="Search timezone..."
-                    value={timezoneSearch}
-                    onValueChange={setTimezoneSearch}
-                  />
-                  <CommandList>
-                    <CommandEmpty>No timezone found.</CommandEmpty>
-                    <CommandGroup>
-                      {filteredTimezones.map((timezone) => (
-                        <CommandItem
-                          key={timezone}
-                          value={timezone}
-                          onSelect={() => {
-                            setSettings({
-                              ...settings,
-                              scheduling: { ...settings.scheduling, timezone },
-                            });
-                            setTimezoneOpen(false);
-                            setTimezoneSearch("");
-                          }}
-                        >
-                          <Check
-                            className={cn(
-                              "mr-1 h-4 w-4",
-                              settings.scheduling.timezone === timezone ? "opacity-100" : "opacity-0"
-                            )}
-                          />
-                          {timezone}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
+            <TimezonePicker
+              value={settings.scheduling.timezone}
+              onChange={(tz) =>
+                setSettings({
+                  ...settings,
+                  scheduling: { ...settings.scheduling, timezone: tz },
+                })
+              }
+              className="w-full"
+            />
             <p className="text-sm text-muted-foreground">
               Timezone for all scheduled tasks
             </p>

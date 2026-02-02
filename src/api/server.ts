@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import { apiLimiter } from '../shared/middleware/rateLimiter.js';
-import { logger } from '../shared/utils/logger.js';
+import { logger, getErrorMessage } from '../shared/utils/logger.js';
 import apiRoutes from './routes/index.js';
 
 const app = express();
@@ -97,9 +97,11 @@ app.use((req, res) => {
 });
 
 // Global error handler
-app.use((err: Error, req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  logger.error('Unhandled error', err.message);
-  res.status(500).json({ error: 'Internal server error' });
+app.use((err: any, _req: any, res: any, _next: any) => {
+  logger.error('Unhandled route error', getErrorMessage(err));
+  if (!res.headersSent) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // Export startApiServer function

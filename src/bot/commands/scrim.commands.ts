@@ -1,6 +1,8 @@
 import { ChatInputCommandInteraction, MessageFlags, EmbedBuilder } from 'discord.js';
 import { addScrim, getAllScrims, getScrimStats } from '../../repositories/scrim.repository.js';
-import { logger } from '../../shared/utils/logger.js';
+import { logger, getErrorMessage } from '../../shared/utils/logger.js';
+import { parseDDMMYYYY } from '../../shared/utils/dateFormatter.js';
+import { COLORS } from '../embeds/embed.js';
 
 /**
  * Handle /add-scrim command - Add a scrim result (Admin)
@@ -44,7 +46,7 @@ export async function handleAddScrimCommand(interaction: ChatInputCommandInterac
                `${notes ? `Notes: ${notes}` : ''}`,
     });
   } catch (error) {
-    logger.error('Error adding scrim', error instanceof Error ? error.message : String(error));
+    logger.error('Error adding scrim', getErrorMessage(error));
     await interaction.editReply({
       content: '❌ An error occurred while adding the scrim.',
     });
@@ -71,19 +73,12 @@ export async function handleViewScrimsCommand(interaction: ChatInputCommandInter
     
     // Sort by date (newest first) and limit
     const sortedScrims = scrims
-      .sort((a, b) => {
-        // Parse DD.MM.YYYY dates for comparison
-        const parseDate = (dateStr: string) => {
-          const [day, month, year] = dateStr.split('.').map(Number);
-          return new Date(year, month - 1, day).getTime();
-        };
-        return parseDate(b.date) - parseDate(a.date);
-      })
+      .sort((a, b) => parseDDMMYYYY(b.date).getTime() - parseDDMMYYYY(a.date).getTime())
       .slice(0, limit);
     
     const embed = new EmbedBuilder()
       .setTitle('📋 Recent Scrims')
-      .setColor(0x3498db)
+      .setColor(COLORS.INFO)
       .setDescription(
         sortedScrims.map((scrim, index) => {
           const resultEmoji = scrim.result === 'win' ? '✅' : scrim.result === 'loss' ? '❌' : '➖';
@@ -96,7 +91,7 @@ export async function handleViewScrimsCommand(interaction: ChatInputCommandInter
     
     await interaction.editReply({ embeds: [embed] });
   } catch (error) {
-    logger.error('Error viewing scrims', error instanceof Error ? error.message : String(error));
+    logger.error('Error viewing scrims', getErrorMessage(error));
     await interaction.editReply({
       content: '❌ An error occurred while fetching scrims.',
     });
@@ -121,7 +116,7 @@ export async function handleScrimStatsCommand(interaction: ChatInputCommandInter
     
     const embed = new EmbedBuilder()
       .setTitle('📊 Scrim Statistics')
-      .setColor(0x2ecc71)
+      .setColor(COLORS.SUCCESS)
       .addFields(
         {
           name: '📈 Overall Record',
@@ -156,7 +151,7 @@ export async function handleScrimStatsCommand(interaction: ChatInputCommandInter
     
     await interaction.editReply({ embeds: [embed] });
   } catch (error) {
-    logger.error('Error fetching scrim stats', error instanceof Error ? error.message : String(error));
+    logger.error('Error fetching scrim stats', getErrorMessage(error));
     await interaction.editReply({
       content: '❌ An error occurred while fetching statistics.',
     });

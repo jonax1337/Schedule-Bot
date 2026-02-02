@@ -17,12 +17,12 @@ import { getUserMapping, updateUserMapping } from '../../repositories/user-mappi
 import { updatePlayerAvailability, getScheduleForDate, getNext14Dates } from '../../repositories/schedule.repository.js';
 import { isUserAbsentOnDate, getAbsentUserIdsForDate } from '../../repositories/absence.repository.js';
 import { parseSchedule, analyzeSchedule } from '../../shared/utils/analyzer.js';
-import { buildScheduleEmbed, convertTimeToUnixTimestamp } from '../embeds/embed.js';
+import { buildScheduleEmbed, convertTimeToUnixTimestamp, COLORS, NOTIFICATION_TYPE_CONFIG } from '../embeds/embed.js';
 import { getTodayFormatted, addDays, normalizeDateFormat, isDateAfterOrEqual } from '../../shared/utils/dateFormatter.js';
 import { getScheduleStatus, checkAndNotifyStatusChange } from '../utils/schedule-poster.js';
 import { config } from '../../shared/config/config.js';
 import { convertTimeRangeBetweenTimezones, getTimezoneAbbreviation, isValidTimezone } from '../../shared/utils/timezoneConverter.js';
-import { logger } from '../../shared/utils/logger.js';
+import { logger, getErrorMessage } from '../../shared/utils/logger.js';
 import { client } from '../client.js';
 
 export async function createDateNavigationButtons(currentDate: string): Promise<ActionRowBuilder<ButtonBuilder>> {
@@ -344,7 +344,7 @@ export async function sendWeekOverview(
 
   const embed = new EmbedBuilder()
     .setTitle('📅 Week Overview')
-    .setColor(0x3498db)
+    .setColor(COLORS.INFO)
     .setTimestamp();
 
   for (const date of dates) {
@@ -420,7 +420,7 @@ export async function sendMySchedule(
 
   const embed = new EmbedBuilder()
     .setTitle(`📋 Your Availability (${userMapping.displayName})`)
-    .setColor(0x2ecc71)
+    .setColor(COLORS.SUCCESS)
     .setTimestamp();
 
   const availabilityEntries = Object.entries(availability);
@@ -455,11 +455,6 @@ export async function sendMySchedule(
   }
 
   await interaction.editReply({ embeds: [embed] });
-}
-
-function validateTimeRangeFormat(value: string): boolean {
-  const regex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]-([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
-  return regex.test(value);
 }
 
 export function createInfoModal(customId: string): ModalBuilder {
@@ -502,15 +497,7 @@ export async function handleInfoModal(
     const title = interaction.fields.getTextInputValue('info_title').trim();
     const message = interaction.fields.getTextInputValue('info_message').trim();
 
-    // Get color and emoji based on type
-    const typeConfig = {
-      info: { color: 0x3498db, emoji: '📢' },
-      success: { color: 0x2ecc71, emoji: '✅' },
-      warning: { color: 0xf39c12, emoji: '⚠️' },
-      error: { color: 0xe74c3c, emoji: '❌' },
-    };
-
-    const config = typeConfig[type as keyof typeof typeConfig];
+    const notifConfig = NOTIFICATION_TYPE_CONFIG[type];
 
     let recipients: string[] = [];
     let recipientNames: string[] = [];
@@ -549,8 +536,8 @@ export async function handleInfoModal(
 
     // Create info embed
     const infoEmbed = new EmbedBuilder()
-      .setColor(config.color)
-      .setTitle(`${config.emoji} ${title}`)
+      .setColor(notifConfig.color)
+      .setTitle(`${notifConfig.emoji} ${title}`)
       .setDescription(message)
       .setFooter({ text: `Sent by ${interaction.user.username}` })
       .setTimestamp();
@@ -565,7 +552,7 @@ export async function handleInfoModal(
         await user.send({ embeds: [infoEmbed] });
         successCount++;
       } catch (error) {
-        logger.error(`Failed to send info to ${recipientNames[i]}`, error instanceof Error ? error.message : String(error));
+        logger.error(`Failed to send info to ${recipientNames[i]}`, getErrorMessage(error));
         failedUsers.push(recipientNames[i]);
       }
     }
@@ -584,7 +571,7 @@ export async function handleInfoModal(
 
     await interaction.editReply({ content: confirmMessage });
   } catch (error) {
-    logger.error('Error handling info modal', error instanceof Error ? error.message : String(error));
+    logger.error('Error handling info modal', getErrorMessage(error));
     await interaction.editReply({
       content: 'An error occurred. Please try again later.',
     });

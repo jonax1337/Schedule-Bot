@@ -3,7 +3,7 @@ import { client } from '../../bot/client.js';
 import { optionalAuth, verifyToken, requireAdmin, AuthRequest } from '../../shared/middleware/auth.js';
 import { isValidDateFormat } from '../../shared/middleware/validation.js';
 import { getScheduleDetails, getScheduleDetailsBatch } from '../../shared/utils/scheduleDetails.js';
-import { logger } from '../../shared/utils/logger.js';
+import { logger, getErrorMessage } from '../../shared/utils/logger.js';
 import authRoutes from './auth.routes.js';
 import scheduleRoutes from './schedule.routes.js';
 import userMappingRoutes from './user-mapping.routes.js';
@@ -58,7 +58,7 @@ router.get('/schedule-details-batch', optionalAuth, async (req: AuthRequest, res
 
     res.json(details);
   } catch (error) {
-    logger.error('Error fetching schedule details batch', error instanceof Error ? error.message : String(error));
+    logger.error('Error fetching schedule details batch', getErrorMessage(error));
     res.status(500).json({ error: 'Failed to fetch schedule details' });
   }
 });
@@ -83,7 +83,7 @@ router.get('/schedule-details', optionalAuth, async (req: AuthRequest, res) => {
 
     res.json(details);
   } catch (error) {
-    logger.error('Error fetching schedule details', error instanceof Error ? error.message : String(error));
+    logger.error('Error fetching schedule details', getErrorMessage(error));
     res.status(500).json({ error: 'Failed to fetch schedule details' });
   }
 });
@@ -115,7 +115,7 @@ router.get('/logs', verifyToken, requireAdmin, (req: AuthRequest, res) => {
     const logs = logger.getLogs(limit, level);
     res.json(logs);
   } catch (error) {
-    logger.error('Error fetching logs', error instanceof Error ? error.message : String(error));
+    logger.error('Error fetching logs', getErrorMessage(error));
     res.status(500).json({ error: 'Failed to fetch logs' });
   }
 });

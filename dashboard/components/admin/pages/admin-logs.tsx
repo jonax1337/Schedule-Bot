@@ -11,7 +11,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2, RefreshCw, Terminal, AlertCircle, Info, CheckCircle, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
-import { stagger, microInteractions, loadingStates, cn } from "@/lib/animations";
+import { stagger, microInteractions, loadingStates } from "@/lib/animations";
+import { getAuthHeaders } from '@/lib/auth';
+import { cn } from "@/lib/utils";
 
 interface LogEntry {
   timestamp: string;
@@ -39,7 +41,7 @@ export function Logs() {
   const loadLogs = async () => {
     try {
       const { BOT_API_URL } = await import('@/lib/config');
-      const { getAuthHeaders } = await import('@/lib/auth');
+
       const levelParam = filter !== "all" ? `&level=${filter}` : "";
       const response = await fetch(`${BOT_API_URL}/api/logs?limit=${limit}${levelParam}`, {
         headers: getAuthHeaders()

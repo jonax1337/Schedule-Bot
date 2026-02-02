@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { verifyToken, AuthRequest, resolveCurrentUser, resolveTargetUser } from '../../shared/middleware/auth.js';
 import { validate, recurringAvailabilitySchema, recurringAvailabilityBulkSchema } from '../../shared/middleware/validation.js';
 import { recurringAvailabilityService } from '../../services/recurring-availability.service.js';
-import { logger } from '../../shared/utils/logger.js';
+import { logger, getErrorMessage } from '../../shared/utils/logger.js';
 
 const router = Router();
 
@@ -20,7 +20,7 @@ router.get('/my', verifyToken, resolveCurrentUser, async (req: AuthRequest, res)
     const entries = await recurringAvailabilityService.getForUser(req.resolvedUser.discordId);
     res.json({ entries });
   } catch (error) {
-    logger.error('Error fetching recurring availability', error instanceof Error ? error.message : String(error));
+    logger.error('Error fetching recurring availability', getErrorMessage(error));
     res.status(500).json({ error: 'Failed to fetch recurring availability' });
   }
 });
@@ -52,7 +52,7 @@ router.get('/', verifyToken, resolveCurrentUser, async (req: AuthRequest, res) =
       res.json({ entries });
     }
   } catch (error) {
-    logger.error('Error fetching recurring availability', error instanceof Error ? error.message : String(error));
+    logger.error('Error fetching recurring availability', getErrorMessage(error));
     res.status(500).json({ error: 'Failed to fetch recurring availability' });
   }
 });
@@ -81,7 +81,7 @@ router.post('/', verifyToken, validate(recurringAvailabilitySchema), resolveTarg
 
     res.json({ success: true, entry: result.data });
   } catch (error) {
-    logger.error('Error setting recurring availability', error instanceof Error ? error.message : String(error));
+    logger.error('Error setting recurring availability', getErrorMessage(error));
     res.status(500).json({ error: 'Failed to set recurring availability' });
   }
 });
@@ -110,7 +110,7 @@ router.post('/bulk', verifyToken, validate(recurringAvailabilityBulkSchema), res
 
     res.json({ success: true, count: result.count });
   } catch (error) {
-    logger.error('Error bulk setting recurring availability', error instanceof Error ? error.message : String(error));
+    logger.error('Error bulk setting recurring availability', getErrorMessage(error));
     res.status(500).json({ error: 'Failed to bulk set recurring availability' });
   }
 });
@@ -141,7 +141,7 @@ router.delete('/:dayOfWeek', verifyToken, resolveTargetUser, async (req: AuthReq
 
     res.json({ success: true });
   } catch (error) {
-    logger.error('Error removing recurring availability', error instanceof Error ? error.message : String(error));
+    logger.error('Error removing recurring availability', getErrorMessage(error));
     res.status(500).json({ error: 'Failed to remove recurring availability' });
   }
 });
@@ -166,7 +166,7 @@ router.delete('/', verifyToken, resolveTargetUser, async (req: AuthRequest, res)
 
     res.json({ success: true, count: result.count });
   } catch (error) {
-    logger.error('Error removing all recurring availability', error instanceof Error ? error.message : String(error));
+    logger.error('Error removing all recurring availability', getErrorMessage(error));
     res.status(500).json({ error: 'Failed to remove recurring availability' });
   }
 });

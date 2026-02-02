@@ -9,15 +9,19 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Loader2, Trash2, UserPlus, Search, Users, Edit3, Edit, GripVertical, Shield, ShieldCheck, UserCheck, Headset, Check, ChevronsUpDown } from 'lucide-react';
+import { Loader2, Trash2, UserPlus, Search, Users, Edit3, Edit, GripVertical, Shield, ShieldCheck, UserCheck, Headset } from 'lucide-react';
+import { TimezonePicker } from '@/components/ui/timezone-picker';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { stagger, microInteractions, cn } from '@/lib/animations';
+import { stagger, microInteractions } from '@/lib/animations';
+import { getAuthHeaders } from '@/lib/auth';
+import { cn } from '@/lib/utils';
 import { BOT_API_URL } from '@/lib/config';
+import type { DiscordMember } from '@/lib/types';
 
 import {
   DndContext,
@@ -37,13 +41,6 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
-
-interface DiscordMember {
-  id: string;
-  username: string;
-  displayName: string;
-  avatar: string | null;
-}
 
 interface UserMapping {
   discordId: string;
@@ -236,8 +233,6 @@ export function UserMappings() {
   const [displayName, setDisplayName] = useState('');
   const [role, setRole] = useState<RoleType>('main');
   const [timezone, setTimezone] = useState('');
-  const [timezoneOpen, setTimezoneOpen] = useState(false);
-  const [timezoneSearch, setTimezoneSearch] = useState('');
 
   // Delete confirmation state
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
@@ -250,8 +245,6 @@ export function UserMappings() {
   const [editDisplayName, setEditDisplayName] = useState('');
   const [editRole, setEditRole] = useState<RoleType>('main');
   const [editTimezone, setEditTimezone] = useState('');
-  const [editTimezoneOpen, setEditTimezoneOpen] = useState(false);
-  const [editTimezoneSearch, setEditTimezoneSearch] = useState('');
   const [editIsAdmin, setEditIsAdmin] = useState(false);
 
   const sensors = useSensors(
@@ -262,15 +255,6 @@ export function UserMappings() {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
-
-  // Timezone lists
-  const allTimezones = useMemo(() => Intl.supportedValuesOf('timeZone'), []);
-  const filteredTimezones = timezoneSearch
-    ? allTimezones.filter(tz => tz.toLowerCase().includes(timezoneSearch.toLowerCase()))
-    : allTimezones;
-  const editFilteredTimezones = editTimezoneSearch
-    ? allTimezones.filter(tz => tz.toLowerCase().includes(editTimezoneSearch.toLowerCase()))
-    : allTimezones;
 
   // Group mappings by role
   const groupedMappings = useMemo(() => {
@@ -296,7 +280,7 @@ export function UserMappings() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const { getAuthHeaders } = await import('@/lib/auth');
+
       const [membersRes, mappingsRes] = await Promise.all([
         fetch(`${BOT_API_URL}/api/discord/members`, { headers: getAuthHeaders() }),
         fetch(`${BOT_API_URL}/api/user-mappings`, { headers: getAuthHeaders() }),
@@ -354,7 +338,7 @@ export function UserMappings() {
 
     setSaving(true);
     try {
-      const { getAuthHeaders } = await import('@/lib/auth');
+
       const response = await fetch(`${BOT_API_URL}/api/user-mappings`, {
         method: 'POST',
         headers: getAuthHeaders(),
@@ -389,7 +373,7 @@ export function UserMappings() {
 
   const removeMapping = async (discordId: string) => {
     try {
-      const { getAuthHeaders } = await import('@/lib/auth');
+
       const response = await fetch(`${BOT_API_URL}/api/user-mappings/${discordId}`, {
         method: 'DELETE',
         headers: getAuthHeaders(),
@@ -426,7 +410,7 @@ export function UserMappings() {
 
     setSaving(true);
     try {
-      const { getAuthHeaders } = await import('@/lib/auth');
+
       const response = await fetch(`${BOT_API_URL}/api/user-mappings/${editingMapping.discordId}`, {
         method: 'PUT',
         headers: getAuthHeaders(),
@@ -505,7 +489,7 @@ export function UserMappings() {
 
     // Persist to backend
     try {
-      const { getAuthHeaders } = await import('@/lib/auth');
+
       const response = await fetch(`${BOT_API_URL}/api/user-mappings/reorder`, {
         method: 'PUT',
         headers: getAuthHeaders(),
@@ -650,59 +634,7 @@ export function UserMappings() {
               Timezone
               <span className="text-xs text-muted-foreground">(optional)</span>
             </Label>
-            <Popover open={timezoneOpen} onOpenChange={setTimezoneOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  role="combobox"
-                  aria-expanded={timezoneOpen}
-                  className={cn("w-full justify-between font-normal", microInteractions.focusRing)}
-                >
-                  {timezone || <span className="text-muted-foreground">Select timezone...</span>}
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                <Command shouldFilter={false}>
-                  <CommandInput
-                    placeholder="Search timezone..."
-                    value={timezoneSearch}
-                    onValueChange={setTimezoneSearch}
-                  />
-                  <CommandList>
-                    <CommandEmpty>No timezone found.</CommandEmpty>
-                    <CommandGroup>
-                      {timezone && (
-                        <CommandItem
-                          value="__clear__"
-                          onSelect={() => {
-                            setTimezone('');
-                            setTimezoneOpen(false);
-                            setTimezoneSearch('');
-                          }}
-                        >
-                          <span className="text-muted-foreground">Clear timezone</span>
-                        </CommandItem>
-                      )}
-                      {filteredTimezones.slice(0, 50).map((tz) => (
-                        <CommandItem
-                          key={tz}
-                          value={tz}
-                          onSelect={() => {
-                            setTimezone(tz);
-                            setTimezoneOpen(false);
-                            setTimezoneSearch('');
-                          }}
-                        >
-                          <Check className={cn("mr-1 h-4 w-4", timezone === tz ? "opacity-100" : "opacity-0")} />
-                          {tz}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
+            <TimezonePicker value={timezone} onChange={setTimezone} className="w-full" />
           </div>
 
           <Button onClick={addMapping} disabled={saving} className={cn("w-full", microInteractions.activePress)}>
@@ -765,30 +697,19 @@ export function UserMappings() {
       </Card>
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remove User Mapping</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to remove the mapping for &quot;{mappings.find(m => m.discordId === deleteTarget)?.displayName}&quot;? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (deleteTarget) {
-                  removeMapping(deleteTarget);
-                  setDeleteTarget(null);
-                }
-              }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Remove
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Remove User Mapping"
+        description={`Are you sure you want to remove the mapping for "${mappings.find(m => m.discordId === deleteTarget)?.displayName}"? This action cannot be undone.`}
+        confirmLabel="Remove"
+        onConfirm={() => {
+          if (deleteTarget) {
+            removeMapping(deleteTarget);
+            setDeleteTarget(null);
+          }
+        }}
+      />
 
       {/* Edit Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
@@ -848,59 +769,7 @@ export function UserMappings() {
                 Timezone
                 <span className="text-xs text-muted-foreground">(optional)</span>
               </Label>
-              <Popover open={editTimezoneOpen} onOpenChange={setEditTimezoneOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={editTimezoneOpen}
-                    className={cn("w-full justify-between font-normal", microInteractions.focusRing)}
-                  >
-                    {editTimezone || <span className="text-muted-foreground">Select timezone...</span>}
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                  <Command shouldFilter={false}>
-                    <CommandInput
-                      placeholder="Search timezone..."
-                      value={editTimezoneSearch}
-                      onValueChange={setEditTimezoneSearch}
-                    />
-                    <CommandList>
-                      <CommandEmpty>No timezone found.</CommandEmpty>
-                      <CommandGroup>
-                        {editTimezone && (
-                          <CommandItem
-                            value="__clear__"
-                            onSelect={() => {
-                              setEditTimezone('');
-                              setEditTimezoneOpen(false);
-                              setEditTimezoneSearch('');
-                            }}
-                          >
-                            <span className="text-muted-foreground">Clear timezone</span>
-                          </CommandItem>
-                        )}
-                        {editFilteredTimezones.slice(0, 50).map((tz) => (
-                          <CommandItem
-                            key={tz}
-                            value={tz}
-                            onSelect={() => {
-                              setEditTimezone(tz);
-                              setEditTimezoneOpen(false);
-                              setEditTimezoneSearch('');
-                            }}
-                          >
-                            <Check className={cn("mr-1 h-4 w-4", editTimezone === tz ? "opacity-100" : "opacity-0")} />
-                            {tz}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
+              <TimezonePicker value={editTimezone} onChange={setEditTimezone} className="w-full" />
             </div>
             <div className="flex items-center justify-between rounded-lg border p-3">
               <div className="space-y-0.5">

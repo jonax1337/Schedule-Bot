@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { verifyToken, AuthRequest } from '../../shared/middleware/auth.js';
 import { validate, createVodCommentSchema, updateVodCommentSchema } from '../../shared/middleware/validation.js';
 import { vodCommentService } from '../../services/vod-comment.service.js';
-import { logger } from '../../shared/utils/logger.js';
+import { logger, getErrorMessage } from '../../shared/utils/logger.js';
 
 const router = Router();
 
@@ -12,7 +12,7 @@ router.get('/scrim/:scrimId', async (req, res) => {
     const comments = await vodCommentService.getCommentsByScrimId(req.params.scrimId as string);
     res.json({ success: true, comments });
   } catch (error) {
-    logger.error('Error fetching VOD comments', error instanceof Error ? error.message : String(error));
+    logger.error('Error fetching VOD comments', getErrorMessage(error));
     res.status(500).json({ success: false, error: 'Failed to fetch comments' });
   }
 });
@@ -26,7 +26,7 @@ router.post('/', verifyToken, validate(createVodCommentSchema), async (req: Auth
     logger.info('VOD comment created', `Scrim ${scrimId} by ${userName}`);
     res.json({ success: true, comment });
   } catch (error) {
-    logger.error('Failed to create VOD comment', error instanceof Error ? error.message : String(error));
+    logger.error('Failed to create VOD comment', getErrorMessage(error));
     res.status(500).json({ success: false, error: 'Failed to create comment' });
   }
 });
@@ -49,7 +49,7 @@ router.put('/:id', verifyToken, validate(updateVodCommentSchema), async (req: Au
       res.status(404).json({ success: false, error: 'Comment not found' });
     }
   } catch (error) {
-    logger.error('Failed to update VOD comment', error instanceof Error ? error.message : String(error));
+    logger.error('Failed to update VOD comment', getErrorMessage(error));
     res.status(500).json({ success: false, error: 'Failed to update comment' });
   }
 });
@@ -73,7 +73,7 @@ router.delete('/:id', verifyToken, async (req: AuthRequest, res) => {
       res.status(404).json({ success: false, error: 'Comment not found' });
     }
   } catch (error) {
-    logger.error('Failed to delete VOD comment', error instanceof Error ? error.message : String(error));
+    logger.error('Failed to delete VOD comment', getErrorMessage(error));
     res.status(500).json({ success: false, error: 'Failed to delete comment' });
   }
 });

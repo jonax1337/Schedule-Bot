@@ -1,17 +1,21 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2, XCircle, Clock, CheckSquare, Square, Check, PlaneTakeoff, CalendarDays, RefreshCw, Trash2 } from 'lucide-react';
+import { Loader2, XCircle, Clock, CheckSquare, Check, PlaneTakeoff, CalendarDays, RefreshCw, Trash2 } from 'lucide-react';
+import { PageSpinner } from '@/components/ui/page-spinner';
 import { toast } from 'sonner';
-import { stagger, microInteractions, cn } from '@/lib/animations';
+import { stagger, microInteractions } from '@/lib/animations';
+import { cn } from '@/lib/utils';
 import { BOT_API_URL } from '@/lib/config';
+import { getAuthHeaders } from '@/lib/auth';
 import { useTimezone, getTimezoneAbbr } from '@/lib/timezone';
+import { parseDDMMYYYY, getWeekdayName, formatDateToDDMMYYYY } from '@/lib/date-utils';
+import { useUserDiscordId } from '@/hooks/use-user-discord-id';
 
 interface AbsenceData {
   id: number;
@@ -21,25 +25,13 @@ interface AbsenceData {
   reason: string;
 }
 
-function parseGermanDate(dateStr: string): Date {
-  const [day, month, year] = dateStr.split('.');
-  return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-}
-
 function isDateInAbsence(date: string, absences: AbsenceData[]): boolean {
-  const d = parseGermanDate(date);
+  const d = parseDDMMYYYY(date);
   return absences.some(a => {
-    const start = parseGermanDate(a.startDate);
-    const end = parseGermanDate(a.endDate);
+    const start = parseDDMMYYYY(a.startDate);
+    const end = parseDDMMYYYY(a.endDate);
     return d >= start && d <= end;
   });
-}
-
-function getWeekdayName(dateStr: string): string {
-  const [day, month, year] = dateStr.split('.');
-  const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-  const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  return weekdays[date.getDay()];
 }
 
 interface DateEntry {
@@ -55,10 +47,10 @@ interface DateEntry {
 }
 
 export function UserAvailability() {
-  const router = useRouter();
+  const { user, isLoading: authLoading } = useUserDiscordId();
+  const userName = user?.userName || '';
+  const userDiscordId = user?.discordId || '';
   const { convertRangeToLocal, convertRangeToBot, isConverting, userTimezone, botTimezone, botTimezoneLoaded, timezoneVersion } = useTimezone();
-  const [userName, setUserName] = useState('');
-  const [userDiscordId, setUserDiscordId] = useState('');
   const [entries, setEntries] = useState<DateEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -69,26 +61,9 @@ export function UserAvailability() {
   const autoSaveTimeoutsRef = useRef<Record<string, NodeJS.Timeout>>({});
 
   useEffect(() => {
-    if (!botTimezoneLoaded) return;
-
-    const checkAuthAndLoad = async () => {
-      try {
-        const savedUser = localStorage.getItem('selectedUser');
-        if (!savedUser) {
-          router.replace('/login');
-          return;
-        }
-
-        setUserName(savedUser);
-        await loadData(savedUser);
-      } catch (error) {
-        console.error('Auth check failed:', error);
-        router.push('/login');
-      }
-    };
-
-    checkAuthAndLoad();
-  }, [router, botTimezoneLoaded, timezoneVersion]);
+    if (authLoading || !userDiscordId || !botTimezoneLoaded) return;
+    loadData();
+  }, [authLoading, userDiscordId, botTimezoneLoaded, timezoneVersion]);
 
   // Cleanup timeouts on unmount
   useEffect(() => {
@@ -99,36 +74,17 @@ export function UserAvailability() {
     };
   }, []);
 
-  const loadData = async (user: string) => {
+  const loadData = async () => {
     setLoading(true);
     try {
-      const { getAuthHeaders } = await import('@/lib/auth');
+
       const headers = getAuthHeaders();
-
-      // First fetch mappings to get the user's Discord ID
-      const mappingsRes = await fetch(`${BOT_API_URL}/api/user-mappings`, { headers });
-      if (!mappingsRes.ok) {
-        toast.error('Failed to load user mappings');
-        setLoading(false);
-        return;
-      }
-
-      const mappingsData = await mappingsRes.json().catch(() => ({ mappings: [] }));
-      const userMapping = mappingsData.mappings.find((m: any) => m.displayName === user);
-
-      if (!userMapping) {
-        toast.error('User mapping not found');
-        setLoading(false);
-        return;
-      }
-
-      setUserDiscordId(userMapping.discordId);
 
       // Fetch absences, schedule, and recurring in parallel
       const [absencesRes, scheduleRes, recurringRes] = await Promise.all([
-        fetch(`${BOT_API_URL}/api/absences?userId=${userMapping.discordId}`, { headers }),
+        fetch(`${BOT_API_URL}/api/absences?userId=${userDiscordId}`, { headers }),
         fetch(`${BOT_API_URL}/api/schedule/next14`, { headers }),
-        fetch(`${BOT_API_URL}/api/recurring-availability?userId=${userMapping.discordId}`, { headers }),
+        fetch(`${BOT_API_URL}/api/recurring-availability?userId=${userDiscordId}`, { headers }),
       ]);
 
       // Parse responses with safe JSON handling
@@ -158,20 +114,14 @@ export function UserAvailability() {
       const dateEntries: DateEntry[] = [];
 
       const today = new Date();
-      const formatDate = (d: Date): string => {
-        const day = String(d.getDate()).padStart(2, '0');
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const year = d.getFullYear();
-        return `${day}.${month}.${year}`;
-      };
 
       for (let i = 0; i < 14; i++) {
         const date = new Date(today);
         date.setDate(today.getDate() + i);
-        const dateStr = formatDate(date);
+        const dateStr = formatDateToDDMMYYYY(date);
 
         const schedule = schedules.find((s: any) => s.date === dateStr);
-        const player = schedule?.players?.find((p: any) => p.userId === userMapping.discordId);
+        const player = schedule?.players?.find((p: any) => p.userId === userDiscordId);
         const availability = player?.availability || '';
         const dayOfWeek = date.getDay();
         const recurringValue = recurringMap.get(dayOfWeek);
@@ -209,60 +159,29 @@ export function UserAvailability() {
     }
   };
 
-  const saveEntry = async (date: string, timeFrom: string, timeTo: string, isAutoSave = false) => {
-    if (!timeFrom || !timeTo) {
-      if (!isAutoSave) {
-        toast.error('Please enter both start and end time');
-      }
-      return;
-    }
-
-    if (timeTo <= timeFrom) {
-      if (!isAutoSave) {
-        toast.error('End time must be after start time');
-      }
-      return;
-    }
-
-    // Mark this entry as saving
+  // Unified save helper for single-date availability updates
+  const updateEntry = async (
+    date: string,
+    availability: string,
+    localUpdates: Partial<DateEntry>,
+    opts?: { successMsg?: string; silent?: boolean }
+  ) => {
     setEntries(prev => prev.map(e =>
       e.date === date ? { ...e, isSaving: true, justSaved: false } : e
     ));
 
     try {
-      const localValue = `${timeFrom}-${timeTo}`;
-      const botValue = convertRangeToBot(localValue);
-      const { getAuthHeaders } = await import('@/lib/auth');
-
       const response = await fetch(`${BOT_API_URL}/api/schedule/update-availability`, {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({
-          date,
-          userId: userDiscordId,
-          availability: botValue,
-        }),
+        body: JSON.stringify({ date, userId: userDiscordId, availability }),
       });
 
       if (response.ok) {
-        // Only show toast if it's NOT an auto-save
-        if (!isAutoSave) {
-          toast.success('Availability updated!');
-        }
-
-        // Update local state without reloading everything (keep local display values)
+        if (opts?.successMsg && !opts?.silent) toast.success(opts.successMsg);
         setEntries(prev => prev.map(e =>
-          e.date === date ? {
-            ...e,
-            value: localValue,
-            originalTimeFrom: timeFrom,
-            originalTimeTo: timeTo,
-            isSaving: false,
-            justSaved: true
-          } : e
+          e.date === date ? { ...e, ...localUpdates, isSaving: false, justSaved: true } : e
         ));
-
-        // Clear the "just saved" indicator after 2 seconds
         setTimeout(() => {
           setEntries(prev => prev.map(e =>
             e.date === date ? { ...e, justSaved: false } : e
@@ -270,169 +189,50 @@ export function UserAvailability() {
         }, 2000);
       } else {
         toast.error('Failed to update availability');
-        setEntries(prev => prev.map(e =>
-          e.date === date ? { ...e, isSaving: false } : e
-        ));
-      }
-    } catch (error) {
-      console.error('Failed to save:', error);
-      toast.error('Failed to save availability');
-      setEntries(prev => prev.map(e =>
-        e.date === date ? { ...e, isSaving: false } : e
-      ));
-    }
-  };
-
-  const clearAvailability = async (date: string, isAutoSave = true) => {
-    // Mark this entry as saving
-    setEntries(prev => prev.map(e =>
-      e.date === date ? { ...e, isSaving: true, justSaved: false } : e
-    ));
-
-    try {
-      const { getAuthHeaders } = await import('@/lib/auth');
-
-      const response = await fetch(`${BOT_API_URL}/api/schedule/update-availability`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          date,
-          userId: userDiscordId,
-          availability: '',
-        }),
-      });
-
-      if (response.ok) {
-        // Only show toast if it's NOT an auto-save
-        if (!isAutoSave) {
-          toast.success('Availability cleared');
-        }
-
-        // Update local state without reloading everything
-        setEntries(prev => prev.map(e =>
-          e.date === date ? {
-            ...e,
-            value: '',
-            timeFrom: '',
-            timeTo: '',
-            originalTimeFrom: '',
-            originalTimeTo: '',
-            isSaving: false,
-            justSaved: true
-          } : e
-        ));
-
-        // Clear the "just saved" indicator after 2 seconds
-        setTimeout(() => {
-          setEntries(prev => prev.map(e =>
-            e.date === date ? { ...e, justSaved: false } : e
-          ));
-        }, 2000);
-      } else {
-        toast.error('Failed to clear availability');
-        setEntries(prev => prev.map(e =>
-          e.date === date ? { ...e, isSaving: false } : e
-        ));
-      }
-    } catch (error) {
-      console.error('Failed to clear:', error);
-      toast.error('Failed to clear availability');
-      setEntries(prev => prev.map(e =>
-        e.date === date ? { ...e, isSaving: false } : e
-      ));
-    }
-  };
-
-  const setUnavailable = async (date: string) => {
-    // Mark this entry as saving
-    setEntries(prev => prev.map(e =>
-      e.date === date ? { ...e, isSaving: true, justSaved: false } : e
-    ));
-
-    try {
-      const { getAuthHeaders } = await import('@/lib/auth');
-
-      const response = await fetch(`${BOT_API_URL}/api/schedule/update-availability`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          date,
-          userId: userDiscordId,
-          availability: 'x',
-        }),
-      });
-
-      if (response.ok) {
-        toast.success('Marked as not available');
-
-        // Update local state without reloading everything
-        setEntries(prev => prev.map(e =>
-          e.date === date ? {
-            ...e,
-            value: 'x',
-            timeFrom: '',
-            timeTo: '',
-            originalTimeFrom: '',
-            originalTimeTo: '',
-            isSaving: false,
-            justSaved: true
-          } : e
-        ));
-
-        // Clear the "just saved" indicator after 2 seconds
-        setTimeout(() => {
-          setEntries(prev => prev.map(e =>
-            e.date === date ? { ...e, justSaved: false } : e
-          ));
-        }, 2000);
-      } else {
-        toast.error('Failed to update availability');
-        setEntries(prev => prev.map(e =>
-          e.date === date ? { ...e, isSaving: false } : e
-        ));
-      }
-    } catch (error) {
-      console.error('Failed to save:', error);
-      toast.error('Failed to save availability');
-      setEntries(prev => prev.map(e =>
-        e.date === date ? { ...e, isSaving: false } : e
-      ));
-    }
-  };
-
-  const clearEntry = async (date: string) => {
-    setEntries(prev => prev.map(e =>
-      e.date === date ? { ...e, isSaving: true, justSaved: false } : e
-    ));
-
-    try {
-      const { getAuthHeaders } = await import('@/lib/auth');
-      const response = await fetch(`${BOT_API_URL}/api/schedule/update-availability`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ date, userId: userDiscordId, availability: '' }),
-      });
-
-      if (response.ok) {
-        setEntries(prev => prev.map(e =>
-          e.date === date ? {
-            ...e, value: '', timeFrom: '', timeTo: '',
-            originalTimeFrom: '', originalTimeTo: '',
-            isSaving: false, isRecurring: false,
-          } : e
-        ));
-      } else {
-        toast.error('Failed to clear availability');
         setEntries(prev => prev.map(e =>
           e.date === date ? { ...e, isSaving: false } : e
         ));
       }
     } catch {
-      toast.error('Failed to clear availability');
+      toast.error('Failed to save availability');
       setEntries(prev => prev.map(e =>
         e.date === date ? { ...e, isSaving: false } : e
       ));
     }
+  };
+
+  const saveEntry = async (date: string, timeFrom: string, timeTo: string, isAutoSave = false) => {
+    if (!timeFrom || !timeTo) {
+      if (!isAutoSave) toast.error('Please enter both start and end time');
+      return;
+    }
+    if (timeTo <= timeFrom) {
+      if (!isAutoSave) toast.error('End time must be after start time');
+      return;
+    }
+    const localValue = `${timeFrom}-${timeTo}`;
+    const botValue = convertRangeToBot(localValue);
+    await updateEntry(date, botValue, {
+      value: localValue, originalTimeFrom: timeFrom, originalTimeTo: timeTo,
+    }, { successMsg: 'Availability updated!', silent: isAutoSave });
+  };
+
+  const clearAvailability = async (date: string, isAutoSave = true) => {
+    await updateEntry(date, '', {
+      value: '', timeFrom: '', timeTo: '', originalTimeFrom: '', originalTimeTo: '',
+    }, { successMsg: 'Availability cleared', silent: isAutoSave });
+  };
+
+  const setUnavailable = async (date: string) => {
+    await updateEntry(date, 'x', {
+      value: 'x', timeFrom: '', timeTo: '', originalTimeFrom: '', originalTimeTo: '',
+    }, { successMsg: 'Marked as not available' });
+  };
+
+  const clearEntry = async (date: string) => {
+    await updateEntry(date, '', {
+      value: '', timeFrom: '', timeTo: '', originalTimeFrom: '', originalTimeTo: '', isRecurring: false,
+    });
   };
 
   const handleTimeChange = (date: string, field: 'from' | 'to', value: string) => {
@@ -488,184 +288,67 @@ export function UserAvailability() {
     }
   };
 
-  const bulkSetTime = async () => {
+  // Unified bulk update helper
+  const bulkUpdate = async (availability: string, localUpdates: Partial<DateEntry>, successMsg: string) => {
     if (selectedDates.size === 0) {
       toast.error('Please select at least one date');
       return;
     }
-
-    if (!bulkTimeFrom || !bulkTimeTo) {
-      toast.error('Please enter both start and end time');
-      return;
-    }
-
-    if (bulkTimeTo <= bulkTimeFrom) {
-      toast.error('End time must be after start time');
-      return;
-    }
-
     setSaving(true);
     try {
-      const localValue = `${bulkTimeFrom}-${bulkTimeTo}`;
-      const botValue = convertRangeToBot(localValue);
-      const { getAuthHeaders } = await import('@/lib/auth');
-
       const updates = Array.from(selectedDates).map(date =>
         fetch(`${BOT_API_URL}/api/schedule/update-availability`, {
           method: 'POST',
           headers: getAuthHeaders(),
-          body: JSON.stringify({
-            date,
-            userId: userDiscordId,
-            availability: botValue,
-          }),
+          body: JSON.stringify({ date, userId: userDiscordId, availability }),
         })
       );
-
       const results = await Promise.all(updates);
-      const allSuccess = results.every(r => r.ok);
-
-      if (allSuccess) {
-        toast.success(`Updated ${selectedDates.size} day(s)`);
-
-        // Update local state for all selected dates (keep local display values)
+      if (results.every(r => r.ok)) {
+        toast.success(successMsg);
         setEntries(prev => prev.map(e =>
-          selectedDates.has(e.date) ? {
-            ...e,
-            value: localValue,
-            timeFrom: bulkTimeFrom,
-            timeTo: bulkTimeTo,
-            originalTimeFrom: bulkTimeFrom,
-            originalTimeTo: bulkTimeTo,
-          } : e
+          selectedDates.has(e.date) ? { ...e, ...localUpdates } : e
         ));
-
         setSelectedDates(new Set());
         setBulkTimeFrom('');
         setBulkTimeTo('');
       } else {
         toast.error('Some updates failed');
       }
-    } catch (error) {
-      console.error('Failed to bulk update:', error);
+    } catch {
       toast.error('Failed to bulk update availability');
     } finally {
       setSaving(false);
     }
   };
 
-  const bulkSetUnavailable = async () => {
-    if (selectedDates.size === 0) {
-      toast.error('Please select at least one date');
+  const bulkSetTime = async () => {
+    if (!bulkTimeFrom || !bulkTimeTo) {
+      toast.error('Please enter both start and end time');
       return;
     }
-
-    setSaving(true);
-    try {
-      const { getAuthHeaders } = await import('@/lib/auth');
-
-      const updates = Array.from(selectedDates).map(date =>
-        fetch(`${BOT_API_URL}/api/schedule/update-availability`, {
-          method: 'POST',
-          headers: getAuthHeaders(),
-          body: JSON.stringify({
-            date,
-            userId: userDiscordId,
-            availability: 'x',
-          }),
-        })
-      );
-
-      const results = await Promise.all(updates);
-      const allSuccess = results.every(r => r.ok);
-
-      if (allSuccess) {
-        toast.success(`Marked ${selectedDates.size} day(s) as unavailable`);
-
-        // Update local state for all selected dates
-        setEntries(prev => prev.map(e =>
-          selectedDates.has(e.date) ? {
-            ...e,
-            value: 'x',
-            timeFrom: '',
-            timeTo: '',
-            originalTimeFrom: '',
-            originalTimeTo: '',
-          } : e
-        ));
-
-        setSelectedDates(new Set());
-      } else {
-        toast.error('Some updates failed');
-      }
-    } catch (error) {
-      console.error('Failed to bulk update:', error);
-      toast.error('Failed to bulk update availability');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const bulkClear = async () => {
-    if (selectedDates.size === 0) {
-      toast.error('Please select at least one date');
+    if (bulkTimeTo <= bulkTimeFrom) {
+      toast.error('End time must be after start time');
       return;
     }
-
-    setSaving(true);
-    try {
-      const { getAuthHeaders } = await import('@/lib/auth');
-
-      const updates = Array.from(selectedDates).map(date =>
-        fetch(`${BOT_API_URL}/api/schedule/update-availability`, {
-          method: 'POST',
-          headers: getAuthHeaders(),
-          body: JSON.stringify({
-            date,
-            userId: userDiscordId,
-            availability: '',
-          }),
-        })
-      );
-
-      const results = await Promise.all(updates);
-      const allSuccess = results.every(r => r.ok);
-
-      if (allSuccess) {
-        toast.success(`Cleared ${selectedDates.size} day(s)`);
-
-        // Update local state for all selected dates
-        setEntries(prev => prev.map(e =>
-          selectedDates.has(e.date) ? {
-            ...e,
-            value: '',
-            timeFrom: '',
-            timeTo: '',
-            originalTimeFrom: '',
-            originalTimeTo: '',
-          } : e
-        ));
-
-        setSelectedDates(new Set());
-      } else {
-        toast.error('Some updates failed');
-      }
-    } catch (error) {
-      console.error('Failed to bulk clear:', error);
-      toast.error('Failed to bulk clear availability');
-    } finally {
-      setSaving(false);
-    }
+    const localValue = `${bulkTimeFrom}-${bulkTimeTo}`;
+    const botValue = convertRangeToBot(localValue);
+    await bulkUpdate(botValue, {
+      value: localValue, timeFrom: bulkTimeFrom, timeTo: bulkTimeTo,
+      originalTimeFrom: bulkTimeFrom, originalTimeTo: bulkTimeTo,
+    }, `Updated ${selectedDates.size} day(s)`);
   };
+
+  const bulkSetUnavailable = () => bulkUpdate('x', {
+    value: 'x', timeFrom: '', timeTo: '', originalTimeFrom: '', originalTimeTo: '',
+  }, `Marked ${selectedDates.size} day(s) as unavailable`);
+
+  const bulkClear = () => bulkUpdate('', {
+    value: '', timeFrom: '', timeTo: '', originalTimeFrom: '', originalTimeTo: '',
+  }, `Cleared ${selectedDates.size} day(s)`);
 
   if (loading) {
-    return (
-      <div className="min-h-[400px] flex items-center justify-center">
-        <div className="animate-scaleIn">
-          <Loader2 className="w-8 h-8 animate-spin" />
-        </div>
-      </div>
-    );
+    return <PageSpinner />;
   }
 
   return (

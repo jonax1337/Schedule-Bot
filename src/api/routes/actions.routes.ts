@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import { verifyToken, requireAdmin, AuthRequest } from '../../shared/middleware/auth.js';
 import { validate, createPollSchema, notificationSchema } from '../../shared/middleware/validation.js';
-import { postScheduleToChannel } from '../../bot/utils/schedule-poster.js';
+import { postScheduleToChannel, cleanScheduleChannel } from '../../bot/utils/schedule-poster.js';
 import { sendRemindersToUsersWithoutEntry } from '../../bot/interactions/reminder.js';
 import { createQuickPoll } from '../../bot/interactions/polls.js';
 import { client } from '../../bot/client.js';
-import { logger } from '../../shared/utils/logger.js';
+import { logger, getErrorMessage } from '../../shared/utils/logger.js';
 import { formatDateToDDMMYYYY, getTodayFormatted } from '../../shared/utils/dateFormatter.js';
 import { TextChannel } from 'discord.js';
 
@@ -17,29 +17,13 @@ const router = Router();
  */
 function convertToDD_MM_YYYY(dateStr: string | undefined): string {
   if (!dateStr) return getTodayFormatted();
-  
-  // Check if already in DD.MM.YYYY format
-  if (/^\d{2}\.\d{2}\.\d{4}$/.test(dateStr)) {
-    return dateStr;
-  }
-  
-  // Convert from YYYY-MM-DD to DD.MM.YYYY
+  if (/^\d{2}\.\d{2}\.\d{4}$/.test(dateStr)) return dateStr;
   if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
     const [year, month, day] = dateStr.split('-');
     return `${day}.${month}.${year}`;
   }
-  
-  // Try to parse as Date object
-  try {
-    const date = new Date(dateStr);
-    if (!isNaN(date.getTime())) {
-      return formatDateToDDMMYYYY(date);
-    }
-  } catch (e) {
-    // Ignore parse errors
-  }
-  
-  return dateStr;
+  const date = new Date(dateStr);
+  return isNaN(date.getTime()) ? dateStr : formatDateToDDMMYYYY(date);
 }
 
 // Post schedule manually
@@ -52,7 +36,7 @@ router.post('/schedule', verifyToken, requireAdmin, async (req: AuthRequest, res
     logger.success('Manual schedule post', `Date: ${convertedDate || 'today'} by ${req.user?.username}`);
     res.json({ success: true, message: 'Schedule posted successfully' });
   } catch (error) {
-    logger.error('Failed to post schedule', error instanceof Error ? error.message : String(error));
+    logger.error('Failed to post schedule', getErrorMessage(error));
     res.status(500).json({ error: 'Failed to post schedule' });
   }
 });
@@ -67,7 +51,7 @@ router.post('/remind', verifyToken, requireAdmin, async (req: AuthRequest, res) 
     logger.success('Manual reminder sent', `Date: ${convertedDate || 'today'} by ${req.user?.username}`);
     res.json({ success: true, message: 'Reminders sent successfully' });
   } catch (error) {
-    logger.error('Failed to send reminders', error instanceof Error ? error.message : String(error));
+    logger.error('Failed to send reminders', getErrorMessage(error));
     res.status(500).json({ error: 'Failed to send reminders' });
   }
 });
@@ -82,7 +66,7 @@ router.post('/poll', verifyToken, requireAdmin, validate(createPollSchema), asyn
     logger.success('Poll created', `By ${req.user?.username}`);
     res.json({ success: true, message: 'Poll created successfully' });
   } catch (error) {
-    logger.error('Failed to create poll', error instanceof Error ? error.message : String(error));
+    logger.error('Failed to create poll', getErrorMessage(error));
     res.status(500).json({ error: 'Failed to create poll' });
   }
 });
@@ -92,16 +76,9 @@ router.post('/notify', verifyToken, requireAdmin, validate(notificationSchema), 
   try {
     const { type, target, title, message, specificUserId } = req.body;
 
-    // Get color and emoji based on type
-    const typeConfig = {
-      info: { color: 0x3498db, emoji: '📢' },
-      success: { color: 0x2ecc71, emoji: '✅' },
-      warning: { color: 0xf39c12, emoji: '⚠️' },
-      error: { color: 0xe74c3c, emoji: '❌' },
-    };
-    
-    const config = typeConfig[type as keyof typeof typeConfig];
-    if (!config) {
+    const { NOTIFICATION_TYPE_CONFIG } = await import('../../bot/embeds/embed.js');
+    const notifConfig = NOTIFICATION_TYPE_CONFIG[type];
+    if (!notifConfig) {
       return res.status(400).json({ error: 'Invalid notification type' });
     }
     
@@ -138,8 +115,8 @@ router.post('/notify', verifyToken, requireAdmin, validate(notificationSchema), 
     // Create notification embed
     const { EmbedBuilder } = await import('discord.js');
     const notificationEmbed = new EmbedBuilder()
-      .setColor(config.color)
-      .setTitle(`${config.emoji} ${title}`)
+      .setColor(notifConfig.color)
+      .setTitle(`${notifConfig.emoji} ${title}`)
       .setDescription(message)
       .setFooter({ text: `Sent by ${req.user?.username || 'Admin'}` })
       .setTimestamp();
@@ -154,7 +131,7 @@ router.post('/notify', verifyToken, requireAdmin, validate(notificationSchema), 
         await user.send({ embeds: [notificationEmbed] });
         successCount++;
       } catch (error) {
-        logger.error(`Failed to send notification to ${recipientNames[i]}`, error instanceof Error ? error.message : String(error));
+        logger.error(`Failed to send notification to ${recipientNames[i]}`, getErrorMessage(error));
         failedUsers.push(recipientNames[i]);
       }
     }
@@ -169,7 +146,7 @@ router.post('/notify', verifyToken, requireAdmin, validate(notificationSchema), 
       failedUsers
     });
   } catch (error) {
-    logger.error('Failed to send notification', error instanceof Error ? error.message : String(error));
+    logger.error('Failed to send notification', getErrorMessage(error));
     res.status(500).json({ error: 'Failed to send notification' });
   }
 });
@@ -180,57 +157,23 @@ router.post('/clear-channel', verifyToken, requireAdmin, async (req: AuthRequest
     const { includePinned } = req.body;
     const { loadSettings } = await import('../../shared/utils/settingsManager.js');
     const settings = loadSettings();
-    
+
     const channel = await client.channels.fetch(settings.discord.channelId);
     if (!channel || !(channel instanceof TextChannel)) {
       return res.status(404).json({ error: 'Channel not found or not a text channel' });
     }
 
-    let totalDeleted = 0;
-    
-    // Fetch and delete messages in batches
-    const messages = await channel.messages.fetch({ limit: 100 });
-    const messagesToDelete = includePinned ? messages : messages.filter(msg => !msg.pinned);
-    
-    if (messagesToDelete.size > 0) {
-      // Separate recent messages (< 14 days) from old messages
-      const recentMessages = messagesToDelete.filter(msg => 
-        Date.now() - msg.createdTimestamp < 14 * 24 * 60 * 60 * 1000
-      );
-      
-      // Bulk delete recent messages (Discord API limitation)
-      if (recentMessages.size > 1) {
-        await channel.bulkDelete(recentMessages);
-        totalDeleted += recentMessages.size;
-      } else if (recentMessages.size === 1) {
-        await recentMessages.first()?.delete();
-        totalDeleted += 1;
-      }
-      
-      // Delete old messages individually (> 14 days)
-      const oldMessages = messagesToDelete.filter(msg => 
-        Date.now() - msg.createdTimestamp >= 14 * 24 * 60 * 60 * 1000
-      );
-      
-      for (const msg of oldMessages.values()) {
-        try {
-          await msg.delete();
-          totalDeleted++;
-        } catch (err) {
-          logger.error('Failed to delete old message', err instanceof Error ? err.message : String(err));
-        }
-      }
-    }
-    
+    const totalDeleted = await cleanScheduleChannel(channel, !!includePinned);
+
     const pinnedInfo = includePinned ? 'including pinned' : 'kept pinned';
     logger.success('Channel cleared', `Deleted ${totalDeleted} messages (${pinnedInfo}) by ${req.user?.username}`);
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: `Channel cleared successfully. Deleted ${totalDeleted} message(s)${includePinned ? ' (including pinned)' : ', kept pinned messages'}.`,
       deletedCount: totalDeleted
     });
   } catch (error) {
-    logger.error('Failed to clear channel', error instanceof Error ? error.message : String(error));
+    logger.error('Failed to clear channel', getErrorMessage(error));
     res.status(500).json({ error: 'Failed to clear channel' });
   }
 });
@@ -241,18 +184,12 @@ router.post('/training-poll', verifyToken, requireAdmin, async (req: AuthRequest
     const { date } = req.body;
     const convertedDate = convertToDD_MM_YYYY(date);
 
-    const { getScheduleForDate } = await import('../../repositories/schedule.repository.js');
-    const { parseSchedule, analyzeSchedule } = await import('../../shared/utils/analyzer.js');
-    const { getAbsentUserIdsForDate } = await import('../../repositories/absence.repository.js');
+    const { getAnalyzedSchedule } = await import('../../shared/utils/scheduleDetails.js');
 
-    const sheetData = await getScheduleForDate(convertedDate);
-    if (!sheetData) {
+    const result = await getAnalyzedSchedule(convertedDate);
+    if (!result) {
       return res.status(404).json({ error: `No schedule data found for ${convertedDate}` });
     }
-
-    const absentUserIds = await getAbsentUserIdsForDate(convertedDate);
-    const schedule = parseSchedule(sheetData, absentUserIds);
-    const result = analyzeSchedule(schedule);
 
     if (!result.canProceed || !result.commonTimeRange) {
       return res.status(400).json({ error: `Cannot create training poll: ${result.statusMessage}` });
@@ -264,7 +201,7 @@ router.post('/training-poll', verifyToken, requireAdmin, async (req: AuthRequest
     logger.success('Training poll created', `Date: ${convertedDate} by ${req.user?.username}`);
     res.json({ success: true, message: `Training start poll created for ${convertedDate}` });
   } catch (error) {
-    logger.error('Failed to create training poll', error instanceof Error ? error.message : String(error));
+    logger.error('Failed to create training poll', getErrorMessage(error));
     res.status(500).json({ error: 'Failed to create training poll' });
   }
 });
@@ -299,7 +236,7 @@ router.post('/pin-message', verifyToken, requireAdmin, async (req: AuthRequest, 
       messageId: sentMessage.id
     });
   } catch (error) {
-    logger.error('Failed to pin message', error instanceof Error ? error.message : String(error));
+    logger.error('Failed to pin message', getErrorMessage(error));
     res.status(500).json({ error: 'Failed to pin message' });
   }
 });

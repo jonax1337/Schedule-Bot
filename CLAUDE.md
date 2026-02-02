@@ -146,13 +146,15 @@ src/
 │   │   └── interaction.event.ts # Interaction dispatcher
 │   ├── interactions/           # Buttons, modals, polls, reminders
 │   │   ├── interactive.ts      # Date navigation buttons + availability UI + timezone selection
+│   │   ├── pollBase.ts         # Shared poll infrastructure (POLL_EMOJIS, timers, vote toggle)
 │   │   ├── polls.ts            # Quick poll with emoji reactions, countdown, recovery
 │   │   ├── reminder.ts         # DM reminders to players + timezone prompt button
 │   │   └── trainingStartPoll.ts # Training time poll with reactions, countdown, recovery
 │   ├── embeds/
-│   │   └── embed.ts            # Discord embed builders
+│   │   └── embed.ts            # Discord embed builders + COLORS + NOTIFICATION_TYPE_CONFIG
 │   └── utils/
-│       └── schedule-poster.ts  # Schedule posting + change notifications
+│       ├── command-helpers.ts  # Shared command utilities (requireRegisteredUser)
+│       └── schedule-poster.ts  # Schedule posting + change notifications + channel cleaning
 ├── jobs/
 │   └── scheduler.ts            # node-cron job management
 ├── repositories/               # Data access layer (Prisma queries)
@@ -168,10 +170,7 @@ src/
 ├── services/                   # Business logic layer
 │   ├── absence.service.ts      # Absence CRUD with auth + date validation
 │   ├── recurring-availability.service.ts # Recurring availability business logic
-│   ├── schedule.service.ts     # Schedule analysis, availability validation
-│   ├── scrim.service.ts        # Scrim CRUD + stats + recent scrims
 │   ├── strategy.service.ts     # Strategy CRUD with permission checks (admin vs all)
-│   ├── user-mapping.service.ts # Roster CRUD with auto-sync to schedules
 │   └── vod-comment.service.ts  # VOD comment business logic with auth
 └── shared/
     ├── config/config.ts        # Global config (env + DB settings)
@@ -185,9 +184,9 @@ src/
     └── utils/
         ├── __tests__/          # Utility unit tests (analyzer, dateFormatter, timezoneConverter)
         ├── analyzer.ts         # Schedule roster analysis (status, time windows)
-        ├── dateFormatter.ts    # DD.MM.YYYY formatting utilities
-        ├── logger.ts           # In-memory log store + console output
-        ├── scheduleDetails.ts  # Schedule detail queries (single + batch)
+        ├── dateFormatter.ts    # Centralized date utilities (formatDateToDDMMYYYY, parseDDMMYYYY, timeToMinutes, minutesToTime, addDays, etc.)
+        ├── logger.ts           # In-memory log store + console output + getErrorMessage() utility
+        ├── scheduleDetails.ts  # Schedule detail queries (single + batch) + getAnalyzedSchedule() helper
         ├── settingsManager.ts  # Settings load/save/reload from DB
         └── timezoneConverter.ts # Per-user timezone conversion utilities
 
@@ -203,6 +202,7 @@ dashboard/
 │   ├── auth/callback/          # Discord OAuth handler
 │   ├── vod/[scrimId]/          # Standalone VOD review page
 │   └── api/                    # Next.js API proxy routes (→ backend)
+│       ├── proxy.ts            # Shared proxy helper (createProxyGET, createProxyPOST)
 │       ├── bot-status/         # Proxies to /api/health
 │       ├── settings/           # Proxies to /api/settings (GET + POST)
 │       ├── discord/
@@ -240,6 +240,8 @@ dashboard/
 │   │   ├── strategy-form.tsx   # Strategy create/edit form
 │   │   ├── pdf-preview-dialog.tsx # PDF preview component
 │   │   ├── vod-review.tsx        # VOD review UI (YouTube player, timestamped comments, filtering)
+│   │   ├── vod-comment-text.tsx  # Shared comment text renderer (mentions, #tags)
+│   │   ├── vod-mention-input.tsx # Shared @mention textarea with autocomplete
 │   │   ├── sidebar-branding-header.tsx # Reusable sidebar branding header
 │   │   └── sidebar-nav-group.tsx # Reusable sidebar navigation group
 │   ├── error-boundary.tsx       # React error boundary with retry UI
@@ -250,7 +252,11 @@ dashboard/
 │   │   ├── index.ts
 │   │   ├── theme-provider.tsx
 │   │   └── theme-toggle.tsx
-│   ├── ui/                     # Radix UI primitives (31 components)
+│   ├── ui/                     # Radix UI primitives + shared UI components
+│   │   ├── loading-button.tsx  # Button with loading spinner state
+│   │   ├── confirm-dialog.tsx  # Reusable confirmation dialog
+│   │   ├── timezone-picker.tsx # Reusable timezone selector with search
+│   │   ├── page-spinner.tsx    # Full-page loading spinner
 │   │   └── accordion, alert-dialog, avatar, badge, breadcrumb,
 │   │       button, card, chart, checkbox, collapsible, command, context-menu,
 │   │       dialog, dropdown-menu, field, input, label, popover, scroll-area,
@@ -270,12 +276,17 @@ dashboard/
 │           └── user-absences.tsx       # Absence/vacation management
 ├── hooks/
 │   ├── use-mobile.ts           # Mobile breakpoint hook (768px)
-│   └── use-branding.ts         # Fetches branding settings (teamName, tagline, logoUrl)
+│   ├── use-branding.ts         # Fetches branding settings (teamName, tagline, logoUrl)
+│   ├── use-sidebar.ts          # Sidebar state management hook
+│   └── use-user-discord-id.ts  # Resolves current user's Discord ID from mappings
 ├── lib/
 │   ├── api.ts                  # API client (apiGet, apiPost, apiPut, apiDelete)
 │   ├── auth.ts                 # JWT token management
 │   ├── breadcrumb-context.tsx   # React Context for breadcrumb navigation in sub-pages
 │   ├── config.ts               # Dashboard config constants (BOT_API_URL, timeouts, retry settings)
+│   ├── constants.ts            # Shared constants (VALORANT_MAPS, VALORANT_AGENTS, MATCH_TYPES, FOLDER_COLORS, normalizeAgentName)
+│   ├── date-utils.ts           # Date parsing utility (parseDDMMYYYY)
+│   ├── vod-utils.ts            # VOD utilities (formatTimestamp, extractTags, getTagColor, getYouTubeVideoId)
 │   ├── timezone.ts             # Timezone React Context (TimezoneProvider, useTimezone, conversion utils)
 │   ├── types.ts                # Frontend type definitions
 │   ├── utils.ts                # Tailwind merge utility (cn)
@@ -376,7 +387,7 @@ The `user_mappings` table is the single source of truth for player rosters:
 - `sort_order` determines display order in embeds and dashboard
 - Changes to user mappings affect future schedules but NOT historical ones
 - After modifying user mappings, `syncUserMappingsToSchedules()` syncs changes to future schedule entries
-- The services layer (`user-mapping.service.ts`) auto-calls sync after add/update/remove
+- The route handlers auto-call sync after add/update/remove
 
 ### Schedule Seeding
 The bot maintains a 14-day rolling window:
@@ -608,13 +619,12 @@ Data access is abstracted into repositories (sole data layer, no legacy alternat
 Services provide business logic on top of repositories:
 - `absence.service.ts` - Absence CRUD with date validation and authorization (users manage own absences only)
 - `recurring-availability.service.ts` - Recurring availability CRUD with authorization (users manage own entries only)
-- `schedule.service.ts` - Schedule analysis, availability validation (users can only edit their own unless admin), pagination
-- `scrim.service.ts` - Scrim CRUD, stats, recent scrims with date sorting
 - `strategy.service.ts` - Strategy CRUD with permission checks (`stratbook.editPermission` setting), folder management, file upload handling
-- `user-mapping.service.ts` - Roster CRUD with automatic `syncUserMappingsToSchedules()` after changes
 - `vod-comment.service.ts` - VOD comment CRUD with authorization (owner or admin can edit/delete)
 
-Services are class-based with singleton exports (e.g., `export const scheduleService = new ScheduleService()`).
+Note: Schedule, scrim, and user-mapping logic is handled directly in route handlers (no separate service layer for these domains).
+
+Services are class-based with singleton exports (e.g., `export const absenceService = new AbsenceService()`).
 
 ### API Security
 - **Helmet** - Security headers (CSP, HSTS, X-Frame-Options)
@@ -816,7 +826,7 @@ When settings change:
 - `schedule_players` table = daily snapshots (copied from user_mappings when schedule is seeded)
 - Changing a user's display name in mappings affects future schedules only
 - After roster changes, call `syncUserMappingsToSchedules()` to update future entries
-- The `UserMappingService` handles this automatically on add/update/remove
+- The route handlers handle this automatically on add/update/remove
 
 ### Circular Dependencies
 - Bot client is used in multiple modules (scheduler, API actions, interactions)

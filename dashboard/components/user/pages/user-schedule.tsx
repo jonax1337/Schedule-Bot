@@ -7,12 +7,16 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { CheckCircle2, XCircle, Clock, Loader2, Edit2, Save, X, Palmtree, PlaneTakeoff } from 'lucide-react';
+import { PageSpinner } from '@/components/ui/page-spinner';
 import Image from 'next/image';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { stagger, microInteractions, cn } from '@/lib/animations';
+import { stagger, microInteractions } from '@/lib/animations';
+import { cn } from '@/lib/utils';
 import { BOT_API_URL } from '@/lib/config';
+import { validateToken, removeAuthToken, getUser, getAuthHeaders } from '@/lib/auth';
 import { useTimezone, getTimezoneAbbr } from '@/lib/timezone';
+import { getReasonBadgeClasses, formatDateToDDMMYYYY, WEEKDAY_NAMES } from '@/lib/date-utils';
 
 interface PlayerStatus {
   name: string;
@@ -65,21 +69,12 @@ export function UserSchedule() {
   const [editingReason, setEditingReason] = useState(false);
   const [reasonValue, setReasonValue] = useState('');
 
-  const PREDEFINED_SUGGESTIONS = [
-    'Training',
-    'Off-Day',
-    'VOD-Review',
-    'Scrims',
-    'Premier',
-    'Tournament',
-  ];
-
   useEffect(() => {
     if (!botTimezoneLoaded) return;
 
     const checkAuth = async () => {
       try {
-        const { validateToken, removeAuthToken, getUser } = await import('@/lib/auth');
+        
 
         const user = localStorage.getItem('selectedUser');
 
@@ -117,7 +112,7 @@ export function UserSchedule() {
   const loadScheduleData = async () => {
     setLoading(true);
     try {
-      const { getAuthHeaders } = await import('@/lib/auth');
+
       const headers = getAuthHeaders();
 
       // Build date strings for next 14 days (needed for absences API)
@@ -170,23 +165,11 @@ export function UserSchedule() {
 
       const dateEntries: DateEntry[] = [];
 
-      const formatDate = (d: Date): string => {
-        const day = String(d.getDate()).padStart(2, '0');
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const year = d.getFullYear();
-        return `${day}.${month}.${year}`;
-      };
-
-      const getWeekdayName = (d: Date): string => {
-        const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-        return weekdays[d.getDay()];
-      };
-
       for (let i = 0; i < 14; i++) {
         const date = new Date(today);
         date.setDate(today.getDate() + i);
-        const dateStr = formatDate(date);
-        const weekday = getWeekdayName(date);
+        const dateStr = formatDateToDDMMYYYY(date);
+        const weekday = WEEKDAY_NAMES[date.getDay()];
 
         const schedule = schedules.find((s: any) => s.date === dateStr);
         const isOffDay = schedule?.reason === 'Off-Day';
@@ -385,7 +368,7 @@ export function UserSchedule() {
 
     setSaving(true);
     try {
-      const { getAuthHeaders } = await import('@/lib/auth');
+
       const mappingsRes = await fetch(`${BOT_API_URL}/api/user-mappings`, {
         headers: getAuthHeaders(),
       });
@@ -445,7 +428,7 @@ export function UserSchedule() {
 
     setSaving(true);
     try {
-      const { getAuthHeaders } = await import('@/lib/auth');
+
       const response = await fetch(`${BOT_API_URL}/api/schedule/update-reason`, {
         method: 'POST',
         headers: getAuthHeaders(),
@@ -472,13 +455,7 @@ export function UserSchedule() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-[400px] flex items-center justify-center">
-        <div className="animate-scaleIn">
-          <Loader2 className="w-8 h-8 animate-spin" />
-        </div>
-      </div>
-    );
+    return <PageSpinner />;
   }
 
   return (
@@ -594,16 +571,9 @@ export function UserSchedule() {
             <div className="flex items-center gap-2 animate-fadeIn stagger-1">
               <DialogTitle>{selectedDate?.date} - {selectedDate?.weekday}</DialogTitle>
               {selectedDate && (
-                <span 
+                <span
                   className={
-                    `inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
-                      selectedDate.reason === 'Premier' ? 'bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300' :
-                      selectedDate.reason === 'Off-Day' ? 'bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300' :
-                      selectedDate.reason === 'VOD-Review' ? 'bg-cyan-100 dark:bg-cyan-950 text-cyan-700 dark:text-cyan-300' :
-                      selectedDate.reason === 'Scrims' ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300' :
-                      selectedDate.reason === 'Tournament' ? 'bg-yellow-100 dark:bg-yellow-950 text-yellow-700 dark:text-yellow-300' :
-                      'bg-green-100 dark:bg-green-950 text-green-700 dark:text-green-300'
-                    }`
+                    `inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${getReasonBadgeClasses(selectedDate.reason || 'Training')}`
                   }
                 >
                   {selectedDate.reason === 'Premier' && (

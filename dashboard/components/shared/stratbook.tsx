@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { BookOpen, Copy, ExternalLink, FileText, Folder, FolderOpen, FolderPlus, FolderInput, Loader2, Palette, Pencil, Plus, Search, Swords, Shield, Trash2, X } from 'lucide-react';
+import { PageSpinner } from '@/components/ui/page-spinner';
 import { useBreadcrumbSub } from '@/lib/breadcrumb-context';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -41,18 +42,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { BOT_API_URL } from '@/lib/config';
-
-const FOLDER_COLORS = [
-  { label: 'None', value: null },
-  { label: 'Red', value: '#ef4444' },
-  { label: 'Orange', value: '#f97316' },
-  { label: 'Yellow', value: '#eab308' },
-  { label: 'Green', value: '#22c55e' },
-  { label: 'Blue', value: '#3b82f6' },
-  { label: 'Purple', value: '#a855f7' },
-  { label: 'Pink', value: '#ec4899' },
-];
+import { getAuthHeaders, getAuthToken } from '@/lib/auth';
+import { FOLDER_COLORS, normalizeAgentName } from '@/lib/constants';
 
 interface FolderEntry {
   id: number;
@@ -75,11 +68,6 @@ interface StratEntry {
   files?: { id: number; filename: string; originalName: string; size: number }[];
   createdAt: string;
   updatedAt: string;
-}
-
-
-function normalizeAgentName(name: string): string {
-  return name.replace(/\//g, '');
 }
 
 type View = 'list' | 'detail' | 'create' | 'edit';
@@ -187,7 +175,7 @@ export function Stratbook() {
     } else {
       (async () => {
         try {
-          const { getAuthHeaders } = await import('@/lib/auth');
+    
           const response = await fetch(`${BOT_API_URL}/api/strategies/folders/${folderId}/path`, { headers: getAuthHeaders() });
           if (response.ok) {
             const data = await response.json();
@@ -242,7 +230,7 @@ export function Stratbook() {
 
   const checkPermission = async () => {
     try {
-      const { getAuthHeaders, getAuthToken } = await import('@/lib/auth');
+
       const headers = getAuthHeaders();
       // Fetch settings to check editPermission
       const res = await fetch(`${BOT_API_URL}/api/settings`, { headers });
@@ -268,7 +256,7 @@ export function Stratbook() {
   const fetchStrats = async () => {
     try {
       if (initialLoad) setLoading(true);
-      const { getAuthHeaders } = await import('@/lib/auth');
+
       const params = new URLSearchParams();
       if (mapFilter !== 'all') params.set('map', mapFilter);
       if (sideFilter !== 'all') params.set('side', sideFilter);
@@ -294,7 +282,7 @@ export function Stratbook() {
   const fetchFolders = async () => {
     setAllFoldersLoaded(false);
     try {
-      const { getAuthHeaders } = await import('@/lib/auth');
+
       const params = new URLSearchParams();
       params.set('parentId', currentFolderId !== null ? String(currentFolderId) : 'null');
       const response = await fetch(`${BOT_API_URL}/api/strategies/folders?${params}`, { headers: getAuthHeaders() });
@@ -308,7 +296,7 @@ export function Stratbook() {
   const handleCreateFolder = async () => {
     if (!folderName.trim()) return;
     try {
-      const { getAuthHeaders } = await import('@/lib/auth');
+
       const response = await fetch(`${BOT_API_URL}/api/strategies/folders`, {
         method: 'POST',
         headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
@@ -330,7 +318,7 @@ export function Stratbook() {
   const handleRenameFolder = async () => {
     if (!renamingFolder || !folderName.trim()) return;
     try {
-      const { getAuthHeaders } = await import('@/lib/auth');
+
       const response = await fetch(`${BOT_API_URL}/api/strategies/folders/${renamingFolder.id}`, {
         method: 'PUT',
         headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
@@ -354,7 +342,7 @@ export function Stratbook() {
   const handleDeleteFolder = async () => {
     if (!deletingFolder) return;
     try {
-      const { getAuthHeaders } = await import('@/lib/auth');
+
       const response = await fetch(`${BOT_API_URL}/api/strategies/folders/${deletingFolder.id}`, {
         method: 'DELETE',
         headers: getAuthHeaders(),
@@ -373,7 +361,7 @@ export function Stratbook() {
 
   const handleDuplicateStrategy = async (strat: StratEntry) => {
     try {
-      const { getAuthHeaders } = await import('@/lib/auth');
+
       const response = await fetch(`${BOT_API_URL}/api/strategies/duplicate/${strat.id}`, {
         method: 'POST',
         headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
@@ -389,7 +377,7 @@ export function Stratbook() {
 
   const handleDuplicateFolder = async (folder: FolderEntry) => {
     try {
-      const { getAuthHeaders } = await import('@/lib/auth');
+
       const response = await fetch(`${BOT_API_URL}/api/strategies/folders/${folder.id}/duplicate`, {
         method: 'POST',
         headers: getAuthHeaders(),
@@ -404,7 +392,7 @@ export function Stratbook() {
 
   const handleFolderColor = async (folder: FolderEntry, color: string | null) => {
     try {
-      const { getAuthHeaders } = await import('@/lib/auth');
+
       const response = await fetch(`${BOT_API_URL}/api/strategies/folders/${folder.id}/color`, {
         method: 'PUT',
         headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
@@ -420,7 +408,7 @@ export function Stratbook() {
   const fetchAllFolders = async () => {
     if (allFoldersLoaded) return;
     try {
-      const { getAuthHeaders } = await import('@/lib/auth');
+
       const response = await fetch(`${BOT_API_URL}/api/strategies/folders?all=true`, { headers: getAuthHeaders() });
       if (response.ok) {
         const data = await response.json();
@@ -451,7 +439,7 @@ export function Stratbook() {
 
   const handleMoveStrategy = async (stratId: number, targetFolderId: number | null) => {
     try {
-      const { getAuthHeaders } = await import('@/lib/auth');
+
       const response = await fetch(`${BOT_API_URL}/api/strategies/move/${stratId}`, {
         method: 'PUT',
         headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
@@ -467,7 +455,7 @@ export function Stratbook() {
 
   const fetchContent = async (id: number): Promise<{ content: any; files?: any[] }> => {
     if (contentCache.current[id]) return contentCache.current[id];
-    const { getAuthHeaders } = await import('@/lib/auth');
+
     const response = await fetch(`${BOT_API_URL}/api/strategies/${id}`, {
       headers: getAuthHeaders(),
     });
@@ -539,7 +527,7 @@ export function Stratbook() {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      const { getAuthHeaders } = await import('@/lib/auth');
+
       const response = await fetch(`${BOT_API_URL}/api/strategies/${deleteTarget.id}`, {
         method: 'DELETE',
         headers: getAuthHeaders(),
@@ -579,13 +567,7 @@ export function Stratbook() {
 
   // Loading state
   if (loading && !selectedStrat && view === 'list') {
-    return (
-      <div className="min-h-[400px] flex items-center justify-center">
-        <div className="animate-scaleIn">
-          <Loader2 className="w-8 h-8 animate-spin" />
-        </div>
-      </div>
-    );
+    return <PageSpinner />;
   }
 
   const viewClasses = transitioning
@@ -1016,27 +998,14 @@ export function Stratbook() {
       </div>
 
       {/* Delete strategy dialog */}
-      <AlertDialog open={!!deleteTarget} onOpenChange={open => !open && setDeleteTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Strategy</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete &quot;{deleteTarget?.title}&quot;? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              disabled={deleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {deleting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={open => !open && setDeleteTarget(null)}
+        title="Delete Strategy"
+        description={`Are you sure you want to delete "${deleteTarget?.title}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        onConfirm={handleDelete}
+      />
 
       {/* Create folder dialog */}
       <AlertDialog open={folderDialogOpen} onOpenChange={open => { if (!open) setFolderDialogOpen(false); }}>
@@ -1088,25 +1057,14 @@ export function Stratbook() {
       </AlertDialog>
 
       {/* Delete folder dialog */}
-      <AlertDialog open={!!deletingFolder} onOpenChange={open => { if (!open) setDeletingFolder(null); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Folder</AlertDialogTitle>
-            <AlertDialogDescription>
-              Delete &quot;{deletingFolder?.name}&quot;? The folder must be empty.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteFolder}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={!!deletingFolder}
+        onOpenChange={open => { if (!open) setDeletingFolder(null); }}
+        title="Delete Folder"
+        description={`Delete "${deletingFolder?.name}"? The folder must be empty.`}
+        confirmLabel="Delete"
+        onConfirm={handleDeleteFolder}
+      />
     </>
   );
 }

@@ -5,7 +5,7 @@ import { updatePlayerAvailability } from '../../repositories/schedule.repository
 import { getScheduleDetails, getScheduleDetailsBatch } from '../../shared/utils/scheduleDetails.js';
 import { isUserAbsentOnDate } from '../../repositories/absence.repository.js';
 import { getScheduleStatus, checkAndNotifyStatusChange } from '../../bot/utils/schedule-poster.js';
-import { logger } from '../../shared/utils/logger.js';
+import { logger, getErrorMessage } from '../../shared/utils/logger.js';
 import type { ScheduleStatus } from '../../shared/types/types.js';
 
 const router = Router();
@@ -17,7 +17,7 @@ router.get('/next14', verifyToken, async (req: AuthRequest, res) => {
     const schedules = await getNext14DaysSchedule();
     res.json({ success: true, schedules });
   } catch (error) {
-    logger.error('Error fetching next 14 days schedule', error instanceof Error ? error.message : String(error));
+    logger.error('Error fetching next 14 days schedule', getErrorMessage(error));
     res.status(500).json({ success: false, error: 'Failed to fetch schedule' });
   }
 });
@@ -30,7 +30,7 @@ router.get('/paginated', verifyToken, requireAdmin, async (req: AuthRequest, res
     const result = await getSchedulesPaginated(offset);
     res.json({ success: true, ...result });
   } catch (error) {
-    logger.error('Error fetching paginated schedules', error instanceof Error ? error.message : String(error));
+    logger.error('Error fetching paginated schedules', getErrorMessage(error));
     res.status(500).json({ success: false, error: 'Failed to fetch schedules' });
   }
 });
@@ -50,7 +50,7 @@ router.post('/update-reason', verifyToken, requireAdmin, async (req: AuthRequest
       const oldState = await getScheduleStatus(date);
       oldStatus = oldState?.status ?? null;
     } catch (err) {
-      logger.warn('Change notification: failed to capture old status (reason)', err instanceof Error ? err.message : String(err));
+      logger.warn('Change notification: failed to capture old status (reason)', getErrorMessage(err));
     }
 
     const { updateScheduleReason } = await import('../../repositories/schedule.repository.js');
@@ -64,7 +64,7 @@ router.post('/update-reason', verifyToken, requireAdmin, async (req: AuthRequest
       // Trigger change notification (fire and forget)
       if (oldStatus) {
         checkAndNotifyStatusChange(date, oldStatus).catch(err => {
-          logger.error('Change notification promise rejected', err instanceof Error ? err.message : String(err));
+          logger.error('Change notification promise rejected', getErrorMessage(err));
         });
       }
 
@@ -73,7 +73,7 @@ router.post('/update-reason', verifyToken, requireAdmin, async (req: AuthRequest
       res.status(500).json({ error: 'Failed to update schedule reason' });
     }
   } catch (error) {
-    logger.error('Failed to update schedule reason', error instanceof Error ? error.message : String(error));
+    logger.error('Failed to update schedule reason', getErrorMessage(error));
     res.status(500).json({ error: 'Failed to update schedule reason' });
   }
 });
@@ -100,7 +100,7 @@ router.post('/update-availability', verifyToken, resolveCurrentUser, requireOwne
       oldStatus = oldState?.status ?? null;
       logger.info('Change notification: captured old status', `${date}: ${oldStatus}`);
     } catch (err) {
-      logger.warn('Change notification: failed to capture old status', err instanceof Error ? err.message : String(err));
+      logger.warn('Change notification: failed to capture old status', getErrorMessage(err));
     }
 
     const sanitizedValue = sanitizeString(availability);
@@ -112,7 +112,7 @@ router.post('/update-availability', verifyToken, resolveCurrentUser, requireOwne
       // Trigger change notification check (fire and forget)
       if (oldStatus) {
         checkAndNotifyStatusChange(date, oldStatus).catch(err => {
-          logger.error('Change notification promise rejected', err instanceof Error ? err.message : String(err));
+          logger.error('Change notification promise rejected', getErrorMessage(err));
         });
       } else {
         logger.info('Change notification: skipped (no old status captured)');
@@ -123,7 +123,7 @@ router.post('/update-availability', verifyToken, resolveCurrentUser, requireOwne
       res.status(500).json({ error: 'Failed to update availability' });
     }
   } catch (error) {
-    logger.error('Failed to update availability', error instanceof Error ? error.message : String(error));
+    logger.error('Failed to update availability', getErrorMessage(error));
     res.status(500).json({ error: 'Failed to update availability' });
   }
 });

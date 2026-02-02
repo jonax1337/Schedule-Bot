@@ -1,20 +1,22 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Loader2, RefreshCw, Trash2, Clock, XCircle, Check, CheckSquare } from 'lucide-react';
+import { PageSpinner } from '@/components/ui/page-spinner';
 import { toast } from 'sonner';
-import { stagger, microInteractions, cn } from '@/lib/animations';
+import { stagger, microInteractions } from '@/lib/animations';
+import { cn } from '@/lib/utils';
 import { BOT_API_URL } from '@/lib/config';
+import { getAuthHeaders } from '@/lib/auth';
 import { useTimezone, getTimezoneAbbr } from '@/lib/timezone';
-
-const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+import { WEEKDAY_NAMES } from '@/lib/date-utils';
+import { useUserDiscordId } from '@/hooks/use-user-discord-id';
 
 interface RecurringEntry {
   id: number;
@@ -36,9 +38,9 @@ interface DayEntry {
 }
 
 export function UserRecurring() {
-  const router = useRouter();
+  const { user, isLoading: authLoading } = useUserDiscordId();
+  const userDiscordId = user?.discordId || '';
   const { convertRangeToLocal, convertRangeToBot, isConverting, userTimezone, botTimezone, botTimezoneLoaded, timezoneVersion } = useTimezone();
-  const [userDiscordId, setUserDiscordId] = useState('');
   const [dayEntries, setDayEntries] = useState<DayEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -52,23 +54,9 @@ export function UserRecurring() {
   const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
 
   useEffect(() => {
-    if (!botTimezoneLoaded) return;
-
-    const checkAuthAndLoad = async () => {
-      try {
-        const savedUser = localStorage.getItem('selectedUser');
-        if (!savedUser) {
-          router.replace('/login');
-          return;
-        }
-        await loadData(savedUser);
-      } catch {
-        router.push('/login');
-      }
-    };
-
-    checkAuthAndLoad();
-  }, [router, botTimezoneLoaded, timezoneVersion]);
+    if (authLoading || !userDiscordId || !botTimezoneLoaded) return;
+    loadData();
+  }, [authLoading, user?.discordId, botTimezoneLoaded, timezoneVersion]);
 
   // Cleanup timeouts on unmount
   useEffect(() => {
@@ -79,31 +67,16 @@ export function UserRecurring() {
     };
   }, []);
 
-  const loadData = async (userName?: string) => {
+  const loadData = async () => {
     setLoading(true);
     try {
-      const { getAuthHeaders } = await import('@/lib/auth');
+
       const headers = getAuthHeaders();
 
-      // Resolve Discord ID from user mappings
-      let discordId = userDiscordId;
+      const discordId = user?.discordId;
       if (!discordId) {
-        const mappingsRes = await fetch(`${BOT_API_URL}/api/user-mappings`, { headers });
-        if (!mappingsRes.ok) {
-          toast.error('Failed to load user mappings');
-          setLoading(false);
-          return;
-        }
-        const mappingsData = await mappingsRes.json().catch(() => ({ mappings: [] }));
-        const currentUser = userName || localStorage.getItem('selectedUser');
-        const userMapping = mappingsData.mappings.find((m: any) => m.displayName === currentUser);
-        if (!userMapping) {
-          toast.error('User not found in roster');
-          setLoading(false);
-          return;
-        }
-        discordId = userMapping.discordId;
-        setUserDiscordId(discordId);
+        setLoading(false);
+        return;
       }
 
       const res = await fetch(`${BOT_API_URL}/api/recurring-availability?userId=${discordId}`, { headers });
@@ -173,7 +146,7 @@ export function UserRecurring() {
     try {
       const localValue = `${timeFrom}-${timeTo}`;
       const botValue = convertRangeToBot(localValue);
-      const { getAuthHeaders } = await import('@/lib/auth');
+
 
       const response = await fetch(`${BOT_API_URL}/api/recurring-availability`, {
         method: 'POST',
@@ -222,7 +195,7 @@ export function UserRecurring() {
     ));
 
     try {
-      const { getAuthHeaders } = await import('@/lib/auth');
+
 
       const response = await fetch(`${BOT_API_URL}/api/recurring-availability`, {
         method: 'POST',
@@ -270,7 +243,7 @@ export function UserRecurring() {
     ));
 
     try {
-      const { getAuthHeaders } = await import('@/lib/auth');
+
 
       const response = await fetch(`${BOT_API_URL}/api/recurring-availability/${dayOfWeek}?userId=${userDiscordId}`, {
         method: 'DELETE',
@@ -355,7 +328,7 @@ export function UserRecurring() {
     try {
       const localValue = `${bulkTimeFrom}-${bulkTimeTo}`;
       const botValue = convertRangeToBot(localValue);
-      const { getAuthHeaders } = await import('@/lib/auth');
+
 
       const response = await fetch(`${BOT_API_URL}/api/recurring-availability/bulk`, {
         method: 'POST',
@@ -398,7 +371,7 @@ export function UserRecurring() {
 
     setSaving(true);
     try {
-      const { getAuthHeaders } = await import('@/lib/auth');
+
 
       const response = await fetch(`${BOT_API_URL}/api/recurring-availability/bulk`, {
         method: 'POST',
@@ -449,13 +422,7 @@ export function UserRecurring() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-[400px] flex items-center justify-center">
-        <div className="animate-scaleIn">
-          <Loader2 className="w-8 h-8 animate-spin" />
-        </div>
-      </div>
-    );
+    return <PageSpinner />;
   }
 
   return (
@@ -521,30 +488,19 @@ export function UserRecurring() {
       )}
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remove Recurring Entry</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to remove the recurring availability for {deleteTarget !== null ? WEEKDAY_NAMES[deleteTarget] : ''}?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (deleteTarget !== null) {
-                  removeDay(deleteTarget);
-                  setDeleteTarget(null);
-                }
-              }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Remove
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Remove Recurring Entry"
+        description={`Are you sure you want to remove the recurring availability for ${deleteTarget !== null ? WEEKDAY_NAMES[deleteTarget] : ''}?`}
+        confirmLabel="Remove"
+        onConfirm={() => {
+          if (deleteTarget !== null) {
+            removeDay(deleteTarget);
+            setDeleteTarget(null);
+          }
+        }}
+      />
 
       {/* Main Table */}
       <Card className="animate-fadeIn">

@@ -10,14 +10,7 @@ import {
   getAbsentUserIdsForDates,
   type AbsenceData,
 } from '../repositories/absence.repository.js';
-
-/**
- * Parse DD.MM.YYYY to Date for validation
- */
-function parseGermanDate(dateStr: string): Date {
-  const [day, month, year] = dateStr.split('.');
-  return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-}
+import { parseDDMMYYYY } from '../shared/utils/dateFormatter.js';
 
 /**
  * Absence Service - Business logic for absence/vacation management
@@ -60,8 +53,8 @@ export class AbsenceService {
     }
 
     // Validate start date is before or equal to end date
-    const start = parseGermanDate(startDate);
-    const end = parseGermanDate(endDate);
+    const start = parseDDMMYYYY(startDate);
+    const end = parseDDMMYYYY(endDate);
     if (start > end) {
       return { success: false, error: 'Start date must be before or equal to end date' };
     }
@@ -93,8 +86,8 @@ export class AbsenceService {
     // Validate dates if provided
     const startDate = data.startDate || existing.startDate;
     const endDate = data.endDate || existing.endDate;
-    const start = parseGermanDate(startDate);
-    const end = parseGermanDate(endDate);
+    const start = parseDDMMYYYY(startDate);
+    const end = parseDDMMYYYY(endDate);
     if (start > end) {
       return { success: false, error: 'Start date must be before or equal to end date' };
     }

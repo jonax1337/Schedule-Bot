@@ -1,12 +1,10 @@
 import { ChatInputCommandInteraction, MessageFlags, EmbedBuilder } from 'discord.js';
-import { getScheduleForDate } from '../../repositories/schedule.repository.js';
-import { getAbsentUserIdsForDate } from '../../repositories/absence.repository.js';
-import { parseSchedule, analyzeSchedule } from '../../shared/utils/analyzer.js';
-import { buildScheduleEmbed } from '../embeds/embed.js';
+import { getAnalyzedSchedule } from '../../shared/utils/scheduleDetails.js';
+import { buildScheduleEmbed, COLORS } from '../embeds/embed.js';
 import { createDateNavigationButtons } from '../interactions/interactive.js';
 import { postScheduleToChannel } from '../utils/schedule-poster.js';
 import { formatDateToDDMMYYYY, getTodayFormatted } from '../../shared/utils/dateFormatter.js';
-import { logger } from '../../shared/utils/logger.js';
+import { logger, getErrorMessage } from '../../shared/utils/logger.js';
 
 /**
  * Handle /schedule command - Check team availability for a specific date
@@ -16,46 +14,34 @@ export async function handleScheduleCommand(interaction: ChatInputCommandInterac
 
   try {
     const dateOption = interaction.options.getString('date');
-    
-    // Format date as DD.MM.YYYY
-    const formatDate = (d: Date): string => {
-      const day = String(d.getDate()).padStart(2, '0');
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const year = d.getFullYear();
-      return `${day}.${month}.${year}`;
-    };
-    
-    const targetDate = dateOption || formatDate(new Date());
+    const targetDate = dateOption || formatDateToDDMMYYYY(new Date());
     const displayDate = targetDate;
 
-    const sheetData = await getScheduleForDate(targetDate);
+    const result = await getAnalyzedSchedule(targetDate);
 
-    if (!sheetData) {
+    if (!result) {
       const embed = new EmbedBuilder()
         .setTitle(displayDate)
         .setDescription('No schedule data available for this date.')
-        .setColor(0xe74c3c);
+        .setColor(COLORS.ERROR);
       await interaction.editReply({ embeds: [embed] });
       return;
     }
 
-    const absentUserIds = await getAbsentUserIdsForDate(targetDate);
-    const schedule = parseSchedule(sheetData, absentUserIds);
-    const result = analyzeSchedule(schedule);
     const embed = buildScheduleEmbed(result);
 
     const navigationButtons = await createDateNavigationButtons(displayDate);
 
-    await interaction.editReply({ 
+    await interaction.editReply({
       embeds: [embed],
       components: [navigationButtons]
     });
   } catch (error) {
-    logger.error('Error handling schedule command', error instanceof Error ? error.message : String(error));
+    logger.error('Error handling schedule command', getErrorMessage(error));
     const embed = new EmbedBuilder()
       .setTitle('Error')
       .setDescription('An error occurred. Please try again later.')
-      .setColor(0xe74c3c);
+      .setColor(COLORS.ERROR);
     await interaction.editReply({
       embeds: [embed],
     });
@@ -70,16 +56,7 @@ export async function handlePostScheduleCommand(interaction: ChatInputCommandInt
 
   try {
     const dateOption = interaction.options.getString('date');
-    
-    // Format date as DD.MM.YYYY
-    const formatDate = (d: Date): string => {
-      const day = String(d.getDate()).padStart(2, '0');
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const year = d.getFullYear();
-      return `${day}.${month}.${year}`;
-    };
-    
-    const targetDate = dateOption || formatDate(new Date());
+    const targetDate = dateOption || formatDateToDDMMYYYY(new Date());
     const displayDate = targetDate;
 
     // Post schedule to channel (like cron job does)
@@ -89,7 +66,7 @@ export async function handlePostScheduleCommand(interaction: ChatInputCommandInt
       content: `✅ Schedule posted to channel for **${displayDate}**!`,
     });
   } catch (error) {
-    logger.error('Error posting schedule', error instanceof Error ? error.message : String(error));
+    logger.error('Error posting schedule', getErrorMessage(error));
     await interaction.editReply({
       content: '❌ An error occurred while posting the schedule.',
     });

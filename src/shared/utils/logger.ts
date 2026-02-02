@@ -72,3 +72,10 @@ class Logger {
 
 export const logger = new Logger();
 export type { LogEntry };
+
+/**
+ * Extract error message from unknown error type
+ */
+export function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}

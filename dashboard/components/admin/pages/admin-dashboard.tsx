@@ -3,8 +3,12 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Activity, Users, Calendar, Trophy, TrendingUp, Clock, Percent, BarChart3, Zap, Settings, Terminal } from 'lucide-react';
-import { stagger, microInteractions, cn } from '@/lib/animations';
+import { stagger, microInteractions } from '@/lib/animations';
+import { cn } from '@/lib/utils';
 import { BOT_API_URL } from '@/lib/config';
+import { getAuthHeaders } from '@/lib/auth';
+import { parseDDMMYYYY } from '@/lib/date-utils';
+import { type ScheduleDay, type ScrimEntry } from '@/lib/types';
 
 interface DashboardStats {
   totalUsers: number;
@@ -19,34 +23,10 @@ interface BotStatus {
   uptime?: number;
 }
 
-interface ScheduleDay {
-  date: string;
-  players: {
-    userId: string;
-    displayName: string;
-    role: string;
-    availability: string;
-    sortOrder: number;
-  }[];
-  reason: string;
-  focus: string;
-}
-
-interface ScrimEntry {
-  id: string;
-  date: string;
-  result: 'win' | 'loss' | 'draw';
-}
-
 interface UserMapping {
   discordId: string;
   displayName: string;
   role: string;
-}
-
-function parseDDMMYYYY(dateStr: string): Date {
-  const [day, month, year] = dateStr.split('.').map(Number);
-  return new Date(year, month - 1, day);
 }
 
 export function AdminDashboard() {
@@ -67,7 +47,7 @@ export function AdminDashboard() {
   const loadStats = async () => {
     setLoading(true);
     try {
-      const { getAuthHeaders } = await import('@/lib/auth');
+
 
       const [usersRes, schedulesRes, scrimsRes] = await Promise.all([
         fetch(`${BOT_API_URL}/api/user-mappings`, { headers: getAuthHeaders() }),

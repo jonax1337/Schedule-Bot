@@ -7,8 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Key, Copy, Check, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
-import { stagger, microInteractions, cn } from "@/lib/animations";
+import { stagger, microInteractions } from "@/lib/animations";
+import { cn } from "@/lib/utils";
 import { BOT_API_URL } from "@/lib/config";
+import { getAuthHeaders } from '@/lib/auth';
 
 export function Security() {
   const [newPassword, setNewPassword] = useState('');
@@ -42,7 +44,7 @@ export function Security() {
 
     setGenerating(true);
     try {
-      const { getAuthHeaders } = await import('@/lib/auth');
+
       const response = await fetch(`${BOT_API_URL}/api/admin/generate-password-hash`, {
         method: 'POST',
         headers: getAuthHeaders(),
@@ -74,7 +76,7 @@ export function Security() {
   const handleGenerateJwtSecret = async () => {
     setGeneratingJwt(true);
     try {
-      const { getAuthHeaders } = await import('@/lib/auth');
+
       const response = await fetch(`${BOT_API_URL}/api/admin/generate-jwt-secret`, {
         method: 'POST',
         headers: getAuthHeaders(),

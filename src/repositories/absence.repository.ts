@@ -1,4 +1,5 @@
 import { prisma } from './database.repository.js';
+import { parseDDMMYYYY } from '../shared/utils/dateFormatter.js';
 
 export interface AbsenceData {
   id: number;
@@ -11,20 +12,12 @@ export interface AbsenceData {
 }
 
 /**
- * Parse DD.MM.YYYY to a Date object for comparison
- */
-function parseGermanDate(dateStr: string): Date {
-  const [day, month, year] = dateStr.split('.');
-  return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-}
-
-/**
  * Check if a date (DD.MM.YYYY) falls within a range [start, end] inclusive
  */
 function isDateInRange(date: string, startDate: string, endDate: string): boolean {
-  const d = parseGermanDate(date);
-  const start = parseGermanDate(startDate);
-  const end = parseGermanDate(endDate);
+  const d = parseDDMMYYYY(date);
+  const start = parseDDMMYYYY(startDate);
+  const end = parseDDMMYYYY(endDate);
   return d >= start && d <= end;
 }
 
@@ -195,13 +188,13 @@ export async function getAbsentUserIdsForDates(dates: string[]): Promise<Record<
   // Pre-parse absence dates once instead of re-parsing per date
   const parsedAbsences = absences.map(a => ({
     userId: a.userId,
-    start: parseGermanDate(a.startDate),
-    end: parseGermanDate(a.endDate),
+    start: parseDDMMYYYY(a.startDate),
+    end: parseDDMMYYYY(a.endDate),
   }));
 
   const result: Record<string, string[]> = {};
   for (const date of dates) {
-    const d = parseGermanDate(date);
+    const d = parseDDMMYYYY(date);
     const userIds = new Set<string>();
     for (const absence of parsedAbsences) {
       if (d >= absence.start && d <= absence.end) {

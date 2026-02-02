@@ -1,9 +1,10 @@
 import { ChatInputCommandInteraction, MessageFlags } from 'discord.js';
-import { getUserMapping, updateUserMapping } from '../../repositories/user-mapping.repository.js';
+import { updateUserMapping } from '../../repositories/user-mapping.repository.js';
 import { createDateSelectMenu, sendWeekOverview, sendMySchedule } from '../interactions/interactive.js';
 import { isValidTimezone, getTimezoneAbbreviation } from '../../shared/utils/timezoneConverter.js';
 import { config } from '../../shared/config/config.js';
-import { logger } from '../../shared/utils/logger.js';
+import { logger, getErrorMessage } from '../../shared/utils/logger.js';
+import { requireRegisteredUser } from '../utils/command-helpers.js';
 
 /**
  * Handle /set command - Set your availability for upcoming days
@@ -12,14 +13,8 @@ export async function handleAvailabilityCommand(interaction: ChatInputCommandInt
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   try {
-    const userMapping = await getUserMapping(interaction.user.id);
-    
-    if (!userMapping) {
-      await interaction.editReply({
-        content: '❌ You are not registered yet. Please contact an admin to register you with `/register`.'
-      });
-      return;
-    }
+    const userMapping = await requireRegisteredUser(interaction);
+    if (!userMapping) return;
 
     const dateSelectMenu = await createDateSelectMenu();
 
@@ -28,7 +23,7 @@ export async function handleAvailabilityCommand(interaction: ChatInputCommandInt
       components: [dateSelectMenu],
     });
   } catch (error) {
-    logger.error('Error handling availability command', error instanceof Error ? error.message : String(error));
+    logger.error('Error handling availability command', getErrorMessage(error));
     await interaction.editReply({
       content: 'An error occurred. Please try again later.',
     });
@@ -56,14 +51,8 @@ export async function handleSetTimezoneCommand(interaction: ChatInputCommandInte
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   try {
-    const userMapping = await getUserMapping(interaction.user.id);
-
-    if (!userMapping) {
-      await interaction.editReply({
-        content: '❌ You are not registered yet. Please contact an admin to register you with `/register`.',
-      });
-      return;
-    }
+    const userMapping = await requireRegisteredUser(interaction);
+    if (!userMapping) return;
 
     const timezone = interaction.options.getString('timezone', true);
 
@@ -85,7 +74,7 @@ export async function handleSetTimezoneCommand(interaction: ChatInputCommandInte
       content: `✅ Your timezone has been set to **${timezone}** (${abbr}).${isSame ? '\n\nThis matches the bot timezone — no conversion will be applied.' : `\n\n⏰ Your time inputs will be automatically converted from ${abbr} → ${botAbbr} when setting availability.`}`,
     });
   } catch (error) {
-    logger.error('Error setting timezone', error instanceof Error ? error.message : String(error));
+    logger.error('Error setting timezone', getErrorMessage(error));
     await interaction.editReply({
       content: 'An error occurred while setting your timezone.',
     });
@@ -99,14 +88,8 @@ export async function handleRemoveTimezoneCommand(interaction: ChatInputCommandI
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   try {
-    const userMapping = await getUserMapping(interaction.user.id);
-
-    if (!userMapping) {
-      await interaction.editReply({
-        content: '❌ You are not registered yet.',
-      });
-      return;
-    }
+    const userMapping = await requireRegisteredUser(interaction);
+    if (!userMapping) return;
 
     if (!userMapping.timezone) {
       await interaction.editReply({
@@ -123,7 +106,7 @@ export async function handleRemoveTimezoneCommand(interaction: ChatInputCommandI
       content: `✅ Your personal timezone (**${oldTz}**) has been removed.\n\nThe bot default timezone (${config.scheduling.timezone} / ${botAbbr}) will be used — no conversion will be applied.`,
     });
   } catch (error) {
-    logger.error('Error removing timezone', error instanceof Error ? error.message : String(error));
+    logger.error('Error removing timezone', getErrorMessage(error));
     await interaction.editReply({
       content: 'An error occurred while removing your timezone.',
     });

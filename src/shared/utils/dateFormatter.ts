@@ -72,3 +72,20 @@ export function isDateAfterOrEqual(dateStr1: string, dateStr2: string): boolean 
   const date2 = parseDDMMYYYY(dateStr2);
   return date1 >= date2;
 }
+
+/**
+ * Convert HH:MM time string to total minutes since midnight
+ */
+export function timeToMinutes(time: string): number {
+  const [hours, minutes] = time.split(':').map(Number);
+  return hours * 60 + minutes;
+}
+
+/**
+ * Convert total minutes since midnight to HH:MM string
+ */
+export function minutesToTime(minutes: number): string {
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+}

@@ -5,7 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { microInteractions, cn } from '@/lib/animations';
+import { microInteractions } from '@/lib/animations';
+import { cn } from '@/lib/utils';
 import { BOT_API_URL } from '@/lib/config';
 
 function CallbackContent() {

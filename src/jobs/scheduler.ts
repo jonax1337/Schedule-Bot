@@ -2,7 +2,7 @@ import cron from 'node-cron';
 import { config } from '../shared/config/config.js';
 import { postScheduleToChannel, client } from '../bot/client.js';
 import { sendRemindersToUsersWithoutEntry } from '../bot/interactions/reminder.js';
-import { logger } from '../shared/utils/logger.js';
+import { logger, getErrorMessage } from '../shared/utils/logger.js';
 
 let scheduledTask: cron.ScheduledTask | null = null;
 let reminderTask: cron.ScheduledTask | null = null;
@@ -46,7 +46,7 @@ export function startScheduler(): void {
         await postScheduleToChannel();
         logger.success('Scheduled post completed');
       } catch (error) {
-        logger.error('Scheduled post failed', error instanceof Error ? error.message : String(error));
+        logger.error('Scheduled post failed', getErrorMessage(error));
       }
     },
     {
@@ -68,7 +68,7 @@ export function startScheduler(): void {
         await sendRemindersToUsersWithoutEntry(client);
         logger.success('Reminders sent');
       } catch (error) {
-        logger.error('Scheduled reminders failed', error instanceof Error ? error.message : String(error));
+        logger.error('Scheduled reminders failed', getErrorMessage(error));
       }
     },
     {
@@ -91,7 +91,7 @@ export function startScheduler(): void {
           await sendRemindersToUsersWithoutEntry(client);
           logger.success('Duplicate reminders sent');
         } catch (error) {
-          logger.error('Duplicate reminders failed', error instanceof Error ? error.message : String(error));
+          logger.error('Duplicate reminders failed', getErrorMessage(error));
         }
       },
       {

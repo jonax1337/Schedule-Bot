@@ -6,6 +6,7 @@ import { FileText, Loader2, Trash2, Upload, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { microInteractions } from '@/lib/animations';
+import { getAuthHeaders } from '@/lib/auth';
 import { StrategyEditor } from './strategy-editor';
 import { AgentSelector } from './agent-picker';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,11 +22,7 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { BOT_API_URL } from '@/lib/config';
-
-const VALORANT_MAPS = [
-  'Abyss', 'Ascent', 'Bind', 'Breeze', 'Fracture', 'Haven',
-  'Icebox', 'Lotus', 'Pearl', 'Split', 'Sunset',
-];
+import { VALORANT_MAPS } from '@/lib/constants';
 
 interface StrategyFormProps {
   /** If provided, we're editing an existing strategy */
@@ -96,7 +93,7 @@ export function StrategyForm({ strategyId, initialData, folderId, onSaved, onCan
   }, [strategyId]);
 
   const uploadPdfToStrategy = useCallback(async (file: File, targetId: number) => {
-    const { getAuthHeaders } = await import('@/lib/auth');
+
     const headers = getAuthHeaders();
     delete (headers as any)['Content-Type'];
     const formData = new FormData();
@@ -134,7 +131,7 @@ export function StrategyForm({ strategyId, initialData, folderId, onSaved, onCan
 
   const deletePdf = useCallback(async (fileId: number) => {
     try {
-      const { getAuthHeaders } = await import('@/lib/auth');
+  
       const res = await fetch(`${BOT_API_URL}/api/strategies/files/${fileId}`, {
         method: 'DELETE',
         headers: getAuthHeaders(),
@@ -155,7 +152,7 @@ export function StrategyForm({ strategyId, initialData, folderId, onSaved, onCan
 
     setSaving(true);
     try {
-      const { getAuthHeaders } = await import('@/lib/auth');
+  
       const body: any = {
         title: title.trim(),
         map: map || null,

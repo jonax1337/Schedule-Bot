@@ -1,7 +1,7 @@
 import { Client, REST, Routes } from 'discord.js';
 import { config } from '../../shared/config/config.js';
 import { commands } from '../commands/definitions.js';
-import { logger } from '../../shared/utils/logger.js';
+import { logger, getErrorMessage } from '../../shared/utils/logger.js';
 
 /**
  * Register slash commands with Discord
@@ -17,7 +17,7 @@ export async function registerCommands(client: Client): Promise<void> {
     );
     logger.success('Slash commands registered');
   } catch (error) {
-    logger.error('Slash command registration failed', error instanceof Error ? error.message : String(error));
+    logger.error('Slash command registration failed', getErrorMessage(error));
   }
 }
 
@@ -34,6 +34,6 @@ export async function handleReady(client: Client): Promise<void> {
     await recoverTrainingPolls();
     await recoverQuickPolls();
   } catch (error) {
-    logger.error('Error recovering polls on startup', error instanceof Error ? error.message : String(error));
+    logger.error('Error recovering polls on startup', getErrorMessage(error));
   }
 }

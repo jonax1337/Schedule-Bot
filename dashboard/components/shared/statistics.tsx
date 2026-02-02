@@ -29,50 +29,14 @@ import {
   CartesianGrid,
 } from 'recharts';
 import { Target, Map, BarChart3, Flame, Swords, Loader2, ChevronDown } from 'lucide-react';
-import { stagger, cn } from '@/lib/animations';
+import { PageSpinner } from '@/components/ui/page-spinner';
+import { stagger } from '@/lib/animations';
+import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { BOT_API_URL } from '@/lib/config';
-
-interface ScheduleDay {
-  date: string;
-  players: {
-    userId: string;
-    displayName: string;
-    role: string;
-    availability: string;
-    sortOrder: number;
-  }[];
-  reason: string;
-  focus: string;
-}
-
-interface ScrimEntry {
-  id: string;
-  date: string;
-  opponent: string;
-  result: 'win' | 'loss' | 'draw';
-  scoreUs: number;
-  scoreThem: number;
-  map: string;
-  matchType?: string;
-  ourAgents?: string[];
-  theirAgents?: string[];
-}
-
-interface ScrimStats {
-  totalScrims: number;
-  wins: number;
-  losses: number;
-  draws: number;
-  winRate: number;
-  mapStats: {
-    [mapName: string]: {
-      played: number;
-      wins: number;
-      losses: number;
-    };
-  };
-}
+import { getAuthHeaders } from '@/lib/auth';
+import { type ScrimEntry, type ScrimStats, type ScheduleDay } from '@/lib/types';
+import { parseDDMMYYYY } from '@/lib/date-utils';
 
 type AvailabilityRange = 'next14' | 'last14' | 'last30' | 'last60';
 
@@ -111,11 +75,6 @@ const mapStatsConfig: ChartConfig = {
   wins: { label: 'Wins', color: 'oklch(0.723 0.219 149.579)' },
   losses: { label: 'Losses', color: 'oklch(0.577 0.245 27.325)' },
 };
-
-function parseDDMMYYYY(dateStr: string): Date {
-  const [day, month, year] = dateStr.split('.').map(Number);
-  return new Date(year, month - 1, day);
-}
 
 function computeStatsFromScrims(scrims: ScrimEntry[]): ScrimStats {
   const stats: ScrimStats = {
@@ -223,7 +182,7 @@ export function Statistics() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const { getAuthHeaders } = await import('@/lib/auth');
+
       const headers = getAuthHeaders();
 
       const [schedulesRes, scrimsRes] = await Promise.all([
@@ -259,7 +218,7 @@ export function Statistics() {
 
     setAvailabilityLoading(true);
     try {
-      const { getAuthHeaders } = await import('@/lib/auth');
+
       const headers = getAuthHeaders();
       const rangeConfig = AVAILABILITY_RANGES.find(r => r.value === range)!;
 
@@ -466,13 +425,7 @@ export function Statistics() {
   const isFiltered = scrimMatchType !== '__all__' || scrimTimeRange !== 'all';
 
   if (loading) {
-    return (
-      <div className="min-h-[400px] flex items-center justify-center">
-        <div className="animate-scaleIn">
-          <Loader2 className="w-8 h-8 animate-spin" />
-        </div>
-      </div>
-    );
+    return <PageSpinner />;
   }
 
   return (

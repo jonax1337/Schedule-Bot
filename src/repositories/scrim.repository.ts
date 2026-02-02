@@ -1,42 +1,12 @@
 import { prisma } from './database.repository.js';
 import type { ScrimEntry, ScrimStats } from '../shared/types/types.js';
-import { logger } from '../shared/utils/logger.js';
+import { logger, getErrorMessage } from '../shared/utils/logger.js';
 
 function generateScrimId(): string {
   return `scrim_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
 
-export async function getAllScrims(): Promise<ScrimEntry[]> {
-  const scrims = await prisma.scrim.findMany({
-    orderBy: { createdAt: 'desc' },
-  });
-
-  return scrims.map(s => ({
-    id: s.id,
-    date: s.date,
-    opponent: s.opponent,
-    result: s.result.toLowerCase() as 'win' | 'loss' | 'draw',
-    scoreUs: s.scoreUs,
-    scoreThem: s.scoreThem,
-    map: s.map,
-    matchType: s.matchType,
-    ourAgents: s.ourAgents.split(',').filter(Boolean),
-    theirAgents: s.theirAgents.split(',').filter(Boolean),
-    vodUrl: s.vodUrl,
-    matchLink: s.matchLink,
-    notes: s.notes,
-    createdAt: s.createdAt.toISOString(),
-    updatedAt: s.updatedAt.toISOString(),
-  }));
-}
-
-export async function getScrimById(id: string): Promise<ScrimEntry | null> {
-  const scrim = await prisma.scrim.findUnique({
-    where: { id },
-  });
-
-  if (!scrim) return null;
-
+function mapScrimToEntry(scrim: any): ScrimEntry {
   return {
     id: scrim.id,
     date: scrim.date,
@@ -54,6 +24,24 @@ export async function getScrimById(id: string): Promise<ScrimEntry | null> {
     createdAt: scrim.createdAt.toISOString(),
     updatedAt: scrim.updatedAt.toISOString(),
   };
+}
+
+export async function getAllScrims(): Promise<ScrimEntry[]> {
+  const scrims = await prisma.scrim.findMany({
+    orderBy: { createdAt: 'desc' },
+  });
+
+  return scrims.map(mapScrimToEntry);
+}
+
+export async function getScrimById(id: string): Promise<ScrimEntry | null> {
+  const scrim = await prisma.scrim.findUnique({
+    where: { id },
+  });
+
+  if (!scrim) return null;
+
+  return mapScrimToEntry(scrim);
 }
 
 export async function addScrim(scrim: Omit<ScrimEntry, 'id' | 'createdAt' | 'updatedAt'>): Promise<ScrimEntry> {
@@ -79,23 +67,7 @@ export async function addScrim(scrim: Omit<ScrimEntry, 'id' | 'createdAt' | 'upd
 
   logger.info('Added scrim', newScrim.id);
 
-  return {
-    id: newScrim.id,
-    date: newScrim.date,
-    opponent: newScrim.opponent,
-    result: newScrim.result.toLowerCase() as 'win' | 'loss' | 'draw',
-    scoreUs: newScrim.scoreUs,
-    scoreThem: newScrim.scoreThem,
-    map: newScrim.map,
-    matchType: newScrim.matchType,
-    ourAgents: newScrim.ourAgents.split(',').filter(Boolean),
-    theirAgents: newScrim.theirAgents.split(',').filter(Boolean),
-    vodUrl: newScrim.vodUrl,
-    matchLink: newScrim.matchLink,
-    notes: newScrim.notes,
-    createdAt: newScrim.createdAt.toISOString(),
-    updatedAt: newScrim.updatedAt.toISOString(),
-  };
+  return mapScrimToEntry(newScrim);
 }
 
 export async function updateScrim(id: string, updates: Partial<Omit<ScrimEntry, 'id' | 'createdAt'>>): Promise<ScrimEntry | null> {
@@ -122,25 +94,9 @@ export async function updateScrim(id: string, updates: Partial<Omit<ScrimEntry, 
 
     logger.info('Updated scrim', id);
 
-    return {
-      id: updatedScrim.id,
-      date: updatedScrim.date,
-      opponent: updatedScrim.opponent,
-      result: updatedScrim.result.toLowerCase() as 'win' | 'loss' | 'draw',
-      scoreUs: updatedScrim.scoreUs,
-      scoreThem: updatedScrim.scoreThem,
-      map: updatedScrim.map,
-      matchType: updatedScrim.matchType,
-      ourAgents: updatedScrim.ourAgents.split(',').filter(Boolean),
-      theirAgents: updatedScrim.theirAgents.split(',').filter(Boolean),
-      vodUrl: updatedScrim.vodUrl,
-      matchLink: updatedScrim.matchLink,
-      notes: updatedScrim.notes,
-      createdAt: updatedScrim.createdAt.toISOString(),
-      updatedAt: updatedScrim.updatedAt.toISOString(),
-    };
+    return mapScrimToEntry(updatedScrim);
   } catch (error) {
-    logger.error('Error updating scrim', error instanceof Error ? error.message : String(error));
+    logger.error('Error updating scrim', getErrorMessage(error));
     return null;
   }
 }
@@ -154,7 +110,7 @@ export async function deleteScrim(id: string): Promise<boolean> {
     logger.info('Deleted scrim', id);
     return true;
   } catch (error) {
-    logger.error('Error deleting scrim', error instanceof Error ? error.message : String(error));
+    logger.error('Error deleting scrim', getErrorMessage(error));
     return false;
   }
 }

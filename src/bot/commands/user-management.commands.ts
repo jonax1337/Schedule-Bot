@@ -1,6 +1,6 @@
 import { ChatInputCommandInteraction, MessageFlags } from 'discord.js';
 import { getUserMapping, addUserMapping, removeUserMapping } from '../../repositories/user-mapping.repository.js';
-import { logger } from '../../shared/utils/logger.js';
+import { logger, getErrorMessage } from '../../shared/utils/logger.js';
 
 /**
  * Handle /register command - Register a user for availability management (Admin)
@@ -32,7 +32,7 @@ export async function handleRegisterCommand(interaction: ChatInputCommandInterac
       content: `✅ ${user.username} has been successfully registered as **${columnName}** (${role}).`,
     });
   } catch (error) {
-    logger.error('Error handling register command', error instanceof Error ? error.message : String(error));
+    logger.error('Error handling register command', getErrorMessage(error));
     await interaction.editReply({
       content: 'An error occurred. Please try again later.',
     });
@@ -60,7 +60,7 @@ export async function handleUnregisterCommand(interaction: ChatInputCommandInter
       });
     }
   } catch (error) {
-    logger.error('Error handling unregister command', error instanceof Error ? error.message : String(error));
+    logger.error('Error handling unregister command', getErrorMessage(error));
     await interaction.editReply({
       content: 'An error occurred. Please try again later.',
     });

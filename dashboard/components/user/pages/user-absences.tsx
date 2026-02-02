@@ -1,18 +1,22 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Loader2, Plus, Trash2, PlaneTakeoff } from 'lucide-react';
+import { PageSpinner } from '@/components/ui/page-spinner';
 import { toast } from 'sonner';
-import { stagger, microInteractions, cn } from '@/lib/animations';
+import { stagger, microInteractions } from '@/lib/animations';
+import { cn } from '@/lib/utils';
 import { BOT_API_URL } from '@/lib/config';
+import { getAuthHeaders } from '@/lib/auth';
+import { parseDDMMYYYY, getWeekdayName, isoToDDMMYYYY } from '@/lib/date-utils';
+import { useUserDiscordId } from '@/hooks/use-user-discord-id';
 
 interface Absence {
   id: number;
@@ -24,18 +28,6 @@ interface Absence {
   updatedAt: string;
 }
 
-function formatDateFromInput(isoDate: string): string {
-  if (!isoDate) return '';
-  const [year, month, day] = isoDate.split('-');
-  return `${day}.${month}.${year}`;
-}
-
-function getWeekdayName(dateStr: string): string {
-  const [day, month, year] = dateStr.split('.');
-  const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-  const weekdays = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
-  return weekdays[date.getDay()];
-}
 
 function isAbsenceActive(absence: Absence): boolean {
   const today = new Date();
@@ -56,14 +48,14 @@ function isAbsenceCurrent(absence: Absence): boolean {
 }
 
 export function UserAbsences() {
-  const router = useRouter();
+  const { user, isLoading: authLoading } = useUserDiscordId();
+  const userDiscordId = user?.discordId || '';
   const [absences, setAbsences] = useState<Absence[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<number | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [userDiscordId, setUserDiscordId] = useState('');
 
   // Form state
   const [newStartDate, setNewStartDate] = useState('');
@@ -71,44 +63,9 @@ export function UserAbsences() {
   const [newReason, setNewReason] = useState('');
 
   useEffect(() => {
-    const checkAuthAndLoad = async () => {
-      try {
-        const savedUser = localStorage.getItem('selectedUser');
-        if (!savedUser) {
-          router.replace('/login');
-          return;
-        }
-
-        // Look up the user mapping to get discordId (same pattern as availability page)
-        const { getAuthHeaders } = await import('@/lib/auth');
-        const mappingsRes = await fetch(`${BOT_API_URL}/api/user-mappings`, {
-          headers: getAuthHeaders(),
-        });
-        if (!mappingsRes.ok) {
-          toast.error('Failed to load user mappings');
-          setLoading(false);
-          return;
-        }
-
-        const mappingsData = await mappingsRes.json();
-        const userMapping = (mappingsData.mappings || []).find((m: any) => m.displayName === savedUser);
-
-        if (!userMapping) {
-          toast.error('User mapping not found');
-          setLoading(false);
-          return;
-        }
-
-        setUserDiscordId(userMapping.discordId);
-        await loadAbsences(userMapping.discordId, true);
-      } catch (error) {
-        console.error('Auth check failed:', error);
-        router.push('/login');
-      }
-    };
-
-    checkAuthAndLoad();
-  }, [router]);
+    if (authLoading || !userDiscordId) return;
+    loadAbsences(userDiscordId, true);
+  }, [authLoading, userDiscordId]);
 
   const loadAbsences = async (discordId?: string, isInitial = false) => {
     const userId = discordId || userDiscordId;
@@ -116,7 +73,7 @@ export function UserAbsences() {
 
     if (!isInitial) setLoading(true);
     try {
-      const { getAuthHeaders } = await import('@/lib/auth');
+
       const response = await fetch(`${BOT_API_URL}/api/absences?userId=${userId}`, {
         headers: getAuthHeaders(),
       });
@@ -143,8 +100,8 @@ export function UserAbsences() {
       return;
     }
 
-    const startDate = formatDateFromInput(newStartDate);
-    const endDate = formatDateFromInput(newEndDate);
+    const startDate = isoToDDMMYYYY(newStartDate);
+    const endDate = isoToDDMMYYYY(newEndDate);
 
     if (newEndDate < newStartDate) {
       toast.error('End date must be after start date');
@@ -153,7 +110,7 @@ export function UserAbsences() {
 
     setSaving(true);
     try {
-      const { getAuthHeaders } = await import('@/lib/auth');
+
       const response = await fetch(`${BOT_API_URL}/api/absences`, {
         method: 'POST',
         headers: getAuthHeaders(),
@@ -187,7 +144,7 @@ export function UserAbsences() {
   const deleteAbsenceHandler = async (id: number) => {
     setDeleting(id);
     try {
-      const { getAuthHeaders } = await import('@/lib/auth');
+
       const response = await fetch(`${BOT_API_URL}/api/absences/${id}`, {
         method: 'DELETE',
         headers: getAuthHeaders(),
@@ -223,11 +180,7 @@ export function UserAbsences() {
   const pastAbsences = absences.filter(a => !isAbsenceActive(a));
 
   if (loading) {
-    return (
-      <div className="min-h-[400px] flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin" />
-      </div>
-    );
+    return <PageSpinner />;
   }
 
   return (
@@ -365,30 +318,19 @@ export function UserAbsences() {
       </Card>
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Absence</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this absence? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (deleteTarget !== null) {
-                  deleteAbsenceHandler(deleteTarget);
-                  setDeleteTarget(null);
-                }
-              }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Delete Absence"
+        description="Are you sure you want to delete this absence? This action cannot be undone."
+        confirmLabel="Delete"
+        onConfirm={() => {
+          if (deleteTarget !== null) {
+            deleteAbsenceHandler(deleteTarget);
+            setDeleteTarget(null);
+          }
+        }}
+      />
 
       {/* New Absence Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
