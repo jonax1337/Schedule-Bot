@@ -51,7 +51,12 @@ function LoginContent() {
   }, [router, searchParams]);
 
   return (
-    <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
+    <div className="relative flex min-h-svh w-full items-center justify-center p-6 md:p-10 overflow-hidden">
+      {/* Background gradient decoration */}
+      <div className="absolute inset-0 -z-10 bg-gradient-to-br from-primary/5 via-background to-primary/10" />
+      <div className="absolute top-0 right-0 -z-10 h-96 w-96 rounded-full bg-primary/10 blur-3xl" />
+      <div className="absolute bottom-0 left-0 -z-10 h-96 w-96 rounded-full bg-primary/5 blur-3xl" />
+
       <div className="w-full max-w-sm animate-scaleIn">
         <LoginForm redirectTo={searchParams.get('redirect')} />
       </div>

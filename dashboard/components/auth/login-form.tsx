@@ -146,16 +146,16 @@ export function LoginForm({
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card className="animate-scaleIn">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-            <UserCircle className="h-6 w-6 text-primary" />
+        <CardHeader className="text-center pb-2">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/20 to-primary/10 shadow-lg shadow-primary/10">
+            <UserCircle className="h-8 w-8 text-primary" />
           </div>
-          <CardTitle>Login</CardTitle>
-          <CardDescription>
-            {settingsLoading 
+          <CardTitle className="text-2xl font-semibold">Welcome back</CardTitle>
+          <CardDescription className="text-base">
+            {settingsLoading
               ? 'Loading...'
-              : settings?.discord?.allowDiscordAuth 
-                ? 'Sign in with Discord to continue' 
+              : settings?.discord?.allowDiscordAuth
+                ? 'Sign in with Discord to continue'
                 : 'Choose your player profile to continue'}
           </CardDescription>
         </CardHeader>
