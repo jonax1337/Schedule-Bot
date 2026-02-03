@@ -10,12 +10,21 @@ interface UseScheduleOptions {
   offset?: number;
 }
 
+interface PaginationInfo {
+  hasMore: boolean;
+  hasNewer: boolean;
+  totalPages: number;
+  currentPage: number;
+}
+
 interface UseScheduleResult {
   schedules: ScheduleDay[];
   loading: boolean;
   error: string | null;
   totalCount: number;
+  pagination: PaginationInfo;
   refetch: () => Promise<void>;
+  loadPage: (page: number) => Promise<void>;
   updateReason: (date: string, reason: string, focus?: string) => Promise<boolean>;
   updateAvailability: (date: string, userId: string, availability: string) => Promise<boolean>;
 }
@@ -26,32 +35,64 @@ export function useSchedule(options: UseScheduleOptions = {}): UseScheduleResult
   const [loading, setLoading] = useState(fetchOnMount);
   const [error, setError] = useState<string | null>(null);
   const [totalCount, setTotalCount] = useState(0);
+  const [pagination, setPagination] = useState<PaginationInfo>({
+    hasMore: false,
+    hasNewer: false,
+    totalPages: 1,
+    currentPage: offset,
+  });
 
-  const fetchSchedules = useCallback(async () => {
+  const fetchSchedulesWithPage = useCallback(async (page: number) => {
     setLoading(true);
     setError(null);
     try {
       if (mode === 'paginated') {
-        const data = await apiGet<{ schedules: ScheduleDay[]; total: number }>(`/api/schedule/paginated?offset=${offset}`);
+        const data = await apiGet<{
+          schedules: ScheduleDay[];
+          total: number;
+          hasMore?: boolean;
+          hasNewer?: boolean;
+          totalPages?: number;
+        }>(`/api/schedule/paginated?offset=${page}`);
         setSchedules(data.schedules || []);
         setTotalCount(data.total || 0);
+        setPagination({
+          hasMore: data.hasMore ?? false,
+          hasNewer: data.hasNewer ?? false,
+          totalPages: data.totalPages ?? 1,
+          currentPage: page,
+        });
       } else {
         const data = await apiGet<{ schedules: ScheduleDay[] }>('/api/schedule/next14');
         setSchedules(data.schedules || []);
         setTotalCount(data.schedules?.length || 0);
+        setPagination({
+          hasMore: false,
+          hasNewer: false,
+          totalPages: 1,
+          currentPage: 0,
+        });
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch schedules');
     } finally {
       setLoading(false);
     }
-  }, [mode, offset]);
+  }, [mode]);
+
+  const fetchSchedules = useCallback(async () => {
+    await fetchSchedulesWithPage(pagination.currentPage);
+  }, [fetchSchedulesWithPage, pagination.currentPage]);
+
+  const loadPage = useCallback(async (page: number) => {
+    await fetchSchedulesWithPage(page);
+  }, [fetchSchedulesWithPage]);
 
   useEffect(() => {
     if (fetchOnMount) {
-      fetchSchedules();
+      fetchSchedulesWithPage(offset);
     }
-  }, [fetchSchedules, fetchOnMount]);
+  }, [fetchOnMount, offset, fetchSchedulesWithPage]);
 
   const updateReason = useCallback(async (date: string, reason: string, focus?: string): Promise<boolean> => {
     try {
@@ -84,7 +125,9 @@ export function useSchedule(options: UseScheduleOptions = {}): UseScheduleResult
     loading,
     error,
     totalCount,
+    pagination,
     refetch: fetchSchedules,
+    loadPage,
     updateReason,
     updateAvailability,
   };

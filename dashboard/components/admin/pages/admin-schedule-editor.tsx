@@ -11,11 +11,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import Image from 'next/image';
 import { stagger, microInteractions } from '@/lib/animations';
 import { cn } from '@/lib/utils';
-import { BOT_API_URL } from '@/lib/config';
-import { getAuthHeaders } from '@/lib/auth';
 import { useTimezone, getTimezoneAbbr } from '@/lib/timezone';
 import { getWeekdayName, getReasonBadgeClasses, SCHEDULE_REASON_SUGGESTIONS } from '@/lib/date-utils';
-import { useUserMappings } from '@/hooks';
+import { useUserMappings, useSchedule } from '@/hooks';
+import { useAbsences } from '@/hooks/use-absences';
 
 interface SchedulePlayer {
   userId: string;
@@ -34,16 +33,20 @@ interface ScheduleData {
 export function ScheduleEditor() {
   const { convertRangeToLocal, convertRangeToBot, isConverting, userTimezone, botTimezoneLoaded, timezoneVersion } = useTimezone();
   const { mappings } = useUserMappings();
-  const [schedules, setSchedules] = useState<ScheduleData[]>([]);
+  const {
+    schedules,
+    loading,
+    pagination,
+    refetch,
+    loadPage,
+    updateReason: hookUpdateReason,
+    updateAvailability: hookUpdateAvailability,
+  } = useSchedule({ fetchOnMount: false, mode: 'paginated', offset: 0 });
+  const { getAbsentUserIdsByDates } = useAbsences({ fetchOnMount: false });
   const [absentByDate, setAbsentByDate] = useState<Record<string, string[]>>({});
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editingCell, setEditingCell] = useState<{ date: string; userId: string } | null>(null);
   const [editValue, setEditValue] = useState('');
-  const [currentPage, setCurrentPage] = useState(0);
-  const [hasMore, setHasMore] = useState(false);
-  const [hasNewer, setHasNewer] = useState(false);
-  const [totalPages, setTotalPages] = useState(1);
   const [reasonDialogOpen, setReasonDialogOpen] = useState(false);
   const [selectedDateForReason, setSelectedDateForReason] = useState<string | null>(null);
   const [reasonValue, setReasonValue] = useState('');
@@ -54,49 +57,25 @@ export function ScheduleEditor() {
     [mappings]
   );
 
+  // Load initial data when timezone is ready
   useEffect(() => {
     if (!botTimezoneLoaded) return;
-    loadData();
+    handleLoadPage(0);
   }, [botTimezoneLoaded, timezoneVersion]);
 
-  const loadData = async (page: number = 0) => {
-    setLoading(true);
-    try {
-      const schedulesRes = await fetch(`${BOT_API_URL}/api/schedule/paginated?offset=${page}`, {
-        headers: getAuthHeaders(),
-      });
+  // Fetch absences when schedules change
+  useEffect(() => {
+    const fetchAbsences = async () => {
+      if (schedules.length === 0) return;
+      const dates = schedules.map(s => s.date);
+      const absentData = await getAbsentUserIdsByDates(dates);
+      setAbsentByDate(absentData);
+    };
+    fetchAbsences();
+  }, [schedules, getAbsentUserIdsByDates]);
 
-      if (schedulesRes.ok) {
-        const data = await schedulesRes.json();
-        const loadedSchedules = data.schedules || [];
-        setSchedules(loadedSchedules);
-        setHasMore(data.hasMore || false);
-        setHasNewer(data.hasNewer || false);
-        setTotalPages(data.totalPages || 1);
-        setCurrentPage(page);
-
-        // Fetch absences for loaded dates
-        if (loadedSchedules.length > 0) {
-          const dates = loadedSchedules.map((s: ScheduleData) => s.date).join(',');
-          try {
-            const absencesRes = await fetch(`${BOT_API_URL}/api/absences/by-dates?dates=${dates}`, {
-              headers: getAuthHeaders(),
-            });
-            if (absencesRes.ok) {
-              const absenceData = await absencesRes.json();
-              setAbsentByDate(absenceData.absentByDate || {});
-            }
-          } catch (err) {
-            console.error('Failed to load absences:', err);
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Failed to load data:', error);
-      toast.error('Failed to load schedule data');
-    } finally {
-      setLoading(false);
-    }
+  const handleLoadPage = async (page: number) => {
+    await loadPage(page);
   };
 
   const handleCellClick = (date: string, userId: string, currentValue: string) => {
@@ -128,36 +107,9 @@ export function ScheduleEditor() {
       : availability;
     setSaving(true);
     try {
-
-      const response = await fetch(`${BOT_API_URL}/api/schedule/update-availability`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          date,
-          userId,
-          availability: botAvailability,
-        }),
-      });
-
-      if (response.ok) {
+      const success = await hookUpdateAvailability(date, userId, botAvailability);
+      if (success) {
         toast.success('Availability updated');
-        // Update local state
-        setSchedules(prevSchedules => {
-          return prevSchedules.map(schedule => {
-            if (schedule.date === date) {
-              return {
-                ...schedule,
-                players: schedule.players.map(player => {
-                  if (player.userId === userId) {
-                    return { ...player, availability: botAvailability };
-                  }
-                  return player;
-                }),
-              };
-            }
-            return schedule;
-          });
-        });
       } else {
         toast.error('Failed to update availability');
       }
@@ -180,32 +132,9 @@ export function ScheduleEditor() {
 
     setSaving(true);
     try {
-
-      const response = await fetch(`${BOT_API_URL}/api/schedule/update-reason`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          date: selectedDateForReason,
-          reason: reasonValue.trim(),
-          focus: '',
-        }),
-      });
-
-      if (response.ok) {
+      const success = await hookUpdateReason(selectedDateForReason, reasonValue.trim(), '');
+      if (success) {
         toast.success('Reason updated');
-        // Update local state
-        setSchedules(prevSchedules => {
-          return prevSchedules.map(schedule => {
-            if (schedule.date === selectedDateForReason) {
-              return {
-                ...schedule,
-                reason: reasonValue.trim(),
-                focus: '',
-              };
-            }
-            return schedule;
-          });
-        });
         setReasonDialogOpen(false);
       } else {
         toast.error('Failed to update reason');
@@ -236,14 +165,14 @@ export function ScheduleEditor() {
               Schedule Editor
             </CardTitle>
             <CardDescription>
-              {currentPage === 0
+              {pagination.currentPage === 0
                 ? 'Edit player availability for the next 14 days'
-                : `Viewing historical data (${currentPage * 14} - ${(currentPage + 1) * 14} days from now)`
+                : `Viewing historical data (${pagination.currentPage * 14} - ${(pagination.currentPage + 1) * 14} days from now)`
               }
             </CardDescription>
           </div>
           <Button
-            onClick={() => loadData(currentPage)}
+            onClick={() => handleLoadPage(pagination.currentPage)}
             variant="outline"
             size="sm"
             className={cn(microInteractions.hoverScale, microInteractions.smooth)}
@@ -361,19 +290,19 @@ export function ScheduleEditor() {
         {/* Pagination Controls */}
         <div className="flex items-center justify-between mt-4">
           <div className="text-sm text-muted-foreground">
-            {currentPage === 0 ? (
+            {pagination.currentPage === 0 ? (
               <span className="font-medium">Next 14 days</span>
-            ) : currentPage < 0 ? (
-              <span className="font-medium">Previous {Math.abs(currentPage) * 14} days</span>
+            ) : pagination.currentPage < 0 ? (
+              <span className="font-medium">Previous {Math.abs(pagination.currentPage) * 14} days</span>
             ) : (
-              <span className="font-medium">Days {currentPage * 14 + 1}-{currentPage * 14 + 14} ahead</span>
+              <span className="font-medium">Days {pagination.currentPage * 14 + 1}-{pagination.currentPage * 14 + 14} ahead</span>
             )}
           </div>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => loadData(currentPage - 1)}
+              onClick={() => handleLoadPage(pagination.currentPage - 1)}
               disabled={loading}
               className={cn(microInteractions.hoverScale, microInteractions.smooth)}
             >
@@ -383,8 +312,8 @@ export function ScheduleEditor() {
             <Button
               variant="default"
               size="sm"
-              onClick={() => loadData(0)}
-              disabled={currentPage === 0 || loading}
+              onClick={() => handleLoadPage(0)}
+              disabled={pagination.currentPage === 0 || loading}
               className={cn(microInteractions.activePress, microInteractions.smooth)}
             >
               <Calendar className="w-4 h-4 mr-1" />
@@ -393,7 +322,7 @@ export function ScheduleEditor() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => loadData(currentPage + 1)}
+              onClick={() => handleLoadPage(pagination.currentPage + 1)}
               disabled={loading}
               className={cn(microInteractions.hoverScale, microInteractions.smooth)}
             >

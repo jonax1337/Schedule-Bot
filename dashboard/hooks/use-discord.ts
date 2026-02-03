@@ -122,8 +122,8 @@ export function useDiscordMembers(options: UseDiscordDataOptions = {}): UseDisco
     setLoading(true);
     setError(null);
     try {
-      const data = await apiGet<DiscordMember[]>('/api/discord/members');
-      setMembers(data || []);
+      const data = await apiGet<{ members: DiscordMember[] }>('/api/discord/members');
+      setMembers(data.members || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch Discord members');
     } finally {

@@ -46,6 +46,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { BOT_API_URL } from '@/lib/config';
 import { getAuthHeaders, getAuthToken } from '@/lib/auth';
 import { FOLDER_COLORS, normalizeAgentName } from '@/lib/constants';
+import { useSettings } from '@/hooks';
 
 interface FolderEntry {
   id: number;
@@ -105,7 +106,8 @@ export function Stratbook() {
   const [loadingContent, setLoadingContent] = useState(false);
   const { setSubPage } = useBreadcrumbSub();
 
-  // Permission
+  // Permission - use settings hook
+  const { settings } = useSettings({ requireAuth: false });
   const [canEdit, setCanEdit] = useState(false);
 
   // Delete dialog
@@ -209,8 +211,12 @@ export function Stratbook() {
   useEffect(() => {
     fetchStrats();
     fetchFolders();
-    checkPermission();
   }, [mapFilter, sideFilter, currentFolderId]);
+
+  // Update canEdit when settings change
+  useEffect(() => {
+    checkPermission();
+  }, [checkPermission]);
 
   // Load folder path on mount if deep-linked to a folder
   useEffect(() => {
@@ -228,30 +234,21 @@ export function Stratbook() {
     if (target) openStrat(target, true);
   }, [strats, stratParam]);
 
-  const checkPermission = async () => {
-    try {
-
-      const headers = getAuthHeaders();
-      // Fetch settings to check editPermission
-      const res = await fetch(`${BOT_API_URL}/api/settings`, { headers });
-      if (res.ok) {
-        const settings = await res.json();
-        const editPerm = settings?.stratbook?.editPermission || 'admin';
-        // Check if current user is admin or if all users can edit
-        const token = getAuthToken();
-        if (token) {
-          try {
-            const payload = JSON.parse(atob(token.split('.')[1]));
-            setCanEdit(payload.role === 'admin' || editPerm === 'all');
-          } catch {
-            setCanEdit(false);
-          }
-        }
+  const checkPermission = useCallback(() => {
+    const editPerm = settings?.stratbook?.editPermission || 'admin';
+    // Check if current user is admin or if all users can edit
+    const token = getAuthToken();
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        setCanEdit(payload.role === 'admin' || editPerm === 'all');
+      } catch {
+        setCanEdit(false);
       }
-    } catch {
+    } else {
       setCanEdit(false);
     }
-  };
+  }, [settings]);
 
   const fetchStrats = async () => {
     try {

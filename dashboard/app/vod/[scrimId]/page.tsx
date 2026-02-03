@@ -15,7 +15,7 @@ import { BOT_API_URL } from '@/lib/config';
 import { formatTimestamp, extractTags, getTagColor, getYouTubeVideoId } from '@/lib/vod-utils';
 import { CommentText } from '@/components/shared/vod-comment-text';
 import { MentionInput, type MentionUser } from '@/components/shared/vod-mention-input';
-import { useBranding } from '@/hooks/use-branding';
+import { useBranding, useUserMappings, useVodComments } from '@/hooks';
 import type { VodComment } from '@/lib/types';
 
 interface ScrimData {
@@ -36,9 +36,17 @@ export default function VodRoomPage() {
   const router = useRouter();
   const scrimId = params.scrimId as string;
 
+  // Use hooks for data fetching
+  const { mappings: userMappings } = useUserMappings();
+  const {
+    comments,
+    loading: commentsLoading,
+    addComment: hookAddComment,
+    updateComment: hookUpdateComment,
+    deleteComment: hookDeleteComment,
+  } = useVodComments({ scrimId });
+
   const [scrim, setScrim] = useState<ScrimData | null>(null);
-  const [comments, setComments] = useState<VodComment[]>([]);
-  const [loading, setLoading] = useState(true);
   const [scrimLoading, setScrimLoading] = useState(true);
   const [newComment, setNewComment] = useState('');
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -47,7 +55,6 @@ export default function VodRoomPage() {
   const [currentTime, setCurrentTime] = useState(0);
   const [highlightedId, setHighlightedId] = useState<number | null>(null);
   const [isPaused, setIsPaused] = useState(false);
-  const [mentionUsers, setMentionUsers] = useState<MentionUser[]>([]);
   const [filterUser, setFilterUser] = useState<string | null>(null);
   const [filterTags, setFilterTags] = useState<string[]>([]);
   const [filterMentioned, setFilterMentioned] = useState<string[]>([]);
@@ -64,6 +71,14 @@ export default function VodRoomPage() {
   const programmaticScrollRef = useRef(false);
   const user = getUser();
   const { teamName } = useBranding();
+
+  // Build mention users from user mappings
+  const mentionUsers: MentionUser[] = useMemo(() =>
+    userMappings
+      .filter(u => u.displayName)
+      .map(u => ({ name: u.displayName, avatarUrl: u.avatarUrl ?? null })),
+    [userMappings]
+  );
 
   // Auth guard: redirect to login if not authenticated
   useEffect(() => {
@@ -132,41 +147,6 @@ export default function VodRoomPage() {
     }
   }, [scrim, teamName]);
 
-  // Fetch mention users
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch(`${BOT_API_URL}/api/user-mappings`, { headers: getAuthHeaders() });
-        const data = await res.json();
-        if (data.success && Array.isArray(data.mappings)) {
-          setMentionUsers(
-            data.mappings
-              .map((u: { displayName?: string; avatarUrl?: string | null }) => ({
-                name: u.displayName || '',
-                avatarUrl: u.avatarUrl ?? null,
-              }))
-              .filter((u: { name: string }) => u.name)
-          );
-        }
-      } catch { /* ignore */ }
-    })();
-  }, []);
-
-  const fetchComments = useCallback(async () => {
-    try {
-      const res = await fetch(`${BOT_API_URL}/api/vod-comments/scrim/${scrimId}`, { headers: getAuthHeaders() });
-      const data = await res.json();
-      if (data.success) setComments(data.comments);
-    } catch {
-      toast.error('Failed to load comments');
-    } finally {
-      setLoading(false);
-    }
-  }, [scrimId]);
-
-  useEffect(() => {
-    fetchComments();
-  }, [fetchComments]);
 
   // Detect user scroll
   useEffect(() => {
@@ -259,58 +239,32 @@ export default function VodRoomPage() {
 
   const handleAddComment = async () => {
     if (!newComment.trim() || !user) return;
-    try {
-      const res = await fetch(`${BOT_API_URL}/api/vod-comments`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ scrimId, timestamp: currentTime, content: newComment.trim() }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setNewComment('');
-        fetchComments();
-      } else {
-        toast.error(data.error || 'Failed to add comment');
-      }
-    } catch {
+    const result = await hookAddComment(currentTime, newComment.trim());
+    if (result) {
+      setNewComment('');
+    } else {
       toast.error('Failed to add comment');
     }
   };
 
   const handleUpdateComment = async (id: number) => {
     if (!editContent.trim()) return;
-    try {
-      const body: { content: string; timestamp?: number } = { content: editContent.trim() };
-      if (editTimestamp !== null) body.timestamp = editTimestamp;
-      const res = await fetch(`${BOT_API_URL}/api/vod-comments/${id}`, {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(body),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setEditingId(null);
-        setEditContent('');
-        setEditTimestamp(null);
-        fetchComments();
-      } else {
-        toast.error(data.error || 'Failed to update comment');
-      }
-    } catch {
+    // Find the original comment to get its timestamp if not editing timestamp
+    const originalComment = comments.find(c => c.id === id);
+    const timestamp = editTimestamp ?? originalComment?.timestamp ?? 0;
+    const success = await hookUpdateComment(id, timestamp, editContent.trim());
+    if (success) {
+      setEditingId(null);
+      setEditContent('');
+      setEditTimestamp(null);
+    } else {
       toast.error('Failed to update comment');
     }
   };
 
   const handleDeleteComment = async (id: number) => {
-    try {
-      const res = await fetch(`${BOT_API_URL}/api/vod-comments/${id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(),
-      });
-      const data = await res.json();
-      if (data.success) fetchComments();
-      else toast.error(data.error || 'Failed to delete comment');
-    } catch {
+    const success = await hookDeleteComment(id);
+    if (!success) {
       toast.error('Failed to delete comment');
     }
   };
@@ -573,7 +527,7 @@ export default function VodRoomPage() {
 
           <ScrollArea className="flex-1 min-h-0" viewportRef={scrollViewportRef}>
             <div className="p-3 space-y-2">
-              {loading ? (
+              {commentsLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                 </div>

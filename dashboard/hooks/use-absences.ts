@@ -27,6 +27,7 @@ interface UseAbsencesResult {
   updateAbsence: (id: number, data: { startDate?: string; endDate?: string; reason?: string }) => Promise<Absence | null>;
   deleteAbsence: (id: number) => Promise<boolean>;
   isAbsentOnDate: (userId: string, date: string) => boolean;
+  getAbsentUserIdsByDates: (dates: string[]) => Promise<Record<string, string[]>>;
 }
 
 export function useAbsences(options: UseAbsencesOptions = {}): UseAbsencesResult {
@@ -104,6 +105,18 @@ export function useAbsences(options: UseAbsencesOptions = {}): UseAbsencesResult
     });
   }, [absences]);
 
+  const getAbsentUserIdsByDates = useCallback(async (dates: string[]): Promise<Record<string, string[]>> => {
+    if (dates.length === 0) return {};
+    try {
+      const datesParam = dates.join(',');
+      const data = await apiGet<{ absentByDate: Record<string, string[]> }>(`/api/absences/by-dates?dates=${datesParam}`);
+      return data.absentByDate || {};
+    } catch (err) {
+      console.error('Failed to fetch absences by dates:', err);
+      return {};
+    }
+  }, []);
+
   return {
     absences,
     loading,
@@ -113,5 +126,6 @@ export function useAbsences(options: UseAbsencesOptions = {}): UseAbsencesResult
     updateAbsence,
     deleteAbsence,
     isAbsentOnDate,
+    getAbsentUserIdsByDates,
   };
 }
