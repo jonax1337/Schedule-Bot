@@ -13,11 +13,10 @@ import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { stagger, microInteractions } from '@/lib/animations';
 import { cn } from '@/lib/utils';
-import { BOT_API_URL } from '@/lib/config';
-import { validateToken, removeAuthToken, getUser, getAuthHeaders } from '@/lib/auth';
+import { validateToken, removeAuthToken, getUser } from '@/lib/auth';
 import { useTimezone, getTimezoneAbbr } from '@/lib/timezone';
 import { getReasonBadgeClasses, formatDateToDDMMYYYY, WEEKDAY_NAMES } from '@/lib/date-utils';
-import { useUserMappings, useSchedule } from '@/hooks';
+import { useUserMappings, useSchedule, useAbsences } from '@/hooks';
 
 interface PlayerStatus {
   name: string;
@@ -56,7 +55,8 @@ export function UserSchedule() {
   const router = useRouter();
   const { convertRangeToLocal, convertRangeToBot, convertToLocal, isConverting, userTimezone, botTimezoneLoaded, timezoneVersion } = useTimezone();
   const { mappings } = useUserMappings();
-  const { schedules, loading: schedulesLoading, updateAvailability, refetch: refetchSchedules } = useSchedule();
+  const { schedules, loading: schedulesLoading, updateAvailability, updateReason, refetch: refetchSchedules } = useSchedule();
+  const { getAbsentUserIdsByDates } = useAbsences({ fetchOnMount: false });
   const [entries, setEntries] = useState<DateEntry[]>([]);
   const [absentByDate, setAbsentByDate] = useState<Record<string, string[]>>({});
   const [selectedDate, setSelectedDate] = useState<DateEntry | null>(null);
@@ -116,22 +116,13 @@ export function UserSchedule() {
     if (!authChecked || schedules.length === 0) return;
 
     const loadAbsences = async () => {
-      const dates = schedules.map(s => s.date).join(',');
-      try {
-        const absencesRes = await fetch(`${BOT_API_URL}/api/absences/by-dates?dates=${dates}`, {
-          headers: getAuthHeaders(),
-        });
-        if (absencesRes.ok) {
-          const absenceData = await absencesRes.json();
-          setAbsentByDate(absenceData.absentByDate || {});
-        }
-      } catch (err) {
-        console.error('Failed to load absences:', err);
-      }
+      const dates = schedules.map(s => s.date);
+      const absentData = await getAbsentUserIdsByDates(dates);
+      setAbsentByDate(absentData);
     };
 
     loadAbsences();
-  }, [authChecked, schedules]);
+  }, [authChecked, schedules, getAbsentUserIdsByDates]);
 
   // Process schedules, mappings, and absences into date entries
   useEffect(() => {
@@ -383,18 +374,9 @@ export function UserSchedule() {
 
     setSaving(true);
     try {
-      const response = await fetch(`${BOT_API_URL}/api/schedule/update-reason`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          date: selectedDate.date,
-          reason: reasonValue,
-        }),
-      });
-
-      if (response.ok) {
+      const success = await updateReason(selectedDate.date, reasonValue);
+      if (success) {
         toast.success('Reason updated!');
-        await refetchSchedules();
         setEditingReason(false);
         setDialogOpen(false);
       } else {

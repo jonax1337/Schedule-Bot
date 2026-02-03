@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,51 +10,21 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2, RefreshCw, Terminal, AlertCircle, Info, CheckCircle, AlertTriangle } from "lucide-react";
-import { toast } from "sonner";
 import { stagger, microInteractions, loadingStates } from "@/lib/animations";
-import { getAuthHeaders } from '@/lib/auth';
 import { cn } from "@/lib/utils";
-
-interface LogEntry {
-  timestamp: string;
-  level: 'info' | 'warn' | 'error' | 'success';
-  message: string;
-  details?: string;
-}
+import { useLogs, type LogEntry } from '@/hooks';
 
 export function Logs() {
-  const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [loading, setLoading] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(true);
-  const [filter, setFilter] = useState<string>("all");
-  const [limit, setLimit] = useState<string>("100");
+  const [filter, setFilter] = useState<'all' | 'info' | 'warn' | 'error' | 'success'>('all');
+  const [limit, setLimit] = useState(100);
 
-  useEffect(() => {
-    loadLogs();
-
-    if (autoRefresh) {
-      const interval = setInterval(loadLogs, 5000); // Refresh every 5 seconds
-      return () => clearInterval(interval);
-    }
-  }, [autoRefresh, filter, limit]);
-
-  const loadLogs = async () => {
-    try {
-      const { BOT_API_URL } = await import('@/lib/config');
-
-      const levelParam = filter !== "all" ? `&level=${filter}` : "";
-      const response = await fetch(`${BOT_API_URL}/api/logs?limit=${limit}${levelParam}`, {
-        headers: getAuthHeaders()
-      });
-      const data = await response.json();
-      setLogs(data);
-    } catch (error) {
-      console.error('Failed to load logs:', error);
-      toast.error('Failed to load logs');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { logs, loading, refetch } = useLogs({
+    autoRefresh,
+    refreshInterval: 5000,
+    filter,
+    limit,
+  });
 
   const getLevelIcon = (level: LogEntry['level']) => {
     switch (level) {
@@ -118,7 +88,7 @@ export function Logs() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => loadLogs()}
+              onClick={refetch}
               disabled={loading}
               className={cn(microInteractions.activePress, microInteractions.smooth)}
             >
@@ -135,7 +105,7 @@ export function Logs() {
         <div className="flex gap-4 mb-4">
           <div className="flex-1">
             <Label htmlFor="filter" className="text-sm">Filter by Level</Label>
-            <Select value={filter} onValueChange={setFilter}>
+            <Select value={filter} onValueChange={(v) => setFilter(v as 'all' | 'info' | 'warn' | 'error' | 'success')}>
               <SelectTrigger id="filter" className="w-full">
                 <SelectValue />
               </SelectTrigger>
@@ -150,7 +120,7 @@ export function Logs() {
           </div>
           <div className="flex-1">
             <Label htmlFor="limit" className="text-sm">Show Last</Label>
-            <Select value={limit} onValueChange={setLimit}>
+            <Select value={String(limit)} onValueChange={(v) => setLimit(Number(v))}>
               <SelectTrigger id="limit" className="w-full">
                 <SelectValue />
               </SelectTrigger>

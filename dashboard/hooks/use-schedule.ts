@@ -25,6 +25,7 @@ interface UseScheduleResult {
   pagination: PaginationInfo;
   refetch: () => Promise<void>;
   loadPage: (page: number) => Promise<void>;
+  loadMultiplePages: (offsets: number[]) => Promise<ScheduleDay[]>;
   updateReason: (date: string, reason: string, focus?: string) => Promise<boolean>;
   updateAvailability: (date: string, userId: string, availability: string) => Promise<boolean>;
 }
@@ -88,6 +89,20 @@ export function useSchedule(options: UseScheduleOptions = {}): UseScheduleResult
     await fetchSchedulesWithPage(page);
   }, [fetchSchedulesWithPage]);
 
+  const loadMultiplePages = useCallback(async (offsets: number[]): Promise<ScheduleDay[]> => {
+    try {
+      const responses = await Promise.all(
+        offsets.map(offset =>
+          apiGet<{ schedules: ScheduleDay[] }>(`/api/schedule/paginated?offset=${offset}`)
+        )
+      );
+      return responses.flatMap(r => r.schedules || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load schedule pages');
+      return [];
+    }
+  }, []);
+
   useEffect(() => {
     if (fetchOnMount) {
       fetchSchedulesWithPage(offset);
@@ -128,6 +143,7 @@ export function useSchedule(options: UseScheduleOptions = {}): UseScheduleResult
     pagination,
     refetch: fetchSchedules,
     loadPage,
+    loadMultiplePages,
     updateReason,
     updateAvailability,
   };

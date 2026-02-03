@@ -14,6 +14,8 @@ export { useRecurringAvailability } from './use-recurring-availability';
 export type { RecurringAvailability } from './use-recurring-availability';
 export { useVodComments } from './use-vod-comments';
 export type { VodComment } from './use-vod-comments';
+export { useLogs } from './use-logs';
+export type { LogEntry } from './use-logs';
 
 // UI hooks
 export { useBranding } from './use-branding';

@@ -33,11 +33,9 @@ import { PageSpinner } from '@/components/ui/page-spinner';
 import { stagger } from '@/lib/animations';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { BOT_API_URL } from '@/lib/config';
-import { getAuthHeaders } from '@/lib/auth';
 import { type ScrimEntry, type ScrimStats, type ScheduleDay } from '@/lib/types';
 import { parseDDMMYYYY } from '@/lib/date-utils';
-import { useScrims, useSchedule } from '@/hooks';
+import { useScrims, useSchedule, useAbsences } from '@/hooks';
 
 type AvailabilityRange = 'next14' | 'last14' | 'last30' | 'last60';
 
@@ -152,7 +150,8 @@ function ScrimFilters({
 
 export function Statistics() {
   const { scrims: allScrims, loading: scrimsLoading } = useScrims();
-  const { schedules, loading: schedulesLoading } = useSchedule();
+  const { schedules, loading: schedulesLoading, loadMultiplePages } = useSchedule();
+  const { getAbsentUserIdsByDates } = useAbsences({ fetchOnMount: false });
   const [availabilityRange, setAvailabilityRange] = useState<AvailabilityRange>('next14');
   const [availabilitySchedules, setAvailabilitySchedules] = useState<ScheduleDay[]>([]);
   const [availabilityLoading, setAvailabilityLoading] = useState(false);
@@ -165,19 +164,10 @@ export function Statistics() {
 
   const fetchAbsencesForSchedules = useCallback(async (schedulesList: ScheduleDay[]) => {
     if (schedulesList.length === 0) return;
-    try {
-      const dates = schedulesList.map(s => s.date).join(',');
-      const res = await fetch(`${BOT_API_URL}/api/absences/by-dates?dates=${dates}`, {
-        headers: getAuthHeaders(),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setAbsentByDate(prev => ({ ...prev, ...(data.absentByDate || {}) }));
-      }
-    } catch (err) {
-      console.error('Failed to load absences:', err);
-    }
-  }, []);
+    const dates = schedulesList.map(s => s.date);
+    const absentData = await getAbsentUserIdsByDates(dates);
+    setAbsentByDate(prev => ({ ...prev, ...absentData }));
+  }, [getAbsentUserIdsByDates]);
 
   // Load absences when schedules are available
   useEffect(() => {
@@ -195,17 +185,8 @@ export function Statistics() {
 
     setAvailabilityLoading(true);
     try {
-      const headers = getAuthHeaders();
       const rangeConfig = AVAILABILITY_RANGES.find(r => r.value === range)!;
-
-      const responses = await Promise.all(
-        rangeConfig.offsets.map(offset =>
-          fetch(`${BOT_API_URL}/api/schedule/paginated?offset=${offset}`, { headers })
-        )
-      );
-
-      const dataArray = await Promise.all(responses.map(r => r.json()));
-      const allSchedules: ScheduleDay[] = dataArray.flatMap(d => d.schedules || []);
+      const allSchedules = await loadMultiplePages(rangeConfig.offsets);
 
       allSchedules.sort((a, b) => {
         const [ad, am, ay] = a.date.split('.').map(Number);
@@ -220,7 +201,7 @@ export function Statistics() {
     } finally {
       setAvailabilityLoading(false);
     }
-  }, [schedules]);
+  }, [schedules, loadMultiplePages, fetchAbsencesForSchedules]);
 
   const handleAvailabilityRangeChange = useCallback((value: string) => {
     const range = value as AvailabilityRange;

@@ -24,6 +24,7 @@ interface UseScrimsResult {
   createScrim: (data: ScrimCreateData) => Promise<ScrimEntry | null>;
   updateScrim: (id: string, data: ScrimUpdateData) => Promise<ScrimEntry | null>;
   deleteScrim: (id: string) => Promise<boolean>;
+  getById: (id: string) => Promise<ScrimEntry | null>;
 }
 
 export function useScrims(options: UseScrimsOptions = {}): UseScrimsResult {
@@ -119,6 +120,24 @@ export function useScrims(options: UseScrimsOptions = {}): UseScrimsResult {
     }
   }, [fetchStats]);
 
+  const getById = useCallback(async (id: string): Promise<ScrimEntry | null> => {
+    // First check if scrim is already in local state
+    const existing = scrims.find(s => s.id === id);
+    if (existing) return existing;
+
+    // Otherwise fetch from API
+    try {
+      const data = await apiGet<{ scrim: ScrimEntry; success: boolean }>(`/api/scrims/${id}`);
+      if (data.success && data.scrim) {
+        return data.scrim;
+      }
+      return null;
+    } catch (err) {
+      console.error('Failed to fetch scrim by id:', err);
+      return null;
+    }
+  }, [scrims]);
+
   return {
     scrims,
     stats,
@@ -128,5 +147,6 @@ export function useScrims(options: UseScrimsOptions = {}): UseScrimsResult {
     createScrim,
     updateScrim,
     deleteScrim,
+    getById,
   };
 }

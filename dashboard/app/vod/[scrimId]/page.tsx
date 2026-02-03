@@ -10,12 +10,11 @@ import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
 import { Loader2, MessageSquare, Edit, Trash2, Send, Clock, X, Check, Filter, Hash, User, AtSign, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
-import { getUser, getAuthHeaders } from '@/lib/auth';
-import { BOT_API_URL } from '@/lib/config';
+import { getUser } from '@/lib/auth';
 import { formatTimestamp, extractTags, getTagColor, getYouTubeVideoId } from '@/lib/vod-utils';
 import { CommentText } from '@/components/shared/vod-comment-text';
 import { MentionInput, type MentionUser } from '@/components/shared/vod-mention-input';
-import { useBranding, useUserMappings, useVodComments } from '@/hooks';
+import { useBranding, useUserMappings, useVodComments, useScrims } from '@/hooks';
 import type { VodComment } from '@/lib/types';
 
 interface ScrimData {
@@ -38,6 +37,7 @@ export default function VodRoomPage() {
 
   // Use hooks for data fetching
   const { mappings: userMappings } = useUserMappings();
+  const { getById: getScrimById } = useScrims({ fetchOnMount: false });
   const {
     comments,
     loading: commentsLoading,
@@ -125,20 +125,20 @@ export default function VodRoomPage() {
 
   // Fetch scrim data
   useEffect(() => {
-    (async () => {
+    const loadScrim = async () => {
       try {
-        const res = await fetch(`${BOT_API_URL}/api/scrims/${scrimId}`, { headers: getAuthHeaders() });
-        const data = await res.json();
-        if (data.success && data.scrim) {
-          setScrim(data.scrim);
+        const scrimData = await getScrimById(scrimId);
+        if (scrimData) {
+          setScrim(scrimData as ScrimData);
         }
       } catch {
         toast.error('Failed to load scrim data');
       } finally {
         setScrimLoading(false);
       }
-    })();
-  }, [scrimId]);
+    };
+    loadScrim();
+  }, [scrimId, getScrimById]);
 
   // Update document title when scrim data or branding loads
   useEffect(() => {
