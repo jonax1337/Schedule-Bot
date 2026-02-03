@@ -20,7 +20,7 @@ const DEFAULT_SETTINGS = {
   'scheduling.timezone': 'Europe/Berlin',
   'scheduling.cleanChannelBeforePost': false,
   'scheduling.trainingStartPollEnabled': false,
-  'branding.teamName': 'Valorant Bot',
+  'branding.teamName': 'Team Name',
   'branding.tagline': 'Schedule Manager',
   'branding.logoUrl': '',
 };
