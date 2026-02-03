@@ -5,7 +5,8 @@ import { strictApiLimiter } from '../../shared/middleware/rateLimiter.js';
 import { reloadConfig } from '../../shared/config/config.js';
 import { saveSettings, loadSettingsAsync } from '../../shared/utils/settingsManager.js';
 import { restartScheduler } from '../../jobs/scheduler.js';
-import { logger, getErrorMessage } from '../../shared/utils/logger.js';
+import { logger } from '../../shared/utils/logger.js';
+import { sendOk, sendServerError } from '../../shared/utils/apiResponse.js';
 
 const router = Router();
 
@@ -15,8 +16,7 @@ router.get('/', async (req, res) => {
     const settings = await loadSettingsAsync();
     res.json(settings);
   } catch (error) {
-    logger.error('Failed to load settings', getErrorMessage(error));
-    res.status(500).json({ error: 'Failed to fetch settings' });
+    return sendServerError(res, error, 'Fetch settings');
   }
 });
 
@@ -24,16 +24,15 @@ router.get('/', async (req, res) => {
 router.post('/', verifyToken, requireAdmin, strictApiLimiter, validate(settingsSchema), async (req: AuthRequest, res) => {
   try {
     const settings = req.body;
-    
+
     await saveSettings(settings);
     await reloadConfig();
     restartScheduler();
-    
+
     logger.success('Settings updated', `By: ${req.user?.username}`);
-    res.json({ success: true, message: 'Settings updated successfully' });
+    return sendOk(res, { message: 'Settings updated successfully' });
   } catch (error) {
-    logger.error('Failed to update settings', getErrorMessage(error));
-    res.status(500).json({ error: 'Failed to update settings' });
+    return sendServerError(res, error, 'Update settings');
   }
 });
 
@@ -42,12 +41,11 @@ router.post('/reload-config', verifyToken, requireAdmin, strictApiLimiter, async
   try {
     await reloadConfig();
     restartScheduler();
-    
+
     logger.success('Config reloaded', `By: ${req.user?.username}`);
-    res.json({ success: true, message: 'Configuration reloaded successfully' });
+    return sendOk(res, { message: 'Configuration reloaded successfully' });
   } catch (error) {
-    logger.error('Failed to reload config', getErrorMessage(error));
-    res.status(500).json({ error: 'Failed to reload configuration' });
+    return sendServerError(res, error, 'Reload configuration');
   }
 });
 

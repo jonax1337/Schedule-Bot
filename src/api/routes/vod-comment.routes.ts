@@ -2,7 +2,8 @@ import { Router } from 'express';
 import { verifyToken, AuthRequest } from '../../shared/middleware/auth.js';
 import { validate, createVodCommentSchema, updateVodCommentSchema } from '../../shared/middleware/validation.js';
 import { vodCommentService } from '../../services/vod-comment.service.js';
-import { logger, getErrorMessage } from '../../shared/utils/logger.js';
+import { logger } from '../../shared/utils/logger.js';
+import { sendOk, sendServerError, sendNotFound, sendForbidden } from '../../shared/utils/apiResponse.js';
 
 const router = Router();
 
@@ -10,10 +11,9 @@ const router = Router();
 router.get('/scrim/:scrimId', async (req, res) => {
   try {
     const comments = await vodCommentService.getCommentsByScrimId(req.params.scrimId as string);
-    res.json({ success: true, comments });
+    return sendOk(res, { comments });
   } catch (error) {
-    logger.error('Error fetching VOD comments', getErrorMessage(error));
-    res.status(500).json({ success: false, error: 'Failed to fetch comments' });
+    return sendServerError(res, error, 'Fetch VOD comments');
   }
 });
 
@@ -24,10 +24,9 @@ router.post('/', verifyToken, validate(createVodCommentSchema), async (req: Auth
     const userName = req.user!.username;
     const comment = await vodCommentService.createComment(scrimId, userName, timestamp, content);
     logger.info('VOD comment created', `Scrim ${scrimId} by ${userName}`);
-    res.json({ success: true, comment });
+    return sendOk(res, { comment });
   } catch (error) {
-    logger.error('Failed to create VOD comment', getErrorMessage(error));
-    res.status(500).json({ success: false, error: 'Failed to create comment' });
+    return sendServerError(res, error, 'Create VOD comment');
   }
 });
 
@@ -39,18 +38,17 @@ router.put('/:id', verifyToken, validate(updateVodCommentSchema), async (req: Au
     const isAdmin = req.user!.role === 'admin';
 
     if (!isAdmin && !(await vodCommentService.isCommentOwner(id, userName))) {
-      return res.status(403).json({ success: false, error: 'You can only edit your own comments' });
+      return sendForbidden(res, 'You can only edit your own comments');
     }
 
     const comment = await vodCommentService.updateComment(id, req.body);
     if (comment) {
-      res.json({ success: true, comment });
+      return sendOk(res, { comment });
     } else {
-      res.status(404).json({ success: false, error: 'Comment not found' });
+      return sendNotFound(res, 'Comment');
     }
   } catch (error) {
-    logger.error('Failed to update VOD comment', getErrorMessage(error));
-    res.status(500).json({ success: false, error: 'Failed to update comment' });
+    return sendServerError(res, error, 'Update VOD comment');
   }
 });
 
@@ -62,19 +60,18 @@ router.delete('/:id', verifyToken, async (req: AuthRequest, res) => {
     const isAdmin = req.user!.role === 'admin';
 
     if (!isAdmin && !(await vodCommentService.isCommentOwner(id, userName))) {
-      return res.status(403).json({ success: false, error: 'You can only delete your own comments' });
+      return sendForbidden(res, 'You can only delete your own comments');
     }
 
     const success = await vodCommentService.deleteComment(id);
     if (success) {
       logger.info('VOD comment deleted', `ID ${id} by ${userName}`);
-      res.json({ success: true });
+      return sendOk(res, {});
     } else {
-      res.status(404).json({ success: false, error: 'Comment not found' });
+      return sendNotFound(res, 'Comment');
     }
   } catch (error) {
-    logger.error('Failed to delete VOD comment', getErrorMessage(error));
-    res.status(500).json({ success: false, error: 'Failed to delete comment' });
+    return sendServerError(res, error, 'Delete VOD comment');
   }
 });
 

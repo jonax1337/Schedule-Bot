@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { verifyToken, AuthRequest, resolveCurrentUser, resolveTargetUser } from '../../shared/middleware/auth.js';
 import { validate, recurringAvailabilitySchema, recurringAvailabilityBulkSchema } from '../../shared/middleware/validation.js';
 import { recurringAvailabilityService } from '../../services/recurring-availability.service.js';
-import { logger, getErrorMessage } from '../../shared/utils/logger.js';
+import { sendOk, sendError, sendServerError, sendForbidden } from '../../shared/utils/apiResponse.js';
 
 const router = Router();
 
@@ -14,14 +14,13 @@ router.get('/my', verifyToken, resolveCurrentUser, async (req: AuthRequest, res)
   try {
     if (!req.resolvedUser) {
       // Admin account without user mapping - return empty
-      return res.json({ entries: [] });
+      return sendOk(res, { entries: [] });
     }
 
     const entries = await recurringAvailabilityService.getForUser(req.resolvedUser.discordId);
-    res.json({ entries });
+    return sendOk(res, { entries });
   } catch (error) {
-    logger.error('Error fetching recurring availability', getErrorMessage(error));
-    res.status(500).json({ error: 'Failed to fetch recurring availability' });
+    return sendServerError(res, error, 'Fetch recurring availability');
   }
 });
 
@@ -37,23 +36,22 @@ router.get('/', verifyToken, resolveCurrentUser, async (req: AuthRequest, res) =
     if (userId) {
       // Non-admin users can only query their own
       if (!isAdmin && req.resolvedUser?.discordId !== userId) {
-        return res.status(403).json({ error: 'You can only view your own recurring schedule' });
+        return sendForbidden(res, 'You can only view your own recurring schedule');
       }
 
       const entries = await recurringAvailabilityService.getForUser(userId);
-      res.json({ entries });
+      return sendOk(res, { entries });
     } else {
       // No userId provided - resolve from JWT
       if (!req.resolvedUser) {
-        return res.json({ entries: [] });
+        return sendOk(res, { entries: [] });
       }
 
       const entries = await recurringAvailabilityService.getForUser(req.resolvedUser.discordId);
-      res.json({ entries });
+      return sendOk(res, { entries });
     }
   } catch (error) {
-    logger.error('Error fetching recurring availability', getErrorMessage(error));
-    res.status(500).json({ error: 'Failed to fetch recurring availability' });
+    return sendServerError(res, error, 'Fetch recurring availability');
   }
 });
 
@@ -76,13 +74,12 @@ router.post('/', verifyToken, validate(recurringAvailabilitySchema), resolveTarg
     );
 
     if (!result.success) {
-      return res.status(400).json({ error: result.error });
+      return sendError(res, result.error || 'Failed to set recurring availability');
     }
 
-    res.json({ success: true, entry: result.data });
+    return sendOk(res, { entry: result.data });
   } catch (error) {
-    logger.error('Error setting recurring availability', getErrorMessage(error));
-    res.status(500).json({ error: 'Failed to set recurring availability' });
+    return sendServerError(res, error, 'Set recurring availability');
   }
 });
 
@@ -105,13 +102,12 @@ router.post('/bulk', verifyToken, validate(recurringAvailabilityBulkSchema), res
     );
 
     if (!result.success) {
-      return res.status(400).json({ error: result.error });
+      return sendError(res, result.error || 'Failed to bulk set recurring availability');
     }
 
-    res.json({ success: true, count: result.count });
+    return sendOk(res, { count: result.count });
   } catch (error) {
-    logger.error('Error bulk setting recurring availability', getErrorMessage(error));
-    res.status(500).json({ error: 'Failed to bulk set recurring availability' });
+    return sendServerError(res, error, 'Bulk set recurring availability');
   }
 });
 
@@ -126,7 +122,7 @@ router.delete('/:dayOfWeek', verifyToken, resolveTargetUser, async (req: AuthReq
     const targetUserId = req.targetUserId!;
 
     if (isNaN(dayOfWeek) || dayOfWeek < 0 || dayOfWeek > 6) {
-      return res.status(400).json({ error: 'Invalid day of week (0-6)' });
+      return sendError(res, 'Invalid day of week (0-6)');
     }
 
     const result = await recurringAvailabilityService.remove(
@@ -136,13 +132,12 @@ router.delete('/:dayOfWeek', verifyToken, resolveTargetUser, async (req: AuthReq
     );
 
     if (!result.success) {
-      return res.status(400).json({ error: result.error });
+      return sendError(res, result.error || 'Failed to remove recurring availability');
     }
 
-    res.json({ success: true });
+    return sendOk(res, {});
   } catch (error) {
-    logger.error('Error removing recurring availability', getErrorMessage(error));
-    res.status(500).json({ error: 'Failed to remove recurring availability' });
+    return sendServerError(res, error, 'Remove recurring availability');
   }
 });
 
@@ -161,13 +156,12 @@ router.delete('/', verifyToken, resolveTargetUser, async (req: AuthRequest, res)
     );
 
     if (!result.success) {
-      return res.status(400).json({ error: result.error });
+      return sendError(res, result.error || 'Failed to remove recurring availability');
     }
 
-    res.json({ success: true, count: result.count });
+    return sendOk(res, { count: result.count });
   } catch (error) {
-    logger.error('Error removing all recurring availability', getErrorMessage(error));
-    res.status(500).json({ error: 'Failed to remove recurring availability' });
+    return sendServerError(res, error, 'Remove all recurring availability');
   }
 });
 

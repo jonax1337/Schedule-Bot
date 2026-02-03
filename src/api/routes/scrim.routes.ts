@@ -2,7 +2,8 @@ import { Router } from 'express';
 import { verifyToken, requireAdmin, optionalAuth, AuthRequest } from '../../shared/middleware/auth.js';
 import { validate, addScrimSchema, updateScrimSchema, isValidDateFormat } from '../../shared/middleware/validation.js';
 import { getAllScrims, addScrim, updateScrim, deleteScrim, getScrimById, getScrimStats, getScrimsByDateRange } from '../../repositories/scrim.repository.js';
-import { logger, getErrorMessage } from '../../shared/utils/logger.js';
+import { logger } from '../../shared/utils/logger.js';
+import { sendOk, sendError, sendServerError, sendNotFound } from '../../shared/utils/apiResponse.js';
 
 const router = Router();
 
@@ -10,10 +11,9 @@ const router = Router();
 router.get('/stats/summary', optionalAuth, async (req: AuthRequest, res) => {
   try {
     const stats = await getScrimStats();
-    res.json({ success: true, stats });
+    return sendOk(res, { stats });
   } catch (error) {
-    logger.error('Error fetching scrim stats', getErrorMessage(error));
-    res.status(500).json({ success: false, error: 'Failed to fetch scrim stats' });
+    return sendServerError(res, error, 'Fetch scrim stats');
   }
 });
 
@@ -25,14 +25,13 @@ router.get('/range/:startDate/:endDate', optionalAuth, async (req: AuthRequest, 
 
     // Validate date format
     if (!isValidDateFormat(startDate) || !isValidDateFormat(endDate)) {
-      return res.status(400).json({ success: false, error: 'Invalid date format. Use DD.MM.YYYY' });
+      return sendError(res, 'Invalid date format. Use DD.MM.YYYY');
     }
 
     const scrims = await getScrimsByDateRange(startDate, endDate);
-    res.json({ success: true, scrims });
+    return sendOk(res, { scrims });
   } catch (error) {
-    logger.error('Error fetching scrims by range', getErrorMessage(error));
-    res.status(500).json({ success: false, error: 'Failed to fetch scrims' });
+    return sendServerError(res, error, 'Fetch scrims by range');
   }
 });
 
@@ -40,10 +39,9 @@ router.get('/range/:startDate/:endDate', optionalAuth, async (req: AuthRequest, 
 router.get('/', optionalAuth, async (req, res) => {
   try {
     const scrims = await getAllScrims();
-    res.json({ success: true, scrims });
+    return sendOk(res, { scrims });
   } catch (error) {
-    logger.error('Error fetching scrims', getErrorMessage(error));
-    res.status(500).json({ success: false, error: 'Failed to fetch scrims' });
+    return sendServerError(res, error, 'Fetch scrims');
   }
 });
 
@@ -53,13 +51,12 @@ router.get('/:id', optionalAuth, async (req: AuthRequest, res) => {
     const scrim = await getScrimById(req.params.id as string);
 
     if (scrim) {
-      res.json({ success: true, scrim });
+      return sendOk(res, { scrim });
     } else {
-      res.status(404).json({ success: false, error: 'Scrim not found' });
+      return sendNotFound(res, 'Scrim');
     }
   } catch (error) {
-    logger.error('Error fetching scrim', getErrorMessage(error));
-    res.status(500).json({ success: false, error: 'Failed to fetch scrim' });
+    return sendServerError(res, error, 'Fetch scrim');
   }
 });
 
@@ -70,10 +67,9 @@ router.post('/', verifyToken, requireAdmin, validate(addScrimSchema), async (req
     const scrim = await addScrim(scrimData);
 
     logger.success('Scrim added', `${scrimData.opponent} by ${req.user?.username}`);
-    res.json({ success: true, scrim });
+    return sendOk(res, { scrim });
   } catch (error) {
-    logger.error('Failed to add scrim', getErrorMessage(error));
-    res.status(500).json({ success: false, error: 'Failed to add scrim' });
+    return sendServerError(res, error, 'Add scrim');
   }
 });
 
@@ -87,13 +83,12 @@ router.put('/:id', verifyToken, requireAdmin, validate(updateScrimSchema), async
 
     if (scrim) {
       logger.success('Scrim updated', `${id} by ${req.user?.username}`);
-      res.json({ success: true, scrim });
+      return sendOk(res, { scrim });
     } else {
-      res.status(404).json({ success: false, error: 'Scrim not found' });
+      return sendNotFound(res, 'Scrim');
     }
   } catch (error) {
-    logger.error('Failed to update scrim', getErrorMessage(error));
-    res.status(500).json({ success: false, error: 'Failed to update scrim' });
+    return sendServerError(res, error, 'Update scrim');
   }
 });
 
@@ -105,13 +100,12 @@ router.delete('/:id', verifyToken, requireAdmin, async (req: AuthRequest, res) =
 
     if (success) {
       logger.success('Scrim deleted', `${id} by ${req.user?.username}`);
-      res.json({ success: true, message: 'Scrim deleted successfully' });
+      return sendOk(res, { message: 'Scrim deleted successfully' });
     } else {
-      res.status(404).json({ success: false, error: 'Scrim not found' });
+      return sendNotFound(res, 'Scrim');
     }
   } catch (error) {
-    logger.error('Failed to delete scrim', getErrorMessage(error));
-    res.status(500).json({ success: false, error: 'Failed to delete scrim' });
+    return sendServerError(res, error, 'Delete scrim');
   }
 });
 

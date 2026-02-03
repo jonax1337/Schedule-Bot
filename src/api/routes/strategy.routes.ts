@@ -7,16 +7,17 @@ import { fileURLToPath } from 'url';
 import { verifyToken, optionalAuth, AuthRequest } from '../../shared/middleware/auth.js';
 import { validate } from '../../shared/middleware/validation.js';
 import { strategyService } from '../../services/strategy.service.js';
-import { createStrategyImage, createStrategyFile, getStrategyFile, deleteStrategyFile } from '../../repositories/strategy.repository.js';
-import { logger, getErrorMessage } from '../../shared/utils/logger.js';
+import { createStrategyImage, createStrategyFile, deleteStrategyFile } from '../../repositories/strategy.repository.js';
+import { logger } from '../../shared/utils/logger.js';
 import { createStrategySchema, updateStrategySchema } from '../../shared/middleware/validation.js';
+import { sendOk, sendError, sendServerError, sendNotFound, sendForbidden } from '../../shared/utils/apiResponse.js';
 
 const router = Router();
 
 /** Middleware that checks strategy edit permission */
 function requireEditPermission(req: AuthRequest, res: Response, next: NextFunction) {
   if (!strategyService.canEdit(req.user!.role)) {
-    return res.status(403).json({ error: 'No permission to edit strategies' });
+    return sendForbidden(res, 'No permission to edit strategies');
   }
   next();
 }
@@ -73,7 +74,7 @@ router.get('/uploads/:filename', (req, res) => {
   const filename = path.basename(req.params.filename as string);
   const filePath = path.join(UPLOAD_DIR, filename);
   if (!fs.existsSync(filePath)) {
-    return res.status(404).json({ error: 'Image not found' });
+    return sendNotFound(res, 'Image');
   }
   res.setHeader('Cache-Control', 'public, max-age=86400');
   res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
@@ -85,15 +86,15 @@ router.post('/upload', verifyToken, (req: AuthRequest, res) => {
   upload.single('image')(req, res, async (err) => {
     if (err instanceof multer.MulterError) {
       if (err.code === 'LIMIT_FILE_SIZE') {
-        return res.status(400).json({ error: 'File too large. Maximum 5MB.' });
+        return sendError(res, 'File too large. Maximum 5MB.');
       }
-      return res.status(400).json({ error: err.message });
+      return sendError(res, err.message);
     }
     if (err) {
-      return res.status(400).json({ error: err.message });
+      return sendError(res, err.message);
     }
     if (!req.file) {
-      return res.status(400).json({ error: 'No file provided' });
+      return sendError(res, 'No file provided');
     }
 
     try {
@@ -101,7 +102,7 @@ router.post('/upload', verifyToken, (req: AuthRequest, res) => {
       if (!strategyService.canEdit(req.user!.role)) {
         // Clean up uploaded file
         fs.unlinkSync(req.file.path);
-        return res.status(403).json({ error: 'No permission to upload images' });
+        return sendForbidden(res, 'No permission to upload images');
       }
 
       await createStrategyImage({
@@ -112,10 +113,9 @@ router.post('/upload', verifyToken, (req: AuthRequest, res) => {
       });
 
       const url = `/api/strategies/uploads/${req.file.filename}`;
-      res.json({ success: true, url, filename: req.file.filename });
+      return sendOk(res, { url, filename: req.file.filename });
     } catch (error) {
-      logger.error('Error saving image record', getErrorMessage(error));
-      res.status(500).json({ error: 'Failed to save image' });
+      return sendServerError(res, error, 'Save image');
     }
   });
 });
@@ -134,10 +134,9 @@ router.get('/', optionalAuth, async (req: AuthRequest, res) => {
     }
 
     const strategies = await strategyService.getAll(Object.keys(filter).length > 0 ? filter : undefined);
-    res.json({ success: true, strategies });
+    return sendOk(res, { strategies });
   } catch (error) {
-    logger.error('Error fetching strategies', getErrorMessage(error));
-    res.status(500).json({ error: 'Failed to fetch strategies' });
+    return sendServerError(res, error, 'Fetch strategies');
   }
 });
 
@@ -149,15 +148,14 @@ router.get('/folders', optionalAuth, async (req: AuthRequest, res) => {
     const all = req.query.all === 'true';
     if (all) {
       const folders = await strategyService.getAllFolders();
-      return res.json({ success: true, folders });
+      return sendOk(res, { folders });
     }
     const parentId = req.query.parentId as string | undefined;
     const pid = parentId && parentId !== 'null' && parentId !== '' ? parseInt(parentId, 10) : null;
     const folders = await strategyService.getFolders(pid);
-    res.json({ success: true, folders });
+    return sendOk(res, { folders });
   } catch (error) {
-    logger.error('Error fetching folders', getErrorMessage(error));
-    res.status(500).json({ error: 'Failed to fetch folders' });
+    return sendServerError(res, error, 'Fetch folders');
   }
 });
 
@@ -165,11 +163,11 @@ router.get('/folders', optionalAuth, async (req: AuthRequest, res) => {
 router.get('/folders/:id/path', optionalAuth, async (req: AuthRequest, res) => {
   try {
     const id = parseInt(req.params.id as string, 10);
-    if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
-    const path = await strategyService.getFolderPath(id);
-    res.json({ success: true, path });
+    if (isNaN(id)) return sendError(res, 'Invalid ID');
+    const folderPath = await strategyService.getFolderPath(id);
+    return sendOk(res, { path: folderPath });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch folder path' });
+    return sendServerError(res, error, 'Fetch folder path');
   }
 });
 
@@ -178,16 +176,15 @@ router.post('/folders', verifyToken, requireEditPermission, async (req: AuthRequ
   try {
     const { name, parentId } = req.body;
     if (!name || typeof name !== 'string' || !name.trim()) {
-      return res.status(400).json({ error: 'Name is required' });
+      return sendError(res, 'Name is required');
     }
     const folder = await strategyService.createFolder(name, parentId ?? null);
-    res.json({ success: true, folder });
+    return sendOk(res, { folder });
   } catch (error: any) {
     if (error?.code === 'P2002') {
-      return res.status(409).json({ error: 'A folder with that name already exists here' });
+      return sendError(res, 'A folder with that name already exists here', 409);
     }
-    logger.error('Error creating folder', getErrorMessage(error));
-    res.status(500).json({ error: 'Failed to create folder' });
+    return sendServerError(res, error, 'Create folder');
   }
 });
 
@@ -195,19 +192,19 @@ router.post('/folders', verifyToken, requireEditPermission, async (req: AuthRequ
 router.put('/folders/:id', verifyToken, requireEditPermission, async (req: AuthRequest, res) => {
   try {
     const id = parseInt(req.params.id as string, 10);
-    if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+    if (isNaN(id)) return sendError(res, 'Invalid ID');
     const { name } = req.body;
     if (!name || typeof name !== 'string' || !name.trim()) {
-      return res.status(400).json({ error: 'Name is required' });
+      return sendError(res, 'Name is required');
     }
     const folder = await strategyService.renameFolder(id, name);
-    if (!folder) return res.status(404).json({ error: 'Folder not found' });
-    res.json({ success: true, folder });
+    if (!folder) return sendNotFound(res, 'Folder');
+    return sendOk(res, { folder });
   } catch (error: any) {
     if (error?.code === 'P2002') {
-      return res.status(409).json({ error: 'A folder with that name already exists here' });
+      return sendError(res, 'A folder with that name already exists here', 409);
     }
-    res.status(500).json({ error: 'Failed to rename folder' });
+    return sendServerError(res, error, 'Rename folder');
   }
 });
 
@@ -215,16 +212,16 @@ router.put('/folders/:id', verifyToken, requireEditPermission, async (req: AuthR
 router.put('/folders/:id/color', verifyToken, requireEditPermission, async (req: AuthRequest, res) => {
   try {
     const id = parseInt(req.params.id as string, 10);
-    if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+    if (isNaN(id)) return sendError(res, 'Invalid ID');
     const { color } = req.body;
     if (color !== null && (typeof color !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(color))) {
-      return res.status(400).json({ error: 'Invalid color format. Use #RRGGBB or null.' });
+      return sendError(res, 'Invalid color format. Use #RRGGBB or null.');
     }
     const folder = await strategyService.updateFolderColor(id, color ?? null);
-    if (!folder) return res.status(404).json({ error: 'Folder not found' });
-    res.json({ success: true, folder });
+    if (!folder) return sendNotFound(res, 'Folder');
+    return sendOk(res, { folder });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to update folder color' });
+    return sendServerError(res, error, 'Update folder color');
   }
 });
 
@@ -232,12 +229,12 @@ router.put('/folders/:id/color', verifyToken, requireEditPermission, async (req:
 router.delete('/folders/:id', verifyToken, requireEditPermission, async (req: AuthRequest, res) => {
   try {
     const id = parseInt(req.params.id as string, 10);
-    if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+    if (isNaN(id)) return sendError(res, 'Invalid ID');
     const success = await strategyService.deleteFolder(id);
-    if (!success) return res.status(400).json({ error: 'Folder is not empty or not found' });
-    res.json({ success: true });
+    if (!success) return sendError(res, 'Folder is not empty or not found');
+    return sendOk(res, {});
   } catch (error) {
-    res.status(500).json({ error: 'Failed to delete folder' });
+    return sendServerError(res, error, 'Delete folder');
   }
 });
 
@@ -245,12 +242,12 @@ router.delete('/folders/:id', verifyToken, requireEditPermission, async (req: Au
 router.post('/duplicate/:id', verifyToken, requireEditPermission, async (req: AuthRequest, res) => {
   try {
     const id = parseInt(req.params.id as string, 10);
-    if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+    if (isNaN(id)) return sendError(res, 'Invalid ID');
     const strategy = await strategyService.duplicateStrategy(id, req.body.folderId);
-    if (!strategy) return res.status(404).json({ error: 'Strategy not found' });
-    res.json({ success: true, strategy });
+    if (!strategy) return sendNotFound(res, 'Strategy');
+    return sendOk(res, { strategy });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to duplicate strategy' });
+    return sendServerError(res, error, 'Duplicate strategy');
   }
 });
 
@@ -258,15 +255,15 @@ router.post('/duplicate/:id', verifyToken, requireEditPermission, async (req: Au
 router.post('/folders/:id/duplicate', verifyToken, requireEditPermission, async (req: AuthRequest, res) => {
   try {
     const id = parseInt(req.params.id as string, 10);
-    if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+    if (isNaN(id)) return sendError(res, 'Invalid ID');
     const folder = await strategyService.duplicateFolder(id);
-    if (!folder) return res.status(404).json({ error: 'Folder not found' });
-    res.json({ success: true, folder });
+    if (!folder) return sendNotFound(res, 'Folder');
+    return sendOk(res, { folder });
   } catch (error: any) {
     if (error?.code === 'P2002') {
-      return res.status(409).json({ error: 'A folder with that name already exists' });
+      return sendError(res, 'A folder with that name already exists', 409);
     }
-    res.status(500).json({ error: 'Failed to duplicate folder' });
+    return sendServerError(res, error, 'Duplicate folder');
   }
 });
 
@@ -274,13 +271,13 @@ router.post('/folders/:id/duplicate', verifyToken, requireEditPermission, async 
 router.put('/move/:id', verifyToken, requireEditPermission, async (req: AuthRequest, res) => {
   try {
     const id = parseInt(req.params.id as string, 10);
-    if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+    if (isNaN(id)) return sendError(res, 'Invalid ID');
     const { folderId } = req.body;
     const success = await strategyService.moveStrategy(id, folderId ?? null);
-    if (!success) return res.status(404).json({ error: 'Strategy or folder not found' });
-    res.json({ success: true });
+    if (!success) return sendNotFound(res, 'Strategy or folder');
+    return sendOk(res, {});
   } catch (error) {
-    res.status(500).json({ error: 'Failed to move strategy' });
+    return sendServerError(res, error, 'Move strategy');
   }
 });
 
@@ -288,15 +285,14 @@ router.put('/move/:id', verifyToken, requireEditPermission, async (req: AuthRequ
 router.get('/:id', optionalAuth, async (req: AuthRequest, res) => {
   try {
     const id = parseInt(req.params.id as string, 10);
-    if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+    if (isNaN(id)) return sendError(res, 'Invalid ID');
 
     const strategy = await strategyService.getById(id);
-    if (!strategy) return res.status(404).json({ error: 'Strategy not found' });
+    if (!strategy) return sendNotFound(res, 'Strategy');
 
-    res.json({ success: true, strategy });
+    return sendOk(res, { strategy });
   } catch (error) {
-    logger.error('Error fetching strategy', getErrorMessage(error));
-    res.status(500).json({ error: 'Failed to fetch strategy' });
+    return sendServerError(res, error, 'Fetch strategy');
   }
 });
 
@@ -310,10 +306,9 @@ router.post('/', verifyToken, requireEditPermission, validate(createStrategySche
       authorName: req.user!.username,
     });
 
-    res.json({ success: true, strategy });
+    return sendOk(res, { strategy });
   } catch (error) {
-    logger.error('Error creating strategy', getErrorMessage(error));
-    res.status(500).json({ error: 'Failed to create strategy' });
+    return sendServerError(res, error, 'Create strategy');
   }
 });
 
@@ -321,15 +316,14 @@ router.post('/', verifyToken, requireEditPermission, validate(createStrategySche
 router.put('/:id', verifyToken, requireEditPermission, validate(updateStrategySchema), async (req: AuthRequest, res) => {
   try {
     const id = parseInt(req.params.id as string, 10);
-    if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+    if (isNaN(id)) return sendError(res, 'Invalid ID');
 
     const strategy = await strategyService.update(id, req.body);
-    if (!strategy) return res.status(404).json({ error: 'Strategy not found' });
+    if (!strategy) return sendNotFound(res, 'Strategy');
 
-    res.json({ success: true, strategy });
+    return sendOk(res, { strategy });
   } catch (error) {
-    logger.error('Error updating strategy', getErrorMessage(error));
-    res.status(500).json({ error: 'Failed to update strategy' });
+    return sendServerError(res, error, 'Update strategy');
   }
 });
 
@@ -337,14 +331,14 @@ router.put('/:id', verifyToken, requireEditPermission, validate(updateStrategySc
 router.delete('/:id', verifyToken, requireEditPermission, async (req: AuthRequest, res) => {
   try {
     const id = parseInt(req.params.id as string, 10);
-    if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+    if (isNaN(id)) return sendError(res, 'Invalid ID');
 
     // Delete associated image files from disk
     const strategy = await strategyService.getById(id);
-    if (!strategy) return res.status(404).json({ error: 'Strategy not found' });
+    if (!strategy) return sendNotFound(res, 'Strategy');
 
     const success = await strategyService.delete(id);
-    if (!success) return res.status(500).json({ error: 'Failed to delete strategy' });
+    if (!success) return sendServerError(res, new Error('Delete failed'), 'Delete strategy');
 
     // Clean up image files from disk (DB records cascade-deleted)
     if (strategy.content) {
@@ -367,10 +361,9 @@ router.delete('/:id', verifyToken, requireEditPermission, async (req: AuthReques
     }
 
     logger.success('Strategy deleted', `"${strategy.title}" by ${req.user!.username}`);
-    res.json({ success: true, message: 'Strategy deleted' });
+    return sendOk(res, { message: 'Strategy deleted' });
   } catch (error) {
-    logger.error('Error deleting strategy', getErrorMessage(error));
-    res.status(500).json({ error: 'Failed to delete strategy' });
+    return sendServerError(res, error, 'Delete strategy');
   }
 });
 
@@ -381,7 +374,7 @@ router.get('/files/:filename', (req, res) => {
   const filename = path.basename(req.params.filename as string);
   const filePath = path.join(UPLOAD_DIR, filename);
   if (!fs.existsSync(filePath)) {
-    return res.status(404).json({ error: 'File not found' });
+    return sendNotFound(res, 'File');
   }
   res.setHeader('Cache-Control', 'public, max-age=86400');
   res.setHeader('Content-Disposition', 'inline');
@@ -395,33 +388,33 @@ router.post('/:id/files', verifyToken, (req: AuthRequest, res) => {
   pdfUpload.single('file')(req, res, async (err) => {
     if (err instanceof multer.MulterError) {
       if (err.code === 'LIMIT_FILE_SIZE') {
-        return res.status(400).json({ error: 'File too large. Maximum 10MB.' });
+        return sendError(res, 'File too large. Maximum 10MB.');
       }
-      return res.status(400).json({ error: err.message });
+      return sendError(res, err.message);
     }
     if (err) {
-      return res.status(400).json({ error: err.message });
+      return sendError(res, err.message);
     }
     if (!req.file) {
-      return res.status(400).json({ error: 'No file provided' });
+      return sendError(res, 'No file provided');
     }
 
     try {
       if (!strategyService.canEdit(req.user!.role)) {
         fs.unlinkSync(req.file.path);
-        return res.status(403).json({ error: 'No permission to upload files' });
+        return sendForbidden(res, 'No permission to upload files');
       }
 
       const strategyId = parseInt(req.params.id as string, 10);
       if (isNaN(strategyId)) {
         fs.unlinkSync(req.file.path);
-        return res.status(400).json({ error: 'Invalid strategy ID' });
+        return sendError(res, 'Invalid strategy ID');
       }
 
       const strategy = await strategyService.getById(strategyId);
       if (!strategy) {
         fs.unlinkSync(req.file.path);
-        return res.status(404).json({ error: 'Strategy not found' });
+        return sendNotFound(res, 'Strategy');
       }
 
       const file = await createStrategyFile({
@@ -432,10 +425,9 @@ router.post('/:id/files', verifyToken, (req: AuthRequest, res) => {
         size: req.file.size,
       });
 
-      res.json({ success: true, file });
+      return sendOk(res, { file });
     } catch (error) {
-      logger.error('Error saving file record', getErrorMessage(error));
-      res.status(500).json({ error: 'Failed to save file' });
+      return sendServerError(res, error, 'Save file');
     }
   });
 });
@@ -444,10 +436,10 @@ router.post('/:id/files', verifyToken, (req: AuthRequest, res) => {
 router.delete('/files/:fileId', verifyToken, requireEditPermission, async (req: AuthRequest, res) => {
   try {
     const fileId = parseInt(req.params.fileId as string, 10);
-    if (isNaN(fileId)) return res.status(400).json({ error: 'Invalid file ID' });
+    if (isNaN(fileId)) return sendError(res, 'Invalid file ID');
 
     const filename = await deleteStrategyFile(fileId);
-    if (!filename) return res.status(404).json({ error: 'File not found' });
+    if (!filename) return sendNotFound(res, 'File');
 
     // Clean up from disk
     const filePath = path.join(UPLOAD_DIR, filename);
@@ -455,10 +447,9 @@ router.delete('/files/:fileId', verifyToken, requireEditPermission, async (req: 
       fs.unlinkSync(filePath);
     }
 
-    res.json({ success: true, message: 'File deleted' });
+    return sendOk(res, { message: 'File deleted' });
   } catch (error) {
-    logger.error('Error deleting file', getErrorMessage(error));
-    res.status(500).json({ error: 'Failed to delete file' });
+    return sendServerError(res, error, 'Delete file');
   }
 });
 

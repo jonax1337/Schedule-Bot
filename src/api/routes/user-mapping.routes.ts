@@ -3,9 +3,10 @@ import { verifyToken, requireAdmin, optionalAuth, AuthRequest } from '../../shar
 import { validate, addUserMappingSchema, updateUserMappingSchema, reorderUserMappingsSchema } from '../../shared/middleware/validation.js';
 import { getUserMappings, addUserMapping, updateUserMapping, removeUserMapping, reorderUserMappingsBatch } from '../../repositories/user-mapping.repository.js';
 import { syncUserMappingsToSchedules } from '../../repositories/schedule.repository.js';
-import { logger, getErrorMessage } from '../../shared/utils/logger.js';
+import { logger } from '../../shared/utils/logger.js';
 import { client } from '../../bot/client.js';
 import { config } from '../../shared/config/config.js';
+import { sendOk, sendServerError, sendNotFound } from '../../shared/utils/apiResponse.js';
 
 const router = Router();
 
@@ -35,7 +36,7 @@ router.get('/', optionalAuth, async (req: AuthRequest, res) => {
       } catch {
         // If avatar enrichment fails, return mappings without avatars
       }
-      res.json({ success: true, mappings: enrichedMappings });
+      return sendOk(res, { mappings: enrichedMappings });
     } else {
       // Unauthenticated: only expose what's needed for login dropdown
       const safeMappings = mappings.map(m => ({
@@ -43,11 +44,10 @@ router.get('/', optionalAuth, async (req: AuthRequest, res) => {
         role: m.role,
         sortOrder: m.sortOrder,
       }));
-      res.json({ success: true, mappings: safeMappings });
+      return sendOk(res, { mappings: safeMappings });
     }
   } catch (error) {
-    logger.error('Failed to fetch user mappings', getErrorMessage(error));
-    res.status(500).json({ success: false, error: 'Failed to fetch user mappings' });
+    return sendServerError(res, error, 'Fetch user mappings');
   }
 });
 
@@ -60,10 +60,9 @@ router.post('/', verifyToken, requireAdmin, validate(addUserMappingSchema), asyn
     await syncUserMappingsToSchedules();
 
     logger.success('User mapping added', `${mapping.displayName} by ${req.user?.username}`);
-    res.json({ success: true, message: 'User mapping added successfully' });
+    return sendOk(res, { message: 'User mapping added successfully' });
   } catch (error) {
-    logger.error('Failed to add user mapping', getErrorMessage(error));
-    res.status(500).json({ error: 'Failed to add user mapping' });
+    return sendServerError(res, error, 'Add user mapping');
   }
 });
 
@@ -76,10 +75,9 @@ router.put('/reorder', verifyToken, requireAdmin, validate(reorderUserMappingsSc
     await syncUserMappingsToSchedules();
 
     logger.success('User mappings reordered', `${orderings.length} mappings by ${req.user?.username}`);
-    res.json({ success: true, message: 'User mappings reordered successfully' });
+    return sendOk(res, { message: 'User mappings reordered successfully' });
   } catch (error) {
-    logger.error('Failed to reorder user mappings', getErrorMessage(error));
-    res.status(500).json({ error: 'Failed to reorder user mappings' });
+    return sendServerError(res, error, 'Reorder user mappings');
   }
 });
 
@@ -102,10 +100,9 @@ router.put('/:discordId', verifyToken, requireAdmin, validate(updateUserMappingS
     await syncUserMappingsToSchedules();
 
     logger.success('User mapping updated', `${discordUsername} → ${displayName} by ${req.user?.username}`);
-    res.json({ success: true, message: 'User mapping updated successfully' });
+    return sendOk(res, { message: 'User mapping updated successfully' });
   } catch (error) {
-    logger.error('Failed to update user mapping', getErrorMessage(error));
-    res.status(500).json({ error: 'Failed to update user mapping' });
+    return sendServerError(res, error, 'Update user mapping');
   }
 });
 
@@ -119,13 +116,12 @@ router.delete('/:discordId', verifyToken, requireAdmin, async (req: AuthRequest,
     if (success) {
       await syncUserMappingsToSchedules();
       logger.success('User mapping removed', `${discordId} by ${req.user?.username}`);
-      res.json({ success: true, message: 'User mapping removed successfully' });
+      return sendOk(res, { message: 'User mapping removed successfully' });
     } else {
-      res.status(404).json({ error: 'User mapping not found' });
+      return sendNotFound(res, 'User mapping');
     }
   } catch (error) {
-    logger.error('Failed to remove user mapping', getErrorMessage(error));
-    res.status(500).json({ error: 'Failed to remove user mapping' });
+    return sendServerError(res, error, 'Remove user mapping');
   }
 });
 

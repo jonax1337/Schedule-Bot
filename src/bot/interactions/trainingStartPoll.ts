@@ -5,48 +5,33 @@ import { updateSetting, getSetting } from '../../shared/utils/settingsManager.js
 import { convertTimeToUnixTimestamp, COLORS } from '../embeds/embed.js';
 import type { ScheduleResult } from '../../shared/types/types.js';
 import { logger, getErrorMessage } from '../../shared/utils/logger.js';
-import { formatRemainingTime, startPollTimers as startTimers, clearPollTimers as clearTimers, handleVoteToggle, POLL_EMOJIS } from './pollBase.js';
+import { PollManager, PollOption, POLL_EMOJIS, formatRemainingTime } from './pollManager.js';
 import { timeToMinutes, minutesToTime } from '../../shared/utils/dateFormatter.js';
 
-interface TrainingPollOption {
-  emoji: string;
-  timeStr: string; // Raw HH:MM for internal use
-  timestamp: number; // Unix timestamp for Discord display
-  votes: string[]; // User IDs
-}
-
-interface TrainingPoll {
-  messageId: string;
-  date: string;
-  options: TrainingPollOption[];
-  expiresAt: Date;
-  closeTimer?: ReturnType<typeof setTimeout>;
-  countdownTimer?: ReturnType<typeof setInterval>;
-}
-
-const activeTrainingPolls = new Map<string, TrainingPoll>();
-
 /**
- * Start close timer and countdown interval for a poll.
+ * Training poll option extends base PollOption with timestamp
  */
-function startPollTimers(poll: TrainingPoll): void {
-  const timers = startTimers(
-    poll.expiresAt,
-    () => closeTrainingPoll(poll.messageId),
-    () => updateTrainingPollEmbed(poll),
-  );
-  if (timers) {
-    poll.closeTimer = timers.closeTimer;
-    poll.countdownTimer = timers.countdownTimer;
-  }
+interface TrainingPollOption extends PollOption {
+  timeStr: string;
+  timestamp: number;
 }
 
 /**
- * Clear all timers for a poll.
+ * Create the training poll manager with specific display config
  */
-function clearPollTimers(poll: TrainingPoll): void {
-  clearTimers(poll);
-}
+const trainingPollManager = new PollManager<TrainingPollOption>({
+  color: COLORS.WARNING,
+  description: 'React to vote!',
+  closedSuffix: '— CLOSED',
+  winnerPrefix: 'Start time',
+  noVotesMessage: 'No votes received — middle time selected.',
+  getOptionDisplay: (opt) => `<t:${(opt as TrainingPollOption).timestamp}:t>`,
+  selectDefaultWinner: (options) => {
+    // Select middle option when no votes
+    const middleIndex = Math.floor(options.length / 2);
+    return options[middleIndex];
+  },
+});
 
 /**
  * Creates a reaction-based poll asking when to start training.
@@ -119,6 +104,8 @@ export async function createTrainingStartPoll(
 
     options.push({
       emoji: POLL_EMOJIS[options.length],
+      label: timeStr,
+      displayValue: `<t:${timestamp}:t>`,
       timeStr,
       timestamp,
       votes: [],
@@ -135,20 +122,23 @@ export async function createTrainingStartPoll(
     const startTs = convertTimeToUnixTimestamp(date, timeRange.start, config.scheduling.timezone);
     const endTs = convertTimeToUnixTimestamp(date, timeRange.end, config.scheduling.timezone);
 
+    const durationMs = pollDurationMinutes * 60 * 1000;
+
+    // Create custom embed with time window description
     const embed = new EmbedBuilder()
       .setColor(COLORS.WARNING)
       .setTitle('When do you want to start?')
       .setDescription(
         `⏰ Available window: <t:${startTs}:t> - <t:${endTs}:t>\n\nReact to vote!`
       )
-      .setFooter({ text: `Poll closes in ${formatRemainingTime(pollDurationMinutes * 60_000)}` })
+      .setFooter({ text: `Poll closes in ${formatRemainingTime(durationMs)}` })
       .setTimestamp();
 
-    // Layout: divisible by 3 → 3 per row, divisible by 2 → 2 per row (with spacer), else vertical
+    // Layout: divisible by 3 → 3 per row, divisible by 2 → 2 per row, else vertical
     const n = options.length;
     const columnsPerRow = n % 3 === 0 ? 3 : n % 2 === 0 ? 2 : n >= 7 ? 3 : n >= 5 ? 2 : 1;
 
-    addPollFields(embed, options.map(opt => ({
+    trainingPollManager.addFields(embed, options.map(opt => ({
       name: `${opt.emoji} <t:${opt.timestamp}:t>`,
       value: '0 votes',
     })), columnsPerRow);
@@ -160,15 +150,15 @@ export async function createTrainingStartPoll(
       await message.react(opt.emoji);
     }
 
-    const poll: TrainingPoll = {
+    // Register with poll manager
+    trainingPollManager.register({
       messageId: message.id,
-      date,
+      title: 'When do you want to start?',
       options,
-      expiresAt: new Date(Date.now() + pollDurationMinutes * 60 * 1000),
-    };
-
-    activeTrainingPolls.set(message.id, poll);
-    startPollTimers(poll);
+      expiresAt: new Date(Date.now() + durationMs),
+      type: 'training',
+      metadata: { date },
+    });
 
     logger.info(`Training start poll created for ${date} (duration: ${pollDurationMinutes} minutes)`);
   } catch (error) {
@@ -184,102 +174,7 @@ export async function handleTrainingPollReaction(
   user: User,
   added: boolean
 ): Promise<void> {
-  if (user.bot) return;
-
-  const poll = activeTrainingPolls.get(reaction.message.id);
-  if (!poll) return;
-
-  const option = poll.options.find(opt => opt.emoji === reaction.emoji.name);
-  if (!option) return;
-
-  handleVoteToggle(option, user.id, added);
-
-  await updateTrainingPollEmbed(poll);
-}
-
-async function updateTrainingPollEmbed(poll: TrainingPoll): Promise<void> {
-  try {
-    const channel = await client.channels.fetch(config.discord.channelId);
-    if (!channel || !channel.isTextBased()) return;
-
-    const message = await channel.messages.fetch(poll.messageId);
-    const embed = message.embeds[0];
-    if (!embed) return;
-
-    const newEmbed = EmbedBuilder.from(embed);
-    newEmbed.setFields([]);
-
-    const n = poll.options.length;
-    const columnsPerRow = n % 3 === 0 ? 3 : n % 2 === 0 ? 2 : n >= 7 ? 3 : n >= 5 ? 2 : 1;
-
-    addPollFields(newEmbed, poll.options.map(opt => ({
-      name: `${opt.emoji} <t:${opt.timestamp}:t>`,
-      value: `${opt.votes.length} vote${opt.votes.length !== 1 ? 's' : ''}`,
-    })), columnsPerRow);
-
-    // Update footer with remaining time
-    const remaining = poll.expiresAt.getTime() - Date.now();
-    if (remaining > 0) {
-      newEmbed.setFooter({ text: `Poll closes in ${formatRemainingTime(remaining)}` });
-    }
-
-    await message.edit({ embeds: [newEmbed] });
-  } catch (error) {
-    logger.error('Error updating training poll embed', getErrorMessage(error));
-  }
-}
-
-async function closeTrainingPoll(messageId: string): Promise<void> {
-  const poll = activeTrainingPolls.get(messageId);
-  if (!poll) return;
-
-  clearPollTimers(poll);
-
-  try {
-    const channel = await client.channels.fetch(config.discord.channelId);
-    if (!channel || !channel.isTextBased()) return;
-
-    const message = await channel.messages.fetch(messageId);
-
-    // Sort options by votes
-    const sorted = [...poll.options].sort((a, b) => b.votes.length - a.votes.length);
-    const totalVotes = sorted.reduce((sum, opt) => sum + opt.votes.length, 0);
-
-    let resultText = '**📊 Results:**\n\n';
-    let winnerTimestamp: number;
-
-    if (totalVotes === 0) {
-      // No votes — pick the middle option
-      const middleIndex = Math.floor(poll.options.length / 2);
-      winnerTimestamp = poll.options[middleIndex].timestamp;
-      resultText += `No votes received — middle time selected.\n`;
-    } else {
-      // Show top 3 (or fewer if they have 0 votes)
-      const medals = ['🥇', '🥈', '🥉'];
-      const shown = sorted.filter((opt, i) => i === 0 || opt.votes.length > 0).slice(0, 3);
-      shown.forEach((opt, i) => {
-        resultText += `${medals[i]} <t:${opt.timestamp}:t> — ${opt.votes.length} vote${opt.votes.length !== 1 ? 's' : ''}\n`;
-      });
-      winnerTimestamp = sorted[0].timestamp;
-    }
-
-    resultText += `\n✅ **Start time:** <t:${winnerTimestamp}:t>`;
-
-    const embed = new EmbedBuilder()
-      .setColor(COLORS.ERROR)
-      .setTitle('Training Start Poll — CLOSED')
-      .setDescription(resultText)
-      .setFooter({ text: 'Poll closed' })
-      .setTimestamp();
-
-    await message.reactions.removeAll().catch(() => {});
-    await message.edit({ embeds: [embed] });
-    activeTrainingPolls.delete(messageId);
-
-    logger.info(`Training poll closed for ${poll.date} - Winner timestamp: ${winnerTimestamp}`);
-  } catch (error) {
-    logger.error('Error closing training poll', getErrorMessage(error));
-  }
+  await trainingPollManager.handleReaction(reaction, user, added);
 }
 
 /**
@@ -287,68 +182,18 @@ async function closeTrainingPoll(messageId: string): Promise<void> {
  * Scans recent messages for open training poll embeds and re-registers them.
  */
 export async function recoverTrainingPolls(): Promise<void> {
-  try {
-    const channel = await client.channels.fetch(config.discord.channelId);
-    if (!channel || !(channel instanceof TextChannel)) return;
-
-    const messages = await channel.messages.fetch({ limit: 50 });
-    for (const message of messages.values()) {
-      if (!message.author.bot || message.author.id !== client.user?.id) continue;
-
-      const embed = message.embeds[0];
-      if (!embed) continue;
-
-      // Identify open training polls by title
-      if (embed.title !== 'When do you want to start?') continue;
-
-      // Already tracked
-      if (activeTrainingPolls.has(message.id)) continue;
-
-      // Parse expiry from footer — check if already closed
-      const footerText = embed.footer?.text || '';
-      if (footerText === 'Poll closed') continue;
-
-      // Try to recover the expiry time from the embed timestamp + poll duration
+  await trainingPollManager.recoverFromChannel(
+    // Identify training polls by title
+    (embed) => embed?.data.title === 'When do you want to start?',
+    // Reconstruct options from message
+    (message) => reconstructOptionsFromMessage(message),
+    // Get expiry time
+    (message) => {
       const pollDurationMinutes = getSetting('scheduling', 'pollDurationMinutes') || 60;
-      const createdAt = message.createdTimestamp;
-      const expiresAt = new Date(createdAt + pollDurationMinutes * 60 * 1000);
-
-      // If already expired, close it now
-      if (expiresAt.getTime() <= Date.now()) {
-        // Reconstruct poll to close it properly
-        const options = reconstructOptionsFromMessage(message);
-        if (options.length === 0) continue;
-
-        const poll: TrainingPoll = {
-          messageId: message.id,
-          date: '',
-          options,
-          expiresAt,
-        };
-        activeTrainingPolls.set(message.id, poll);
-        await closeTrainingPoll(message.id);
-        logger.info(`Recovered and closed expired training poll: ${message.id}`);
-        continue;
-      }
-
-      // Still active — reconstruct and re-register
-      const options = reconstructOptionsFromMessage(message);
-      if (options.length === 0) continue;
-
-      const poll: TrainingPoll = {
-        messageId: message.id,
-        date: '',
-        options,
-        expiresAt,
-      };
-
-      activeTrainingPolls.set(message.id, poll);
-      startPollTimers(poll);
-      logger.info(`Recovered active training poll: ${message.id} (closes in ${formatRemainingTime(expiresAt.getTime() - Date.now())})`);
-    }
-  } catch (error) {
-    logger.error('Error recovering training polls', getErrorMessage(error));
-  }
+      return new Date(message.createdTimestamp + pollDurationMinutes * 60 * 1000);
+    },
+    'training'
+  );
 }
 
 /**
@@ -377,9 +222,11 @@ function reconstructOptionsFromMessage(message: Message): TrainingPollOption[] {
 
     options.push({
       emoji,
+      label: '',
+      displayValue: `<t:${timestamp}:t>`,
       timeStr: '',
       timestamp,
-      votes: Array(voteCount).fill('unknown'), // Placeholder IDs — we can't recover exact user IDs from reactions without fetching them
+      votes: Array(voteCount).fill('unknown'), // Placeholder IDs
     });
   }
 
@@ -412,38 +259,6 @@ export function isTrainingStartPollEnabled(): boolean {
 /**
  * Check if a message is an active training poll
  */
-export function getActiveTrainingPoll(messageId: string): TrainingPoll | undefined {
-  return activeTrainingPolls.get(messageId);
+export function getActiveTrainingPoll(messageId: string) {
+  return trainingPollManager.get(messageId);
 }
-
-// Helper functions
-
-/**
- * Add fields to an embed with a specific number of columns per row.
- * For 2-column layout, inserts an invisible spacer field as the 3rd column.
- * For 1-column layout, fields are not inline.
- */
-function addPollFields(
-  embed: EmbedBuilder,
-  fields: Array<{ name: string; value: string }>,
-  columnsPerRow: number
-): void {
-  if (columnsPerRow === 1) {
-    fields.forEach(f => embed.addFields({ ...f, inline: false }));
-    return;
-  }
-
-  if (columnsPerRow === 3) {
-    fields.forEach(f => embed.addFields({ ...f, inline: true }));
-    return;
-  }
-
-  // 2-column layout: insert a blank spacer every 2 fields to fill the 3rd column
-  fields.forEach((f, i) => {
-    embed.addFields({ ...f, inline: true });
-    if (i % 2 === 1) {
-      embed.addFields({ name: '\u200b', value: '\u200b', inline: true });
-    }
-  });
-}
-
