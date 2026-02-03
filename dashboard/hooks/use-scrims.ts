@@ -1,106 +1,132 @@
-"use client"
+'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
-import { apiGet } from '@/lib/api'
-import type { ScrimEntry, ScrimStats } from '@/lib/types'
+import { useState, useEffect, useCallback } from 'react';
+import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
+import { type ScrimEntry, type ScrimStats } from '@/lib/types';
+import { parseDDMMYYYY } from '@/lib/date-utils';
+
+// Re-export types for convenience
+export type Scrim = ScrimEntry;
 
 interface UseScrimsOptions {
-  /** Whether to auto-fetch on mount (default: true) */
-  autoFetch?: boolean
-  /** Also fetch stats (default: false) */
-  fetchStats?: boolean
+  fetchOnMount?: boolean;
 }
 
-interface UseScrimsReturn {
-  scrims: ScrimEntry[]
-  stats: ScrimStats | null
-  loading: boolean
-  error: string | null
-  refresh: () => Promise<void>
-  /** Filter scrims by map */
-  filterByMap: (map: string) => ScrimEntry[]
-  /** Filter scrims by opponent */
-  filterByOpponent: (opponent: string) => ScrimEntry[]
-  /** Filter scrims by result */
-  filterByResult: (result: 'win' | 'loss' | 'draw') => ScrimEntry[]
-  /** Get unique opponents */
-  uniqueOpponents: string[]
-  /** Get unique maps */
-  uniqueMaps: string[]
+type ScrimCreateData = Omit<ScrimEntry, 'id' | 'createdAt' | 'updatedAt'>;
+type ScrimUpdateData = Partial<ScrimCreateData>;
+
+interface UseScrimsResult {
+  scrims: ScrimEntry[];
+  stats: ScrimStats | null;
+  loading: boolean;
+  error: string | null;
+  refetch: () => Promise<void>;
+  createScrim: (data: ScrimCreateData) => Promise<ScrimEntry | null>;
+  updateScrim: (id: string, data: ScrimUpdateData) => Promise<ScrimEntry | null>;
+  deleteScrim: (id: string) => Promise<boolean>;
 }
 
-/**
- * Custom hook for fetching scrim data
- * Centralizes scrim fetching logic used across multiple components
- */
-export function useScrims(options: UseScrimsOptions = {}): UseScrimsReturn {
-  const { autoFetch = true, fetchStats = false } = options
-  const [scrims, setScrims] = useState<ScrimEntry[]>([])
-  const [stats, setStats] = useState<ScrimStats | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+export function useScrims(options: UseScrimsOptions = {}): UseScrimsResult {
+  const { fetchOnMount = true } = options;
+  const [scrims, setScrims] = useState<ScrimEntry[]>([]);
+  const [stats, setStats] = useState<ScrimStats | null>(null);
+  const [loading, setLoading] = useState(fetchOnMount);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchScrims = useCallback(async () => {
-    setLoading(true)
-    setError(null)
+    setLoading(true);
+    setError(null);
     try {
-      const [scrimsData, statsData] = await Promise.all([
-        apiGet<ScrimEntry[]>('/api/scrims'),
-        fetchStats ? apiGet<ScrimStats>('/api/scrims/stats/summary') : Promise.resolve(null),
-      ])
-      setScrims(scrimsData || [])
-      setStats(statsData)
+      const data = await apiGet<{ scrims: ScrimEntry[] }>('/api/scrims');
+      // Sort by date (newest first)
+      const sorted = (data.scrims || []).sort((a, b) => {
+        return parseDDMMYYYY(b.date).getTime() - parseDDMMYYYY(a.date).getTime();
+      });
+      setScrims(sorted);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to fetch scrims'
-      setError(message)
-      setScrims([])
-      setStats(null)
+      setError(err instanceof Error ? err.message : 'Failed to fetch scrims');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [fetchStats])
+  }, []);
+
+  const fetchStats = useCallback(async () => {
+    try {
+      const data = await apiGet<{ stats: ScrimStats }>('/api/scrims/stats/summary');
+      setStats(data.stats || null);
+    } catch (err) {
+      // Stats are optional, don't set error
+      console.error('Failed to fetch scrim stats:', err);
+    }
+  }, []);
 
   useEffect(() => {
-    if (autoFetch) {
-      fetchScrims()
+    if (fetchOnMount) {
+      fetchScrims();
+      fetchStats();
     }
-  }, [autoFetch, fetchScrims])
+  }, [fetchScrims, fetchStats, fetchOnMount]);
 
-  const filterByMap = useCallback(
-    (map: string) => scrims.filter(s => s.map === map),
-    [scrims]
-  )
+  const createScrim = useCallback(async (data: ScrimCreateData) => {
+    try {
+      const result = await apiPost<{ scrim: ScrimEntry }>('/api/scrims', data);
+      if (result.scrim) {
+        // Re-sort after adding
+        setScrims(prev => {
+          const updated = [result.scrim, ...prev];
+          return updated.sort((a, b) => parseDDMMYYYY(b.date).getTime() - parseDDMMYYYY(a.date).getTime());
+        });
+        // Refresh stats
+        fetchStats();
+        return result.scrim;
+      }
+      return null;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create scrim');
+      return null;
+    }
+  }, [fetchStats]);
 
-  const filterByOpponent = useCallback(
-    (opponent: string) => scrims.filter(s => s.opponent.toLowerCase().includes(opponent.toLowerCase())),
-    [scrims]
-  )
+  const updateScrim = useCallback(async (id: string, data: ScrimUpdateData) => {
+    try {
+      const result = await apiPut<{ scrim: ScrimEntry }>(`/api/scrims/${id}`, data);
+      if (result.scrim) {
+        setScrims(prev => {
+          const updated = prev.map(s => s.id === id ? result.scrim : s);
+          return updated.sort((a, b) => parseDDMMYYYY(b.date).getTime() - parseDDMMYYYY(a.date).getTime());
+        });
+        // Refresh stats
+        fetchStats();
+        return result.scrim;
+      }
+      return null;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update scrim');
+      return null;
+    }
+  }, [fetchStats]);
 
-  const filterByResult = useCallback(
-    (result: 'win' | 'loss' | 'draw') => scrims.filter(s => s.result === result),
-    [scrims]
-  )
-
-  const uniqueOpponents = useMemo(
-    () => [...new Set(scrims.map(s => s.opponent))].sort(),
-    [scrims]
-  )
-
-  const uniqueMaps = useMemo(
-    () => [...new Set(scrims.map(s => s.map).filter(Boolean))].sort(),
-    [scrims]
-  )
+  const deleteScrim = useCallback(async (id: string) => {
+    try {
+      await apiDelete(`/api/scrims/${id}`);
+      setScrims(prev => prev.filter(s => s.id !== id));
+      // Refresh stats
+      fetchStats();
+      return true;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete scrim');
+      return false;
+    }
+  }, [fetchStats]);
 
   return {
     scrims,
     stats,
     loading,
     error,
-    refresh: fetchScrims,
-    filterByMap,
-    filterByOpponent,
-    filterByResult,
-    uniqueOpponents,
-    uniqueMaps,
-  }
+    refetch: fetchScrims,
+    createScrim,
+    updateScrim,
+    deleteScrim,
+  };
 }

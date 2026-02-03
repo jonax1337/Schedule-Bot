@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,20 +13,9 @@ import { PageSpinner } from '@/components/ui/page-spinner';
 import { toast } from 'sonner';
 import { stagger, microInteractions } from '@/lib/animations';
 import { cn } from '@/lib/utils';
-import { BOT_API_URL } from '@/lib/config';
-import { getAuthHeaders } from '@/lib/auth';
-import { parseDDMMYYYY, getWeekdayName, isoToDDMMYYYY } from '@/lib/date-utils';
+import { getWeekdayName, isoToDDMMYYYY } from '@/lib/date-utils';
 import { useUserDiscordId } from '@/hooks/use-user-discord-id';
-
-interface Absence {
-  id: number;
-  userId: string;
-  startDate: string;
-  endDate: string;
-  reason: string;
-  createdAt: string;
-  updatedAt: string;
-}
+import { useAbsences, type Absence } from '@/hooks';
 
 
 function isAbsenceActive(absence: Absence): boolean {
@@ -50,8 +39,15 @@ function isAbsenceCurrent(absence: Absence): boolean {
 export function UserAbsences() {
   const { user, isLoading: authLoading } = useUserDiscordId();
   const userDiscordId = user?.discordId || '';
-  const [absences, setAbsences] = useState<Absence[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  // Use the absences hook
+  const {
+    absences,
+    loading,
+    createAbsence: createAbsenceApi,
+    deleteAbsence: deleteAbsenceApi,
+  } = useAbsences({ userId: userDiscordId, fetchOnMount: !!userDiscordId });
+
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<number | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
@@ -62,39 +58,7 @@ export function UserAbsences() {
   const [newEndDate, setNewEndDate] = useState('');
   const [newReason, setNewReason] = useState('');
 
-  useEffect(() => {
-    if (authLoading || !userDiscordId) return;
-    loadAbsences(userDiscordId, true);
-  }, [authLoading, userDiscordId]);
-
-  const loadAbsences = async (discordId?: string, isInitial = false) => {
-    const userId = discordId || userDiscordId;
-    if (!userId) return;
-
-    if (!isInitial) setLoading(true);
-    try {
-
-      const response = await fetch(`${BOT_API_URL}/api/absences?userId=${userId}`, {
-        headers: getAuthHeaders(),
-      });
-
-      if (!response.ok) {
-        toast.error('Failed to load absences');
-        setLoading(false);
-        return;
-      }
-
-      const data = await response.json();
-      setAbsences(data.absences || []);
-    } catch (error) {
-      console.error('Failed to load absences:', error);
-      toast.error('Failed to load absences');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const createAbsence = async () => {
+  const handleCreateAbsence = async () => {
     if (!newStartDate || !newEndDate) {
       toast.error('Please select start and end date');
       return;
@@ -109,60 +73,34 @@ export function UserAbsences() {
     }
 
     setSaving(true);
-    try {
+    const result = await createAbsenceApi({
+      userId: userDiscordId,
+      startDate,
+      endDate,
+      reason: newReason,
+    });
 
-      const response = await fetch(`${BOT_API_URL}/api/absences`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          userId: userDiscordId,
-          startDate,
-          endDate,
-          reason: newReason,
-        }),
-      });
-
-      if (response.ok) {
-        toast.success('Absence created');
-        setNewStartDate('');
-        setNewEndDate('');
-        setNewReason('');
-        setDialogOpen(false);
-        await loadAbsences();
-      } else {
-        const data = await response.json();
-        toast.error(data.error || 'Failed to create absence');
-      }
-    } catch (error) {
-      console.error('Failed to create absence:', error);
+    if (result) {
+      toast.success('Absence created');
+      setNewStartDate('');
+      setNewEndDate('');
+      setNewReason('');
+      setDialogOpen(false);
+    } else {
       toast.error('Failed to create absence');
-    } finally {
-      setSaving(false);
     }
+    setSaving(false);
   };
 
-  const deleteAbsenceHandler = async (id: number) => {
+  const handleDeleteAbsence = async (id: number) => {
     setDeleting(id);
-    try {
-
-      const response = await fetch(`${BOT_API_URL}/api/absences/${id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(),
-      });
-
-      if (response.ok) {
-        toast.success('Absence deleted');
-        await loadAbsences();
-      } else {
-        const data = await response.json();
-        toast.error(data.error || 'Failed to delete absence');
-      }
-    } catch (error) {
-      console.error('Failed to delete absence:', error);
+    const success = await deleteAbsenceApi(id);
+    if (success) {
+      toast.success('Absence deleted');
+    } else {
       toast.error('Failed to delete absence');
-    } finally {
-      setDeleting(null);
     }
+    setDeleting(null);
   };
 
   const openNewAbsenceDialog = () => {
@@ -326,7 +264,7 @@ export function UserAbsences() {
         confirmLabel="Delete"
         onConfirm={() => {
           if (deleteTarget !== null) {
-            deleteAbsenceHandler(deleteTarget);
+            handleDeleteAbsence(deleteTarget);
             setDeleteTarget(null);
           }
         }}
@@ -392,7 +330,7 @@ export function UserAbsences() {
                 Cancel
               </Button>
               <Button
-                onClick={createAbsence}
+                onClick={handleCreateAbsence}
                 disabled={saving || !newStartDate || !newEndDate}
                 className={microInteractions.activePress}
               >

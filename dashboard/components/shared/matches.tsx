@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { Loader2, Plus, Edit, Trash2, TrendingUp, Trophy, Target, X, LayoutGrid, Table as TableIcon, Video, ArrowUpDown, ArrowUp, ArrowDown, ExternalLink } from "lucide-react";
+import { Plus, Edit, Trash2, TrendingUp, Trophy, Target, X, LayoutGrid, Table as TableIcon, Video, ArrowUpDown, ArrowUp, ArrowDown, ExternalLink } from "lucide-react";
 import { PageSpinner } from '@/components/ui/page-spinner';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -21,32 +21,39 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { stagger, microInteractions } from '@/lib/animations';
 import { cn } from '@/lib/utils';
 import { BOT_API_URL } from '@/lib/config';
-import { getAuthHeaders } from '@/lib/auth';
 import { VodReview } from './vod-review';
-import { type ScrimEntry, type ScrimStats } from '@/lib/types';
+import { type ScrimEntry } from '@/lib/types';
 import { VALORANT_MAPS, MATCH_TYPES } from '@/lib/constants';
 import { getTodayDDMMYYYY, parseDDMMYYYY } from '@/lib/date-utils';
 import { getYouTubeVideoId } from '@/lib/vod-utils';
+import { useScrims } from '@/hooks';
 
 export function Matches() {
-  const [scrims, setScrims] = useState<ScrimEntry[]>([]);
-  const [stats, setStats] = useState<ScrimStats | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Use the scrims hook for data fetching and CRUD
+  const {
+    scrims,
+    stats,
+    loading,
+    createScrim,
+    updateScrim,
+    deleteScrim: deleteScrimApi,
+  } = useScrims();
+
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingScrim, setEditingScrim] = useState<ScrimEntry | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
   const [teamName, setTeamName] = useState<string>('Our Team');
   const [vodLightbox, setVodLightbox] = useState<{ videoId: string; scrimId: string } | null>(null);
-  
+
   // Filter states
   const [filterMap, setFilterMap] = useState<string>('all');
   const [filterResult, setFilterResult] = useState<string>('all');
   const [filterMatchType, setFilterMatchType] = useState<string>('all');
-  
+
   // Sort state
   const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | null>(null);
-  
+
   // Form state
   const [formData, setFormData] = useState({
     date: getTodayDDMMYYYY(),
@@ -62,11 +69,6 @@ export function Matches() {
     matchLink: '',
     notes: '',
   });
-
-  useEffect(() => {
-    fetchScrims();
-    fetchStats();
-  }, []);
 
   useEffect(() => {
     const fetchTeamName = async () => {
@@ -86,113 +88,46 @@ export function Matches() {
     fetchTeamName()
   }, []);
 
-  const fetchScrims = async () => {
-    try {
-      const response = await fetch(`${BOT_API_URL}/api/scrims`);
-      const data = await response.json();
-      if (data.success) {
-        // Sort by date (newest first)
-        const sorted = data.scrims.sort((a: ScrimEntry, b: ScrimEntry) => {
-          return parseDDMMYYYY(b.date).getTime() - parseDDMMYYYY(a.date).getTime();
-        });
-        setScrims(sorted);
-      }
-    } catch (error) {
-      console.error('Error fetching scrims:', error);
-      toast.error('Failed to fetch scrims');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchStats = async () => {
-    try {
-      const response = await fetch(`${BOT_API_URL}/api/scrims/stats/summary`);
-      const data = await response.json();
-      if (data.success) {
-        setStats(data.stats);
-      }
-    } catch (error) {
-      console.error('Error fetching stats:', error);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    try {
-      const body = {
-        date: formData.date,
-        opponent: formData.opponent,
-        result: formData.result,
-        scoreUs: typeof formData.scoreUs === 'string' ? 0 : formData.scoreUs,
-        scoreThem: typeof formData.scoreThem === 'string' ? 0 : formData.scoreThem,
-        map: formData.map,
-        matchType: formData.matchType,
-        ourAgents: formData.ourAgents,
-        theirAgents: formData.theirAgents,
-        vodUrl: formData.vodUrl,
-        matchLink: formData.matchLink,
-        notes: formData.notes,
-      };
 
-      let response;
-      if (editingScrim) {
-        response = await fetch(`${BOT_API_URL}/api/scrims/${editingScrim.id}`, {
-          method: 'PUT',
-          headers: { 
-            'Content-Type': 'application/json',
-            ...getAuthHeaders()
-          },
-          body: JSON.stringify(body),
-        });
-      } else {
-        response = await fetch(`${BOT_API_URL}/api/scrims`, {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            ...getAuthHeaders()
-          },
-          body: JSON.stringify(body),
-        });
-      }
+    const body = {
+      date: formData.date,
+      opponent: formData.opponent,
+      result: formData.result,
+      scoreUs: typeof formData.scoreUs === 'string' ? 0 : formData.scoreUs,
+      scoreThem: typeof formData.scoreThem === 'string' ? 0 : formData.scoreThem,
+      map: formData.map,
+      matchType: formData.matchType,
+      ourAgents: formData.ourAgents,
+      theirAgents: formData.theirAgents,
+      vodUrl: formData.vodUrl,
+      matchLink: formData.matchLink,
+      notes: formData.notes,
+    };
 
-      const data = await response.json();
-      
-      if (data.success) {
-        toast.success(editingScrim ? 'Match updated!' : 'Match added!');
-        setIsAddDialogOpen(false);
-        setEditingScrim(null);
-        resetForm();
-        fetchScrims();
-        fetchStats();
-      } else {
-        toast.error(data.error || 'Failed to save match');
-      }
-    } catch (error) {
-      console.error('Error saving scrim:', error);
+    let result;
+    if (editingScrim) {
+      result = await updateScrim(editingScrim.id, body);
+    } else {
+      result = await createScrim(body as ScrimEntry);
+    }
+
+    if (result) {
+      toast.success(editingScrim ? 'Match updated!' : 'Match added!');
+      setIsAddDialogOpen(false);
+      setEditingScrim(null);
+      resetForm();
+    } else {
       toast.error('Failed to save match');
     }
   };
 
   const handleDelete = async (id: string) => {
-    try {
-      const response = await fetch(`${BOT_API_URL}/api/scrims/${id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(),
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        toast.success('Match deleted!');
-        fetchScrims();
-        fetchStats();
-      } else {
-        toast.error(data.error || 'Failed to delete match');
-      }
-    } catch (error) {
-      console.error('Error deleting scrim:', error);
+    const success = await deleteScrimApi(id);
+    if (success) {
+      toast.success('Match deleted!');
+    } else {
       toast.error('Failed to delete match');
     }
   };
