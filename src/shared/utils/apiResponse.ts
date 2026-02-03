@@ -22,10 +22,18 @@ export interface ErrorResponse {
 }
 
 /**
- * Send a success response
+ * Send a success response with data wrapper
  */
 export function sendSuccess<T>(res: Response, data: T, status = 200): Response {
   return res.status(status).json({ success: true, data } as SuccessResponse<T>);
+}
+
+/**
+ * Send a success response with custom shape (for backward compatibility)
+ * Use when API contract requires specific response structure
+ */
+export function sendOk<T extends Record<string, unknown>>(res: Response, body: T, status = 200): Response {
+  return res.status(status).json({ success: true, ...body });
 }
 
 /**

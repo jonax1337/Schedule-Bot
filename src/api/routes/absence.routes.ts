@@ -3,6 +3,7 @@ import { verifyToken, requireAdmin, AuthRequest, resolveCurrentUser, resolveTarg
 import { sanitizeString, validate, absenceCreateSchema, absenceUpdateSchema, isValidDateFormat } from '../../shared/middleware/validation.js';
 import { absenceService } from '../../services/absence.service.js';
 import { logger, getErrorMessage } from '../../shared/utils/logger.js';
+import { sendOk, sendError, sendServerError, sendForbidden } from '../../shared/utils/apiResponse.js';
 
 const router = Router();
 
@@ -11,14 +12,13 @@ router.get('/my', verifyToken, resolveCurrentUser, async (req: AuthRequest, res)
   try {
     if (!req.resolvedUser) {
       // Admin account without user mapping - return empty absences
-      return res.json({ success: true, absences: [] });
+      return sendOk(res, { absences: [] });
     }
 
     const absences = await absenceService.getAbsencesForUser(req.resolvedUser.discordId);
-    res.json({ success: true, absences });
+    return sendOk(res, { absences });
   } catch (error) {
-    logger.error('Error fetching user absences', getErrorMessage(error));
-    res.status(500).json({ error: 'Failed to fetch absences' });
+    return sendServerError(res, error, 'Fetch user absences');
   }
 });
 
@@ -31,27 +31,26 @@ router.get('/', verifyToken, resolveCurrentUser, async (req: AuthRequest, res) =
     if (userId) {
       // Validate userId format
       if (!/^\d{17,19}$/.test(userId)) {
-        return res.status(400).json({ error: 'Invalid userId format' });
+        return sendError(res, 'Invalid userId format');
       }
 
       // Non-admin users can only query their own absences
       if (!isAdmin && req.resolvedUser?.discordId !== userId) {
-        return res.status(403).json({ error: 'You can only view your own absences' });
+        return sendForbidden(res, 'You can only view your own absences');
       }
 
       const absences = await absenceService.getAbsencesForUser(userId);
-      res.json({ success: true, absences });
+      return sendOk(res, { absences });
     } else {
       // Only admins can list all absences
       if (!isAdmin) {
-        return res.status(403).json({ error: 'Admin access required to list all absences' });
+        return sendForbidden(res, 'Admin access required to list all absences');
       }
       const absences = await absenceService.getAllAbsences();
-      res.json({ success: true, absences });
+      return sendOk(res, { absences });
     }
   } catch (error) {
-    logger.error('Error fetching absences', getErrorMessage(error));
-    res.status(500).json({ error: 'Failed to fetch absences' });
+    return sendServerError(res, error, 'Fetch absences');
   }
 });
 
@@ -60,7 +59,7 @@ router.get('/by-dates', verifyToken, async (req: AuthRequest, res) => {
   try {
     const datesParam = req.query.dates as string;
     if (!datesParam) {
-      return res.status(400).json({ error: 'Dates parameter required' });
+      return sendError(res, 'Dates parameter required');
     }
 
     const dates = datesParam.split(',').map(d => d.trim());
@@ -68,19 +67,18 @@ router.get('/by-dates', verifyToken, async (req: AuthRequest, res) => {
     // Validate date formats
     const invalidDates = dates.filter(d => !isValidDateFormat(d));
     if (invalidDates.length > 0) {
-      return res.status(400).json({ error: 'Invalid date format. Use DD.MM.YYYY' });
+      return sendError(res, 'Invalid date format. Use DD.MM.YYYY');
     }
 
     // Limit batch size
     if (dates.length > 60) {
-      return res.status(400).json({ error: 'Too many dates. Maximum 60 dates per request' });
+      return sendError(res, 'Too many dates. Maximum 60 dates per request');
     }
 
     const absentByDate = await absenceService.getAbsentUserIdsForDates(dates);
-    res.json({ success: true, absentByDate });
+    return sendOk(res, { absentByDate });
   } catch (error) {
-    logger.error('Error fetching absences by dates', getErrorMessage(error));
-    res.status(500).json({ error: 'Failed to fetch absences' });
+    return sendServerError(res, error, 'Fetch absences by dates');
   }
 });
 
@@ -103,14 +101,13 @@ router.post('/', verifyToken, validate(absenceCreateSchema), resolveTargetUser, 
     );
 
     if (!result.success) {
-      return res.status(400).json({ error: result.error });
+      return sendError(res, result.error || 'Failed to create absence');
     }
 
     logger.success('Absence created', `${targetUserId}: ${startDate} - ${endDate}`);
-    res.json({ success: true, absence: result.absence });
+    return sendOk(res, { absence: result.absence });
   } catch (error) {
-    logger.error('Failed to create absence', getErrorMessage(error));
-    res.status(500).json({ error: 'Failed to create absence' });
+    return sendServerError(res, error, 'Create absence');
   }
 });
 
@@ -119,7 +116,7 @@ router.put('/:id', verifyToken, validate(absenceUpdateSchema), resolveTargetUser
   try {
     const id = parseInt(req.params.id as string);
     if (isNaN(id)) {
-      return res.status(400).json({ error: 'Invalid absence ID' });
+      return sendError(res, 'Invalid absence ID');
     }
 
     const { startDate, endDate, reason } = req.body;
@@ -134,14 +131,13 @@ router.put('/:id', verifyToken, validate(absenceUpdateSchema), resolveTargetUser
     const result = await absenceService.updateAbsence(id, updateData, requestingUserId, isAdmin);
 
     if (!result.success) {
-      return res.status(400).json({ error: result.error });
+      return sendError(res, result.error || 'Failed to update absence');
     }
 
     logger.success('Absence updated', `ID: ${id}`);
-    res.json({ success: true, absence: result.absence });
+    return sendOk(res, { absence: result.absence });
   } catch (error) {
-    logger.error('Error updating absence', getErrorMessage(error));
-    res.status(500).json({ error: 'Failed to update absence' });
+    return sendServerError(res, error, 'Update absence');
   }
 });
 
@@ -150,7 +146,7 @@ router.delete('/:id', verifyToken, resolveTargetUser, async (req: AuthRequest, r
   try {
     const id = parseInt(req.params.id as string);
     if (isNaN(id)) {
-      return res.status(400).json({ error: 'Invalid absence ID' });
+      return sendError(res, 'Invalid absence ID');
     }
 
     const isAdmin = req.user?.role === 'admin';
@@ -159,14 +155,13 @@ router.delete('/:id', verifyToken, resolveTargetUser, async (req: AuthRequest, r
     const result = await absenceService.deleteAbsence(id, requestingUserId, isAdmin);
 
     if (!result.success) {
-      return res.status(400).json({ error: result.error });
+      return sendError(res, result.error || 'Failed to delete absence');
     }
 
     logger.success('Absence deleted', `ID: ${id}`);
-    res.json({ success: true, message: 'Absence deleted' });
+    return sendOk(res, { message: 'Absence deleted' });
   } catch (error) {
-    logger.error('Error deleting absence', getErrorMessage(error));
-    res.status(500).json({ error: 'Failed to delete absence' });
+    return sendServerError(res, error, 'Delete absence');
   }
 });
 

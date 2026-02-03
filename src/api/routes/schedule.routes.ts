@@ -6,6 +6,7 @@ import { getScheduleDetails, getScheduleDetailsBatch } from '../../shared/utils/
 import { isUserAbsentOnDate } from '../../repositories/absence.repository.js';
 import { getScheduleStatus, checkAndNotifyStatusChange } from '../../bot/utils/schedule-poster.js';
 import { logger, getErrorMessage } from '../../shared/utils/logger.js';
+import { sendOk, sendError, sendServerError, sendForbidden } from '../../shared/utils/apiResponse.js';
 import type { ScheduleStatus } from '../../shared/types/types.js';
 
 const router = Router();
@@ -15,10 +16,9 @@ router.get('/next14', verifyToken, async (req: AuthRequest, res) => {
   try {
     const { getNext14DaysSchedule } = await import('../../repositories/schedule.repository.js');
     const schedules = await getNext14DaysSchedule();
-    res.json({ success: true, schedules });
+    return sendOk(res, { schedules });
   } catch (error) {
-    logger.error('Error fetching next 14 days schedule', getErrorMessage(error));
-    res.status(500).json({ success: false, error: 'Failed to fetch schedule' });
+    return sendServerError(res, error, 'Fetch schedule');
   }
 });
 
@@ -28,10 +28,9 @@ router.get('/paginated', verifyToken, requireAdmin, async (req: AuthRequest, res
     const { getSchedulesPaginated } = await import('../../repositories/schedule.repository.js');
     const offset = parseInt(req.query.offset as string) || 0;
     const result = await getSchedulesPaginated(offset);
-    res.json({ success: true, ...result });
+    return sendOk(res, result);
   } catch (error) {
-    logger.error('Error fetching paginated schedules', getErrorMessage(error));
-    res.status(500).json({ success: false, error: 'Failed to fetch schedules' });
+    return sendServerError(res, error, 'Fetch paginated schedules');
   }
 });
 
@@ -41,7 +40,7 @@ router.post('/update-reason', verifyToken, requireAdmin, async (req: AuthRequest
     const { date, reason, focus } = req.body;
 
     if (!date) {
-      return res.status(400).json({ error: 'Date is required' });
+      return sendError(res, 'Date is required');
     }
 
     // Capture old status before update (for change notification on reason change, e.g. Off Day)
@@ -68,13 +67,12 @@ router.post('/update-reason', verifyToken, requireAdmin, async (req: AuthRequest
         });
       }
 
-      res.json({ success: true, message: 'Schedule reason updated successfully' });
+      return sendOk(res, { message: 'Schedule reason updated successfully' });
     } else {
-      res.status(500).json({ error: 'Failed to update schedule reason' });
+      return sendServerError(res, new Error('Update failed'), 'Update schedule reason');
     }
   } catch (error) {
-    logger.error('Failed to update schedule reason', getErrorMessage(error));
-    res.status(500).json({ error: 'Failed to update schedule reason' });
+    return sendServerError(res, error, 'Update schedule reason');
   }
 });
 
@@ -84,13 +82,13 @@ router.post('/update-availability', verifyToken, resolveCurrentUser, requireOwne
     const { date, userId, availability } = req.body;
 
     if (!date || !userId || availability === undefined) {
-      return res.status(400).json({ error: 'Date, userId, and availability are required' });
+      return sendError(res, 'Date, userId, and availability are required');
     }
 
     // Check if user is absent on this date
     const isAbsent = await isUserAbsentOnDate(userId, date);
     if (isAbsent && req.user?.role !== 'admin') {
-      return res.status(403).json({ error: 'Cannot edit availability during an absence period' });
+      return sendForbidden(res, 'Cannot edit availability during an absence period');
     }
 
     // Capture old status before update (for change notification)
@@ -118,13 +116,12 @@ router.post('/update-availability', verifyToken, resolveCurrentUser, requireOwne
         logger.info('Change notification: skipped (no old status captured)');
       }
 
-      res.json({ success: true, message: 'Availability updated successfully' });
+      return sendOk(res, { message: 'Availability updated successfully' });
     } else {
-      res.status(500).json({ error: 'Failed to update availability' });
+      return sendServerError(res, new Error('Update failed'), 'Update availability');
     }
   } catch (error) {
-    logger.error('Failed to update availability', getErrorMessage(error));
-    res.status(500).json({ error: 'Failed to update availability' });
+    return sendServerError(res, error, 'Update availability');
   }
 });
 
