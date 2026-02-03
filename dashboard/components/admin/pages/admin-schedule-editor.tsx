@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { Loader2, Calendar, Save, RefreshCw, ChevronLeft, ChevronRight, X, PlaneTakeoff } from 'lucide-react';
+import { Loader2, Calendar, RefreshCw, ChevronLeft, ChevronRight, X, PlaneTakeoff } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import Image from 'next/image';
 import { stagger, microInteractions } from '@/lib/animations';
@@ -15,14 +15,7 @@ import { BOT_API_URL } from '@/lib/config';
 import { getAuthHeaders } from '@/lib/auth';
 import { useTimezone, getTimezoneAbbr } from '@/lib/timezone';
 import { getWeekdayName, getReasonBadgeClasses, SCHEDULE_REASON_SUGGESTIONS } from '@/lib/date-utils';
-
-interface UserMapping {
-  discordId: string;
-  discordUsername: string;
-  displayName: string;
-  role: 'main' | 'sub' | 'coach';
-  sortOrder: number;
-}
+import { useUserMappings } from '@/hooks';
 
 interface SchedulePlayer {
   userId: string;
@@ -40,8 +33,8 @@ interface ScheduleData {
 
 export function ScheduleEditor() {
   const { convertRangeToLocal, convertRangeToBot, isConverting, userTimezone, botTimezoneLoaded, timezoneVersion } = useTimezone();
+  const { mappings } = useUserMappings();
   const [schedules, setSchedules] = useState<ScheduleData[]>([]);
-  const [userMappings, setUserMappings] = useState<UserMapping[]>([]);
   const [absentByDate, setAbsentByDate] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -55,6 +48,12 @@ export function ScheduleEditor() {
   const [selectedDateForReason, setSelectedDateForReason] = useState<string | null>(null);
   const [reasonValue, setReasonValue] = useState('');
 
+  // Sort mappings by sortOrder
+  const userMappings = useMemo(() =>
+    [...mappings].sort((a, b) => a.sortOrder - b.sortOrder),
+    [mappings]
+  );
+
   useEffect(() => {
     if (!botTimezoneLoaded) return;
     loadData();
@@ -63,19 +62,9 @@ export function ScheduleEditor() {
   const loadData = async (page: number = 0) => {
     setLoading(true);
     try {
-
-
-      // Load user mappings and schedules
-      const [mappingsRes, schedulesRes] = await Promise.all([
-        fetch(`${BOT_API_URL}/api/user-mappings`, { headers: getAuthHeaders() }),
-        fetch(`${BOT_API_URL}/api/schedule/paginated?offset=${page}`, { headers: getAuthHeaders() }),
-      ]);
-
-      if (mappingsRes.ok) {
-        const data = await mappingsRes.json();
-        const sorted = (data.mappings || []).sort((a: UserMapping, b: UserMapping) => a.sortOrder - b.sortOrder);
-        setUserMappings(sorted);
-      }
+      const schedulesRes = await fetch(`${BOT_API_URL}/api/schedule/paginated?offset=${page}`, {
+        headers: getAuthHeaders(),
+      });
 
       if (schedulesRes.ok) {
         const data = await schedulesRes.json();

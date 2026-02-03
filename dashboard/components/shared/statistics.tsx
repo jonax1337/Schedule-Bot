@@ -37,6 +37,7 @@ import { BOT_API_URL } from '@/lib/config';
 import { getAuthHeaders } from '@/lib/auth';
 import { type ScrimEntry, type ScrimStats, type ScheduleDay } from '@/lib/types';
 import { parseDDMMYYYY } from '@/lib/date-utils';
+import { useScrims, useSchedule } from '@/hooks';
 
 type AvailabilityRange = 'next14' | 'last14' | 'last30' | 'last60';
 
@@ -150,9 +151,8 @@ function ScrimFilters({
 }
 
 export function Statistics() {
-  const [loading, setLoading] = useState(true);
-  const [allScrims, setAllScrims] = useState<ScrimEntry[]>([]);
-  const [schedules, setSchedules] = useState<ScheduleDay[]>([]);
+  const { scrims: allScrims, loading: scrimsLoading } = useScrims();
+  const { schedules, loading: schedulesLoading } = useSchedule();
   const [availabilityRange, setAvailabilityRange] = useState<AvailabilityRange>('next14');
   const [availabilitySchedules, setAvailabilitySchedules] = useState<ScheduleDay[]>([]);
   const [availabilityLoading, setAvailabilityLoading] = useState(false);
@@ -161,15 +161,15 @@ export function Statistics() {
   const [scrimTimeRange, setScrimTimeRange] = useState<ScrimTimeRange>('all');
   const isMobile = useIsMobile();
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  const loading = scrimsLoading || schedulesLoading;
 
-  const fetchAbsencesForSchedules = async (schedulesList: ScheduleDay[], headers: Record<string, string>) => {
+  const fetchAbsencesForSchedules = useCallback(async (schedulesList: ScheduleDay[]) => {
     if (schedulesList.length === 0) return;
     try {
       const dates = schedulesList.map(s => s.date).join(',');
-      const res = await fetch(`${BOT_API_URL}/api/absences/by-dates?dates=${dates}`, { headers });
+      const res = await fetch(`${BOT_API_URL}/api/absences/by-dates?dates=${dates}`, {
+        headers: getAuthHeaders(),
+      });
       if (res.ok) {
         const data = await res.json();
         setAbsentByDate(prev => ({ ...prev, ...(data.absentByDate || {}) }));
@@ -177,38 +177,15 @@ export function Statistics() {
     } catch (err) {
       console.error('Failed to load absences:', err);
     }
-  };
+  }, []);
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
-
-      const headers = getAuthHeaders();
-
-      const [schedulesRes, scrimsRes] = await Promise.all([
-        fetch(`${BOT_API_URL}/api/schedule/next14`, { headers }),
-        fetch(`${BOT_API_URL}/api/scrims`, { headers }),
-      ]);
-
-      const [schedulesData, scrimsData] = await Promise.all([
-        schedulesRes.json(),
-        scrimsRes.json(),
-      ]);
-
-      const schedulesList = schedulesData.schedules || [];
-      const scrimsList: ScrimEntry[] = scrimsData.scrims || [];
-
-      setSchedules(schedulesList);
-      setAvailabilitySchedules(schedulesList);
-      setAllScrims(scrimsList);
-
-      await fetchAbsencesForSchedules(schedulesList, headers);
-    } catch (error) {
-      console.error('Failed to load statistics data:', error);
-    } finally {
-      setLoading(false);
+  // Load absences when schedules are available
+  useEffect(() => {
+    if (schedules.length > 0) {
+      fetchAbsencesForSchedules(schedules);
+      setAvailabilitySchedules(schedules);
     }
-  };
+  }, [schedules, fetchAbsencesForSchedules]);
 
   const loadAvailabilityForRange = useCallback(async (range: AvailabilityRange) => {
     if (range === 'next14') {
@@ -218,7 +195,6 @@ export function Statistics() {
 
     setAvailabilityLoading(true);
     try {
-
       const headers = getAuthHeaders();
       const rangeConfig = AVAILABILITY_RANGES.find(r => r.value === range)!;
 
@@ -238,7 +214,7 @@ export function Statistics() {
       });
 
       setAvailabilitySchedules(allSchedules);
-      await fetchAbsencesForSchedules(allSchedules, headers);
+      await fetchAbsencesForSchedules(allSchedules);
     } catch (error) {
       console.error('Failed to load availability data:', error);
     } finally {

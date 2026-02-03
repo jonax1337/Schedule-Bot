@@ -18,11 +18,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { stagger, microInteractions } from '@/lib/animations';
-import { getAuthHeaders } from '@/lib/auth';
 import { cn } from '@/lib/utils';
-import { BOT_API_URL } from '@/lib/config';
-import type { DiscordMember } from '@/lib/types';
-import { useUserMappings, type RoleType } from '@/hooks';
+import { useUserMappings, useDiscordMembers, type RoleType } from '@/hooks';
 
 import {
   DndContext,
@@ -241,8 +238,7 @@ export function UserMappings() {
     [hookMappings]
   );
 
-  const [members, setMembers] = useState<DiscordMember[]>([]);
-  const [membersLoading, setMembersLoading] = useState(true);
+  const { members, loading: membersLoading } = useDiscordMembers();
   const [saving, setSaving] = useState(false);
   const [open, setOpen] = useState(false);
   const [inputMode, setInputMode] = useState<'search' | 'manual'>('search');
@@ -292,24 +288,6 @@ export function UserMappings() {
     }
     return groups;
   }, [mappings]);
-
-  // Fetch Discord members (separate from hook)
-  useEffect(() => {
-    const fetchMembers = async () => {
-      try {
-        const membersRes = await fetch(`${BOT_API_URL}/api/discord/members`, { headers: getAuthHeaders() });
-        if (membersRes.ok) {
-          const data = await membersRes.json();
-          setMembers(data.members || []);
-        }
-      } catch (error) {
-        console.error('Failed to load Discord members:', error);
-      } finally {
-        setMembersLoading(false);
-      }
-    };
-    fetchMembers();
-  }, []);
 
   const addMapping = async () => {
     let discordId = '';

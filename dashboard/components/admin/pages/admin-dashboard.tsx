@@ -1,122 +1,28 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Activity, Users, Calendar, Trophy, TrendingUp, Clock, Percent, BarChart3, Zap, Settings, Terminal } from 'lucide-react';
+import { Activity, Users, Calendar, Trophy, Clock, BarChart3, Zap, Settings, Terminal } from 'lucide-react';
 import { stagger, microInteractions } from '@/lib/animations';
 import { cn } from '@/lib/utils';
-import { BOT_API_URL } from '@/lib/config';
-import { getAuthHeaders } from '@/lib/auth';
 import { parseDDMMYYYY } from '@/lib/date-utils';
-import { type ScheduleDay, type ScrimEntry } from '@/lib/types';
-
-interface DashboardStats {
-  totalUsers: number;
-  totalSchedules: number;
-  totalScrims: number;
-  upcomingSchedules: number;
-}
-
-interface BotStatus {
-  status: 'running' | 'offline';
-  botReady: boolean;
-  uptime?: number;
-}
-
-interface UserMapping {
-  discordId: string;
-  displayName: string;
-  role: string;
-}
+import { useUserMappings, useScrims, useSchedule, useBotStatus } from '@/hooks';
 
 export function AdminDashboard() {
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [botStatus, setBotStatus] = useState<BotStatus | null>(null);
-  const [statusLoading, setStatusLoading] = useState(true);
-  const [userMappings, setUserMappings] = useState<UserMapping[]>([]);
-  const [scrims, setScrims] = useState<ScrimEntry[]>([]);
+  const { mappings: userMappings } = useUserMappings();
+  const { scrims } = useScrims();
+  const { schedules } = useSchedule();
+  const { botStatus, loading: statusLoading, isOnline, formattedUptime } = useBotStatus({ pollInterval: 10000 });
 
-  useEffect(() => {
-    loadStats();
-    checkBotStatus();
-    const interval = setInterval(checkBotStatus, 10000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const loadStats = async () => {
-    setLoading(true);
-    try {
-
-
-      const [usersRes, schedulesRes, scrimsRes] = await Promise.all([
-        fetch(`${BOT_API_URL}/api/user-mappings`, { headers: getAuthHeaders() }),
-        fetch(`${BOT_API_URL}/api/schedule/next14`, { headers: getAuthHeaders() }),
-        fetch(`${BOT_API_URL}/api/scrims`, { headers: getAuthHeaders() }),
-      ]);
-
-      const [usersData, schedulesData, scrimsData] = await Promise.all([
-        usersRes.json(),
-        schedulesRes.json(),
-        scrimsRes.json(),
-      ]);
-
-      const mappings = usersData.mappings || [];
-      const schedulesList = schedulesData.schedules || [];
-      const scrimsList: ScrimEntry[] = scrimsData.scrims || [];
-
-      setUserMappings(mappings);
-      setScrims(scrimsList);
-
-      setStats({
-        totalUsers: mappings.length,
-        totalSchedules: schedulesList.length,
-        totalScrims: scrimsList.length,
-        upcomingSchedules: schedulesList.filter((s: ScheduleDay) => {
-          const scheduleDate = parseDDMMYYYY(s.date);
-          return scheduleDate >= new Date();
-        }).length,
-      });
-    } catch (error) {
-      console.error('Failed to load stats:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const checkBotStatus = async () => {
-    try {
-      const response = await fetch(`${BOT_API_URL}/api/bot-status`);
-      const data = await response.json();
-      setBotStatus(data);
-      setStatusLoading(false);
-    } catch (error) {
-      setBotStatus({ status: 'offline', botReady: false });
-      setStatusLoading(false);
-    }
-  };
-
-  const formatUptime = (seconds?: number) => {
-    if (!seconds) return 'N/A';
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    if (hours > 0) {
-      return `${hours}h ${minutes}m`;
-    }
-    return `${minutes}m`;
-  };
-
-  const overallStats = useMemo(() => {
-    let wins = 0, losses = 0, draws = 0;
-    for (const scrim of scrims) {
-      if (scrim.result === 'win') wins++;
-      else if (scrim.result === 'loss') losses++;
-      else if (scrim.result === 'draw') draws++;
-    }
-    const total = scrims.length;
-    const winRate = total > 0 ? (wins / total) * 100 : 0;
-    return { wins, losses, draws, winRate, total };
-  }, [scrims]);
+  const stats = useMemo(() => ({
+    totalUsers: userMappings.length,
+    totalSchedules: schedules.length,
+    totalScrims: scrims.length,
+    upcomingSchedules: schedules.filter(s => {
+      const scheduleDate = parseDDMMYYYY(s.date);
+      return scheduleDate >= new Date();
+    }).length,
+  }), [userMappings, schedules, scrims]);
 
   const rosterBreakdown = useMemo(() => {
     const mains = userMappings.filter(u => u.role.toLowerCase() === 'main').length;
@@ -124,9 +30,6 @@ export function AdminDashboard() {
     const coaches = userMappings.filter(u => u.role.toLowerCase() === 'coach').length;
     return { mains, subs, coaches };
   }, [userMappings]);
-
-  const isOnline = botStatus && botStatus.status === 'running' && botStatus.botReady;
-  const hasScrimData = overallStats.total > 0;
 
   const statusCards = [
     {
@@ -139,7 +42,7 @@ export function AdminDashboard() {
     {
       title: 'Uptime',
       icon: Clock,
-      value: statusLoading ? '...' : formatUptime(botStatus?.uptime),
+      value: statusLoading ? '...' : formattedUptime,
       description: 'Time since last restart',
       color: statusLoading ? 'muted' : isOnline ? 'green' : 'red',
     },

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,7 @@ import { BOT_API_URL } from '@/lib/config';
 import { validateToken, removeAuthToken, getUser, getAuthHeaders } from '@/lib/auth';
 import { useTimezone, getTimezoneAbbr } from '@/lib/timezone';
 import { getReasonBadgeClasses, formatDateToDDMMYYYY, WEEKDAY_NAMES } from '@/lib/date-utils';
+import { useUserMappings, useSchedule } from '@/hooks';
 
 interface PlayerStatus {
   name: string;
@@ -54,8 +55,10 @@ interface DateEntry {
 export function UserSchedule() {
   const router = useRouter();
   const { convertRangeToLocal, convertRangeToBot, convertToLocal, isConverting, userTimezone, botTimezoneLoaded, timezoneVersion } = useTimezone();
+  const { mappings } = useUserMappings();
+  const { schedules, loading: schedulesLoading, updateAvailability, refetch: refetchSchedules } = useSchedule();
   const [entries, setEntries] = useState<DateEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [absentByDate, setAbsentByDate] = useState<Record<string, string[]>>({});
   const [selectedDate, setSelectedDate] = useState<DateEntry | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [loggedInUser, setLoggedInUser] = useState<string | null>(null);
@@ -64,18 +67,17 @@ export function UserSchedule() {
   const [editTimeTo, setEditTimeTo] = useState('');
   const [editStatus, setEditStatus] = useState<'available' | 'unavailable'>('available');
   const [saving, setSaving] = useState(false);
-  const [userMappings, setUserMappings] = useState<string[] | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [editingReason, setEditingReason] = useState(false);
   const [reasonValue, setReasonValue] = useState('');
+  const [authChecked, setAuthChecked] = useState(false);
 
+  // Auth check effect
   useEffect(() => {
     if (!botTimezoneLoaded) return;
 
     const checkAuth = async () => {
       try {
-        
-
         const user = localStorage.getItem('selectedUser');
 
         if (!user) {
@@ -99,7 +101,7 @@ export function UserSchedule() {
         }
 
         setLoggedInUser(user);
-        await loadScheduleData();
+        setAuthChecked(true);
       } catch (error) {
         console.error('Auth check failed:', error);
         router.replace('/login');
@@ -107,197 +109,166 @@ export function UserSchedule() {
     };
 
     checkAuth();
-  }, [router, botTimezoneLoaded, timezoneVersion]);
+  }, [router, botTimezoneLoaded]);
 
-  const loadScheduleData = async () => {
-    setLoading(true);
-    try {
+  // Load absences when schedules are loaded
+  useEffect(() => {
+    if (!authChecked || schedules.length === 0) return;
 
-      const headers = getAuthHeaders();
-
-      // Build date strings for next 14 days (needed for absences API)
-      const today = new Date();
-      const dateStrings: string[] = [];
-      for (let i = 0; i < 14; i++) {
-        const date = new Date(today);
-        date.setDate(today.getDate() + i);
-        const day = String(date.getDate()).padStart(2, '0');
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const year = date.getFullYear();
-        dateStrings.push(`${day}.${month}.${year}`);
-      }
-
-      // Fetch schedule, mappings, and absences in parallel
-      const [scheduleRes, mappingsRes, absencesRes] = await Promise.all([
-        fetch(`${BOT_API_URL}/api/schedule/next14`, { headers }),
-        fetch(`${BOT_API_URL}/api/user-mappings`, { headers }),
-        fetch(`${BOT_API_URL}/api/absences/by-dates?dates=${dateStrings.join(',')}`, { headers }),
-      ]);
-
-      if (!scheduleRes.ok) {
-        toast.error('Failed to load schedule data');
-        setLoading(false);
-        return;
-      }
-
-      if (!mappingsRes.ok) {
-        toast.error('Failed to load user mappings');
-        setLoading(false);
-        return;
-      }
-
-      // Parse responses (with safe JSON handling)
-      const [scheduleData, mappingsData, absencesData] = await Promise.all([
-        scheduleRes.json().catch(() => ({ schedules: [] })),
-        mappingsRes.json().catch(() => ({ mappings: [] })),
-        absencesRes.ok ? absencesRes.json().catch(() => ({ absentByDate: {} })) : Promise.resolve({ absentByDate: {} }),
-      ]);
-
-      const schedules = scheduleData.schedules || [];
-      const mappings = mappingsData.mappings || [];
-      const absentByDate: Record<string, string[]> = absencesData.absentByDate || {};
-
-      setUserMappings(mappings.map((m: any) => m.displayName));
-
-      const loggedUser = localStorage.getItem('selectedUser');
-      const userMapping = mappings.find((m: any) => m.displayName === loggedUser);
-      const userDiscordId = userMapping?.discordId;
-
-      const dateEntries: DateEntry[] = [];
-
-      for (let i = 0; i < 14; i++) {
-        const date = new Date(today);
-        date.setDate(today.getDate() + i);
-        const dateStr = formatDateToDDMMYYYY(date);
-        const weekday = WEEKDAY_NAMES[date.getDay()];
-
-        const schedule = schedules.find((s: any) => s.date === dateStr);
-        const isOffDay = schedule?.reason === 'Off-Day';
-        const absentUserIds = absentByDate[dateStr] || [];
-
-        let available = 0;
-        let unavailable = 0;
-        let notSet = 0;
-        let absent = 0;
-        const players: PlayerStatus[] = [];
-        let userHasSet = false;
-        let userStatus: 'available' | 'unavailable' | 'not-set' | 'absent' = 'not-set';
-
-        if (schedule && schedule.players) {
-          schedule.players.forEach((player: any) => {
-            const mapping = mappings.find((m: any) => m.discordId === player.userId);
-            if (!mapping) return;
-
-            const playerName = mapping.displayName;
-            const availability = player.availability || '';
-            const isPlayerAbsent = absentUserIds.includes(player.userId);
-            let status: 'available' | 'unavailable' | 'not-set' | 'absent' = 'not-set';
-            let time: string | undefined;
-
-            if (isPlayerAbsent) {
-              status = 'absent';
-              absent++;
-            } else if (availability === 'x') {
-              status = 'unavailable';
-              unavailable++;
-            } else if (availability && availability !== '') {
-              status = 'available';
-              time = convertRangeToLocal(availability);
-              available++;
-            } else {
-              notSet++;
-            }
-
-            if (player.userId === userDiscordId) {
-              userHasSet = status !== 'not-set';
-              userStatus = status;
-            }
-
-            players.push({
-              name: playerName,
-              status,
-              time,
-              role: mapping.role?.toLowerCase() as 'main' | 'sub' | 'coach',
-            });
-          });
+    const loadAbsences = async () => {
+      const dates = schedules.map(s => s.date).join(',');
+      try {
+        const absencesRes = await fetch(`${BOT_API_URL}/api/absences/by-dates?dates=${dates}`, {
+          headers: getAuthHeaders(),
+        });
+        if (absencesRes.ok) {
+          const absenceData = await absencesRes.json();
+          setAbsentByDate(absenceData.absentByDate || {});
         }
+      } catch (err) {
+        console.error('Failed to load absences:', err);
+      }
+    };
 
-        let scheduleDetails: ScheduleDetails | undefined;
-        if (schedule && !isOffDay) {
-          const availablePlayers = players.filter(p => p.status === 'available').map(p => p.name);
-          const unavailablePlayers = players.filter(p => p.status === 'unavailable' || p.status === 'absent').map(p => p.name);
-          const noResponsePlayers = players.filter(p => p.status === 'not-set').map(p => p.name);
+    loadAbsences();
+  }, [authChecked, schedules]);
 
-          let status = 'Unknown';
-          let startTime: string | undefined;
-          let endTime: string | undefined;
+  // Process schedules, mappings, and absences into date entries
+  useEffect(() => {
+    if (!authChecked || !loggedInUser || mappings.length === 0 || schedules.length === 0) return;
 
-          // Check if anyone has responded at all
-          const totalPlayers = players.length;
-          const respondedCount = players.filter(p => p.status !== 'not-set').length;
-          const hasAnyResponse = respondedCount > 0;
+    const userMapping = mappings.find(m => m.displayName === loggedInUser);
+    const userDiscordId = userMapping?.discordId;
 
-          if (available >= 5) {
-            status = 'Able to play';
-            const times = players
-              .filter(p => p.status === 'available' && p.time)
-              .map(p => p.time!);
+    const today = new Date();
+    const dateEntries: DateEntry[] = [];
 
-            if (times.length > 0) {
-              const timeRanges = times.map(t => {
-                const [start, end] = t.split('-').map(s => s.trim());
-                return { start, end };
-              });
+    for (let i = 0; i < 14; i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() + i);
+      const dateStr = formatDateToDDMMYYYY(date);
+      const weekday = WEEKDAY_NAMES[date.getDay()];
 
-              const latestStart = timeRanges.reduce((max, curr) =>
-                curr.start > max ? curr.start : max, timeRanges[0].start);
-              const earliestEnd = timeRanges.reduce((min, curr) =>
-                curr.end < min ? curr.end : min, timeRanges[0].end);
+      const schedule = schedules.find(s => s.date === dateStr);
+      const isOffDay = schedule?.reason === 'Off-Day';
+      const absentUserIds = absentByDate[dateStr] || [];
 
-              startTime = latestStart;
-              endTime = earliestEnd;
-            }
-          } else if (available === 4) {
-            status = 'Almost there';
-          } else if (available === 3) {
-            status = 'More players needed';
-          } else if (available < 3 && hasAnyResponse) {
-            status = 'Insufficient players';
-          } else if (!hasAnyResponse) {
-            status = 'Unknown';
+      let available = 0;
+      let unavailable = 0;
+      let notSet = 0;
+      let absent = 0;
+      const players: PlayerStatus[] = [];
+      let userHasSet = false;
+      let userStatus: 'available' | 'unavailable' | 'not-set' | 'absent' = 'not-set';
+
+      if (schedule && schedule.players) {
+        schedule.players.forEach((player: any) => {
+          const mapping = mappings.find(m => m.discordId === player.userId);
+          if (!mapping) return;
+
+          const playerName = mapping.displayName;
+          const availability = player.availability || '';
+          const isPlayerAbsent = absentUserIds.includes(player.userId);
+          let status: 'available' | 'unavailable' | 'not-set' | 'absent' = 'not-set';
+          let time: string | undefined;
+
+          if (isPlayerAbsent) {
+            status = 'absent';
+            absent++;
+          } else if (availability === 'x') {
+            status = 'unavailable';
+            unavailable++;
+          } else if (availability && availability !== '') {
+            status = 'available';
+            time = convertRangeToLocal(availability);
+            available++;
+          } else {
+            notSet++;
           }
 
-          scheduleDetails = {
-            status,
-            startTime,
-            endTime,
-            availablePlayers,
-            unavailablePlayers,
-            noResponsePlayers,
-          };
-        }
+          if (player.userId === userDiscordId) {
+            userHasSet = status !== 'not-set';
+            userStatus = status;
+          }
 
-        dateEntries.push({
-          date: dateStr,
-          weekday,
-          availability: { available, unavailable, notSet, absent },
-          players,
-          reason: schedule?.reason,
-          isOffDay,
-          userHasSet,
-          userStatus,
-          scheduleDetails,
+          players.push({
+            name: playerName,
+            status,
+            time,
+            role: mapping.role?.toLowerCase() as 'main' | 'sub' | 'coach',
+          });
         });
       }
 
-      setEntries(dateEntries);
-    } catch (error) {
-      console.error('Failed to load schedule:', error);
-      toast.error('Failed to load schedule');
-    } finally {
-      setLoading(false);
+      let scheduleDetails: ScheduleDetails | undefined;
+      if (schedule && !isOffDay) {
+        const availablePlayers = players.filter(p => p.status === 'available').map(p => p.name);
+        const unavailablePlayers = players.filter(p => p.status === 'unavailable' || p.status === 'absent').map(p => p.name);
+        const noResponsePlayers = players.filter(p => p.status === 'not-set').map(p => p.name);
+
+        let status = 'Unknown';
+        let startTime: string | undefined;
+        let endTime: string | undefined;
+
+        // Check if anyone has responded at all
+        const respondedCount = players.filter(p => p.status !== 'not-set').length;
+        const hasAnyResponse = respondedCount > 0;
+
+        if (available >= 5) {
+          status = 'Able to play';
+          const times = players
+            .filter(p => p.status === 'available' && p.time)
+            .map(p => p.time!);
+
+          if (times.length > 0) {
+            const timeRanges = times.map(t => {
+              const [start, end] = t.split('-').map(s => s.trim());
+              return { start, end };
+            });
+
+            const latestStart = timeRanges.reduce((max, curr) =>
+              curr.start > max ? curr.start : max, timeRanges[0].start);
+            const earliestEnd = timeRanges.reduce((min, curr) =>
+              curr.end < min ? curr.end : min, timeRanges[0].end);
+
+            startTime = latestStart;
+            endTime = earliestEnd;
+          }
+        } else if (available === 4) {
+          status = 'Almost there';
+        } else if (available === 3) {
+          status = 'More players needed';
+        } else if (available < 3 && hasAnyResponse) {
+          status = 'Insufficient players';
+        } else if (!hasAnyResponse) {
+          status = 'Unknown';
+        }
+
+        scheduleDetails = {
+          status,
+          startTime,
+          endTime,
+          availablePlayers,
+          unavailablePlayers,
+          noResponsePlayers,
+        };
+      }
+
+      dateEntries.push({
+        date: dateStr,
+        weekday,
+        availability: { available, unavailable, notSet, absent },
+        players,
+        reason: schedule?.reason,
+        isOffDay,
+        userHasSet,
+        userStatus,
+        scheduleDetails,
+      });
     }
-  };
+
+    setEntries(dateEntries);
+  }, [authChecked, loggedInUser, mappings, schedules, absentByDate, convertRangeToLocal, timezoneVersion]);
 
   const handleDateClick = (entry: DateEntry) => {
     setSelectedDate(entry);
@@ -366,21 +337,14 @@ export function UserSchedule() {
   const saveUserAvailability = async () => {
     if (!selectedDate || !loggedInUser) return;
 
+    const userMapping = mappings.find(m => m.displayName === loggedInUser);
+    if (!userMapping) {
+      toast.error('User mapping not found');
+      return;
+    }
+
     setSaving(true);
     try {
-
-      const mappingsRes = await fetch(`${BOT_API_URL}/api/user-mappings`, {
-        headers: getAuthHeaders(),
-      });
-      const mappingsData = await mappingsRes.json();
-      const userMapping = mappingsData.mappings.find((m: any) => m.displayName === loggedInUser);
-
-      if (!userMapping) {
-        toast.error('User mapping not found');
-        setSaving(false);
-        return;
-      }
-
       let availability = 'x';
       if (editStatus === 'available') {
         if (!editTimeFrom || !editTimeTo) {
@@ -397,19 +361,10 @@ export function UserSchedule() {
         availability = convertRangeToBot(localRange);
       }
 
-      const response = await fetch(`${BOT_API_URL}/api/schedule/update-availability`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          date: selectedDate.date,
-          userId: userMapping.discordId,
-          availability,
-        }),
-      });
+      const success = await updateAvailability(selectedDate.date, userMapping.discordId, availability);
 
-      if (response.ok) {
+      if (success) {
         toast.success('Availability updated!');
-        await loadScheduleData();
         setDialogOpen(false);
         setEditingUser(false);
       } else {
@@ -428,7 +383,6 @@ export function UserSchedule() {
 
     setSaving(true);
     try {
-
       const response = await fetch(`${BOT_API_URL}/api/schedule/update-reason`, {
         method: 'POST',
         headers: getAuthHeaders(),
@@ -440,7 +394,7 @@ export function UserSchedule() {
 
       if (response.ok) {
         toast.success('Reason updated!');
-        await loadScheduleData();
+        await refetchSchedules();
         setEditingReason(false);
         setDialogOpen(false);
       } else {
@@ -454,7 +408,7 @@ export function UserSchedule() {
     }
   };
 
-  if (loading) {
+  if (schedulesLoading || !authChecked) {
     return <PageSpinner />;
   }
 

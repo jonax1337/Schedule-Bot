@@ -1,122 +1,39 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { Settings as SettingsType } from "@/lib/types";
 import { Loader2, Save, Hash, AtSign } from "lucide-react";
 import { TimezonePicker } from "@/components/ui/timezone-picker";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { stagger, microInteractions, loadingStates } from '@/lib/animations';
-import { isAuthenticated, getAuthHeaders } from '@/lib/auth';
-
-interface DiscordChannel {
-  id: string;
-  name: string;
-}
-
-interface DiscordRole {
-  id: string;
-  name: string;
-  color: string;
-}
+import { useSettings, useDiscordChannels, useDiscordRoles } from '@/hooks';
 
 export function Settings() {
-  const [settings, setSettings] = useState<SettingsType | null>(null);
-  const [channels, setChannels] = useState<DiscordChannel[]>([]);
-  const [roles, setRoles] = useState<DiscordRole[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { settings, loading, setSettings, saveSettings } = useSettings();
+  const { channels, loading: loadingChannels } = useDiscordChannels();
+  const { roles, loading: loadingRoles } = useDiscordRoles();
   const [saving, setSaving] = useState(false);
-  const [loadingDiscord, setLoadingDiscord] = useState(true);
-  useEffect(() => {
-    loadSettings();
-    loadDiscordData();
-  }, []);
 
-  const loadSettings = async () => {
-    try {
-      const { BOT_API_URL } = await import('@/lib/config');
-      const response = await fetch(`${BOT_API_URL}/api/settings`);
-      const data = await response.json();
+  const loadingDiscord = loadingChannels || loadingRoles;
 
-      // Validate settings structure (admin is now optional, comes from .env)
-      if (!data || !data.discord || !data.scheduling || !data.branding) {
-        console.error('Invalid settings structure:', data);
-        toast.error('Settings missing required fields');
-        return;
-      }
+  const handleSaveSettings = async () => {
+    if (!settings) return;
 
-      setSettings(data);
-    } catch (error) {
-      console.error('Failed to load settings:', error);
-      toast.error('Failed to load settings');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadDiscordData = async () => {
-    try {
-      // Import auth helpers
-
-
-      // Only load Discord data if authenticated
-      if (!isAuthenticated()) {
-        console.log('Not authenticated, skipping Discord data load');
-        return;
-      }
-
-      const { BOT_API_URL } = await import('@/lib/config');
-      const [channelsRes, rolesRes] = await Promise.all([
-        fetch(`${BOT_API_URL}/api/discord/channels`, { headers: getAuthHeaders() }),
-        fetch(`${BOT_API_URL}/api/discord/roles`, { headers: getAuthHeaders() }),
-      ]);
-
-      if (channelsRes.ok) {
-        const channelsData = await channelsRes.json();
-        setChannels(channelsData);
-      }
-
-      if (rolesRes.ok) {
-        const rolesData = await rolesRes.json();
-        setRoles(rolesData);
-      }
-    } catch (error) {
-      console.error('Failed to load Discord data:', error);
-      toast.error('Failed to load Discord channels/roles');
-    } finally {
-      setLoadingDiscord(false);
-    }
-  };
-
-  const saveSettings = async () => {
     setSaving(true);
     try {
-      const { BOT_API_URL } = await import('@/lib/config');
+      const success = await saveSettings(settings);
 
-
-      const response = await fetch(`${BOT_API_URL}/api/settings`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...getAuthHeaders()
-        },
-        body: JSON.stringify(settings),
-      });
-
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        const msg = data.details?.map((d: { field: string; message: string }) => d.message).join(', ') || data.error || 'Save failed';
-        toast.error(msg);
-        return;
+      if (success) {
+        toast.success('Settings saved and applied successfully!');
+      } else {
+        toast.error('Failed to save settings');
       }
-
-      toast.success('Settings saved and applied successfully!');
     } catch (error) {
       console.error('Failed to save settings:', error);
       toast.error('Failed to save settings');
@@ -598,7 +515,7 @@ export function Settings() {
 
       <div className="flex justify-end">
         <Button
-          onClick={saveSettings}
+          onClick={handleSaveSettings}
           disabled={saving}
           className={cn(microInteractions.activePress, microInteractions.smooth)}
         >

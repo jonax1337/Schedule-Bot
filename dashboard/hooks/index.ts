@@ -4,6 +4,12 @@ export type { UserMapping, RoleType, UserMappingCreateData, UserMappingUpdateDat
 export { useAbsences, type Absence } from './use-absences';
 export { useScrims } from './use-scrims';
 export type { Scrim } from './use-scrims';
+export { useSettings } from './use-settings';
+export { useSchedule } from './use-schedule';
+export { useBotStatus } from './use-bot-status';
+export type { BotStatus } from './use-bot-status';
+export { useDiscordChannels, useDiscordRoles, useDiscordMembers } from './use-discord';
+export type { DiscordChannel, DiscordRole, DiscordMember } from './use-discord';
 
 // UI hooks
 export { useBranding } from './use-branding';

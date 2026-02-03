@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,11 +17,11 @@ import { stagger, microInteractions } from "@/lib/animations";
 import { cn } from "@/lib/utils";
 import { BOT_API_URL } from "@/lib/config";
 import { getAuthHeaders } from '@/lib/auth';
-import type { DiscordMember } from "@/lib/types";
+import { useDiscordMembers } from "@/hooks";
 
 export function Actions() {
+  const { members } = useDiscordMembers();
   const [loading, setLoading] = useState<string | null>(null);
-  const [members, setMembers] = useState<DiscordMember[]>([]);
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
   const [includePinned, setIncludePinned] = useState(false);
 
@@ -53,27 +53,10 @@ export function Actions() {
 
   const filteredMembers = userSearch
     ? members.filter(m =>
-        m.displayName.toLowerCase().includes(userSearch.toLowerCase()) ||
+        m.displayName?.toLowerCase().includes(userSearch.toLowerCase()) ||
         m.username.toLowerCase().includes(userSearch.toLowerCase())
       )
     : members;
-
-  useEffect(() => {
-    loadMembers();
-  }, []);
-
-  const loadMembers = async () => {
-    try {
-
-      const response = await fetch(`${BOT_API_URL}/api/discord/members`, {
-        headers: getAuthHeaders()
-      });
-      const data = await response.json();
-      setMembers(data.members);
-    } catch (error) {
-      console.error('Failed to load members:', error);
-    }
-  };
 
   const handleAction = async (action: string, endpoint: string, body: any) => {
     setLoading(action);
