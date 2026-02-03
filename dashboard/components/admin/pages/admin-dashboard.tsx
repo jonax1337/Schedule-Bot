@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Activity, Users, Calendar, Trophy, TrendingUp, Clock, Percent, BarChart3, Zap, Settings, Terminal } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Activity, Users, Calendar, Trophy, TrendingUp, Clock, Zap, Settings, Terminal, ArrowRight, BarChart3 } from 'lucide-react';
 import { stagger, microInteractions } from '@/lib/animations';
 import { cn } from '@/lib/utils';
 import { BOT_API_URL } from '@/lib/config';
@@ -126,123 +127,226 @@ export function AdminDashboard() {
   }, [userMappings]);
 
   const isOnline = botStatus && botStatus.status === 'running' && botStatus.botReady;
-  const hasScrimData = overallStats.total > 0;
 
   const statusCards = [
     {
       title: 'Bot Status',
       icon: Activity,
-      value: statusLoading ? '...' : isOnline ? 'Running' : 'Offline',
-      description: isOnline ? 'Bot is operational' : 'Bot is offline',
-      color: statusLoading ? 'muted' : isOnline ? 'green' : 'red',
+      value: statusLoading ? '...' : isOnline ? 'Online' : 'Offline',
+      description: isOnline ? 'All systems operational' : 'Bot is offline',
+      status: statusLoading ? 'loading' : isOnline ? 'success' : 'destructive',
     },
     {
       title: 'Uptime',
       icon: Clock,
       value: statusLoading ? '...' : formatUptime(botStatus?.uptime),
-      description: 'Time since last restart',
-      color: statusLoading ? 'muted' : isOnline ? 'green' : 'red',
+      description: 'Since last restart',
+      status: statusLoading ? 'loading' : isOnline ? 'success' : 'muted',
     },
     {
-      title: 'API Server',
-      icon: Calendar,
-      value: statusLoading ? '...' : isOnline ? 'Online' : 'Offline',
-      description: isOnline ? 'API responding' : 'API not responding',
-      color: statusLoading ? 'muted' : isOnline ? 'green' : 'red',
-    },
-    {
-      title: 'Discord Connection',
+      title: 'Discord',
       icon: Users,
-      value: statusLoading ? '...' : botStatus?.botReady ? 'Ready' : 'Offline',
-      description: botStatus?.botReady ? 'Connected to Discord' : 'Not connected',
-      color: statusLoading ? 'muted' : botStatus?.botReady ? 'green' : 'red',
+      value: statusLoading ? '...' : botStatus?.botReady ? 'Connected' : 'Disconnected',
+      description: botStatus?.botReady ? 'Gateway active' : 'No connection',
+      status: statusLoading ? 'loading' : botStatus?.botReady ? 'success' : 'destructive',
+    },
+    {
+      title: 'Win Rate',
+      icon: TrendingUp,
+      value: loading ? '...' : `${overallStats.winRate.toFixed(0)}%`,
+      description: `${overallStats.wins}W / ${overallStats.losses}L / ${overallStats.draws}D`,
+      status: loading ? 'loading' : overallStats.winRate >= 50 ? 'success' : 'warning',
     },
   ];
 
   return (
     <div className="space-y-6">
-      {/* Bot Status Cards */}
+      {/* Status Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {statusCards.map((card, index) => {
           const Icon = card.icon;
-          const colorClass =
-            card.color === 'green'
-              ? 'text-green-600 dark:text-green-400'
-              : card.color === 'red'
-                ? 'text-red-600 dark:text-red-400'
-                : 'text-muted-foreground';
+          const getStatusStyles = () => {
+            switch (card.status) {
+              case 'success':
+                return {
+                  dot: 'status-dot-success status-dot-pulse',
+                  badge: 'success' as const,
+                  icon: 'text-success',
+                };
+              case 'destructive':
+                return {
+                  dot: 'status-dot-destructive',
+                  badge: 'destructive' as const,
+                  icon: 'text-destructive',
+                };
+              case 'warning':
+                return {
+                  dot: 'status-dot-warning',
+                  badge: 'warning' as const,
+                  icon: 'text-warning',
+                };
+              default:
+                return {
+                  dot: '',
+                  badge: 'secondary' as const,
+                  icon: 'text-muted-foreground',
+                };
+            }
+          };
+
+          const styles = getStatusStyles();
 
           return (
             <Card
               key={card.title}
-              className={cn(
-                stagger(index, 'fast', 'slideUpScale')
-              )}
+              variant="elevated"
+              className={cn(stagger(index, 'fast', 'slideUpScale'))}
             >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
-                <Icon className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  {card.title}
+                </CardTitle>
+                <div className={cn(
+                  "p-2 rounded-lg",
+                  card.status === 'success' && "bg-success/10",
+                  card.status === 'destructive' && "bg-destructive/10",
+                  card.status === 'warning' && "bg-warning/10",
+                  card.status === 'loading' && "bg-muted",
+                )}>
+                  <Icon className={cn("h-4 w-4", styles.icon)} />
+                </div>
               </CardHeader>
               <CardContent>
-                <div className={cn('text-2xl font-bold', colorClass)}>
-                  {card.value}
+                <div className="flex items-center gap-2">
+                  {card.status !== 'loading' && (
+                    <div className={cn("status-dot", styles.dot)} />
+                  )}
+                  <span className="text-2xl font-bold tracking-tight">
+                    {card.value}
+                  </span>
                 </div>
-                <p className="text-xs text-muted-foreground">{card.description}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {card.description}
+                </p>
               </CardContent>
             </Card>
           );
         })}
       </div>
 
+      {/* Quick Stats Row */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card variant="gradient" className={cn(stagger(0, 'base', 'slideUp'))}>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Team Roster</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-bold">{userMappings.length}</span>
+              <span className="text-sm text-muted-foreground">players</span>
+            </div>
+            <div className="flex gap-2 mt-3">
+              <Badge variant="outline-info">{rosterBreakdown.mains} Main</Badge>
+              <Badge variant="outline-warning">{rosterBreakdown.subs} Sub</Badge>
+              <Badge variant="outline-success">{rosterBreakdown.coaches} Coach</Badge>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card variant="gradient" className={cn(stagger(1, 'base', 'slideUp'))}>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Total Scrims</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-bold">{scrims.length}</span>
+              <span className="text-sm text-muted-foreground">matches</span>
+            </div>
+            <div className="flex gap-2 mt-3">
+              <Badge variant="success">{overallStats.wins} Wins</Badge>
+              <Badge variant="destructive">{overallStats.losses} Losses</Badge>
+              {overallStats.draws > 0 && (
+                <Badge variant="secondary">{overallStats.draws} Draws</Badge>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card variant="gradient" className={cn(stagger(2, 'base', 'slideUp'))}>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Schedule</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-bold">{stats?.upcomingSchedules || 0}</span>
+              <span className="text-sm text-muted-foreground">upcoming days</span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-3">
+              Next 14 days of availability tracking
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Quick Actions */}
-      <Card className="animate-slideUp">
+      <Card variant="elevated" className="animate-slideUp">
         <CardHeader>
-          <CardTitle>Quick Actions</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Zap className="h-5 w-5 text-warning" />
+            Quick Actions
+          </CardTitle>
           <CardDescription>Common administrative tasks</CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <CardContent className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
           {[
             {
               href: '/admin?tab=statistics',
               icon: BarChart3,
               title: 'Statistics',
               description: 'Charts & analytics',
+              color: 'info',
             },
             {
               href: '/admin?tab=users',
               icon: Users,
               title: 'Manage Users',
-              description: 'Add or edit team members',
+              description: 'Team roster',
+              color: 'primary',
             },
             {
               href: '/admin?tab=schedule',
               icon: Calendar,
               title: 'Edit Schedule',
-              description: 'Update schedule reasons',
+              description: 'Update reasons',
+              color: 'primary',
             },
             {
               href: '/admin?tab=matches',
               icon: Trophy,
               title: 'View Scrims',
-              description: 'Match history & stats',
+              description: 'Match history',
+              color: 'warning',
             },
             {
               href: '/admin?tab=actions',
               icon: Zap,
               title: 'Bot Actions',
-              description: 'Trigger manual actions',
+              description: 'Manual triggers',
+              color: 'warning',
             },
             {
               href: '/admin?tab=settings',
               icon: Settings,
               title: 'Settings',
-              description: 'Configure bot settings',
+              description: 'Configuration',
+              color: 'primary',
             },
             {
               href: '/admin?tab=logs',
               icon: Terminal,
               title: 'View Logs',
-              description: 'System activity logs',
+              description: 'System activity',
+              color: 'muted',
             },
           ].map((action, index) => {
             const Icon = action.icon;
@@ -251,17 +355,26 @@ export function AdminDashboard() {
                 key={action.title}
                 href={action.href}
                 className={cn(
-                  'flex items-center gap-3 p-4 rounded-lg border hover:bg-accent',
+                  'group flex items-center gap-4 p-4 rounded-xl border bg-card hover:bg-accent/50',
+                  'transition-all duration-200',
                   stagger(index, 'fast', 'fadeIn'),
-                  microInteractions.smooth,
-                  microInteractions.hoverScaleSm
+                  microInteractions.smooth
                 )}
               >
-                <Icon className="h-5 w-5 text-primary" />
-                <div>
+                <div className={cn(
+                  'p-2.5 rounded-lg transition-colors',
+                  action.color === 'info' && 'bg-info/10 text-info group-hover:bg-info/20',
+                  action.color === 'warning' && 'bg-warning/10 text-warning group-hover:bg-warning/20',
+                  action.color === 'primary' && 'bg-primary/10 text-primary group-hover:bg-primary/20',
+                  action.color === 'muted' && 'bg-muted text-muted-foreground group-hover:bg-muted/80',
+                )}>
+                  <Icon className="h-5 w-5" />
+                </div>
+                <div className="flex-1 min-w-0">
                   <div className="font-medium">{action.title}</div>
                   <div className="text-sm text-muted-foreground">{action.description}</div>
                 </div>
+                <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
               </a>
             );
           })}
