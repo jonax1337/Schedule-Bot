@@ -27,7 +27,7 @@ export function TimezonePicker({ value, onChange, placeholder = "Select timezone
   }, [search]);
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={setOpen} modal={false}>
       <PopoverTrigger asChild>
         <Button variant="outline" role="combobox" aria-expanded={open} className={cn("justify-between", className)}>
           <span className="flex items-center gap-2 truncate">
@@ -37,7 +37,12 @@ export function TimezonePicker({ value, onChange, placeholder = "Select timezone
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[300px] p-0" align="start">
+      <PopoverContent
+        className="w-[300px] p-0"
+        align="start"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+      >
         <Command shouldFilter={false}>
           <CommandInput placeholder="Search timezone..." value={search} onValueChange={setSearch} />
           <CommandList>
