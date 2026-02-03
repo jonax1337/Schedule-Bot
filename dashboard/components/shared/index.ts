@@ -7,3 +7,5 @@ export { Stratbook } from './stratbook';
 export { SidebarNavGroup } from './sidebar-nav-group';
 export type { NavItem } from './sidebar-nav-group';
 export { SidebarBrandingHeader } from './sidebar-branding-header';
+export { LayoutWrapper } from './layout-wrapper';
+export type { LayoutWrapperConfig, SidebarProps } from './layout-wrapper';

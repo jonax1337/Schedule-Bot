@@ -1,5 +1,6 @@
 import { prisma } from './database.repository.js';
 import { parseDDMMYYYY } from '../shared/utils/dateFormatter.js';
+import { mapTimestamps } from '../shared/utils/mapper.js';
 
 export interface AbsenceData {
   id: number;
@@ -9,6 +10,21 @@ export interface AbsenceData {
   reason: string;
   createdAt: string;
   updatedAt: string;
+}
+
+/**
+ * Map Prisma Absence entity to AbsenceData DTO
+ */
+function mapAbsence(absence: {
+  id: number;
+  userId: string;
+  startDate: string;
+  endDate: string;
+  reason: string;
+  createdAt: Date;
+  updatedAt: Date;
+}): AbsenceData {
+  return mapTimestamps(absence);
 }
 
 /**
@@ -30,15 +46,7 @@ export async function getAbsencesForUser(userId: string): Promise<AbsenceData[]>
     orderBy: { startDate: 'asc' },
   });
 
-  return absences.map(a => ({
-    id: a.id,
-    userId: a.userId,
-    startDate: a.startDate,
-    endDate: a.endDate,
-    reason: a.reason,
-    createdAt: a.createdAt.toISOString(),
-    updatedAt: a.updatedAt.toISOString(),
-  }));
+  return absences.map(mapAbsence);
 }
 
 /**
@@ -49,15 +57,7 @@ export async function getAllAbsences(): Promise<AbsenceData[]> {
     orderBy: [{ startDate: 'asc' }],
   });
 
-  return absences.map(a => ({
-    id: a.id,
-    userId: a.userId,
-    startDate: a.startDate,
-    endDate: a.endDate,
-    reason: a.reason,
-    createdAt: a.createdAt.toISOString(),
-    updatedAt: a.updatedAt.toISOString(),
-  }));
+  return absences.map(mapAbsence);
 }
 
 /**
@@ -78,15 +78,7 @@ export async function createAbsence(
     },
   });
 
-  return {
-    id: absence.id,
-    userId: absence.userId,
-    startDate: absence.startDate,
-    endDate: absence.endDate,
-    reason: absence.reason,
-    createdAt: absence.createdAt.toISOString(),
-    updatedAt: absence.updatedAt.toISOString(),
-  };
+  return mapAbsence(absence);
 }
 
 /**
@@ -102,15 +94,7 @@ export async function updateAbsence(
       data,
     });
 
-    return {
-      id: absence.id,
-      userId: absence.userId,
-      startDate: absence.startDate,
-      endDate: absence.endDate,
-      reason: absence.reason,
-      createdAt: absence.createdAt.toISOString(),
-      updatedAt: absence.updatedAt.toISOString(),
-    };
+    return mapAbsence(absence);
   } catch {
     return null;
   }
@@ -135,15 +119,7 @@ export async function getAbsenceById(id: number): Promise<AbsenceData | null> {
   const absence = await prisma.absence.findUnique({ where: { id } });
   if (!absence) return null;
 
-  return {
-    id: absence.id,
-    userId: absence.userId,
-    startDate: absence.startDate,
-    endDate: absence.endDate,
-    reason: absence.reason,
-    createdAt: absence.createdAt.toISOString(),
-    updatedAt: absence.updatedAt.toISOString(),
-  };
+  return mapAbsence(absence);
 }
 
 /**

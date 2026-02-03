@@ -1,5 +1,6 @@
 import Joi from 'joi';
 import { Request, Response, NextFunction } from 'express';
+import { PATTERNS } from '../utils/patterns.js';
 
 export const addUserMappingSchema = Joi.object({
   discordId: Joi.string().pattern(/^\d{17,19}$/).required(),
@@ -107,8 +108,8 @@ export function validate(schema: Joi.ObjectSchema) {
   };
 }
 
-// Date format validation helper (DD.MM.YYYY)
-const datePattern = /^\d{2}\.\d{2}\.\d{4}$/;
+// Use centralized date pattern from patterns.ts
+const datePattern = PATTERNS.DATE_DDMMYYYY;
 
 export const absenceCreateSchema = Joi.object({
   userId: Joi.string().pattern(/^\d{17,19}$/).optional(),

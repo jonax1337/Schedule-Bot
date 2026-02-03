@@ -6,7 +6,25 @@ function generateScrimId(): string {
   return `scrim_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
 
-function mapScrimToEntry(scrim: any): ScrimEntry {
+interface PrismaScrim {
+  id: string;
+  date: string;
+  opponent: string;
+  result: string;
+  scoreUs: number;
+  scoreThem: number;
+  map: string;
+  matchType: string;
+  ourAgents: string;
+  theirAgents: string;
+  vodUrl: string;
+  matchLink: string;
+  notes: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+function mapScrimToEntry(scrim: PrismaScrim): ScrimEntry {
   return {
     id: scrim.id,
     date: scrim.date,

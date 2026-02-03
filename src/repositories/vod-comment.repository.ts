@@ -1,16 +1,9 @@
 import { prisma } from './database.repository.js';
 import type { VodComment } from '../shared/types/types.js';
+import { mapTimestamps } from '../shared/utils/mapper.js';
 
 function mapComment(c: { id: number; scrimId: string; userName: string; timestamp: number; content: string; createdAt: Date; updatedAt: Date }): VodComment {
-  return {
-    id: c.id,
-    scrimId: c.scrimId,
-    userName: c.userName,
-    timestamp: c.timestamp,
-    content: c.content,
-    createdAt: c.createdAt.toISOString(),
-    updatedAt: c.updatedAt.toISOString(),
-  };
+  return mapTimestamps(c);
 }
 
 export async function getCommentsByScrimId(scrimId: string): Promise<VodComment[]> {
