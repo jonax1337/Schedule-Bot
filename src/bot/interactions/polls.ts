@@ -1,59 +1,37 @@
-import { EmbedBuilder, Message, MessageReaction, User, TextChannel } from 'discord.js';
-import { client } from '../client.js';
-import { config } from '../../shared/config/config.js';
-import { logger, getErrorMessage } from '../../shared/utils/logger.js';
-import { formatRemainingTime, startPollTimers as startTimers, clearPollTimers as clearTimers, handleVoteToggle, POLL_EMOJIS } from './pollBase.js';
+import { Message, MessageReaction, User } from 'discord.js';
+import { PollManager, PollOption, POLL_EMOJIS, formatRemainingTime } from './pollManager.js';
 import { COLORS } from '../embeds/embed.js';
+import { logger } from '../../shared/utils/logger.js';
 
-interface PollOption {
-  emoji: string;
+/**
+ * Quick Poll Option
+ */
+interface QuickPollOption extends PollOption {
   label: string;
-  votes: string[]; // User IDs
-}
-
-interface Poll {
-  messageId: string;
-  question: string;
-  options: PollOption[];
-  createdBy: string;
-  expiresAt: Date;
-  type: 'training' | 'maps' | 'quick';
-  date?: string; // For training/maps polls
-  closeTimer?: ReturnType<typeof setTimeout>;
-  countdownTimer?: ReturnType<typeof setInterval>;
-}
-
-const activePolls = new Map<string, Poll>();
-
-/**
- * Start close timer and countdown interval for a poll.
- */
-function startPollTimers(poll: Poll): void {
-  const timers = startTimers(
-    poll.expiresAt,
-    () => closePoll(poll.messageId),
-    () => updatePollEmbed(poll),
-  );
-  if (timers) {
-    poll.closeTimer = timers.closeTimer;
-    poll.countdownTimer = timers.countdownTimer;
-  }
 }
 
 /**
- * Clear all timers for a poll.
+ * Quick Poll Manager singleton
  */
-function clearPollTimers(poll: Poll): void {
-  clearTimers(poll);
-}
+const quickPollManager = new PollManager<QuickPollOption>({
+  color: COLORS.WARNING,
+  description: 'React to vote!',
+  closedSuffix: '— CLOSED',
+  winnerPrefix: 'Winner',
+  noVotesMessage: 'No votes received.',
+  getOptionDisplay: (opt) => opt.label,
+});
 
+/**
+ * Create a quick poll with custom question and options
+ */
 export async function createQuickPoll(
   question: string,
   options: string[],
   createdBy: string,
   durationMinutes: number = 60
 ): Promise<Message> {
-  const pollOptions: PollOption[] = options.slice(0, 10).map((opt, i) => ({
+  const pollOptions: QuickPollOption[] = options.slice(0, 10).map((opt, i) => ({
     emoji: POLL_EMOJIS[i],
     label: opt,
     votes: [],
@@ -61,206 +39,51 @@ export async function createQuickPoll(
 
   const durationMs = durationMinutes * 60 * 1000;
 
-  const embed = new EmbedBuilder()
-    .setColor(COLORS.WARNING)
-    .setTitle(question)
-    .setDescription('React to vote!')
-    .setFooter({ text: `Poll closes in ${formatRemainingTime(durationMs)}` })
-    .setTimestamp();
-
-  pollOptions.forEach(opt => {
-    embed.addFields({
-      name: `${opt.emoji} ${opt.label}`,
-      value: '0 votes',
-      inline: false,
-    });
-  });
-
-  const channel = await client.channels.fetch(config.discord.channelId);
-  if (!channel || !channel.isTextBased()) {
-    throw new Error('Channel not found or not text-based');
-  }
-
-  const message = await (channel as any).send({ embeds: [embed] });
-
-  for (const opt of pollOptions) {
-    await message.react(opt.emoji);
-  }
-
-  const poll: Poll = {
-    messageId: message.id,
+  return quickPollManager.sendPoll(
     question,
-    options: pollOptions,
-    createdBy,
-    expiresAt: new Date(Date.now() + durationMs),
-    type: 'quick',
-  };
-
-  activePolls.set(message.id, poll);
-  startPollTimers(poll);
-
-  return message;
+    pollOptions,
+    durationMs,
+    'quick',
+    { createdBy }
+  );
 }
 
+/**
+ * Handle reactions on quick polls
+ */
 export async function handlePollReaction(
   reaction: MessageReaction,
   user: User,
   added: boolean
 ): Promise<void> {
-  if (user.bot) return;
-
-  const poll = activePolls.get(reaction.message.id);
-  if (!poll) return;
-
-  const option = poll.options.find(opt => opt.emoji === reaction.emoji.name);
-  if (!option) return;
-
-  handleVoteToggle(option, user.id, added);
-
-  await updatePollEmbed(poll);
-}
-
-async function updatePollEmbed(poll: Poll): Promise<void> {
-  try {
-    const channel = await client.channels.fetch(config.discord.channelId);
-    if (!channel || !channel.isTextBased()) return;
-
-    const message = await channel.messages.fetch(poll.messageId);
-    const embed = message.embeds[0];
-    if (!embed) return;
-
-    const newEmbed = EmbedBuilder.from(embed);
-    newEmbed.setFields([]);
-
-    poll.options.forEach(opt => {
-      newEmbed.addFields({
-        name: `${opt.emoji} ${opt.label}`,
-        value: `${opt.votes.length} vote${opt.votes.length !== 1 ? 's' : ''}`,
-        inline: false,
-      });
-    });
-
-    // Update footer with remaining time
-    const remaining = poll.expiresAt.getTime() - Date.now();
-    if (remaining > 0) {
-      newEmbed.setFooter({ text: `Poll closes in ${formatRemainingTime(remaining)}` });
-    }
-
-    await message.edit({ embeds: [newEmbed] });
-  } catch (error) {
-    logger.error('Error updating poll embed', getErrorMessage(error));
-  }
-}
-
-async function closePoll(messageId: string): Promise<void> {
-  const poll = activePolls.get(messageId);
-  if (!poll) return;
-
-  clearPollTimers(poll);
-
-  try {
-    const channel = await client.channels.fetch(config.discord.channelId);
-    if (!channel || !channel.isTextBased()) return;
-
-    const message = await channel.messages.fetch(messageId);
-
-    // Sort options by votes
-    const sorted = [...poll.options].sort((a, b) => b.votes.length - a.votes.length);
-    const totalVotes = sorted.reduce((sum, opt) => sum + opt.votes.length, 0);
-
-    let resultText = '**📊 Results:**\n\n';
-    let winnerLabel: string;
-
-    if (totalVotes === 0) {
-      resultText += `No votes received.\n`;
-      winnerLabel = sorted[0].label;
-    } else {
-      // Show top 3 (or fewer if they have 0 votes)
-      const medals = ['🥇', '🥈', '🥉'];
-      const shown = sorted.filter((opt, i) => i === 0 || opt.votes.length > 0).slice(0, 3);
-      shown.forEach((opt, i) => {
-        resultText += `${medals[i]} **${opt.label}** — ${opt.votes.length} vote${opt.votes.length !== 1 ? 's' : ''}\n`;
-      });
-      winnerLabel = sorted[0].label;
-    }
-
-    if (totalVotes > 0) {
-      resultText += `\n✅ **Winner:** ${winnerLabel}`;
-    }
-
-    const embed = new EmbedBuilder()
-      .setColor(COLORS.ERROR)
-      .setTitle(`${poll.question} — CLOSED`)
-      .setDescription(resultText)
-      .setFooter({ text: 'Poll closed' })
-      .setTimestamp();
-
-    await message.reactions.removeAll().catch(() => {});
-    await message.edit({ embeds: [embed] });
-    activePolls.delete(messageId);
-
-    logger.info(`Poll closed: ${poll.question} - Winner: ${winnerLabel}`);
-  } catch (error) {
-    logger.error('Error closing poll', getErrorMessage(error));
-  }
+  await quickPollManager.handleReaction(reaction, user, added);
 }
 
 /**
- * Recover open quick polls from channel after bot restart.
+ * Recover open quick polls from channel after bot restart
  */
 export async function recoverQuickPolls(): Promise<void> {
-  try {
-    const channel = await client.channels.fetch(config.discord.channelId);
-    if (!channel || !(channel instanceof TextChannel)) return;
-
-    const messages = await channel.messages.fetch({ limit: 50 });
-    for (const message of messages.values()) {
-      if (!message.author.bot || message.author.id !== client.user?.id) continue;
-
+  await quickPollManager.recoverFromChannel(
+    // Identify quick polls
+    (embed, message) => {
+      if (!embed) return false;
+      const embedData = message.embeds[0];
+      if (!embedData) return false;
+      // Quick polls have "React to vote!" in description
+      // And are NOT training polls (which have specific title)
+      return (
+        embedData.description?.includes('React to vote!') === true &&
+        embedData.title !== 'When do you want to start?'
+      );
+    },
+    // Reconstruct options from message
+    (message) => {
       const embed = message.embeds[0];
-      if (!embed) continue;
+      if (!embed?.fields) return [];
 
-      // Identify open quick polls by description content
-      if (!embed.description?.includes('React to vote!')) continue;
-      // Skip training polls (identified by their own recovery)
-      if (embed.title === 'When do you want to start?') continue;
-
-      // Already tracked
-      if (activePolls.has(message.id)) continue;
-
-      // Check if already closed
-      const footerText = embed.footer?.text || '';
-      if (footerText === 'Poll closed') continue;
-
-      // Parse duration from original footer like "Poll closes in X hour(s)" or recover from message age
-      // Default to 1 hour duration if we can't determine
-      const createdAt = message.createdTimestamp;
-      let durationMs = 60 * 60 * 1000; // default 1 hour
-
-      // Try to parse from footer "Poll closes in X hour(s)" or "Poll closes in Xh Ym"
-      const hourMatch = footerText.match(/(\d+)\s*hour/);
-      const hMatch = footerText.match(/(\d+)h\s*(\d+)m/);
-      const minMatch = footerText.match(/(\d+)\s*minute/);
-      if (hourMatch) {
-        durationMs = Number(hourMatch[1]) * 60 * 60 * 1000;
-      } else if (hMatch) {
-        durationMs = (Number(hMatch[1]) * 60 + Number(hMatch[2])) * 60 * 1000;
-      } else if (minMatch) {
-        // This is remaining time, not total — estimate total from message age
-        const remainingMinutes = Number(minMatch[1]);
-        const elapsedMs = Date.now() - createdAt;
-        durationMs = elapsedMs + remainingMinutes * 60 * 1000;
-      }
-
-      const expiresAt = new Date(createdAt + durationMs);
-
-      // Reconstruct question from title
-      const question = embed.title || 'Unknown';
-
-      // Reconstruct options from fields
-      const options: PollOption[] = [];
-      for (let i = 0; i < (embed.fields?.length || 0); i++) {
-        const field = embed.fields![i];
+      const options: QuickPollOption[] = [];
+      for (let i = 0; i < embed.fields.length; i++) {
+        const field = embed.fields[i];
         const emoji = POLL_EMOJIS[i];
         if (!emoji) break;
 
@@ -277,35 +100,41 @@ export async function recoverQuickPolls(): Promise<void> {
           votes: Array(voteCount).fill('unknown'),
         });
       }
+      return options;
+    },
+    // Get expiry time
+    (message) => {
+      const footerText = message.embeds[0]?.footer?.text || '';
+      const createdAt = message.createdTimestamp;
+      let durationMs = 60 * 60 * 1000; // default 1 hour
 
-      if (options.length === 0) continue;
+      // Try to parse from footer
+      const hourMatch = footerText.match(/(\d+)\s*hour/);
+      const hMatch = footerText.match(/(\d+)h\s*(\d+)m/);
+      const minMatch = footerText.match(/(\d+)\s*minute/);
 
-      const poll: Poll = {
-        messageId: message.id,
-        question,
-        options,
-        createdBy: 'recovered',
-        expiresAt,
-        type: 'quick',
-      };
-
-      // If already expired, close it now
-      if (expiresAt.getTime() <= Date.now()) {
-        activePolls.set(message.id, poll);
-        await closePoll(message.id);
-        logger.info(`Recovered and closed expired quick poll: ${message.id}`);
-        continue;
+      if (hourMatch) {
+        durationMs = Number(hourMatch[1]) * 60 * 60 * 1000;
+      } else if (hMatch) {
+        durationMs = (Number(hMatch[1]) * 60 + Number(hMatch[2])) * 60 * 1000;
+      } else if (minMatch) {
+        const remainingMinutes = Number(minMatch[1]);
+        const elapsedMs = Date.now() - createdAt;
+        durationMs = elapsedMs + remainingMinutes * 60 * 1000;
       }
 
-      activePolls.set(message.id, poll);
-      startPollTimers(poll);
-      logger.info(`Recovered active quick poll: ${message.id} (closes in ${formatRemainingTime(expiresAt.getTime() - Date.now())})`);
-    }
-  } catch (error) {
-    logger.error('Error recovering quick polls', getErrorMessage(error));
-  }
+      return new Date(createdAt + durationMs);
+    },
+    'quick'
+  );
 }
 
-export function getActivePoll(messageId: string): Poll | undefined {
-  return activePolls.get(messageId);
+/**
+ * Get an active quick poll by message ID
+ */
+export function getActivePoll(messageId: string) {
+  return quickPollManager.get(messageId);
 }
+
+// Export the manager for direct access if needed
+export { quickPollManager };
