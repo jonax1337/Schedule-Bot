@@ -10,6 +10,10 @@ export { useBotStatus } from './use-bot-status';
 export type { BotStatus } from './use-bot-status';
 export { useDiscordChannels, useDiscordRoles, useDiscordMembers } from './use-discord';
 export type { DiscordChannel, DiscordRole, DiscordMember } from './use-discord';
+export { useRecurringAvailability } from './use-recurring-availability';
+export type { RecurringAvailability } from './use-recurring-availability';
+export { useVodComments } from './use-vod-comments';
+export type { VodComment } from './use-vod-comments';
 
 // UI hooks
 export { useBranding } from './use-branding';

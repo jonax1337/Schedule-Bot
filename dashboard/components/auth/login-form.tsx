@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { microInteractions } from "@/lib/animations";
@@ -23,13 +23,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, UserCircle } from "lucide-react";
 import { toast } from "sonner";
 import { BOT_API_URL } from "@/lib/config";
-import { useUserMappings } from "@/hooks";
-
-interface Settings {
-  discord: {
-    allowDiscordAuth: boolean;
-  };
-}
+import { useUserMappings, useSettings } from "@/hooks";
 
 export function LoginForm({
   className,
@@ -38,28 +32,9 @@ export function LoginForm({
 }: React.ComponentProps<"div"> & { redirectTo?: string | null }) {
   const router = useRouter();
   const { mappings, loading } = useUserMappings({ requireAuth: false });
+  const { settings, loading: settingsLoading } = useSettings({ requireAuth: false });
   const [selectedUser, setSelectedUser] = useState('');
-  const [settings, setSettings] = useState<Settings | null>(null);
-  const [settingsLoading, setSettingsLoading] = useState(true);
   const [discordLoading, setDiscordLoading] = useState(false);
-
-  useEffect(() => {
-    loadSettings();
-  }, []);
-
-  const loadSettings = async () => {
-    try {
-      const response = await fetch(`${BOT_API_URL}/api/settings`);
-      if (response.ok) {
-        const data = await response.json();
-        setSettings(data);
-      }
-    } catch (error) {
-      console.error('Failed to load settings:', error);
-    } finally {
-      setSettingsLoading(false);
-    }
-  };
 
   const handleUserSelect = async (e: React.FormEvent) => {
     e.preventDefault();

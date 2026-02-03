@@ -12,11 +12,9 @@ import { PageSpinner } from '@/components/ui/page-spinner';
 import { toast } from 'sonner';
 import { stagger, microInteractions } from '@/lib/animations';
 import { cn } from '@/lib/utils';
-import { BOT_API_URL } from '@/lib/config';
-import { getAuthHeaders } from '@/lib/auth';
 import { useTimezone, getTimezoneAbbr } from '@/lib/timezone';
 import { WEEKDAY_NAMES } from '@/lib/date-utils';
-import { useUserDiscordId } from '@/hooks/use-user-discord-id';
+import { useUserDiscordId, useRecurringAvailability } from '@/hooks';
 
 interface RecurringEntry {
   id: number;
@@ -41,8 +39,17 @@ export function UserRecurring() {
   const { user, isLoading: authLoading } = useUserDiscordId();
   const userDiscordId = user?.discordId || '';
   const { convertRangeToLocal, convertRangeToBot, isConverting, userTimezone, botTimezone, botTimezoneLoaded, timezoneVersion } = useTimezone();
+
+  // Use hook for data fetching
+  const {
+    recurring,
+    loading: hookLoading,
+    setRecurring: hookSetRecurring,
+    setRecurringBulk: hookSetRecurringBulk,
+    removeRecurring: hookRemoveRecurring,
+  } = useRecurringAvailability({ userId: userDiscordId, fetchOnMount: !!userDiscordId && botTimezoneLoaded });
+
   const [dayEntries, setDayEntries] = useState<DayEntry[]>([]);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
   const [selectedDays, setSelectedDays] = useState<Set<number>>(new Set());
@@ -53,10 +60,37 @@ export function UserRecurring() {
   // Monday-first order
   const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
 
+  // Sync hook data to local state with timezone conversion
   useEffect(() => {
     if (authLoading || !userDiscordId || !botTimezoneLoaded) return;
-    loadData();
-  }, [authLoading, user?.discordId, botTimezoneLoaded, timezoneVersion]);
+
+    const newDayEntries: DayEntry[] = DAY_ORDER.map(dayOfWeek => {
+      const entry = recurring.find(e => e.dayOfWeek === dayOfWeek);
+      let timeFrom = '';
+      let timeTo = '';
+      const availability = entry?.availability || '';
+
+      if (availability && availability !== 'x' && availability.includes('-')) {
+        const localRange = convertRangeToLocal(availability);
+        const parts = localRange.split('-');
+        if (parts.length === 2) {
+          timeFrom = parts[0].trim();
+          timeTo = parts[1].trim();
+        }
+      }
+
+      return {
+        dayOfWeek,
+        timeFrom,
+        timeTo,
+        originalTimeFrom: timeFrom,
+        originalTimeTo: timeTo,
+        availability,
+      };
+    });
+
+    setDayEntries(newDayEntries);
+  }, [recurring, authLoading, userDiscordId, botTimezoneLoaded, timezoneVersion, convertRangeToLocal]);
 
   // Cleanup timeouts on unmount
   useEffect(() => {
@@ -66,62 +100,6 @@ export function UserRecurring() {
       });
     };
   }, []);
-
-  const loadData = async () => {
-    setLoading(true);
-    try {
-
-      const headers = getAuthHeaders();
-
-      const discordId = user?.discordId;
-      if (!discordId) {
-        setLoading(false);
-        return;
-      }
-
-      const res = await fetch(`${BOT_API_URL}/api/recurring-availability?userId=${discordId}`, { headers });
-      if (!res.ok) {
-        toast.error('Failed to load recurring schedule');
-        setLoading(false);
-        return;
-      }
-
-      const data = await res.json();
-      const entries: RecurringEntry[] = data.entries || [];
-
-      // Build day entries for all 7 days
-      const newDayEntries: DayEntry[] = DAY_ORDER.map(dayOfWeek => {
-        const entry = entries.find(e => e.dayOfWeek === dayOfWeek);
-        let timeFrom = '';
-        let timeTo = '';
-        const availability = entry?.availability || '';
-
-        if (availability && availability !== 'x' && availability.includes('-')) {
-          const localRange = convertRangeToLocal(availability);
-          const parts = localRange.split('-');
-          if (parts.length === 2) {
-            timeFrom = parts[0].trim();
-            timeTo = parts[1].trim();
-          }
-        }
-
-        return {
-          dayOfWeek,
-          timeFrom,
-          timeTo,
-          originalTimeFrom: timeFrom,
-          originalTimeTo: timeTo,
-          availability,
-        };
-      });
-
-      setDayEntries(newDayEntries);
-    } catch {
-      toast.error('Failed to load recurring schedule');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const saveDay = async (dayOfWeek: number, timeFrom: string, timeTo: string, isAutoSave = false) => {
     if (!timeFrom || !timeTo) {
@@ -143,45 +121,33 @@ export function UserRecurring() {
       e.dayOfWeek === dayOfWeek ? { ...e, isSaving: true, justSaved: false } : e
     ));
 
-    try {
-      const localValue = `${timeFrom}-${timeTo}`;
-      const botValue = convertRangeToBot(localValue);
+    const localValue = `${timeFrom}-${timeTo}`;
+    const botValue = convertRangeToBot(localValue);
 
+    const success = await hookSetRecurring(dayOfWeek, botValue);
 
-      const response = await fetch(`${BOT_API_URL}/api/recurring-availability`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ dayOfWeek, availability: botValue, userId: userDiscordId }),
-      });
-
-      if (response.ok) {
-        if (!isAutoSave) {
-          toast.success(`${WEEKDAY_NAMES[dayOfWeek]} updated`);
-        }
-
-        setDayEntries(prev => prev.map(e =>
-          e.dayOfWeek === dayOfWeek ? {
-            ...e,
-            availability: botValue,
-            originalTimeFrom: timeFrom,
-            originalTimeTo: timeTo,
-            isSaving: false,
-            justSaved: true,
-          } : e
-        ));
-
-        setTimeout(() => {
-          setDayEntries(prev => prev.map(e =>
-            e.dayOfWeek === dayOfWeek ? { ...e, justSaved: false } : e
-          ));
-        }, 2000);
-      } else {
-        toast.error('Failed to save');
-        setDayEntries(prev => prev.map(e =>
-          e.dayOfWeek === dayOfWeek ? { ...e, isSaving: false } : e
-        ));
+    if (success) {
+      if (!isAutoSave) {
+        toast.success(`${WEEKDAY_NAMES[dayOfWeek]} updated`);
       }
-    } catch {
+
+      setDayEntries(prev => prev.map(e =>
+        e.dayOfWeek === dayOfWeek ? {
+          ...e,
+          availability: botValue,
+          originalTimeFrom: timeFrom,
+          originalTimeTo: timeTo,
+          isSaving: false,
+          justSaved: true,
+        } : e
+      ));
+
+      setTimeout(() => {
+        setDayEntries(prev => prev.map(e =>
+          e.dayOfWeek === dayOfWeek ? { ...e, justSaved: false } : e
+        ));
+      }, 2000);
+    } else {
       toast.error('Failed to save');
       setDayEntries(prev => prev.map(e =>
         e.dayOfWeek === dayOfWeek ? { ...e, isSaving: false } : e
@@ -194,42 +160,29 @@ export function UserRecurring() {
       e.dayOfWeek === dayOfWeek ? { ...e, isSaving: true, justSaved: false } : e
     ));
 
-    try {
+    const success = await hookSetRecurring(dayOfWeek, 'x');
 
+    if (success) {
+      toast.success(`${WEEKDAY_NAMES[dayOfWeek]} marked as unavailable`);
+      setDayEntries(prev => prev.map(e =>
+        e.dayOfWeek === dayOfWeek ? {
+          ...e,
+          availability: 'x',
+          timeFrom: '',
+          timeTo: '',
+          originalTimeFrom: '',
+          originalTimeTo: '',
+          isSaving: false,
+          justSaved: true,
+        } : e
+      ));
 
-      const response = await fetch(`${BOT_API_URL}/api/recurring-availability`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ dayOfWeek, availability: 'x', userId: userDiscordId }),
-      });
-
-      if (response.ok) {
-        toast.success(`${WEEKDAY_NAMES[dayOfWeek]} marked as unavailable`);
+      setTimeout(() => {
         setDayEntries(prev => prev.map(e =>
-          e.dayOfWeek === dayOfWeek ? {
-            ...e,
-            availability: 'x',
-            timeFrom: '',
-            timeTo: '',
-            originalTimeFrom: '',
-            originalTimeTo: '',
-            isSaving: false,
-            justSaved: true,
-          } : e
+          e.dayOfWeek === dayOfWeek ? { ...e, justSaved: false } : e
         ));
-
-        setTimeout(() => {
-          setDayEntries(prev => prev.map(e =>
-            e.dayOfWeek === dayOfWeek ? { ...e, justSaved: false } : e
-          ));
-        }, 2000);
-      } else {
-        toast.error('Failed to save');
-        setDayEntries(prev => prev.map(e =>
-          e.dayOfWeek === dayOfWeek ? { ...e, isSaving: false } : e
-        ));
-      }
-    } catch {
+      }, 2000);
+    } else {
       toast.error('Failed to save');
       setDayEntries(prev => prev.map(e =>
         e.dayOfWeek === dayOfWeek ? { ...e, isSaving: false } : e
@@ -242,40 +195,28 @@ export function UserRecurring() {
       e.dayOfWeek === dayOfWeek ? { ...e, isSaving: true, justSaved: false } : e
     ));
 
-    try {
+    const success = await hookRemoveRecurring(dayOfWeek);
 
+    if (success) {
+      setDayEntries(prev => prev.map(e =>
+        e.dayOfWeek === dayOfWeek ? {
+          ...e,
+          availability: '',
+          timeFrom: '',
+          timeTo: '',
+          originalTimeFrom: '',
+          originalTimeTo: '',
+          isSaving: false,
+          justSaved: true,
+        } : e
+      ));
 
-      const response = await fetch(`${BOT_API_URL}/api/recurring-availability/${dayOfWeek}?userId=${userDiscordId}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(),
-      });
-
-      if (response.ok) {
+      setTimeout(() => {
         setDayEntries(prev => prev.map(e =>
-          e.dayOfWeek === dayOfWeek ? {
-            ...e,
-            availability: '',
-            timeFrom: '',
-            timeTo: '',
-            originalTimeFrom: '',
-            originalTimeTo: '',
-            isSaving: false,
-            justSaved: true,
-          } : e
+          e.dayOfWeek === dayOfWeek ? { ...e, justSaved: false } : e
         ));
-
-        setTimeout(() => {
-          setDayEntries(prev => prev.map(e =>
-            e.dayOfWeek === dayOfWeek ? { ...e, justSaved: false } : e
-          ));
-        }, 2000);
-      } else {
-        toast.error('Failed to remove');
-        setDayEntries(prev => prev.map(e =>
-          e.dayOfWeek === dayOfWeek ? { ...e, isSaving: false } : e
-        ));
-      }
-    } catch {
+      }, 2000);
+    } else {
       toast.error('Failed to remove');
       setDayEntries(prev => prev.map(e =>
         e.dayOfWeek === dayOfWeek ? { ...e, isSaving: false } : e
@@ -325,42 +266,32 @@ export function UserRecurring() {
     }
 
     setSaving(true);
-    try {
-      const localValue = `${bulkTimeFrom}-${bulkTimeTo}`;
-      const botValue = convertRangeToBot(localValue);
+    const localValue = `${bulkTimeFrom}-${bulkTimeTo}`;
+    const botValue = convertRangeToBot(localValue);
 
+    const success = await hookSetRecurringBulk(Array.from(selectedDays), botValue);
 
-      const response = await fetch(`${BOT_API_URL}/api/recurring-availability/bulk`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ days: Array.from(selectedDays), availability: botValue, userId: userDiscordId }),
-      });
+    if (success) {
+      toast.success(`Updated ${selectedDays.size} day(s)`);
 
-      if (response.ok) {
-        toast.success(`Updated ${selectedDays.size} day(s)`);
+      setDayEntries(prev => prev.map(e =>
+        selectedDays.has(e.dayOfWeek) ? {
+          ...e,
+          availability: botValue,
+          timeFrom: bulkTimeFrom,
+          timeTo: bulkTimeTo,
+          originalTimeFrom: bulkTimeFrom,
+          originalTimeTo: bulkTimeTo,
+        } : e
+      ));
 
-        setDayEntries(prev => prev.map(e =>
-          selectedDays.has(e.dayOfWeek) ? {
-            ...e,
-            availability: botValue,
-            timeFrom: bulkTimeFrom,
-            timeTo: bulkTimeTo,
-            originalTimeFrom: bulkTimeFrom,
-            originalTimeTo: bulkTimeTo,
-          } : e
-        ));
-
-        setSelectedDays(new Set());
-        setBulkTimeFrom('');
-        setBulkTimeTo('');
-      } else {
-        toast.error('Failed to bulk update');
-      }
-    } catch {
+      setSelectedDays(new Set());
+      setBulkTimeFrom('');
+      setBulkTimeTo('');
+    } else {
       toast.error('Failed to bulk update');
-    } finally {
-      setSaving(false);
     }
+    setSaving(false);
   };
 
   const bulkSetUnavailable = async () => {
@@ -370,38 +301,27 @@ export function UserRecurring() {
     }
 
     setSaving(true);
-    try {
+    const success = await hookSetRecurringBulk(Array.from(selectedDays), 'x');
 
+    if (success) {
+      toast.success(`Marked ${selectedDays.size} day(s) as unavailable`);
 
-      const response = await fetch(`${BOT_API_URL}/api/recurring-availability/bulk`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ days: Array.from(selectedDays), availability: 'x', userId: userDiscordId }),
-      });
+      setDayEntries(prev => prev.map(e =>
+        selectedDays.has(e.dayOfWeek) ? {
+          ...e,
+          availability: 'x',
+          timeFrom: '',
+          timeTo: '',
+          originalTimeFrom: '',
+          originalTimeTo: '',
+        } : e
+      ));
 
-      if (response.ok) {
-        toast.success(`Marked ${selectedDays.size} day(s) as unavailable`);
-
-        setDayEntries(prev => prev.map(e =>
-          selectedDays.has(e.dayOfWeek) ? {
-            ...e,
-            availability: 'x',
-            timeFrom: '',
-            timeTo: '',
-            originalTimeFrom: '',
-            originalTimeTo: '',
-          } : e
-        ));
-
-        setSelectedDays(new Set());
-      } else {
-        toast.error('Failed to bulk update');
-      }
-    } catch {
+      setSelectedDays(new Set());
+    } else {
       toast.error('Failed to bulk update');
-    } finally {
-      setSaving(false);
     }
+    setSaving(false);
   };
 
   const toggleDaySelection = (day: number) => {
@@ -421,7 +341,7 @@ export function UserRecurring() {
     }
   };
 
-  if (loading) {
+  if (hookLoading || authLoading) {
     return <PageSpinner />;
   }
 

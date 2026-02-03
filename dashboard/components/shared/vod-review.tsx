@@ -1,19 +1,17 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import YouTube, { YouTubeEvent } from 'react-youtube';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Loader2, MessageSquare, Edit, Trash2, Send, Clock, X, Check, Filter, Hash, User, AtSign } from 'lucide-react';
 import { toast } from 'sonner';
-import { getUser, getAuthHeaders } from '@/lib/auth';
-import { BOT_API_URL } from '@/lib/config';
+import { getUser } from '@/lib/auth';
 import { formatTimestamp, extractTags, getTagColor } from '@/lib/vod-utils';
 import { CommentText } from './vod-comment-text';
 import { MentionInput, type MentionUser } from './vod-mention-input';
-import type { VodComment } from '@/lib/types';
-import { useUserMappings } from '@/hooks';
+import { useUserMappings, useVodComments, type VodComment } from '@/hooks';
 
 interface VodReviewProps {
   videoId: string;
@@ -21,8 +19,10 @@ interface VodReviewProps {
 }
 
 export function VodReview({ videoId, scrimId }: VodReviewProps) {
-  const [comments, setComments] = useState<VodComment[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Use hooks for data fetching
+  const { comments, loading, addComment, updateComment, deleteComment } = useVodComments({ scrimId });
+  const { mappings } = useUserMappings();
+
   const [newComment, setNewComment] = useState('');
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editContent, setEditContent] = useState('');
@@ -31,9 +31,6 @@ export function VodReview({ videoId, scrimId }: VodReviewProps) {
   const [highlightedId, setHighlightedId] = useState<number | null>(null);
   const [videoHeight, setVideoHeight] = useState<number>(0);
   const [isPaused, setIsPaused] = useState(false);
-
-  // Use hook for user mappings (for @mentions)
-  const { mappings } = useUserMappings();
   const mentionUsers: MentionUser[] = useMemo(() =>
     mappings
       .map(u => ({ name: u.displayName, avatarUrl: u.avatarUrl ?? null }))
@@ -111,21 +108,6 @@ export function VodReview({ videoId, scrimId }: VodReviewProps) {
   }, []);
 
 
-  const fetchComments = useCallback(async () => {
-    try {
-      const res = await fetch(`${BOT_API_URL}/api/vod-comments/scrim/${scrimId}`);
-      const data = await res.json();
-      if (data.success) setComments(data.comments);
-    } catch {
-      toast.error('Failed to load comments');
-    } finally {
-      setLoading(false);
-    }
-  }, [scrimId]);
-
-  useEffect(() => {
-    fetchComments();
-  }, [fetchComments]);
 
   // Detect user scroll to disable auto-scroll
   useEffect(() => {
@@ -229,63 +211,30 @@ export function VodReview({ videoId, scrimId }: VodReviewProps) {
 
   const handleAddComment = async () => {
     if (!newComment.trim() || !user) return;
-    try {
-      const res = await fetch(`${BOT_API_URL}/api/vod-comments`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ scrimId, timestamp: currentTime, content: newComment.trim() }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setNewComment('');
-        fetchComments();
-      } else {
-        toast.error(data.error || 'Failed to add comment');
-      }
-    } catch {
+    const result = await addComment(currentTime, newComment.trim());
+    if (result) {
+      setNewComment('');
+    } else {
       toast.error('Failed to add comment');
     }
   };
 
   const handleUpdateComment = async (id: number) => {
     if (!editContent.trim()) return;
-    try {
-      const body: { content: string; timestamp?: number } = { content: editContent.trim() };
-      if (editTimestamp !== null) {
-        body.timestamp = editTimestamp;
-      }
-      const res = await fetch(`${BOT_API_URL}/api/vod-comments/${id}`, {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(body),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setEditingId(null);
-        setEditContent('');
-        setEditTimestamp(null);
-        fetchComments();
-      } else {
-        toast.error(data.error || 'Failed to update comment');
-      }
-    } catch {
+    const timestamp = editTimestamp !== null ? editTimestamp : comments.find(c => c.id === id)?.timestamp ?? 0;
+    const success = await updateComment(id, timestamp, editContent.trim());
+    if (success) {
+      setEditingId(null);
+      setEditContent('');
+      setEditTimestamp(null);
+    } else {
       toast.error('Failed to update comment');
     }
   };
 
   const handleDeleteComment = async (id: number) => {
-    try {
-      const res = await fetch(`${BOT_API_URL}/api/vod-comments/${id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(),
-      });
-      const data = await res.json();
-      if (data.success) {
-        fetchComments();
-      } else {
-        toast.error(data.error || 'Failed to delete comment');
-      }
-    } catch {
+    const success = await deleteComment(id);
+    if (!success) {
       toast.error('Failed to delete comment');
     }
   };

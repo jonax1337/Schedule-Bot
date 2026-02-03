@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,13 +20,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { stagger, microInteractions } from '@/lib/animations';
 import { cn } from '@/lib/utils';
-import { BOT_API_URL } from '@/lib/config';
 import { VodReview } from './vod-review';
 import { type ScrimEntry } from '@/lib/types';
 import { VALORANT_MAPS, MATCH_TYPES } from '@/lib/constants';
 import { getTodayDDMMYYYY, parseDDMMYYYY } from '@/lib/date-utils';
 import { getYouTubeVideoId } from '@/lib/vod-utils';
-import { useScrims } from '@/hooks';
+import { useScrims, useSettings } from '@/hooks';
 
 export function Matches() {
   // Use the scrims hook for data fetching and CRUD
@@ -39,11 +38,13 @@ export function Matches() {
     deleteScrim: deleteScrimApi,
   } = useScrims();
 
+  const { settings } = useSettings({ requireAuth: false });
+  const teamName = settings?.branding?.teamName || 'Our Team';
+
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingScrim, setEditingScrim] = useState<ScrimEntry | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
-  const [teamName, setTeamName] = useState<string>('Our Team');
   const [vodLightbox, setVodLightbox] = useState<{ videoId: string; scrimId: string } | null>(null);
 
   // Filter states
@@ -69,24 +70,6 @@ export function Matches() {
     matchLink: '',
     notes: '',
   });
-
-  useEffect(() => {
-    const fetchTeamName = async () => {
-      try {
-        const response = await fetch(`${BOT_API_URL}/api/settings`)
-        if (response.ok) {
-          const data = await response.json()
-          if (data?.branding?.teamName) {
-            setTeamName(data.branding.teamName)
-          }
-        }
-      } catch (error) {
-        console.error('Failed to fetch team name:', error)
-      }
-    }
-
-    fetchTeamName()
-  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
