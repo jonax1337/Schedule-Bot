@@ -26,10 +26,7 @@ import {
   SidebarMenuButton,
   SidebarSeparator,
 } from "@/components/ui/sidebar"
-import { useBranding } from "@/hooks/use-branding"
-import { useSidebarUserInfo } from "@/hooks/use-sidebar"
-import { getAuthHeaders } from "@/lib/auth"
-import { BOT_API_URL } from "@/lib/config"
+import { useBranding, useSidebarUserInfo, useUserMappings } from "@/hooks"
 
 interface UserSidebarProps extends React.ComponentProps<typeof Sidebar> {
   userName?: string
@@ -39,32 +36,16 @@ interface UserSidebarProps extends React.ComponentProps<typeof Sidebar> {
 export function UserSidebar({ userName, onLogout, ...props }: UserSidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
-  const [isAdmin, setIsAdmin] = React.useState(false)
   const { userRole, avatarUrl } = useSidebarUserInfo(userName ?? null)
   const branding = useBranding()
 
-  React.useEffect(() => {
-    const fetchAdminStatus = async () => {
-      if (!userName) return
-
-      try {
-        const response = await fetch(`${BOT_API_URL}/api/user-mappings`, {
-          headers: getAuthHeaders(),
-        })
-        if (response.ok) {
-          const data = await response.json()
-          const userMapping = data.mappings.find((m: any) => m.displayName === userName)
-          if (userMapping) {
-            setIsAdmin(!!userMapping.isAdmin)
-          }
-        }
-      } catch (error) {
-        console.error('Failed to fetch user role:', error)
-      }
-    }
-
-    fetchAdminStatus()
-  }, [userName])
+  // Use hook to get user mappings and check admin status
+  const { mappings } = useUserMappings()
+  const isAdmin = React.useMemo(() => {
+    if (!userName) return false
+    const userMapping = mappings.find(m => m.displayName === userName)
+    return !!userMapping?.isAdmin
+  }, [mappings, userName])
 
   const [currentTab, setCurrentTab] = React.useState('schedule')
 

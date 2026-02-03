@@ -13,6 +13,7 @@ import { formatTimestamp, extractTags, getTagColor } from '@/lib/vod-utils';
 import { CommentText } from './vod-comment-text';
 import { MentionInput, type MentionUser } from './vod-mention-input';
 import type { VodComment } from '@/lib/types';
+import { useUserMappings } from '@/hooks';
 
 interface VodReviewProps {
   videoId: string;
@@ -30,7 +31,15 @@ export function VodReview({ videoId, scrimId }: VodReviewProps) {
   const [highlightedId, setHighlightedId] = useState<number | null>(null);
   const [videoHeight, setVideoHeight] = useState<number>(0);
   const [isPaused, setIsPaused] = useState(false);
-  const [mentionUsers, setMentionUsers] = useState<MentionUser[]>([]);
+
+  // Use hook for user mappings (for @mentions)
+  const { mappings } = useUserMappings();
+  const mentionUsers: MentionUser[] = useMemo(() =>
+    mappings
+      .map(u => ({ name: u.displayName, avatarUrl: u.avatarUrl ?? null }))
+      .filter(u => u.name),
+    [mappings]
+  );
   const [filterUser, setFilterUser] = useState<string | null>(null);
   const [filterTags, setFilterTags] = useState<string[]>([]);
   const [filterMentioned, setFilterMentioned] = useState<string[]>([]); // [] | ["__all__"] | ["user1", "user2"]
@@ -101,25 +110,6 @@ export function VodReview({ videoId, scrimId }: VodReviewProps) {
     return () => observer.disconnect();
   }, []);
 
-  // Fetch user mappings for @mentions
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch(`${BOT_API_URL}/api/user-mappings`, { headers: getAuthHeaders() });
-        const data = await res.json();
-        if (data.success && Array.isArray(data.mappings)) {
-          setMentionUsers(
-            data.mappings
-              .map((u: { displayName?: string; avatarUrl?: string | null }) => ({
-                name: u.displayName || '',
-                avatarUrl: u.avatarUrl ?? null,
-              }))
-              .filter((u: { name: string }) => u.name)
-          );
-        }
-      } catch { /* ignore */ }
-    })();
-  }, []);
 
   const fetchComments = useCallback(async () => {
     try {

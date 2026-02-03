@@ -22,6 +22,7 @@ import { getAuthHeaders } from '@/lib/auth';
 import { cn } from '@/lib/utils';
 import { BOT_API_URL } from '@/lib/config';
 import type { DiscordMember } from '@/lib/types';
+import { useUserMappings, type RoleType } from '@/hooks';
 
 import {
   DndContext,
@@ -42,18 +43,17 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 
-interface UserMapping {
+// Local interface for component display (lowercase roles)
+interface UserMappingDisplay {
   discordId: string;
   discordUsername: string;
   displayName: string;
-  role: 'main' | 'sub' | 'coach';
+  role: RoleType;
   sortOrder: number;
   timezone?: string | null;
   avatarUrl?: string | null;
   isAdmin?: boolean;
 }
-
-type RoleType = 'main' | 'sub' | 'coach';
 
 const ROLE_CONFIG: Record<RoleType, { label: string; pluralLabel: string; icon: typeof Shield }> = {
   main: {
@@ -79,8 +79,8 @@ function SortableUserItem({
   onEdit,
   onRemove,
 }: {
-  mapping: UserMapping;
-  onEdit: (mapping: UserMapping) => void;
+  mapping: UserMappingDisplay;
+  onEdit: (mapping: UserMappingDisplay) => void;
   onRemove: (discordId: string) => void;
 }) {
   const {
@@ -174,8 +174,8 @@ function RoleGroup({
   index,
 }: {
   role: RoleType;
-  mappings: UserMapping[];
-  onEdit: (mapping: UserMapping) => void;
+  mappings: UserMappingDisplay[];
+  onEdit: (mapping: UserMappingDisplay) => void;
   onRemove: (discordId: string) => void;
   index: number;
 }) {
@@ -220,9 +220,29 @@ function RoleGroup({
 
 // --- Main Component ---
 export function UserMappings() {
+  // Use hook for user mappings CRUD
+  const {
+    mappings: hookMappings,
+    loading,
+    createMapping,
+    updateMapping,
+    deleteMapping,
+    reorderMappings,
+    refetch: refetchMappings,
+  } = useUserMappings();
+
+  // Convert hook mappings (uppercase roles) to display format (lowercase roles)
+  const mappings: UserMappingDisplay[] = useMemo(() =>
+    hookMappings.map(m => ({
+      ...m,
+      role: m.role.toLowerCase() as RoleType,
+      timezone: m.userTimezone,
+    })),
+    [hookMappings]
+  );
+
   const [members, setMembers] = useState<DiscordMember[]>([]);
-  const [mappings, setMappings] = useState<UserMapping[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [membersLoading, setMembersLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [open, setOpen] = useState(false);
   const [inputMode, setInputMode] = useState<'search' | 'manual'>('search');
@@ -238,7 +258,7 @@ export function UserMappings() {
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   // Edit mode state
-  const [editingMapping, setEditingMapping] = useState<UserMapping | null>(null);
+  const [editingMapping, setEditingMapping] = useState<UserMappingDisplay | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editDiscordId, setEditDiscordId] = useState('');
   const [editUsername, setEditUsername] = useState('');
@@ -258,7 +278,7 @@ export function UserMappings() {
 
   // Group mappings by role
   const groupedMappings = useMemo(() => {
-    const groups: Record<RoleType, UserMapping[]> = {
+    const groups: Record<RoleType, UserMappingDisplay[]> = {
       main: [],
       sub: [],
       coach: [],
@@ -267,41 +287,29 @@ export function UserMappings() {
       groups[mapping.role]?.push(mapping);
     }
     // Sort within each group by sortOrder
-    for (const role of Object.keys(groups) as RoleType[]) {
-      groups[role].sort((a, b) => a.sortOrder - b.sortOrder);
+    for (const r of Object.keys(groups) as RoleType[]) {
+      groups[r].sort((a, b) => a.sortOrder - b.sortOrder);
     }
     return groups;
   }, [mappings]);
 
+  // Fetch Discord members (separate from hook)
   useEffect(() => {
-    loadData();
+    const fetchMembers = async () => {
+      try {
+        const membersRes = await fetch(`${BOT_API_URL}/api/discord/members`, { headers: getAuthHeaders() });
+        if (membersRes.ok) {
+          const data = await membersRes.json();
+          setMembers(data.members || []);
+        }
+      } catch (error) {
+        console.error('Failed to load Discord members:', error);
+      } finally {
+        setMembersLoading(false);
+      }
+    };
+    fetchMembers();
   }, []);
-
-  const loadData = async () => {
-    setLoading(true);
-    try {
-
-      const [membersRes, mappingsRes] = await Promise.all([
-        fetch(`${BOT_API_URL}/api/discord/members`, { headers: getAuthHeaders() }),
-        fetch(`${BOT_API_URL}/api/user-mappings`, { headers: getAuthHeaders() }),
-      ]);
-
-      if (membersRes.ok) {
-        const data = await membersRes.json();
-        setMembers(data.members || []);
-      }
-
-      if (mappingsRes.ok) {
-        const data = await mappingsRes.json();
-        setMappings(data.mappings || []);
-      }
-    } catch (error) {
-      console.error('Failed to load data:', error);
-      toast.error('Failed to load user mappings');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const addMapping = async () => {
     let discordId = '';
@@ -337,61 +345,38 @@ export function UserMappings() {
     }
 
     setSaving(true);
-    try {
+    const result = await createMapping({
+      discordId,
+      discordUsername,
+      displayName,
+      role,
+      timezone: timezone || null,
+    });
 
-      const response = await fetch(`${BOT_API_URL}/api/user-mappings`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          discordId,
-          discordUsername,
-          displayName,
-          role,
-          timezone: timezone || null,
-        }),
-      });
-
-      if (response.ok) {
-        toast.success('User mapping added successfully!');
-        setSelectedUserId('');
-        setManualUserId('');
-        setManualUsername('');
-        setDisplayName('');
-        setRole('main');
-        setTimezone('');
-        loadData();
-      } else {
-        toast.error('Failed to add user mapping');
-      }
-    } catch (error) {
-      console.error('Failed to add mapping:', error);
+    if (result) {
+      toast.success('User mapping added successfully!');
+      setSelectedUserId('');
+      setManualUserId('');
+      setManualUsername('');
+      setDisplayName('');
+      setRole('main');
+      setTimezone('');
+    } else {
       toast.error('Failed to add user mapping');
-    } finally {
-      setSaving(false);
     }
+    setSaving(false);
   };
 
   const removeMapping = async (discordId: string) => {
-    try {
-
-      const response = await fetch(`${BOT_API_URL}/api/user-mappings/${discordId}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(),
-      });
-
-      if (response.ok) {
-        toast.success('User mapping removed successfully!');
-        loadData();
-      } else {
-        toast.error('Failed to remove user mapping');
-      }
-    } catch (error) {
-      console.error('Failed to remove mapping:', error);
+    const success = await deleteMapping(discordId);
+    if (success) {
+      toast.success('User mapping removed successfully!');
+    } else {
       toast.error('Failed to remove user mapping');
     }
   };
 
-  const handleEdit = (mapping: UserMapping) => {
+  const handleEdit = (mapping: UserMappingDisplay) => {
     setEditingMapping(mapping);
     setEditDiscordId(mapping.discordId);
     setEditUsername(mapping.discordUsername);
@@ -409,35 +394,23 @@ export function UserMappings() {
     }
 
     setSaving(true);
-    try {
+    const result = await updateMapping(editingMapping.discordId, {
+      discordId: editDiscordId,
+      discordUsername: editUsername,
+      displayName: editDisplayName,
+      role: editRole,
+      timezone: editTimezone || null,
+      isAdmin: editIsAdmin,
+    });
 
-      const response = await fetch(`${BOT_API_URL}/api/user-mappings/${editingMapping.discordId}`, {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          discordId: editDiscordId,
-          discordUsername: editUsername,
-          displayName: editDisplayName,
-          role: editRole,
-          timezone: editTimezone || null,
-          isAdmin: editIsAdmin,
-        }),
-      });
-
-      if (response.ok) {
-        toast.success('User mapping updated successfully!');
-        setEditDialogOpen(false);
-        setEditingMapping(null);
-        loadData();
-      } else {
-        toast.error('Failed to update user mapping');
-      }
-    } catch (error) {
-      console.error('Failed to update mapping:', error);
+    if (result) {
+      toast.success('User mapping updated successfully!');
+      setEditDialogOpen(false);
+      setEditingMapping(null);
+    } else {
       toast.error('Failed to update user mapping');
-    } finally {
-      setSaving(false);
     }
+    setSaving(false);
   };
 
   // --- Drag and Drop Handler ---
@@ -477,35 +450,12 @@ export function UserMappings() {
       sortOrder: baseOffset + i,
     }));
 
-    // Optimistic update: update local state immediately
-    const updatedMappings = mappings.map(m => {
-      const ordering = orderings.find(o => o.discordId === m.discordId);
-      if (ordering) {
-        return { ...m, sortOrder: ordering.sortOrder };
-      }
-      return m;
-    });
-    setMappings(updatedMappings);
-
-    // Persist to backend
-    try {
-
-      const response = await fetch(`${BOT_API_URL}/api/user-mappings/reorder`, {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ orderings }),
-      });
-
-      if (!response.ok) {
-        toast.error('Failed to save new order');
-        loadData(); // Revert on error
-      }
-    } catch (error) {
-      console.error('Failed to reorder:', error);
+    // Use hook's reorder method (handles optimistic update and error revert)
+    const success = await reorderMappings(orderings);
+    if (!success) {
       toast.error('Failed to save new order');
-      loadData(); // Revert on error
     }
-  }, [mappings, groupedMappings]);
+  }, [mappings, groupedMappings, reorderMappings]);
 
   const selectedMember = members.find(m => m.id === selectedUserId);
 

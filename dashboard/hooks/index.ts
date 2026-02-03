@@ -1,5 +1,6 @@
 // Data fetching hooks
-export { useUserMappings, type UserMapping } from './use-user-mappings';
+export { useUserMappings } from './use-user-mappings';
+export type { UserMapping, RoleType, UserMappingCreateData, UserMappingUpdateData } from './use-user-mappings';
 export { useAbsences, type Absence } from './use-absences';
 export { useScrims } from './use-scrims';
 export type { Scrim } from './use-scrims';

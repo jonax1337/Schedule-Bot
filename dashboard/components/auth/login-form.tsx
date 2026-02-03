@@ -23,6 +23,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, UserCircle } from "lucide-react";
 import { toast } from "sonner";
 import { BOT_API_URL } from "@/lib/config";
+import { useUserMappings } from "@/hooks";
 
 interface Settings {
   discord: {
@@ -36,16 +37,14 @@ export function LoginForm({
   ...props
 }: React.ComponentProps<"div"> & { redirectTo?: string | null }) {
   const router = useRouter();
-  const [columns, setColumns] = useState<Array<{ displayName: string; discordId: string }>>([]);
+  const { mappings, loading } = useUserMappings({ requireAuth: false });
   const [selectedUser, setSelectedUser] = useState('');
-  const [loading, setLoading] = useState(true);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [settingsLoading, setSettingsLoading] = useState(true);
   const [discordLoading, setDiscordLoading] = useState(false);
 
   useEffect(() => {
     loadSettings();
-    loadUserMappings();
   }, []);
 
   const loadSettings = async () => {
@@ -59,26 +58,6 @@ export function LoginForm({
       console.error('Failed to load settings:', error);
     } finally {
       setSettingsLoading(false);
-    }
-  };
-
-  const loadUserMappings = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(`${BOT_API_URL}/api/user-mappings`);
-      if (response.ok) {
-        const data = await response.json();
-        // Map to display names for dropdown
-        const mappedUsers = data.mappings.map((m: any) => ({
-          displayName: m.displayName,
-          discordId: m.discordId,
-        }));
-        setColumns(mappedUsers);
-      }
-    } catch (error) {
-      console.error('Failed to load user mappings:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -174,8 +153,8 @@ export function LoginForm({
                       <SelectValue placeholder="Select your name" />
                     </SelectTrigger>
                     <SelectContent position="popper">
-                      {columns.map((user, index) => (
-                        <SelectItem key={user.discordId || index} value={user.displayName}>
+                      {mappings.map((user) => (
+                        <SelectItem key={user.discordId} value={user.displayName}>
                           {user.displayName}
                         </SelectItem>
                       ))}
