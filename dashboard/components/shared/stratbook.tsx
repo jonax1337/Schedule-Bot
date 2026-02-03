@@ -208,6 +208,22 @@ export function Stratbook() {
     return () => { setSubPage(null); };
   }, [setSubPage]);
 
+  const checkPermission = useCallback(() => {
+    const editPerm = settings?.stratbook?.editPermission || 'admin';
+    // Check if current user is admin or if all users can edit
+    const token = getAuthToken();
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        setCanEdit(payload.role === 'admin' || editPerm === 'all');
+      } catch {
+        setCanEdit(false);
+      }
+    } else {
+      setCanEdit(false);
+    }
+  }, [settings]);
+
   useEffect(() => {
     fetchStrats();
     fetchFolders();
@@ -233,22 +249,6 @@ export function Stratbook() {
     const target = strats.find(s => s.id === id);
     if (target) openStrat(target, true);
   }, [strats, stratParam]);
-
-  const checkPermission = useCallback(() => {
-    const editPerm = settings?.stratbook?.editPermission || 'admin';
-    // Check if current user is admin or if all users can edit
-    const token = getAuthToken();
-    if (token) {
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        setCanEdit(payload.role === 'admin' || editPerm === 'all');
-      } catch {
-        setCanEdit(false);
-      }
-    } else {
-      setCanEdit(false);
-    }
-  }, [settings]);
 
   const fetchStrats = async () => {
     try {
