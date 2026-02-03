@@ -239,8 +239,6 @@ async function closeTrainingPoll(messageId: string): Promise<void> {
     const channel = await client.channels.fetch(config.discord.channelId);
     if (!channel || !channel.isTextBased()) return;
 
-    const message = await channel.messages.fetch(messageId);
-
     // Sort options by votes
     const sorted = [...poll.options].sort((a, b) => b.votes.length - a.votes.length);
     const totalVotes = sorted.reduce((sum, opt) => sum + opt.votes.length, 0);
@@ -272,8 +270,15 @@ async function closeTrainingPoll(messageId: string): Promise<void> {
       .setFooter({ text: 'Poll closed' })
       .setTimestamp();
 
-    await message.reactions.removeAll().catch(() => {});
-    await message.edit({ embeds: [embed] });
+    // Delete the original poll message and send results as new message
+    try {
+      const message = await channel.messages.fetch(messageId);
+      await message.delete();
+    } catch {
+      // Message might already be deleted, continue with sending results
+    }
+
+    await (channel as TextChannel).send({ embeds: [embed] });
     activeTrainingPolls.delete(messageId);
 
     logger.info(`Training poll closed for ${poll.date} - Winner timestamp: ${winnerTimestamp}`);

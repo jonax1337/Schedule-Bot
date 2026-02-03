@@ -101,15 +101,12 @@ export function NavUser({
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem asChild onSelect={(e) => e.preventDefault()}>
-                <div className="flex w-full items-center gap-2 px-2 py-1.5">
-                  <Globe className="h-4 w-4 text-muted-foreground shrink-0" />
-                  <TimezonePicker
+                <TimezonePicker
                     value={userTimezone}
                     onChange={setUserTimezone}
                     placeholder={getTimezoneAbbr(userTimezone)}
-                    className="flex-1 h-8 text-sm"
+                    className="flex-1 w-full h-8 text-sm"
                   />
-                </div>
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />

@@ -46,8 +46,11 @@ client.on('messageReactionAdd', async (reaction, user) => {
 
 client.on('messageReactionRemove', async (reaction, user) => {
   if (user.bot) return;
+  // For reaction removal, we don't need to fetch the full reaction data
+  // We have enough info (emoji name, message ID, user ID) to remove the vote
+  // Fetching might fail if this was the last reaction, which is fine
   if (reaction.partial) {
-    try { await reaction.fetch(); } catch { return; }
+    try { await reaction.fetch(); } catch { /* Continue with partial data */ }
   }
   try {
     const { handlePollReaction } = await import('./interactions/polls.js');
