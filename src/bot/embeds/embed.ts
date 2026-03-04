@@ -26,6 +26,9 @@ function formatPlayer(player: PlayerAvailability, date?: string): string {
   if (player.isAbsent) {
     return `✈️ ~~${player.displayName}~~`;
   }
+  if (!player.rawValue || player.rawValue.trim() === '') {
+    return `❓ ${player.displayName}`;
+  }
   return `❌ ~~${player.displayName}~~`;
 }
 
