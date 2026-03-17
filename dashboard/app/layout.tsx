@@ -1,18 +1,27 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter, Space_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme";
 import { Toaster } from "@/components/ui/sonner";
 import { TimezoneProvider } from "@/lib/timezone";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const spaceMono = Space_Mono({
+  variable: "--font-space-mono",
   subsets: ["latin"],
+  weight: ["400", "700"],
+});
+
+const brierBold = localFont({
+  src: "../public/fonts/Brier-Bold.woff2",
+  variable: "--font-brier",
+  weight: "700",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -37,7 +46,7 @@ export default function RootLayout({
         <script src="/unregister-sw.js" defer />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}
+        className={`${inter.variable} ${spaceMono.variable} ${brierBold.variable} font-sans antialiased`}
       >
         <ThemeProvider
           attribute="class"
