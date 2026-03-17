@@ -165,12 +165,19 @@ export function AdminDashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {statusCards.map((card, index) => {
           const Icon = card.icon;
-          const colorClass =
-            card.color === 'green'
-              ? 'text-green-600 dark:text-green-400'
-              : card.color === 'red'
-                ? 'text-red-600 dark:text-red-400'
-                : 'text-muted-foreground';
+          const isGreen = card.color === 'green';
+          const isRed = card.color === 'red';
+          const colorClass = isGreen
+            ? 'text-green-600 dark:text-green-400'
+            : isRed
+              ? 'text-red-600 dark:text-red-400'
+              : 'text-muted-foreground';
+          const iconBgClass = isGreen
+            ? 'bg-green-500/10 text-green-600 dark:bg-green-500/15 dark:text-green-400'
+            : isRed
+              ? 'bg-red-500/10 text-red-600 dark:bg-red-500/15 dark:text-red-400'
+              : 'bg-muted text-muted-foreground';
+          const glowClass = isGreen ? 'glow-green' : isRed ? 'glow-red' : '';
 
           return (
             <Card
@@ -181,68 +188,164 @@ export function AdminDashboard() {
             >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
-                <Icon className="h-4 w-4 text-muted-foreground" />
+                <div className={cn('flex h-8 w-8 items-center justify-center rounded-lg', iconBgClass)}>
+                  <Icon className="h-4 w-4" />
+                </div>
               </CardHeader>
               <CardContent>
-                <div className={cn('text-2xl font-bold', colorClass)}>
-                  {card.value}
+                <div className="flex items-center gap-2">
+                  <div className={cn(
+                    'h-2 w-2 rounded-full',
+                    isGreen ? 'bg-green-500 animate-pulse' : isRed ? 'bg-red-500' : 'bg-muted-foreground',
+                    glowClass
+                  )} />
+                  <div className={cn('text-2xl font-bold', colorClass)}>
+                    {card.value}
+                  </div>
                 </div>
-                <p className="text-xs text-muted-foreground">{card.description}</p>
+                <p className="text-xs text-muted-foreground mt-1">{card.description}</p>
               </CardContent>
             </Card>
           );
         })}
       </div>
 
+      {/* Team Overview Row */}
+      <div className="grid gap-4 md:grid-cols-3">
+        {/* Roster Summary */}
+        <Card className={cn("card-gradient-blue", stagger(0, 'slow', 'slideUpScale'))}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Team Roster</CardTitle>
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <Users className="h-4 w-4" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold">{loading ? '...' : stats?.totalUsers ?? 0}</div>
+            <div className="flex items-center gap-3 mt-2">
+              <span className="text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">{rosterBreakdown.mains}</span> Main
+              </span>
+              <span className="text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">{rosterBreakdown.subs}</span> Sub
+              </span>
+              <span className="text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">{rosterBreakdown.coaches}</span> Coach
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Win Rate */}
+        <Card className={cn("card-gradient-green", stagger(1, 'slow', 'slideUpScale'))}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Win Rate</CardTitle>
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-500/10 text-green-600 dark:bg-green-500/15 dark:text-green-400">
+              <TrendingUp className="h-4 w-4" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className={cn(
+              'text-3xl font-bold tabular-nums',
+              hasScrimData
+                ? overallStats.winRate >= 50
+                  ? 'text-green-600 dark:text-green-400'
+                  : 'text-red-600 dark:text-red-400'
+                : 'text-muted-foreground'
+            )}>
+              {hasScrimData ? `${overallStats.winRate.toFixed(0)}%` : '--'}
+            </div>
+            {hasScrimData ? (
+              <div className="flex items-center gap-3 mt-2">
+                <span className="text-xs"><span className="font-medium text-green-600 dark:text-green-400">{overallStats.wins}W</span></span>
+                <span className="text-xs"><span className="font-medium text-red-600 dark:text-red-400">{overallStats.losses}L</span></span>
+                {overallStats.draws > 0 && (
+                  <span className="text-xs"><span className="font-medium text-muted-foreground">{overallStats.draws}D</span></span>
+                )}
+                <span className="text-xs text-muted-foreground">({overallStats.total} total)</span>
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground mt-2">No match data yet</p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Upcoming Schedules */}
+        <Card className={cn("card-gradient-purple", stagger(2, 'slow', 'slideUpScale'))}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Upcoming</CardTitle>
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-500/10 text-purple-600 dark:bg-purple-500/15 dark:text-purple-400">
+              <Calendar className="h-4 w-4" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold">{loading ? '...' : stats?.upcomingSchedules ?? 0}</div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Scheduled days in the next 14 days
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Quick Actions */}
       <Card className="animate-slideUp">
         <CardHeader>
-          <CardTitle>Quick Actions</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Zap className="h-4 w-4 text-primary" />
+            Quick Actions
+          </CardTitle>
           <CardDescription>Common administrative tasks</CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {[
             {
               href: '/admin?tab=statistics',
               icon: BarChart3,
               title: 'Statistics',
               description: 'Charts & analytics',
+              accent: 'group-hover:text-blue-500',
             },
             {
               href: '/admin?tab=users',
               icon: Users,
               title: 'Manage Users',
               description: 'Add or edit team members',
+              accent: 'group-hover:text-violet-500',
             },
             {
               href: '/admin?tab=schedule',
               icon: Calendar,
               title: 'Edit Schedule',
               description: 'Update schedule reasons',
+              accent: 'group-hover:text-cyan-500',
             },
             {
               href: '/admin?tab=matches',
               icon: Trophy,
               title: 'View Scrims',
               description: 'Match history & stats',
+              accent: 'group-hover:text-amber-500',
             },
             {
               href: '/admin?tab=actions',
               icon: Zap,
               title: 'Bot Actions',
               description: 'Trigger manual actions',
+              accent: 'group-hover:text-emerald-500',
             },
             {
               href: '/admin?tab=settings',
               icon: Settings,
               title: 'Settings',
               description: 'Configure bot settings',
+              accent: 'group-hover:text-slate-500',
             },
             {
               href: '/admin?tab=logs',
               icon: Terminal,
               title: 'View Logs',
               description: 'System activity logs',
+              accent: 'group-hover:text-orange-500',
             },
           ].map((action, index) => {
             const Icon = action.icon;
@@ -251,16 +354,17 @@ export function AdminDashboard() {
                 key={action.title}
                 href={action.href}
                 className={cn(
-                  'flex items-center gap-3 p-4 rounded-lg border hover:bg-accent',
+                  'group flex items-center gap-3 p-4 rounded-lg border hover:bg-accent/50 hover:border-primary/20',
                   stagger(index, 'fast', 'fadeIn'),
                   microInteractions.smooth,
-                  microInteractions.hoverScaleSm
                 )}
               >
-                <Icon className="h-5 w-5 text-primary" />
-                <div>
-                  <div className="font-medium">{action.title}</div>
-                  <div className="text-sm text-muted-foreground">{action.description}</div>
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/8 text-primary transition-colors duration-200">
+                  <Icon className={cn("h-4 w-4 transition-colors duration-200", action.accent)} />
+                </div>
+                <div className="min-w-0">
+                  <div className="font-medium text-sm">{action.title}</div>
+                  <div className="text-xs text-muted-foreground truncate">{action.description}</div>
                 </div>
               </a>
             );

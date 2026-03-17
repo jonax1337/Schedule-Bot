@@ -147,10 +147,10 @@ export function LoginForm({
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card className="animate-scaleIn">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-            <UserCircle className="h-6 w-6 text-primary" />
+          <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-primary/60 shadow-lg shadow-primary/20">
+            <UserCircle className="h-7 w-7 text-primary-foreground" />
           </div>
-          <CardTitle>Login</CardTitle>
+          <CardTitle className="text-xl">Welcome back</CardTitle>
           <CardDescription>
             {settingsLoading 
               ? 'Loading...'

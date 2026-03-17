@@ -460,42 +460,33 @@ export function UserSchedule() {
 
   return (
     <div className="space-y-4">
-      <div className="p-3 bg-muted/50 rounded-lg border animate-fadeIn">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <div className="flex items-center gap-1.5">
-            <div className="w-2.5 h-2.5 rounded-full bg-purple-500" />
-            <span className="text-xs">Off-Day</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
-            <span className="text-xs">Able to play</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-2.5 h-2.5 rounded-full bg-cyan-400" />
-            <span className="text-xs">Almost there</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-2.5 h-2.5 rounded-full bg-yellow-500" />
-            <span className="text-xs">More players needed</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
-            <span className="text-xs">Insufficient players</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-2.5 h-2.5 rounded-full bg-gray-400" />
-            <span className="text-xs">Unknown</span>
-          </div>
+      <div className="p-3 bg-card rounded-lg border animate-fadeIn">
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+          {[
+            { color: 'bg-purple-500', label: 'Off-Day' },
+            { color: 'bg-green-500', label: 'Able to play' },
+            { color: 'bg-cyan-400', label: 'Almost there' },
+            { color: 'bg-yellow-500', label: 'More players needed' },
+            { color: 'bg-red-500', label: 'Insufficient players' },
+            { color: 'bg-muted-foreground/50', label: 'Unknown' },
+          ].map(({ color, label }) => (
+            <div key={label} className="flex items-center gap-1.5">
+              <div className={`w-2 h-2 rounded-full ${color}`} />
+              <span className="text-xs text-muted-foreground">{label}</span>
+            </div>
+          ))}
         </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
         {entries.map((entry, index) => {
           const isTodayDate = isToday(entry.date);
+          const totalPlayers = entry.players.length;
+          const availablePercent = totalPlayers > 0 ? (entry.availability.available / totalPlayers) * 100 : 0;
           let ringClass = '';
-          
+
           if (isTodayDate) {
-            ringClass = 'ring-2 ring-blue-500';
+            ringClass = 'ring-2 ring-primary glow-blue';
           } else if (entry.isOffDay) {
             ringClass = 'ring-1 ring-purple-500/40';
           } else if (loggedInUser) {
@@ -506,25 +497,33 @@ export function UserSchedule() {
             } else if (entry.userStatus === 'unavailable') {
               ringClass = 'ring-1 ring-red-500/40';
             } else {
-              ringClass = 'ring-1 ring-gray-400/40';
+              ringClass = 'ring-1 ring-muted-foreground/20';
             }
           }
-          
+
           return (
             <Card
               key={entry.date}
               className={cn(
-                "cursor-pointer transition-transform duration-300 ease-out hover:scale-[1.03]",
+                "cursor-pointer transition-all duration-300 ease-out hover:scale-[1.03] hover:shadow-md",
                 stagger(index, 'fast', 'slideUpScale'),
                 ringClass,
-                entry.isOffDay && 'bg-purple-500/5 opacity-60'
+                entry.isOffDay && 'bg-purple-500/5 opacity-60',
+                isTodayDate && 'shadow-sm'
               )}
               onClick={() => handleDateClick(entry)}
             >
             <CardHeader className="pb-0">
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-base">{entry.date}</CardTitle>
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-base">{entry.date}</CardTitle>
+                    {isTodayDate && (
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                        Today
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-muted-foreground mb-0">{entry.weekday}</p>
                 </div>
                 {getStatusDot(entry)}
@@ -534,29 +533,47 @@ export function UserSchedule() {
               {entry.isOffDay ? (
                 <div className="py-4"></div>
               ) : (
-                <div className="space-y-0.5">
-                  <div className="flex items-center gap-1.5">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
-                    <span className="text-sm font-medium">{entry.availability.available}</span>
-                    <span className="text-xs text-muted-foreground">available</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <XCircle className="w-3.5 h-3.5 text-red-600" />
-                    <span className="text-sm font-medium">{entry.availability.unavailable}</span>
-                    <span className="text-xs text-muted-foreground">unavailable</span>
-                  </div>
-                  {entry.availability.absent > 0 && (
+                <div className="space-y-1.5">
+                  <div className="space-y-0.5">
                     <div className="flex items-center gap-1.5">
-                      <PlaneTakeoff className="w-3.5 h-3.5 text-purple-500" />
-                      <span className="text-sm font-medium">{entry.availability.absent}</span>
-                      <span className="text-xs text-muted-foreground">absent</span>
+                      <CheckCircle2 className="w-3.5 h-3.5 text-green-600 dark:text-green-400" />
+                      <span className="text-sm font-medium">{entry.availability.available}</span>
+                      <span className="text-xs text-muted-foreground">available</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <XCircle className="w-3.5 h-3.5 text-red-600 dark:text-red-400" />
+                      <span className="text-sm font-medium">{entry.availability.unavailable}</span>
+                      <span className="text-xs text-muted-foreground">unavailable</span>
+                    </div>
+                    {entry.availability.absent > 0 && (
+                      <div className="flex items-center gap-1.5">
+                        <PlaneTakeoff className="w-3.5 h-3.5 text-purple-500 dark:text-purple-400" />
+                        <span className="text-sm font-medium">{entry.availability.absent}</span>
+                        <span className="text-xs text-muted-foreground">absent</span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+                      <span className="text-sm font-medium">{entry.availability.notSet}</span>
+                      <span className="text-xs text-muted-foreground">not set</span>
+                    </div>
+                  </div>
+                  {/* Availability progress bar */}
+                  {totalPlayers > 0 && (
+                    <div className="progress-bar mt-2">
+                      <div
+                        className={cn(
+                          'h-full rounded-full transition-all duration-500',
+                          availablePercent >= 71 ? 'bg-green-500' :
+                          availablePercent >= 57 ? 'bg-cyan-400' :
+                          availablePercent >= 43 ? 'bg-yellow-500' :
+                          availablePercent > 0 ? 'bg-red-500' :
+                          'bg-transparent'
+                        )}
+                        style={{ width: `${availablePercent}%` }}
+                      />
                     </div>
                   )}
-                  <div className="flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5 text-gray-400" />
-                    <span className="text-sm font-medium">{entry.availability.notSet}</span>
-                    <span className="text-xs text-muted-foreground">not set</span>
-                  </div>
                 </div>
               )}
             </CardContent>
@@ -601,32 +618,26 @@ export function UserSchedule() {
               ) : (
                 <>
                 {selectedDate.scheduleDetails && (
-                  <div className="p-3 bg-muted/50 rounded-lg border">
+                  <div className={cn(
+                    "p-3 rounded-lg border",
+                    selectedDate.scheduleDetails.status === 'Able to play' ? 'bg-green-500/5 border-green-500/20' :
+                    selectedDate.scheduleDetails.status === 'Almost there' ? 'bg-cyan-500/5 border-cyan-500/20' :
+                    selectedDate.scheduleDetails.status === 'More players needed' ? 'bg-yellow-500/5 border-yellow-500/20' :
+                    selectedDate.scheduleDetails.status === 'Insufficient players' ? 'bg-red-500/5 border-red-500/20' :
+                    'bg-muted/50 border-border'
+                  )}>
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">Schedule Status</span>
-                      <Badge 
+                      <Badge
                         variant="outline"
-                        className="text-xs"
-                        style={{
-                          backgroundColor: 
-                            selectedDate.scheduleDetails.status === 'Able to play' ? 'rgb(34 197 94 / 0.2)' :
-                            selectedDate.scheduleDetails.status === 'Almost there' ? 'rgb(34 211 238 / 0.25)' :
-                            selectedDate.scheduleDetails.status === 'More players needed' ? 'rgb(234 179 8 / 0.2)' :
-                            selectedDate.scheduleDetails.status === 'Insufficient players' ? 'rgb(239 68 68 / 0.2)' :
-                            'rgb(156 163 175 / 0.2)',
-                          borderColor:
-                            selectedDate.scheduleDetails.status === 'Able to play' ? 'rgb(34 197 94)' :
-                            selectedDate.scheduleDetails.status === 'Almost there' ? 'rgb(34 211 238)' :
-                            selectedDate.scheduleDetails.status === 'More players needed' ? 'rgb(234 179 8)' :
-                            selectedDate.scheduleDetails.status === 'Insufficient players' ? 'rgb(239 68 68)' :
-                            'rgb(156 163 175)',
-                          color:
-                            selectedDate.scheduleDetails.status === 'Able to play' ? 'rgb(22 163 74)' :
-                            selectedDate.scheduleDetails.status === 'Almost there' ? 'rgb(6 182 212)' :
-                            selectedDate.scheduleDetails.status === 'More players needed' ? 'rgb(202 138 4)' :
-                            selectedDate.scheduleDetails.status === 'Insufficient players' ? 'rgb(220 38 38)' :
-                            'rgb(107 114 128)'
-                        }}
+                        className={cn(
+                          "text-xs font-medium",
+                          selectedDate.scheduleDetails.status === 'Able to play' && 'border-green-500/50 bg-green-500/10 text-green-700 dark:text-green-400',
+                          selectedDate.scheduleDetails.status === 'Almost there' && 'border-cyan-500/50 bg-cyan-500/10 text-cyan-700 dark:text-cyan-400',
+                          selectedDate.scheduleDetails.status === 'More players needed' && 'border-yellow-500/50 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400',
+                          selectedDate.scheduleDetails.status === 'Insufficient players' && 'border-red-500/50 bg-red-500/10 text-red-700 dark:text-red-400',
+                          selectedDate.scheduleDetails.status === 'Unknown' && 'border-muted-foreground/30 bg-muted text-muted-foreground'
+                        )}
                       >
                         {selectedDate.scheduleDetails.status}
                       </Badge>
@@ -731,7 +742,7 @@ export function UserSchedule() {
                     </div>
                   )}
 
-                  <div className="space-y-1.5">
+                  <div className="space-y-1">
                     {selectedDate.players
                       .sort((a, b) => {
                         const roleOrder = { main: 0, sub: 1, coach: 2 };
@@ -741,31 +752,36 @@ export function UserSchedule() {
                         <div
                           key={player.name}
                           className={cn(
-                            "flex items-center justify-between p-2 rounded-md border bg-muted/30",
-                            player.status === 'absent' && 'bg-purple-500/10 opacity-60'
+                            "flex items-center justify-between p-2.5 rounded-lg border transition-colors",
+                            player.status === 'available' && 'bg-green-500/5 border-green-500/15',
+                            player.status === 'unavailable' && 'bg-red-500/5 border-red-500/15',
+                            player.status === 'absent' && 'bg-purple-500/5 border-purple-500/15 opacity-60',
+                            player.status === 'not-set' && 'bg-muted/30 border-border',
+                            loggedInUser === player.name && 'accent-border-left'
                           )}
                         >
                           <div className="flex items-center gap-2">
-                            <div className={`w-2 h-2 rounded-full ${
+                            <div className={cn(
+                              'w-2 h-2 rounded-full',
                               player.status === 'available' ? 'bg-green-500' :
                               player.status === 'absent' ? 'bg-purple-500' :
                               player.status === 'unavailable' ? 'bg-red-500' :
-                              'bg-gray-400'
-                            }`} />
+                              'bg-muted-foreground/40'
+                            )} />
                             <span className="text-sm font-medium">{player.name}</span>
                             {player.role && player.role !== 'main' && (
-                              <Badge variant="outline" className="text-xs h-5">
-                                {player.role === 'sub' ? 'Substitute' : player.role === 'coach' ? 'Coach' : player.role}
+                              <Badge variant="outline" className="text-[10px] h-4 px-1.5 text-muted-foreground">
+                                {player.role === 'sub' ? 'Sub' : player.role === 'coach' ? 'Coach' : player.role}
                               </Badge>
                             )}
                           </div>
                           {player.status === 'absent' ? (
-                            <span className="text-xs text-purple-500 font-medium flex items-center gap-1">
+                            <span className="text-xs text-purple-500 dark:text-purple-400 font-medium flex items-center gap-1">
                               <PlaneTakeoff className="w-3 h-3" />
                               Absent
                             </span>
                           ) : player.time ? (
-                            <span className="text-xs text-muted-foreground">{player.time}</span>
+                            <span className="text-xs font-mono text-muted-foreground tabular-nums">{player.time}</span>
                           ) : null}
                         </div>
                       ))}

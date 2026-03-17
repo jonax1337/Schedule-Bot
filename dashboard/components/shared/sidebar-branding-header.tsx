@@ -28,12 +28,12 @@ export function SidebarBrandingHeader({
       <SidebarMenu>
         <SidebarMenuItem>
           <SidebarMenuButton size="lg" onClick={onClick}>
-            <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground flex-shrink-0">
+            <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary/70 text-primary-foreground flex-shrink-0 shadow-sm">
               {logoUrl ? (
                 <img
                   src={logoUrl}
                   alt={title}
-                  className="size-4 object-contain"
+                  className="size-5 object-contain"
                   onError={(e) => {
                     e.currentTarget.style.display = 'none';
                   }}
@@ -43,8 +43,8 @@ export function SidebarBrandingHeader({
               )}
             </div>
             <div className="grid flex-1 text-left text-sm leading-tight">
-              <span className="truncate font-semibold">{title}</span>
-              <span className="truncate text-xs">{subtitle}</span>
+              <span className="truncate font-bold tracking-tight">{title}</span>
+              <span className="truncate text-xs text-muted-foreground">{subtitle}</span>
             </div>
           </SidebarMenuButton>
         </SidebarMenuItem>
