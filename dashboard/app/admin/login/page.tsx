@@ -107,7 +107,7 @@ export default function AdminLogin() {
 
         <Card className="animate-scaleIn border-border/50 dark:border-border/30">
           <CardHeader className="text-center">
-            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-primary/90 to-accent/60 text-primary-foreground shadow-md animate-fadeIn stagger-1">
+            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm animate-fadeIn stagger-1">
               <Shield className="h-6 w-6" />
             </div>
             <CardTitle className="animate-fadeIn stagger-2">Admin Dashboard</CardTitle>
