@@ -89,7 +89,7 @@ export default function AdminLogin() {
   };
 
   return (
-    <div className="flex min-h-svh w-full flex-col items-center justify-center p-6 md:p-10">
+    <div className="flex min-h-svh w-full flex-col items-center justify-center p-6 md:p-10 dark:bg-grid-pattern">
       <div className="w-full max-w-sm">
         <Button
           variant="ghost"
@@ -105,10 +105,10 @@ export default function AdminLogin() {
           Back to Schedule
         </Button>
 
-        <Card className="animate-scaleIn">
+        <Card className="animate-scaleIn border-border/50 dark:border-border/30">
           <CardHeader className="text-center">
-            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 animate-fadeIn stagger-1">
-              <Shield className="h-6 w-6 text-primary" />
+            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-primary/90 to-accent/60 text-primary-foreground shadow-md animate-fadeIn stagger-1">
+              <Shield className="h-6 w-6" />
             </div>
             <CardTitle className="animate-fadeIn stagger-2">Admin Dashboard</CardTitle>
             <CardDescription className="animate-fadeIn stagger-3">

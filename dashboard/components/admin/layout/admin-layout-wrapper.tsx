@@ -72,7 +72,7 @@ function AdminLayoutWrapperInner({ children }: AdminLayoutWrapperProps) {
     <SidebarProvider open={sidebarOpen} onOpenChange={setSidebarOpen}>
       <AdminSidebar userName={userName || undefined} onLogout={handleLogout} />
       <SidebarInset>
-        <header className="flex h-14 shrink-0 items-center gap-2 border-b bg-card/50 backdrop-blur-sm px-4">
+        <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border/50 bg-card/60 backdrop-blur-md px-4">
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
           <Breadcrumb>
@@ -110,7 +110,7 @@ function AdminLayoutWrapperInner({ children }: AdminLayoutWrapperProps) {
             <ThemeToggle />
           </div>
         </header>
-        <div className="flex flex-1 flex-col gap-4 p-4">
+        <div className="flex flex-1 flex-col gap-4 p-4 dark:bg-grid-pattern">
           {children}
         </div>
       </SidebarInset>

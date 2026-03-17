@@ -1,14 +1,15 @@
 import type { Metadata } from "next";
-import { Inter, Space_Mono } from "next/font/google";
+import { Chakra_Petch, Space_Mono } from "next/font/google";
 import localFont from "next/font/local";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme";
 import { Toaster } from "@/components/ui/sonner";
 import { TimezoneProvider } from "@/lib/timezone";
 
-const inter = Inter({
-  variable: "--font-inter",
+const chakraPetch = Chakra_Petch({
+  variable: "--font-chakra-petch",
   subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
 });
 
 const spaceMono = Space_Mono({
@@ -46,7 +47,7 @@ export default function RootLayout({
         <script src="/unregister-sw.js" defer />
       </head>
       <body
-        className={`${inter.variable} ${spaceMono.variable} ${brierBold.variable} font-sans antialiased`}
+        className={`${chakraPetch.variable} ${spaceMono.variable} ${brierBold.variable} font-sans antialiased`}
       >
         <ThemeProvider
           attribute="class"
