@@ -8,6 +8,12 @@
   </p>
 
   <p>
+    <a href="https://jonax1337.github.io/Schedule-Bot/">
+      <img src="https://img.shields.io/badge/📖_Documentation-Visit_Docs-blue?style=for-the-badge" alt="Documentation" />
+    </a>
+  </p>
+
+  <p>
     <a href="https://github.com/jonax1337/schedule-bot/blob/main/LICENSE">
       <img src="https://img.shields.io/github/license/jonax1337/schedule-bot?style=flat-square" alt="License" />
     </a>
@@ -19,11 +25,10 @@
   </p>
 
   <p>
-    <a href="#features">Features</a> &bull;
-    <a href="#quick-start">Quick Start</a> &bull;
-    <a href="#architecture">Architecture</a> &bull;
-    <a href="#discord-commands">Commands</a> &bull;
-    <a href="#deployment">Deployment</a>
+    <a href="https://jonax1337.github.io/Schedule-Bot/guide/getting-started">Quick Start</a> &bull;
+    <a href="https://jonax1337.github.io/Schedule-Bot/api/overview">API Reference</a> &bull;
+    <a href="https://jonax1337.github.io/Schedule-Bot/bot/commands">Commands</a> &bull;
+    <a href="https://jonax1337.github.io/Schedule-Bot/deployment/docker">Deployment</a>
   </p>
 
   <br />
