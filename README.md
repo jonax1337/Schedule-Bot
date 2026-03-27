@@ -14,17 +14,6 @@
   </p>
 
   <p>
-    <a href="https://github.com/jonax1337/schedule-bot/blob/main/LICENSE">
-      <img src="https://img.shields.io/github/license/jonax1337/schedule-bot?style=flat-square" alt="License" />
-    </a>
-    <a href="https://github.com/jonax1337/schedule-bot/releases">
-      <img src="https://img.shields.io/github/v/release/jonax1337/schedule-bot?style=flat-square" alt="Release" />
-    </a>
-    <img src="https://img.shields.io/badge/node-%3E%3D20-brightgreen?style=flat-square" alt="Node.js" />
-    <img src="https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square" alt="PRs Welcome" />
-  </p>
-
-  <p>
     <a href="https://jonax1337.github.io/Schedule-Bot/guide/getting-started">Quick Start</a> &bull;
     <a href="https://jonax1337.github.io/Schedule-Bot/api/overview">API Reference</a> &bull;
     <a href="https://jonax1337.github.io/Schedule-Bot/bot/commands">Commands</a> &bull;
