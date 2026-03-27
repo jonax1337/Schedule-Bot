@@ -5,6 +5,9 @@ hero:
   name: Schedule-Bot
   text: E-Sports Team Management
   tagline: Discord Bot & Web Dashboard fuer professionelles Valorant Team-Scheduling
+  image:
+    src: /logo.png
+    alt: Schedule-Bot Logo
   actions:
     - theme: brand
       text: Erste Schritte

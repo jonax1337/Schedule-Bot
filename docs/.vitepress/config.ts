@@ -7,11 +7,11 @@ export default defineConfig({
   base: '/Schedule-Bot/',
 
   head: [
-    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/Schedule-Bot/logo.svg' }],
+    ['link', { rel: 'icon', type: 'image/png', href: '/Schedule-Bot/logo.png' }],
   ],
 
   themeConfig: {
-    logo: '/logo.svg',
+    logo: '/logo.png',
 
     nav: [
       { text: 'Guide', link: '/guide/getting-started' },
