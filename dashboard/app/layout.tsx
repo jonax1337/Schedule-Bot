@@ -1,27 +1,21 @@
 import type { Metadata } from "next";
-import { Chakra_Petch, Space_Mono } from "next/font/google";
 import localFont from "next/font/local";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme";
 import { Toaster } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { TimezoneProvider } from "@/lib/timezone";
 
-const chakraPetch = Chakra_Petch({
-  variable: "--font-chakra-petch",
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
+const inter = localFont({
+  src: "../public/fonts/Inter.woff2",
+  variable: "--font-sans",
+  display: "swap",
 });
 
-const spaceMono = Space_Mono({
+const spaceMono = localFont({
+  src: "../public/fonts/SpaceMono-Regular.woff2",
   variable: "--font-space-mono",
-  subsets: ["latin"],
-  weight: ["400", "700"],
-});
-
-const brierBold = localFont({
-  src: "../public/fonts/Brier-Bold.woff2",
-  variable: "--font-brier",
-  weight: "700",
+  weight: "400",
   display: "swap",
 });
 
@@ -41,22 +35,22 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning className={`${inter.variable} ${spaceMono.variable}`}>
       <head>
         {/* Unregister any old service workers */}
         <script src="/unregister-sw.js" defer />
       </head>
-      <body
-        className={`${chakraPetch.variable} ${spaceMono.variable} ${brierBold.variable} font-sans antialiased`}
-      >
+      <body className="font-sans antialiased">
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
           enableSystem
         >
-          <TimezoneProvider>
-            {children}
-          </TimezoneProvider>
+          <TooltipProvider>
+            <TimezoneProvider>
+              {children}
+            </TimezoneProvider>
+          </TooltipProvider>
           <Toaster />
         </ThemeProvider>
       </body>
