@@ -15,13 +15,17 @@ export const COLORS = {
 const THUMBNAIL_URL = 'https://cdn-icons-png.flaticon.com/512/3652/3652191.png';
 
 function formatPlayer(player: PlayerAvailability, date?: string): string {
-  if (player.available && player.timeRange) {
+  if (player.available && player.timeRanges && player.timeRanges.length > 0) {
     if (date) {
-      const startTs = convertTimeToUnixTimestamp(date, player.timeRange.start, config.scheduling.timezone);
-      const endTs = convertTimeToUnixTimestamp(date, player.timeRange.end, config.scheduling.timezone);
-      return `✅ ${player.displayName} <t:${startTs}:t> - <t:${endTs}:t>`;
+      const rangeStr = player.timeRanges.map(r => {
+        const startTs = convertTimeToUnixTimestamp(date, r.start, config.scheduling.timezone);
+        const endTs = convertTimeToUnixTimestamp(date, r.end, config.scheduling.timezone);
+        return `<t:${startTs}:t>-<t:${endTs}:t>`;
+      }).join(', ');
+      return `✅ ${player.displayName} ${rangeStr}`;
     }
-    return `✅ ${player.displayName} \`${player.timeRange.start} - ${player.timeRange.end}\``;
+    const rangeStr = player.timeRanges.map(r => `\`${r.start}-${r.end}\``).join(', ');
+    return `✅ ${player.displayName} ${rangeStr}`;
   }
   if (player.isAbsent) {
     return `✈️ ~~${player.displayName}~~`;
@@ -95,7 +99,7 @@ export function buildScheduleEmbed(result: ScheduleResult): EmbedBuilder {
 
   // Subs - only show subs that have a time, are marked unavailable, or are absent
   const subs = schedule.players.filter(p => p.role === 'SUB');
-  const visibleSubs = subs.filter(p => p.timeRange !== null || p.rawValue.toLowerCase() === 'x' || p.isAbsent);
+  const visibleSubs = subs.filter(p => (p.timeRanges !== null && p.timeRanges.length > 0) || p.rawValue.toLowerCase() === 'x' || p.isAbsent);
 
   if (visibleSubs.length > 0) {
     const subLines = visibleSubs.map(p => {
@@ -108,7 +112,7 @@ export function buildScheduleEmbed(result: ScheduleResult): EmbedBuilder {
 
   // Coaches - only show coaches that have a time, are marked unavailable, or are absent
   const coaches = schedule.players.filter(p => p.role === 'COACH');
-  const visibleCoaches = coaches.filter(p => p.timeRange !== null || p.rawValue.toLowerCase() === 'x' || p.isAbsent);
+  const visibleCoaches = coaches.filter(p => (p.timeRanges !== null && p.timeRanges.length > 0) || p.rawValue.toLowerCase() === 'x' || p.isAbsent);
 
   if (visibleCoaches.length > 0) {
     const coachLines = visibleCoaches.map(p => formatPlayer(p, schedule.date)).join('\n');

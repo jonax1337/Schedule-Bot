@@ -142,15 +142,34 @@ export const updateUserMappingSchema = Joi.object({
   isAdmin: Joi.boolean().optional(),
 });
 
+// Custom Joi validator for availability: "x", "X", or comma-separated "HH:MM-HH:MM" segments
+const availabilityValidator = (value: string, helpers: Joi.CustomHelpers) => {
+  if (value === 'x' || value === 'X') return value;
+  const segments = value.split(',').map(s => s.trim());
+  const pattern = /^\d{2}:\d{2}-\d{2}:\d{2}$/;
+  for (const segment of segments) {
+    if (!pattern.test(segment)) {
+      return helpers.error('any.invalid');
+    }
+    const [start, end] = segment.split('-');
+    const [sH, sM] = start.split(':').map(Number);
+    const [eH, eM] = end.split(':').map(Number);
+    if (sH > 23 || sM > 59 || eH > 23 || eM > 59) {
+      return helpers.error('any.invalid');
+    }
+  }
+  return value;
+};
+
 export const recurringAvailabilitySchema = Joi.object({
   dayOfWeek: Joi.number().integer().min(0).max(6).required(),
-  availability: Joi.string().pattern(/^(\d{2}:\d{2}-\d{2}:\d{2}|x|X)$/).required(),
+  availability: Joi.string().custom(availabilityValidator, 'availability validation').required(),
   userId: Joi.string().pattern(/^\d{17,19}$/).optional(),
 });
 
 export const recurringAvailabilityBulkSchema = Joi.object({
   days: Joi.array().items(Joi.number().integer().min(0).max(6)).min(1).max(7).required(),
-  availability: Joi.string().pattern(/^(\d{2}:\d{2}-\d{2}:\d{2}|x|X)$/).required(),
+  availability: Joi.string().custom(availabilityValidator, 'availability validation').required(),
   userId: Joi.string().pattern(/^\d{17,19}$/).optional(),
 });
 

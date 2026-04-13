@@ -65,7 +65,8 @@ export function convertTimeBetweenTimezones(
 }
 
 /**
- * Convert a time range string (HH:MM-HH:MM) between timezones.
+ * Convert a time range string between timezones.
+ * Supports both single ("HH:MM-HH:MM") and multi-window ("HH:MM-HH:MM,HH:MM-HH:MM") formats.
  */
 export function convertTimeRangeBetweenTimezones(
   range: string,
@@ -75,13 +76,18 @@ export function convertTimeRangeBetweenTimezones(
 ): string {
   if (fromTz === toTz) return range;
 
-  const parts = range.split('-').map(s => s.trim());
-  if (parts.length !== 2) return range;
+  // Handle comma-separated multi-window format
+  const segments = range.split(',').map(s => s.trim());
+  const converted = segments.map(segment => {
+    const parts = segment.split('-').map(s => s.trim());
+    if (parts.length !== 2) return segment;
 
-  const start = convertTimeBetweenTimezones(parts[0], date, fromTz, toTz);
-  const end = convertTimeBetweenTimezones(parts[1], date, fromTz, toTz);
+    const start = convertTimeBetweenTimezones(parts[0], date, fromTz, toTz);
+    const end = convertTimeBetweenTimezones(parts[1], date, fromTz, toTz);
+    return `${start}-${end}`;
+  });
 
-  return `${start}-${end}`;
+  return converted.join(',');
 }
 
 /**

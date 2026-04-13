@@ -25,7 +25,7 @@ export function parseSchedule(scheduleData: ScheduleData, absentUserIds?: string
         displayName: p.displayName,
         role: p.role,
         available: false,
-        timeRange: null,
+        timeRanges: null,
         rawValue: 'absent',
         sortOrder: p.sortOrder,
         isAbsent: true,
@@ -34,20 +34,16 @@ export function parseSchedule(scheduleData: ScheduleData, absentUserIds?: string
 
     const availability = p.availability.trim();
 
-    // Parse time range (e.g., "14:00-20:00")
-    const timeMatch = availability.match(/^(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})$/);
+    // Parse time ranges (e.g., "14:00-20:00" or "14:00-16:00,17:00-20:00")
+    const timeRanges = parseTimeRanges(availability);
 
-    if (timeMatch) {
-      const [, startHour, startMin, endHour, endMin] = timeMatch;
+    if (timeRanges.length > 0) {
       return {
         userId: p.userId,
         displayName: p.displayName,
         role: p.role,
         available: true,
-        timeRange: {
-          start: `${startHour.padStart(2, '0')}:${startMin}`,
-          end: `${endHour.padStart(2, '0')}:${endMin}`,
-        },
+        timeRanges,
         rawValue: availability,
         sortOrder: p.sortOrder,
       };
@@ -60,7 +56,7 @@ export function parseSchedule(scheduleData: ScheduleData, absentUserIds?: string
         displayName: p.displayName,
         role: p.role,
         available: false,
-        timeRange: null,
+        timeRanges: null,
         rawValue: availability,
         sortOrder: p.sortOrder,
       };
@@ -72,7 +68,7 @@ export function parseSchedule(scheduleData: ScheduleData, absentUserIds?: string
       displayName: p.displayName,
       role: p.role,
       available: false,
-      timeRange: null,
+      timeRanges: null,
       rawValue: availability,
       sortOrder: p.sortOrder,
     };
@@ -165,33 +161,94 @@ export function analyzeSchedule(schedule: DaySchedule): ScheduleResult {
 }
 
 /**
- * Calculate common time range for all available players
+ * Parse a comma-separated availability string into an array of TimeRange objects.
+ * Handles both single ("14:00-20:00") and multi-window ("14:00-16:00,17:00-20:00") formats.
  */
-function calculateCommonTimeRange(players: PlayerAvailability[]): TimeRange | null {
-  const availablePlayers = players.filter(p => p.available && p.timeRange);
-  
-  if (availablePlayers.length === 0) return null;
+function parseTimeRanges(availability: string): TimeRange[] {
+  const rangePattern = /^(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})$/;
+  const segments = availability.split(',').map(s => s.trim());
+  const ranges: TimeRange[] = [];
 
-  // Find latest start time and earliest end time
-  let latestStart = 0;
-  let earliestEnd = 24 * 60; // 24:00 in minutes
-
-  for (const player of availablePlayers) {
-    if (!player.timeRange) continue;
-    
-    const start = timeToMinutes(player.timeRange.start);
-    const end = timeToMinutes(player.timeRange.end);
-
-    if (start > latestStart) latestStart = start;
-    if (end < earliestEnd) earliestEnd = end;
+  for (const segment of segments) {
+    const match = segment.match(rangePattern);
+    if (match) {
+      const [, startHour, startMin, endHour, endMin] = match;
+      ranges.push({
+        start: `${startHour.padStart(2, '0')}:${startMin}`,
+        end: `${endHour.padStart(2, '0')}:${endMin}`,
+      });
+    }
   }
 
-  // If no overlap, return null
-  if (latestStart >= earliestEnd) return null;
+  return ranges;
+}
+
+/**
+ * Calculate common time range for all available players.
+ * Uses a minute-bitmask approach to handle multiple time windows per player.
+ * Returns the longest contiguous window where ALL players are simultaneously available.
+ */
+function calculateCommonTimeRange(players: PlayerAvailability[]): TimeRange | null {
+  const availablePlayers = players.filter(p => p.available && p.timeRanges && p.timeRanges.length > 0);
+
+  if (availablePlayers.length === 0) return null;
+
+  // Build available minutes set for each player, then intersect
+  let commonMinutes: Set<number> | null = null;
+
+  for (const player of availablePlayers) {
+    if (!player.timeRanges) continue;
+
+    const playerMinutes = new Set<number>();
+    for (const range of player.timeRanges) {
+      const start = timeToMinutes(range.start);
+      const end = timeToMinutes(range.end);
+      for (let m = start; m < end; m++) {
+        playerMinutes.add(m);
+      }
+    }
+
+    if (commonMinutes === null) {
+      commonMinutes = playerMinutes;
+    } else {
+      // Intersect: keep only minutes present in both sets
+      for (const m of commonMinutes) {
+        if (!playerMinutes.has(m)) {
+          commonMinutes.delete(m);
+        }
+      }
+    }
+  }
+
+  if (!commonMinutes || commonMinutes.size === 0) return null;
+
+  // Find the longest contiguous run
+  const sorted = [...commonMinutes].sort((a, b) => a - b);
+  let bestStart = sorted[0];
+  let bestLen = 1;
+  let curStart = sorted[0];
+  let curLen = 1;
+
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i] === sorted[i - 1] + 1) {
+      curLen++;
+    } else {
+      if (curLen > bestLen) {
+        bestStart = curStart;
+        bestLen = curLen;
+      }
+      curStart = sorted[i];
+      curLen = 1;
+    }
+  }
+  if (curLen > bestLen) {
+    bestStart = curStart;
+    bestLen = curLen;
+  }
 
   return {
-    start: minutesToTime(latestStart),
-    end: minutesToTime(earliestEnd),
+    start: minutesToTime(bestStart),
+    end: minutesToTime(bestStart + bestLen),
   };
 }
 

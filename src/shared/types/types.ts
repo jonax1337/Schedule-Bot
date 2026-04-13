@@ -8,7 +8,7 @@ export interface PlayerAvailability {
   displayName: string;
   role: 'MAIN' | 'SUB' | 'COACH';
   available: boolean;
-  timeRange: TimeRange | null;
+  timeRanges: TimeRange[] | null;
   rawValue: string;
   sortOrder: number;
   isAbsent?: boolean; // true if user has an active absence for this date

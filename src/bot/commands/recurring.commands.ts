@@ -69,13 +69,15 @@ export async function handleSetRecurringCommand(interaction: ChatInputCommandInt
       return;
     }
 
-    // Validate time format
+    // Validate time format (supports comma-separated multiple windows)
     const timeValue = timeInput.toLowerCase().trim();
     if (timeValue !== 'x') {
       const timePattern = /^\d{2}:\d{2}-\d{2}:\d{2}$/;
-      if (!timePattern.test(timeValue)) {
+      const segments = timeValue.split(',').map(s => s.trim());
+      const allValid = segments.length > 0 && segments.every(seg => timePattern.test(seg));
+      if (!allValid) {
         await interaction.editReply({
-          content: '❌ Invalid time format. Use `HH:MM-HH:MM` (e.g., `18:00-22:00`) or `x` for unavailable.',
+          content: '❌ Invalid time format. Use `HH:MM-HH:MM` (e.g., `18:00-22:00`) or multiple windows `14:00-16:00,17:00-20:00` or `x` for unavailable.',
         });
         return;
       }

@@ -244,18 +244,57 @@ export function UserSchedule() {
               .map(p => p.time!);
 
             if (times.length > 0) {
-              const timeRanges = times.map(t => {
-                const [start, end] = t.split('-').map(s => s.trim());
-                return { start, end };
+              // Each player may have multiple windows (comma-separated)
+              // Build minute bitmask per player and find the longest common contiguous window
+              const playerMinuteSets = times.map(t => {
+                const minutes = new Set<number>();
+                const segments = t.split(',').map(s => s.trim());
+                for (const seg of segments) {
+                  const parts = seg.split('-').map(s => s.trim());
+                  if (parts.length === 2) {
+                    const [sH, sM] = parts[0].split(':').map(Number);
+                    const [eH, eM] = parts[1].split(':').map(Number);
+                    const start = sH * 60 + sM;
+                    const end = eH * 60 + eM;
+                    for (let m = start; m < end; m++) minutes.add(m);
+                  }
+                }
+                return minutes;
               });
 
-              const latestStart = timeRanges.reduce((max, curr) =>
-                curr.start > max ? curr.start : max, timeRanges[0].start);
-              const earliestEnd = timeRanges.reduce((min, curr) =>
-                curr.end < min ? curr.end : min, timeRanges[0].end);
+              // Intersect all players' minute sets
+              let common = playerMinuteSets[0];
+              for (let i = 1; i < playerMinuteSets.length; i++) {
+                const next = new Set<number>();
+                for (const m of common) {
+                  if (playerMinuteSets[i].has(m)) next.add(m);
+                }
+                common = next;
+              }
 
-              startTime = latestStart;
-              endTime = earliestEnd;
+              if (common.size > 0) {
+                // Find longest contiguous run
+                const sorted = [...common].sort((a, b) => a - b);
+                let bestStart = sorted[0], bestLen = 1;
+                let curStart = sorted[0], curLen = 1;
+                for (let i = 1; i < sorted.length; i++) {
+                  if (sorted[i] === sorted[i - 1] + 1) {
+                    curLen++;
+                  } else {
+                    if (curLen > bestLen) { bestStart = curStart; bestLen = curLen; }
+                    curStart = sorted[i]; curLen = 1;
+                  }
+                }
+                if (curLen > bestLen) { bestStart = curStart; bestLen = curLen; }
+
+                const sH = Math.floor(bestStart / 60);
+                const sM = bestStart % 60;
+                const eTotal = bestStart + bestLen;
+                const eH = Math.floor(eTotal / 60);
+                const eM = eTotal % 60;
+                startTime = `${String(sH).padStart(2, '0')}:${String(sM).padStart(2, '0')}`;
+                endTime = `${String(eH).padStart(2, '0')}:${String(eM).padStart(2, '0')}`;
+              }
             }
           } else if (available === 4) {
             status = 'Almost there';
@@ -346,9 +385,11 @@ export function UserSchedule() {
 
     const userPlayer = selectedDate.players.find(p => p.name === loggedInUser);
     if (userPlayer && userPlayer.status === 'available' && userPlayer.time) {
-      const [from, to] = userPlayer.time.split('-').map(t => t.trim());
-      setEditTimeFrom(from);
-      setEditTimeTo(to);
+      // Take the first window for editing (multi-window edit supported via Availability page)
+      const firstWindow = userPlayer.time.split(',')[0].trim();
+      const parts = firstWindow.split('-').map(t => t.trim());
+      setEditTimeFrom(parts[0] || '');
+      setEditTimeTo(parts[1] || '');
       setEditStatus('available');
     } else if (userPlayer && userPlayer.status === 'unavailable') {
       setEditTimeFrom('');

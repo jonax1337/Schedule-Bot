@@ -14,19 +14,26 @@ import { logger } from '../shared/utils/logger.js';
 const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 /**
- * Validate availability format: "HH:MM-HH:MM" or "x"
+ * Validate availability format: "HH:MM-HH:MM" or comma-separated "HH:MM-HH:MM,HH:MM-HH:MM" or "x"
  */
 function isValidAvailability(value: string): boolean {
   if (value.toLowerCase() === 'x') return true;
+
+  const segments = value.split(',').map(s => s.trim());
+  if (segments.length === 0) return false;
+
   const timeRangePattern = /^\d{2}:\d{2}-\d{2}:\d{2}$/;
-  if (!timeRangePattern.test(value)) return false;
 
-  const [start, end] = value.split('-');
-  const [startH, startM] = start.split(':').map(Number);
-  const [endH, endM] = end.split(':').map(Number);
+  for (const segment of segments) {
+    if (!timeRangePattern.test(segment)) return false;
 
-  if (startH < 0 || startH > 23 || startM < 0 || startM > 59) return false;
-  if (endH < 0 || endH > 23 || endM < 0 || endM > 59) return false;
+    const [start, end] = segment.split('-');
+    const [startH, startM] = start.split(':').map(Number);
+    const [endH, endM] = end.split(':').map(Number);
+
+    if (startH < 0 || startH > 23 || startM < 0 || startM > 59) return false;
+    if (endH < 0 || endH > 23 || endM < 0 || endM > 59) return false;
+  }
 
   return true;
 }

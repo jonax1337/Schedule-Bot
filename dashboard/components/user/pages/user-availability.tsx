@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2, XCircle, Clock, CheckSquare, Check, PlaneTakeoff, CalendarDays, RefreshCw, Trash2 } from 'lucide-react';
+import { Loader2, XCircle, Clock, CheckSquare, Check, PlaneTakeoff, CalendarDays, RefreshCw, Trash2, Minus } from 'lucide-react';
 import { PageSpinner } from '@/components/ui/page-spinner';
 import { toast } from 'sonner';
 import { stagger, microInteractions } from '@/lib/animations';
@@ -34,13 +34,16 @@ function isDateInAbsence(date: string, absences: AbsenceData[]): boolean {
   });
 }
 
+interface TimeWindow {
+  from: string;
+  to: string;
+}
+
 interface DateEntry {
   date: string;
   value: string;
-  timeFrom: string;
-  timeTo: string;
-  originalTimeFrom: string;
-  originalTimeTo: string;
+  windows: TimeWindow[];
+  originalWindows: TimeWindow[];
   isSaving?: boolean;
   justSaved?: boolean;
   isRecurring?: boolean;
@@ -127,25 +130,28 @@ export function UserAvailability() {
         const recurringValue = recurringMap.get(dayOfWeek);
         const isRecurring = !!(availability && recurringValue && availability === recurringValue);
 
-        let timeFrom = '';
-        let timeTo = '';
+        let windows: TimeWindow[] = [{ from: '', to: '' }];
 
         if (availability && availability !== 'x' && availability.includes('-')) {
           const localRange = convertRangeToLocal(availability);
-          const parts = localRange.split('-');
-          if (parts.length === 2) {
-            timeFrom = parts[0].trim();
-            timeTo = parts[1].trim();
+          const segments = localRange.split(',');
+          const parsed: TimeWindow[] = [];
+          for (const segment of segments) {
+            const parts = segment.trim().split('-');
+            if (parts.length === 2) {
+              parsed.push({ from: parts[0].trim(), to: parts[1].trim() });
+            }
+          }
+          if (parsed.length > 0) {
+            windows = parsed;
           }
         }
 
         dateEntries.push({
           date: dateStr,
           value: availability,
-          timeFrom,
-          timeTo,
-          originalTimeFrom: timeFrom,
-          originalTimeTo: timeTo,
+          windows,
+          originalWindows: windows.map(w => ({ ...w })),
           isRecurring,
         });
       }
@@ -201,48 +207,54 @@ export function UserAvailability() {
     }
   };
 
-  const saveEntry = async (date: string, timeFrom: string, timeTo: string, isAutoSave = false) => {
-    if (!timeFrom || !timeTo) {
+  const saveEntry = async (date: string, windows: TimeWindow[], isAutoSave = false) => {
+    const completeWindows = windows.filter(w => w.from && w.to);
+    if (completeWindows.length === 0) {
       if (!isAutoSave) toast.error('Please enter both start and end time');
       return;
     }
-    if (timeTo <= timeFrom) {
-      if (!isAutoSave) toast.error('End time must be after start time');
-      return;
-    }
-    const localValue = `${timeFrom}-${timeTo}`;
+    const localValue = completeWindows.map(w => `${w.from}-${w.to}`).join(',');
     const botValue = convertRangeToBot(localValue);
     await updateEntry(date, botValue, {
-      value: localValue, originalTimeFrom: timeFrom, originalTimeTo: timeTo,
+      value: botValue,
+      originalWindows: completeWindows.map(w => ({ ...w })),
     }, { successMsg: 'Availability updated!', silent: isAutoSave });
   };
 
   const clearAvailability = async (date: string, isAutoSave = true) => {
     await updateEntry(date, '', {
-      value: '', timeFrom: '', timeTo: '', originalTimeFrom: '', originalTimeTo: '',
+      value: '',
+      windows: [{ from: '', to: '' }],
+      originalWindows: [{ from: '', to: '' }],
     }, { successMsg: 'Availability cleared', silent: isAutoSave });
   };
 
   const setUnavailable = async (date: string) => {
     await updateEntry(date, 'x', {
-      value: 'x', timeFrom: '', timeTo: '', originalTimeFrom: '', originalTimeTo: '',
+      value: 'x',
+      windows: [{ from: '', to: '' }],
+      originalWindows: [{ from: '', to: '' }],
     }, { successMsg: 'Marked as not available' });
   };
 
   const clearEntry = async (date: string) => {
     await updateEntry(date, '', {
-      value: '', timeFrom: '', timeTo: '', originalTimeFrom: '', originalTimeTo: '', isRecurring: false,
+      value: '',
+      windows: [{ from: '', to: '' }],
+      originalWindows: [{ from: '', to: '' }],
+      isRecurring: false,
     });
   };
 
-  const handleTimeChange = (date: string, field: 'from' | 'to', value: string) => {
+  const handleTimeChange = (date: string, windowIndex: number, field: 'from' | 'to', value: string) => {
     // Update local state immediately
-    setEntries(prev => prev.map(e =>
-      e.date === date ? {
-        ...e,
-        [field === 'from' ? 'timeFrom' : 'timeTo']: value
-      } : e
-    ));
+    setEntries(prev => prev.map(e => {
+      if (e.date !== date) return e;
+      const newWindows = e.windows.map((w, i) =>
+        i === windowIndex ? { ...w, [field]: value } : w
+      );
+      return { ...e, windows: newWindows };
+    }));
 
     // Clear existing timeout for this date
     if (autoSaveTimeoutsRef.current[date]) {
@@ -254,16 +266,50 @@ export function UserAvailability() {
       // Get the updated entry
       setEntries(current => {
         const entry = current.find(e => e.date === date);
-        if (entry && entry.timeFrom && entry.timeTo) {
-          // Both fields are filled, trigger auto-save
-          saveEntry(date, entry.timeFrom, entry.timeTo, true);
-        } else if (entry && !entry.timeFrom && !entry.timeTo && entry.value) {
-          // Both fields are empty but there was a previous value - clear it
-          clearAvailability(date);
+        if (entry) {
+          const firstWindow = entry.windows[0];
+          if (firstWindow && firstWindow.from && firstWindow.to) {
+            // At least first window is filled, trigger auto-save
+            saveEntry(date, entry.windows, true);
+          } else if (firstWindow && !firstWindow.from && !firstWindow.to && entry.value) {
+            // First window is empty but there was a previous value - clear it
+            clearAvailability(date);
+          }
         }
         return current;
       });
     }, 1000); // Wait 1 second after last keystroke
+  };
+
+  const addWindow = (date: string) => {
+    setEntries(prev => prev.map(e =>
+      e.date === date ? { ...e, windows: [...e.windows, { from: '', to: '' }] } : e
+    ));
+  };
+
+  const removeWindow = (date: string, index: number) => {
+    setEntries(prev => prev.map(e => {
+      if (e.date !== date || e.windows.length <= 1) return e;
+      const newWindows = e.windows.filter((_, i) => i !== index);
+      return { ...e, windows: newWindows };
+    }));
+
+    // Trigger auto-save after removal
+    if (autoSaveTimeoutsRef.current[date]) {
+      clearTimeout(autoSaveTimeoutsRef.current[date]);
+    }
+    autoSaveTimeoutsRef.current[date] = setTimeout(() => {
+      setEntries(current => {
+        const entry = current.find(e => e.date === date);
+        if (entry) {
+          const firstWindow = entry.windows[0];
+          if (firstWindow && firstWindow.from && firstWindow.to) {
+            saveEntry(date, entry.windows, true);
+          }
+        }
+        return current;
+      });
+    }, 1000);
   };
 
   // Bulk Edit Functions
@@ -334,17 +380,22 @@ export function UserAvailability() {
     const localValue = `${bulkTimeFrom}-${bulkTimeTo}`;
     const botValue = convertRangeToBot(localValue);
     await bulkUpdate(botValue, {
-      value: localValue, timeFrom: bulkTimeFrom, timeTo: bulkTimeTo,
-      originalTimeFrom: bulkTimeFrom, originalTimeTo: bulkTimeTo,
+      value: botValue,
+      windows: [{ from: bulkTimeFrom, to: bulkTimeTo }],
+      originalWindows: [{ from: bulkTimeFrom, to: bulkTimeTo }],
     }, `Updated ${selectedDates.size} day(s)`);
   };
 
   const bulkSetUnavailable = () => bulkUpdate('x', {
-    value: 'x', timeFrom: '', timeTo: '', originalTimeFrom: '', originalTimeTo: '',
+    value: 'x',
+    windows: [{ from: '', to: '' }],
+    originalWindows: [{ from: '', to: '' }],
   }, `Marked ${selectedDates.size} day(s) as unavailable`);
 
   const bulkClear = () => bulkUpdate('', {
-    value: '', timeFrom: '', timeTo: '', originalTimeFrom: '', originalTimeTo: '',
+    value: '',
+    windows: [{ from: '', to: '' }],
+    originalWindows: [{ from: '', to: '' }],
   }, `Cleared ${selectedDates.size} day(s)`);
 
   if (loading) {
@@ -440,8 +491,7 @@ export function UserAvailability() {
               <col className="w-10" />
               <col className="w-[100px]" />
               <col className="w-[100px]" />
-              <col className="w-[140px]" />
-              <col className="w-[140px]" />
+              <col className="w-[320px]" />
               <col />
               <col className="w-[180px]" />
             </colgroup>
@@ -456,8 +506,7 @@ export function UserAvailability() {
                 </TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Weekday</TableHead>
-                <TableHead>From</TableHead>
-                <TableHead>To</TableHead>
+                <TableHead>Time</TableHead>
                 <TableHead>Current Status</TableHead>
                 <TableHead></TableHead>
               </TableRow>
@@ -491,22 +540,19 @@ export function UserAvailability() {
                     <TableCell className="text-muted-foreground">{getWeekdayName(entry.date)}</TableCell>
                     {isAbsent ? (
                       <>
-                        <TableCell>
-                          <div className="relative">
+                        <TableCell colSpan={2}>
+                          <div className="flex items-center gap-2">
                             <Input
                               type="time"
                               value=""
-                              className="w-32 opacity-40 cursor-not-allowed"
+                              className="w-28 opacity-40 cursor-not-allowed"
                               disabled
                             />
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="relative">
+                            <span className="text-muted-foreground text-xs">-</span>
                             <Input
                               type="time"
                               value=""
-                              className="w-32 opacity-40 cursor-not-allowed"
+                              className="w-28 opacity-40 cursor-not-allowed"
                               disabled
                             />
                           </div>
@@ -521,26 +567,46 @@ export function UserAvailability() {
                       </>
                     ) : (
                       <>
-                        <TableCell>
-                          <div className="relative">
-                            <Input
-                              type="time"
-                              value={entry.timeFrom}
-                              onChange={(e) => handleTimeChange(entry.date, 'from', e.target.value)}
-                              className={cn("w-32", microInteractions.focusRing)}
+                        <TableCell colSpan={2}>
+                          <div className="space-y-1">
+                            {entry.windows.map((window, windowIdx) => (
+                              <div key={windowIdx} className="flex items-center gap-2">
+                                <Input
+                                  type="time"
+                                  value={window.from}
+                                  onChange={(e) => handleTimeChange(entry.date, windowIdx, 'from', e.target.value)}
+                                  className={cn("w-28", microInteractions.focusRing)}
+                                  disabled={entry.isSaving}
+                                />
+                                <span className="text-muted-foreground text-xs">-</span>
+                                <Input
+                                  type="time"
+                                  value={window.to}
+                                  onChange={(e) => handleTimeChange(entry.date, windowIdx, 'to', e.target.value)}
+                                  className={cn("w-28", microInteractions.focusRing)}
+                                  disabled={entry.isSaving}
+                                />
+                                {windowIdx > 0 && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => removeWindow(entry.date, windowIdx)}
+                                    className="h-7 w-7 p-0"
+                                  >
+                                    <Minus className="w-3 h-3" />
+                                  </Button>
+                                )}
+                              </div>
+                            ))}
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => addWindow(entry.date)}
+                              className="h-6 text-xs text-muted-foreground"
                               disabled={entry.isSaving}
-                            />
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="relative">
-                            <Input
-                              type="time"
-                              value={entry.timeTo}
-                              onChange={(e) => handleTimeChange(entry.date, 'to', e.target.value)}
-                              className={cn("w-32", microInteractions.focusRing)}
-                              disabled={entry.isSaving}
-                            />
+                            >
+                              + Add break
+                            </Button>
                           </div>
                         </TableCell>
                         <TableCell>

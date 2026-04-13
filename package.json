@@ -41,6 +41,7 @@
   "dependencies": {
     "@prisma/adapter-pg": "^7.3.0",
     "@prisma/client": "^7.3.0",
+    "@rollup/rollup-linux-x64-gnu": "^4.60.1",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "bcrypt": "^6.0.0",

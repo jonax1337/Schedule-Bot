@@ -47,6 +47,20 @@ describe('convertTimeRangeBetweenTimezones', () => {
   it('returns invalid range unchanged', () => {
     expect(convertTimeRangeBetweenTimezones('invalid', '15.01.2026', 'UTC', 'Europe/Berlin')).toBe('invalid');
   });
+
+  it('converts multi-window range from Berlin to UTC', () => {
+    const result = convertTimeRangeBetweenTimezones('14:00-16:00,17:00-20:00', '15.01.2026', 'Europe/Berlin', 'UTC');
+    expect(result).toBe('13:00-15:00,16:00-19:00');
+  });
+
+  it('converts three-window range', () => {
+    const result = convertTimeRangeBetweenTimezones('10:00-12:00,14:00-16:00,18:00-20:00', '15.01.2026', 'Europe/Berlin', 'UTC');
+    expect(result).toBe('09:00-11:00,13:00-15:00,17:00-19:00');
+  });
+
+  it('returns same multi-window range when timezones are identical', () => {
+    expect(convertTimeRangeBetweenTimezones('14:00-16:00,17:00-20:00', '15.01.2026', 'UTC', 'UTC')).toBe('14:00-16:00,17:00-20:00');
+  });
 });
 
 describe('isValidTimezone', () => {

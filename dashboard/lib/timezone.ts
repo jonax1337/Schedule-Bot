@@ -49,18 +49,25 @@ export function convertTime(time: string, fromTz: string, toTz: string): string 
 }
 
 /**
- * Convert a time range "HH:MM-HH:MM" between timezones.
+ * Convert a time range between timezones.
+ * Supports both single ("HH:MM-HH:MM") and multi-window ("HH:MM-HH:MM,HH:MM-HH:MM") formats.
  */
 export function convertTimeRange(range: string, fromTz: string, toTz: string): string {
   if (!range || fromTz === toTz) return range;
   if (range === 'x' || range === 'X' || range === '') return range;
 
-  const parts = range.split('-').map(s => s.trim());
-  if (parts.length !== 2) return range;
+  // Handle comma-separated multi-window format
+  const segments = range.split(',').map(s => s.trim());
+  const converted = segments.map(segment => {
+    const parts = segment.split('-').map(s => s.trim());
+    if (parts.length !== 2) return segment;
 
-  const start = convertTime(parts[0], fromTz, toTz);
-  const end = convertTime(parts[1], fromTz, toTz);
-  return `${start}-${end}`;
+    const start = convertTime(parts[0], fromTz, toTz);
+    const end = convertTime(parts[1], fromTz, toTz);
+    return `${start}-${end}`;
+  });
+
+  return converted.join(',');
 }
 
 /**

@@ -116,6 +116,15 @@ export function createTimeInputModal(date: string): ModalBuilder {
           .setPlaceholder('20:00')
           .setRequired(true)
           .setMaxLength(5)
+      ),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder()
+          .setCustomId('additional_windows')
+          .setLabel('Additional windows (optional)')
+          .setStyle(TextInputStyle.Short)
+          .setPlaceholder('17:00-20:00, 21:00-23:00')
+          .setRequired(false)
+          .setMaxLength(100)
       )
     );
 }
@@ -272,7 +281,37 @@ export async function handleTimeModal(
     return;
   }
 
+  // Build primary window
   let timeRange = `${startTime}-${endTime}`;
+
+  // Parse optional additional windows
+  let additionalWindows = '';
+  try {
+    additionalWindows = interaction.fields.getTextInputValue('additional_windows')?.trim() || '';
+  } catch {
+    // Field may not exist in older modals
+  }
+
+  if (additionalWindows) {
+    // Parse and validate additional windows (comma-separated "HH:MM-HH:MM" segments)
+    const segments = additionalWindows.split(',').map(s => s.trim()).filter(Boolean);
+    const windowPattern = /^(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})$/;
+    const validSegments: string[] = [];
+
+    for (const seg of segments) {
+      if (!windowPattern.test(seg)) {
+        await interaction.editReply({
+          content: `❌ Invalid additional window format: "${seg}". Use HH:MM-HH:MM (e.g. 17:00-20:00).`,
+        });
+        return;
+      }
+      validSegments.push(seg);
+    }
+
+    if (validSegments.length > 0) {
+      timeRange = `${timeRange},${validSegments.join(',')}`;
+    }
+  }
 
   // Convert from user's timezone to bot timezone if user has a timezone set
   const userTz = userMapping.timezone;
@@ -289,12 +328,16 @@ export async function handleTimeModal(
 
   if (success) {
     const normalizedDate = normalizeDateFormat(date);
-    // Use the converted (bot TZ) times for Discord timestamps
-    const convertedParts = timeRange.split('-');
-    const startTs = convertTimeToUnixTimestamp(date, convertedParts[0], botTz);
-    const endTs = convertTimeToUnixTimestamp(date, convertedParts[1], botTz);
+    // Format all windows with Discord timestamps
+    const windowSegments = timeRange.split(',').map(s => s.trim());
+    const formattedWindows = windowSegments.map(seg => {
+      const parts = seg.split('-');
+      const startTs = convertTimeToUnixTimestamp(date, parts[0], botTz);
+      const endTs = convertTimeToUnixTimestamp(date, parts[1], botTz);
+      return `<t:${startTs}:t> - <t:${endTs}:t>`;
+    });
     await interaction.editReply({
-      content: `✅ Your availability for ${normalizedDate} has been set to <t:${startTs}:t> - <t:${endTs}:t>.`,
+      content: `✅ Your availability for ${normalizedDate} has been set to ${formattedWindows.join(', ')}.`,
     });
 
     // Check and notify status change (fire and forget)
@@ -436,15 +479,18 @@ export async function sendMySchedule(
         if (entry.value === 'x') {
           status = '❌ Not available';
         } else {
-          // Convert time range to Discord timestamps
-          const parts = entry.value.split('-').map((s: string) => s.trim());
-          if (parts.length === 2) {
-            const startTs = convertTimeToUnixTimestamp(date, parts[0], config.scheduling.timezone);
-            const endTs = convertTimeToUnixTimestamp(date, parts[1], config.scheduling.timezone);
-            status = `✅ <t:${startTs}:t> - <t:${endTs}:t>`;
-          } else {
-            status = `✅ ${entry.value}`;
-          }
+          // Convert time range(s) to Discord timestamps
+          const windowSegments = entry.value.split(',').map((s: string) => s.trim());
+          const formattedWindows = windowSegments.map((seg: string) => {
+            const parts = seg.split('-').map((s: string) => s.trim());
+            if (parts.length === 2) {
+              const startTs = convertTimeToUnixTimestamp(date, parts[0], config.scheduling.timezone);
+              const endTs = convertTimeToUnixTimestamp(date, parts[1], config.scheduling.timezone);
+              return `<t:${startTs}:t> - <t:${endTs}:t>`;
+            }
+            return seg;
+          });
+          status = `✅ ${formattedWindows.join(', ')}`;
         }
       } else {
         status = '⚪ No entry';

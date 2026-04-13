@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { Loader2, RefreshCw, Trash2, Clock, XCircle, Check, CheckSquare } from 'lucide-react';
+import { Loader2, RefreshCw, Trash2, Clock, XCircle, Check, CheckSquare, Minus } from 'lucide-react';
 import { PageSpinner } from '@/components/ui/page-spinner';
 import { toast } from 'sonner';
 import { stagger, microInteractions } from '@/lib/animations';
@@ -26,12 +26,15 @@ interface RecurringEntry {
   active: boolean;
 }
 
+interface TimeWindow {
+  from: string;
+  to: string;
+}
+
 interface DayEntry {
   dayOfWeek: number;
-  timeFrom: string;
-  timeTo: string;
-  originalTimeFrom: string;
-  originalTimeTo: string;
+  windows: TimeWindow[];
+  originalWindows: TimeWindow[];
   availability: string;
   isSaving?: boolean;
   justSaved?: boolean;
@@ -92,25 +95,29 @@ export function UserRecurring() {
       // Build day entries for all 7 days
       const newDayEntries: DayEntry[] = DAY_ORDER.map(dayOfWeek => {
         const entry = entries.find(e => e.dayOfWeek === dayOfWeek);
-        let timeFrom = '';
-        let timeTo = '';
         const availability = entry?.availability || '';
+
+        let windows: TimeWindow[] = [{ from: '', to: '' }];
 
         if (availability && availability !== 'x' && availability.includes('-')) {
           const localRange = convertRangeToLocal(availability);
-          const parts = localRange.split('-');
-          if (parts.length === 2) {
-            timeFrom = parts[0].trim();
-            timeTo = parts[1].trim();
+          const segments = localRange.split(',');
+          const parsed: TimeWindow[] = [];
+          for (const segment of segments) {
+            const parts = segment.trim().split('-');
+            if (parts.length === 2) {
+              parsed.push({ from: parts[0].trim(), to: parts[1].trim() });
+            }
+          }
+          if (parsed.length > 0) {
+            windows = parsed;
           }
         }
 
         return {
           dayOfWeek,
-          timeFrom,
-          timeTo,
-          originalTimeFrom: timeFrom,
-          originalTimeTo: timeTo,
+          windows,
+          originalWindows: windows.map(w => ({ ...w })),
           availability,
         };
       });
@@ -123,17 +130,11 @@ export function UserRecurring() {
     }
   };
 
-  const saveDay = async (dayOfWeek: number, timeFrom: string, timeTo: string, isAutoSave = false) => {
-    if (!timeFrom || !timeTo) {
+  const saveDay = async (dayOfWeek: number, windows: TimeWindow[], isAutoSave = false) => {
+    const completeWindows = windows.filter(w => w.from && w.to);
+    if (completeWindows.length === 0) {
       if (!isAutoSave) {
         toast.error('Please enter both start and end time');
-      }
-      return;
-    }
-
-    if (timeTo <= timeFrom) {
-      if (!isAutoSave) {
-        toast.error('End time must be after start time');
       }
       return;
     }
@@ -144,9 +145,8 @@ export function UserRecurring() {
     ));
 
     try {
-      const localValue = `${timeFrom}-${timeTo}`;
+      const localValue = completeWindows.map(w => `${w.from}-${w.to}`).join(',');
       const botValue = convertRangeToBot(localValue);
-
 
       const response = await fetch(`${BOT_API_URL}/api/recurring-availability`, {
         method: 'POST',
@@ -163,8 +163,7 @@ export function UserRecurring() {
           e.dayOfWeek === dayOfWeek ? {
             ...e,
             availability: botValue,
-            originalTimeFrom: timeFrom,
-            originalTimeTo: timeTo,
+            originalWindows: completeWindows.map(w => ({ ...w })),
             isSaving: false,
             justSaved: true,
           } : e
@@ -195,8 +194,6 @@ export function UserRecurring() {
     ));
 
     try {
-
-
       const response = await fetch(`${BOT_API_URL}/api/recurring-availability`, {
         method: 'POST',
         headers: getAuthHeaders(),
@@ -209,10 +206,8 @@ export function UserRecurring() {
           e.dayOfWeek === dayOfWeek ? {
             ...e,
             availability: 'x',
-            timeFrom: '',
-            timeTo: '',
-            originalTimeFrom: '',
-            originalTimeTo: '',
+            windows: [{ from: '', to: '' }],
+            originalWindows: [{ from: '', to: '' }],
             isSaving: false,
             justSaved: true,
           } : e
@@ -243,8 +238,6 @@ export function UserRecurring() {
     ));
 
     try {
-
-
       const response = await fetch(`${BOT_API_URL}/api/recurring-availability/${dayOfWeek}?userId=${userDiscordId}`, {
         method: 'DELETE',
         headers: getAuthHeaders(),
@@ -255,10 +248,8 @@ export function UserRecurring() {
           e.dayOfWeek === dayOfWeek ? {
             ...e,
             availability: '',
-            timeFrom: '',
-            timeTo: '',
-            originalTimeFrom: '',
-            originalTimeTo: '',
+            windows: [{ from: '', to: '' }],
+            originalWindows: [{ from: '', to: '' }],
             isSaving: false,
             justSaved: true,
           } : e
@@ -283,11 +274,15 @@ export function UserRecurring() {
     }
   };
 
-  const handleTimeChange = (dayOfWeek: number, field: 'timeFrom' | 'timeTo', value: string) => {
+  const handleTimeChange = (dayOfWeek: number, windowIndex: number, field: 'from' | 'to', value: string) => {
     // Update local state immediately
-    setDayEntries(prev => prev.map(e =>
-      e.dayOfWeek === dayOfWeek ? { ...e, [field]: value } : e
-    ));
+    setDayEntries(prev => prev.map(e => {
+      if (e.dayOfWeek !== dayOfWeek) return e;
+      const newWindows = e.windows.map((w, i) =>
+        i === windowIndex ? { ...w, [field]: value } : w
+      );
+      return { ...e, windows: newWindows };
+    }));
 
     // Clear existing timeout for this day
     if (autoSaveTimeoutsRef.current[dayOfWeek]) {
@@ -298,11 +293,45 @@ export function UserRecurring() {
     autoSaveTimeoutsRef.current[dayOfWeek] = setTimeout(() => {
       setDayEntries(current => {
         const entry = current.find(e => e.dayOfWeek === dayOfWeek);
-        if (entry && entry.timeFrom && entry.timeTo) {
-          saveDay(dayOfWeek, entry.timeFrom, entry.timeTo, true);
-        } else if (entry && !entry.timeFrom && !entry.timeTo && entry.availability && entry.availability !== 'x') {
-          // Both fields cleared — remove the entry
-          removeDay(dayOfWeek);
+        if (entry) {
+          const firstWindow = entry.windows[0];
+          if (firstWindow && firstWindow.from && firstWindow.to) {
+            saveDay(dayOfWeek, entry.windows, true);
+          } else if (firstWindow && !firstWindow.from && !firstWindow.to && entry.availability && entry.availability !== 'x') {
+            // Both fields of first window cleared — remove the entry
+            removeDay(dayOfWeek);
+          }
+        }
+        return current;
+      });
+    }, 1000);
+  };
+
+  const addWindow = (dayOfWeek: number) => {
+    setDayEntries(prev => prev.map(e =>
+      e.dayOfWeek === dayOfWeek ? { ...e, windows: [...e.windows, { from: '', to: '' }] } : e
+    ));
+  };
+
+  const removeWindow = (dayOfWeek: number, windowIndex: number) => {
+    setDayEntries(prev => prev.map(e => {
+      if (e.dayOfWeek !== dayOfWeek || e.windows.length <= 1) return e;
+      const newWindows = e.windows.filter((_, i) => i !== windowIndex);
+      return { ...e, windows: newWindows };
+    }));
+
+    // Trigger auto-save after removal
+    if (autoSaveTimeoutsRef.current[dayOfWeek]) {
+      clearTimeout(autoSaveTimeoutsRef.current[dayOfWeek]);
+    }
+    autoSaveTimeoutsRef.current[dayOfWeek] = setTimeout(() => {
+      setDayEntries(current => {
+        const entry = current.find(e => e.dayOfWeek === dayOfWeek);
+        if (entry) {
+          const firstWindow = entry.windows[0];
+          if (firstWindow && firstWindow.from && firstWindow.to) {
+            saveDay(dayOfWeek, entry.windows, true);
+          }
         }
         return current;
       });
@@ -329,7 +358,6 @@ export function UserRecurring() {
       const localValue = `${bulkTimeFrom}-${bulkTimeTo}`;
       const botValue = convertRangeToBot(localValue);
 
-
       const response = await fetch(`${BOT_API_URL}/api/recurring-availability/bulk`, {
         method: 'POST',
         headers: getAuthHeaders(),
@@ -343,10 +371,8 @@ export function UserRecurring() {
           selectedDays.has(e.dayOfWeek) ? {
             ...e,
             availability: botValue,
-            timeFrom: bulkTimeFrom,
-            timeTo: bulkTimeTo,
-            originalTimeFrom: bulkTimeFrom,
-            originalTimeTo: bulkTimeTo,
+            windows: [{ from: bulkTimeFrom, to: bulkTimeTo }],
+            originalWindows: [{ from: bulkTimeFrom, to: bulkTimeTo }],
           } : e
         ));
 
@@ -371,8 +397,6 @@ export function UserRecurring() {
 
     setSaving(true);
     try {
-
-
       const response = await fetch(`${BOT_API_URL}/api/recurring-availability/bulk`, {
         method: 'POST',
         headers: getAuthHeaders(),
@@ -386,10 +410,8 @@ export function UserRecurring() {
           selectedDays.has(e.dayOfWeek) ? {
             ...e,
             availability: 'x',
-            timeFrom: '',
-            timeTo: '',
-            originalTimeFrom: '',
-            originalTimeTo: '',
+            windows: [{ from: '', to: '' }],
+            originalWindows: [{ from: '', to: '' }],
           } : e
         ));
 
@@ -518,8 +540,7 @@ export function UserRecurring() {
             <colgroup>
               <col className="w-10" />
               <col className="w-[120px]" />
-              <col className="w-[140px]" />
-              <col className="w-[140px]" />
+              <col className="w-[320px]" />
               <col />
               <col className="w-[180px]" />
             </colgroup>
@@ -533,8 +554,7 @@ export function UserRecurring() {
                   />
                 </TableHead>
                 <TableHead>Day</TableHead>
-                <TableHead>From</TableHead>
-                <TableHead>To</TableHead>
+                <TableHead>Time</TableHead>
                 <TableHead>Current Status</TableHead>
                 <TableHead></TableHead>
               </TableRow>
@@ -561,26 +581,46 @@ export function UserRecurring() {
                       />
                     </TableCell>
                     <TableCell className="font-medium">{WEEKDAY_NAMES[entry.dayOfWeek]}</TableCell>
-                    <TableCell>
-                      <div className="relative">
-                        <Input
-                          type="time"
-                          value={entry.timeFrom}
-                          onChange={(e) => handleTimeChange(entry.dayOfWeek, 'timeFrom', e.target.value)}
-                          className={cn("w-32", microInteractions.focusRing)}
+                    <TableCell colSpan={2}>
+                      <div className="space-y-1">
+                        {entry.windows.map((window, windowIdx) => (
+                          <div key={windowIdx} className="flex items-center gap-2">
+                            <Input
+                              type="time"
+                              value={window.from}
+                              onChange={(e) => handleTimeChange(entry.dayOfWeek, windowIdx, 'from', e.target.value)}
+                              className={cn("w-28", microInteractions.focusRing)}
+                              disabled={entry.isSaving}
+                            />
+                            <span className="text-muted-foreground text-xs">-</span>
+                            <Input
+                              type="time"
+                              value={window.to}
+                              onChange={(e) => handleTimeChange(entry.dayOfWeek, windowIdx, 'to', e.target.value)}
+                              className={cn("w-28", microInteractions.focusRing)}
+                              disabled={entry.isSaving}
+                            />
+                            {windowIdx > 0 && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => removeWindow(entry.dayOfWeek, windowIdx)}
+                                className="h-7 w-7 p-0"
+                              >
+                                <Minus className="w-3 h-3" />
+                              </Button>
+                            )}
+                          </div>
+                        ))}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => addWindow(entry.dayOfWeek)}
+                          className="h-6 text-xs text-muted-foreground"
                           disabled={entry.isSaving}
-                        />
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="relative">
-                        <Input
-                          type="time"
-                          value={entry.timeTo}
-                          onChange={(e) => handleTimeChange(entry.dayOfWeek, 'timeTo', e.target.value)}
-                          className={cn("w-32", microInteractions.focusRing)}
-                          disabled={entry.isSaving}
-                        />
+                        >
+                          + Add break
+                        </Button>
                       </div>
                     </TableCell>
                     <TableCell>

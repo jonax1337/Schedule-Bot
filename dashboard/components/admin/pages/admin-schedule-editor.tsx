@@ -341,7 +341,7 @@ export function ScheduleEditor() {
                             onKeyDown={handleKeyDown}
                             autoFocus
                             className={cn("h-8 text-sm", microInteractions.focusRing)}
-                            placeholder={isConverting ? `14:00-20:00 (${getTimezoneAbbr(userTimezone)}) or x` : "14:00-20:00 or x"}
+                            placeholder={isConverting ? `14:00-20:00 or 14:00-16:00,17:00-20:00 (${getTimezoneAbbr(userTimezone)}) or x` : "14:00-20:00 or 14:00-16:00,17:00-20:00 or x"}
                           />
                         ) : (
                           <div

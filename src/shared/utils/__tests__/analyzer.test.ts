@@ -21,7 +21,24 @@ describe('parseSchedule', () => {
     const data = makeScheduleData([makePlayer({ userId: '1', availability: '14:00-20:00' })]);
     const result = parseSchedule(data);
     expect(result.players[0].available).toBe(true);
-    expect(result.players[0].timeRange).toEqual({ start: '14:00', end: '20:00' });
+    expect(result.players[0].timeRanges).toEqual([{ start: '14:00', end: '20:00' }]);
+  });
+
+  it('parses multiple time windows', () => {
+    const data = makeScheduleData([makePlayer({ userId: '1', availability: '14:00-16:00,17:00-20:00' })]);
+    const result = parseSchedule(data);
+    expect(result.players[0].available).toBe(true);
+    expect(result.players[0].timeRanges).toEqual([
+      { start: '14:00', end: '16:00' },
+      { start: '17:00', end: '20:00' },
+    ]);
+  });
+
+  it('parses three time windows', () => {
+    const data = makeScheduleData([makePlayer({ userId: '1', availability: '10:00-12:00,14:00-16:00,18:00-22:00' })]);
+    const result = parseSchedule(data);
+    expect(result.players[0].available).toBe(true);
+    expect(result.players[0].timeRanges).toHaveLength(3);
   });
 
   it('parses unavailable player (x)', () => {
@@ -143,6 +160,35 @@ describe('analyzeSchedule', () => {
     const schedule = parseSchedule(makeScheduleData(players));
     const result = analyzeSchedule(schedule);
     expect(result.availableCoachCount).toBe(1);
+  });
+
+  it('calculates common time with multi-window players', () => {
+    const players = [
+      makePlayer({ userId: '1', role: 'MAIN', availability: '14:00-16:00,17:00-20:00' }),
+      makePlayer({ userId: '2', role: 'MAIN', availability: '13:00-21:00' }),
+      makePlayer({ userId: '3', role: 'MAIN', availability: '14:00-22:00' }),
+      makePlayer({ userId: '4', role: 'MAIN', availability: '14:00-20:00' }),
+      makePlayer({ userId: '5', role: 'MAIN', availability: '14:00-20:00' }),
+    ];
+    const schedule = parseSchedule(makeScheduleData(players));
+    const result = analyzeSchedule(schedule);
+    // Player 1 has a gap 16:00-17:00, so the common windows are 14:00-16:00 (2h) and 17:00-20:00 (3h)
+    // Longest contiguous common window is 17:00-20:00
+    expect(result.commonTimeRange).toEqual({ start: '17:00', end: '20:00' });
+  });
+
+  it('calculates common time when all players have same multi-window', () => {
+    const players = [
+      makePlayer({ userId: '1', role: 'MAIN', availability: '14:00-16:00,18:00-20:00' }),
+      makePlayer({ userId: '2', role: 'MAIN', availability: '14:00-16:00,18:00-20:00' }),
+      makePlayer({ userId: '3', role: 'MAIN', availability: '14:00-16:00,18:00-20:00' }),
+      makePlayer({ userId: '4', role: 'MAIN', availability: '14:00-16:00,18:00-20:00' }),
+      makePlayer({ userId: '5', role: 'MAIN', availability: '14:00-16:00,18:00-20:00' }),
+    ];
+    const schedule = parseSchedule(makeScheduleData(players));
+    const result = analyzeSchedule(schedule);
+    // Both windows are 2h each, first one wins (14:00-16:00)
+    expect(result.commonTimeRange).toEqual({ start: '14:00', end: '16:00' });
   });
 });
 
