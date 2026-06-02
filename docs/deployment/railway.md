@@ -1,10 +1,10 @@
 # Railway Deployment
 
-## Uebersicht
+## Overview
 
-Schedule-Bot kann auf [Railway](https://railway.app) deployed werden. Die Konfiguration liegt in `railway.toml`.
+Schedule-Bot can be deployed to [Railway](https://railway.app). The configuration lives in `railway.toml`.
 
-## Konfiguration
+## Configuration
 
 ```toml
 [build]
@@ -19,45 +19,45 @@ restartPolicyMaxRetries = 5
 
 ## Setup
 
-### 1. Projekt erstellen
+### 1. Create the project
 
-1. Railway Dashboard oeffnen
-2. "New Project" → "Deploy from GitHub repo"
-3. Repository verbinden
+1. Open the Railway dashboard
+2. "New Project" -> "Deploy from GitHub repo"
+3. Connect the repository
 
-### 2. PostgreSQL hinzufuegen
+### 2. Add PostgreSQL
 
-1. Im Projekt: "New" → "Database" → "Add PostgreSQL"
-2. Railway erstellt automatisch `DATABASE_URL`
+1. In your project: "New" -> "Database" -> "Add PostgreSQL"
+2. Railway sets `DATABASE_URL` automatically
 
-### 3. Umgebungsvariablen setzen
+### 3. Set environment variables
 
-Im Railway Dashboard unter "Variables":
+In the Railway dashboard under "Variables":
 
-```
+```env
 DISCORD_TOKEN=...
 DISCORD_GUILD_ID=...
 ADMIN_USERNAME=admin
 ADMIN_PASSWORD_HASH=...
 JWT_SECRET=...
-DASHBOARD_URL=https://dein-dashboard.railway.app
+DASHBOARD_URL=https://your-dashboard.railway.app
 ```
 
-### 4. Dashboard Service
+### 4. Dashboard service
 
-Fuer das Dashboard einen separaten Service erstellen:
-1. "New" → "Service"
-2. Root Directory: `dashboard`
-3. Variablen setzen:
-   ```
+Create a separate service for the dashboard:
+1. "New" -> "Service"
+2. Root directory: `dashboard`
+3. Set the variables:
+   ```env
    BOT_API_URL=http://schedule-bot-backend.railway.internal:3001
-   NEXT_PUBLIC_BOT_API_URL=https://dein-backend.railway.app
+   NEXT_PUBLIC_BOT_API_URL=https://your-backend.railway.app
    ```
 
 ## Health Check
 
-Der Bot stellt `/api/health` bereit. Railway nutzt diesen Endpunkt um den Service-Status zu ueberpruefen.
+The bot exposes `/api/health`. Railway uses this endpoint to monitor service status.
 
-## Automatisches Deployment
+## Automatic Deployment
 
-Railway deployed automatisch bei jedem Push auf den `main` Branch.
+Railway redeploys automatically on every push to the `main` branch.

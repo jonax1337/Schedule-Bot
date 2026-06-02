@@ -1,87 +1,87 @@
-# VOD-Review
+# VOD Review
 
-## Uebersicht
+## Overview
 
-Das VOD-Review System (`/vod/:scrimId`) ermoeglicht zeitstempel-basierte Kommentare zu Scrim-Aufnahmen.
+The VOD review system (`/vod/:scrimId`) enables timestamp-based comments on scrim recordings.
 
-## Zugang
+## Access
 
-VOD-Review ist ueber einen Link aus der Scrim-Detailansicht erreichbar. Voraussetzung: Scrim muss eine `vodUrl` (YouTube-Link) haben.
+VOD review is reached through a link in the scrim detail view. Requirement: the scrim must have a `vodUrl` (YouTube link).
 
 ## Features
 
-### Video-Player
+### Video Player
 
-- **YouTube-Einbettung** via `react-youtube`
-- Unterstuetzte Formate:
+- **YouTube embed** via `react-youtube`
+- Supported formats:
   - `https://youtube.com/watch?v=...`
   - `https://youtu.be/...`
-  - Direkte Video-IDs
+  - Raw video IDs
 
-### Zeitstempel-Kommentare
+### Timestamped Comments
 
-Jeder Kommentar hat einen Zeitstempel (Sekunden ab Videobeginn):
+Every comment carries a timestamp (seconds from the start of the video):
 
 ```
-[1:25] Player1: Guter Smoke hier @Player2 #rotation
-[2:30] Player2: Danke! Timing war perfekt #clutch
-[5:15] Coach1:  Hier haetten wir rotieren sollen @alle #mistake
+[1:25] Player1: Nice smoke here @Player2 #rotation
+[2:30] Player2: Thanks! Timing was perfect #clutch
+[5:15] Coach1:  We should have rotated here @everyone #mistake
 ```
 
 ### Auto-Scroll
 
-- Kommentarliste scrollt automatisch zum aktuellen Videozeitpunkt
-- Deaktiviert sich wenn User manuell scrollt
-- Reaktiviert sich bei Klick auf "Auto-Scroll" Button
+- The comment list scrolls automatically to the current playback position.
+- Disables itself when the user scrolls manually.
+- Re-enables on click of the "Auto-Scroll" button.
 
 ### Highlighting
 
-- Kommentar wird hervorgehoben wenn Video den Zeitstempel erreicht
-- Klick auf Zeitstempel springt zum Zeitpunkt im Video
+- A comment is highlighted when the video reaches its timestamp.
+- Clicking a timestamp jumps to that point in the video.
 
 ### @Mentions
 
-- Tippe `@` fuer Autocomplete der Team-Mitglieder
-- Erwaehnte Spieler werden farblich hervorgehoben
-- User-Liste wird von `/api/user-mappings` geladen
+- Type `@` to autocomplete team members.
+- Mentioned players are highlighted in color.
+- The user list is loaded from `/api/user-mappings`.
 
 ### #Hashtags
 
-- Tippe `#` fuer Tag-Eingabe
-- Tags erhalten automatisch eine Farbe (Hash-basiert, 6 Farben)
-- Gaengige Tags: `#rotation`, `#mistake`, `#clutch`, `#eco`, `#execute`
+- Type `#` to add a tag.
+- Tags are automatically assigned a color (hash-based, 6 colors).
+- Common tags: `#rotation`, `#mistake`, `#clutch`, `#eco`, `#execute`
 
-### Filtern
+### Filtering
 
-- **Nach Autor** - Nur Kommentare eines Spielers
-- **Nach Hashtag** - Nur Kommentare mit bestimmtem Tag
-- **Nach Mention** - Nur Kommentare die einen Spieler erwaehnen
-- Filter sind kombinierbar
+- **By author** — only comments from a specific player
+- **By hashtag** — only comments with a given tag
+- **By mention** — only comments that mention a specific player
+- Filters can be combined
 
-### Bearbeiten & Loeschen
+### Editing & Deleting
 
-- **Eigene Kommentare:** Text und Zeitstempel bearbeitbar
-- **Admin:** Kann alle Kommentare bearbeiten und loeschen
-- **Loeschen:** Nur Ersteller oder Admin
+- **Own comments:** text and timestamp are editable.
+- **Admins:** can edit and delete any comment.
+- **Delete:** only the author or an admin.
 
-## Technische Details
+## Technical Details
 
-### Mention-Input Komponente
+### Mention Input Component
 
-`vod-mention-input.tsx` implementiert eine Textarea mit:
-- `@`-Trigger fuer User-Autocomplete
-- `#`-Trigger fuer Tag-Vorschlaege
-- Keyboard-Navigation (Pfeiltasten, Enter, Escape)
-- Inline-Ersetzung des ausgewaehlten Vorschlags
+`vod-mention-input.tsx` implements a textarea with:
+- `@` trigger for user autocomplete
+- `#` trigger for tag suggestions
+- Keyboard navigation (arrow keys, Enter, Escape)
+- Inline replacement of the selected suggestion
 
-### Comment-Text Renderer
+### Comment Text Renderer
 
-`vod-comment-text.tsx` rendert Kommentar-Text mit:
-- `@Mentions` als farbige Badges
-- `#Hashtags` als klickbare Tags
-- Klick auf Tag filtert die Kommentarliste
+`vod-comment-text.tsx` renders comment text with:
+- `@mentions` as colored badges
+- `#hashtags` as clickable tags
+- Clicking a tag filters the comment list
 
-### Timestamp-Formatierung
+### Timestamp Formatting
 
 ```typescript
 formatTimestamp(125)   → "2:05"
@@ -91,8 +91,8 @@ formatTimestamp(3665)  → "1:01:05"
 ## API
 
 ```
-GET    /api/vod-comments/scrim/:scrimId  → Kommentare laden
-POST   /api/vod-comments                 → Kommentar erstellen
-PUT    /api/vod-comments/:id             → Bearbeiten
-DELETE /api/vod-comments/:id             → Loeschen
+GET    /api/vod-comments/scrim/:scrimId  → Load comments
+POST   /api/vod-comments                 → Create comment
+PUT    /api/vod-comments/:id             → Update
+DELETE /api/vod-comments/:id             → Delete
 ```

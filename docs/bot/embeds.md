@@ -1,90 +1,90 @@
-# Embeds & Nachrichten
+# Embeds & Messages
 
-## Schedule-Embed
+## Schedule Embed
 
-Der Haupt-Embed zeigt die taegliche Teamverfuegbarkeit:
+The main embed displays the team's daily availability:
 
 ```
 ┌──────────────────────────────────────────┐
-│  📅 Schedule - 27.03.2026 (Freitag)     │
+│  📅 Schedule - 27.03.2026 (Friday)       │
 │  Training                                 │
 │                                           │
 │  ── Main Players ──                       │
-│  ✅ Player1  │ 14:00 - 20:00            │
-│  ✅ Player2  │ 16:00 - 22:00            │
-│  ✅ Player3  │ 14:00 - 20:00            │
-│  ✅ Player4  │ 18:00 - 22:00            │
-│  ❌ Player5  │ Nicht verfuegbar          │
+│  ✅ Player1  │ 14:00 - 20:00             │
+│  ✅ Player2  │ 16:00 - 22:00             │
+│  ✅ Player3  │ 14:00 - 20:00             │
+│  ✅ Player4  │ 18:00 - 22:00             │
+│  ❌ Player5  │ Unavailable                │
 │                                           │
 │  ── Subs ──                               │
-│  ✅ Sub1     │ 14:00 - 22:00    🔄      │
+│  ✅ Sub1     │ 14:00 - 22:00    🔄       │
 │                                           │
 │  ── Coach ──                              │
-│  ✅ Coach1   │ 16:00 - 20:00            │
+│  ✅ Coach1   │ 16:00 - 20:00             │
 │                                           │
 │  ─────────────────────────────            │
 │  Status: With Subs                        │
-│  Gemeinsame Zeit: 18:00 - 20:00          │
-│  Ueberlappung: 2 Stunden                 │
+│  Shared time: 18:00 - 20:00               │
+│  Overlap: 2 hours                         │
 └──────────────────────────────────────────┘
 ```
 
-### Farbkodierung
+### Color Coding
 
-Die Embed-Farbe spiegelt den Roster-Status wider:
+The embed color reflects the current roster status:
 
-| Status | Farbe | Bedeutung |
-|--------|-------|-----------|
-| `FULL_ROSTER` | 🟢 Gruen | Alle 5 Mains verfuegbar |
-| `WITH_SUBS` | 🟠 Orange | Genuegend mit Subs |
-| `NOT_ENOUGH` | 🔴 Rot | Nicht genuegend Spieler |
-| `OFF_DAY` | 🟣 Lila | Trainings-frei |
+| Status | Color | Meaning |
+|--------|-------|---------|
+| `FULL_ROSTER` | 🟢 Green | All 5 mains available |
+| `WITH_SUBS` | 🟠 Orange | Enough players with subs |
+| `NOT_ENOUGH` | 🔴 Red | Not enough players |
+| `OFF_DAY` | 🟣 Purple | No training scheduled |
 
-### Zeitanzeige
+### Time Display
 
-- Discord-Timestamps fuer automatische lokale Konvertierung:
+- Discord timestamps for automatic local conversion:
   ```
-  <t:1711540800:t> → "14:00" (in lokaler Zeitzone des Betrachters)
+  <t:1711540800:t> → "14:00" (in the viewer's local timezone)
   ```
-- Ueberlappungs-Berechnung zeigt die gemeinsame verfuegbare Zeit
+- The overlap calculation shows the shared available time window.
 
-### Sub-Markierung
+### Sub Indicator
 
-Wenn ein Main-Spieler fehlt und ein Sub einspringt, wird dies mit 🔄 markiert.
+When a main player is unavailable and a sub fills in, this is marked with 🔄.
 
-## Erinnerungs-Embed
+## Reminder Embed
 
 ```
 ┌──────────────────────────────────────────┐
-│  ⏰ Erinnerung                           │
+│  ⏰ Reminder                              │
 │                                           │
-│  Hey Player5! Du hast noch keine          │
-│  Verfuegbarkeit fuer heute angegeben.     │
+│  Hey Player5! You haven't set your        │
+│  availability for today yet.              │
 │                                           │
-│  [Zeitfenster setzen] [Nicht verfuegbar]  │
-│  [Zeitzone setzen]                        │
+│  [Set time window] [Unavailable]          │
+│  [Set timezone]                           │
 └──────────────────────────────────────────┘
 ```
 
-Der "Zeitzone setzen"-Button erscheint nur, wenn der Spieler keine Zeitzone konfiguriert hat.
+The "Set timezone" button only appears if the player has not yet configured a timezone.
 
-## Benachrichtigungs-Embeds
+## Notification Embeds
 
 ### Info
 
 ```
 ┌──────────────────────────────────────────┐
 │  ℹ️ Information                           │
-│  Training faellt heute aus!               │
+│  Training is cancelled today!             │
 └──────────────────────────────────────────┘
 ```
 
-### Warnung
+### Warning
 
 ```
 ┌──────────────────────────────────────────┐
-│  ⚠️ Warnung                              │
-│  Nur 3 Spieler verfuegbar morgen!         │
+│  ⚠️ Warning                               │
+│  Only 3 players available tomorrow!       │
 └──────────────────────────────────────────┘
 ```
 
@@ -92,25 +92,25 @@ Der "Zeitzone setzen"-Button erscheint nur, wenn der Spieler keine Zeitzone konf
 
 ```
 ┌──────────────────────────────────────────┐
-│  🚨 Wichtig                              │
-│  Premier Match in 1 Stunde!              │
+│  🚨 Important                             │
+│  Premier match in 1 hour!                 │
 └──────────────────────────────────────────┘
 ```
 
-## Poll-Embeds
+## Poll Embeds
 
 ### Quick Poll
 
 ```
 ┌──────────────────────────────────────────┐
-│  📊 Umfrage                              │
-│  Wann koennt ihr heute?                   │
+│  📊 Poll                                  │
+│  When can you play today?                 │
 │                                           │
 │  1️⃣ 18:00                                │
 │  2️⃣ 19:00                                │
 │  3️⃣ 20:00                                │
 │                                           │
-│  Endet: <t:1711555200:R>                 │
+│  Ends: <t:1711555200:R>                   │
 └──────────────────────────────────────────┘
 ```
 
@@ -118,30 +118,31 @@ Der "Zeitzone setzen"-Button erscheint nur, wenn der Spieler keine Zeitzone konf
 
 ```
 ┌──────────────────────────────────────────┐
-│  🎮 Training-Start                        │
-│  Wann soll das Training starten?          │
+│  🎮 Training Start                        │
+│  When should training start?              │
 │                                           │
-│  Basierend auf eurer Verfuegbarkeit:      │
-│  1️⃣ 16:00 (fruehester Slot)              │
+│  Based on your availability:              │
+│  1️⃣ 16:00 (earliest slot)                │
 │  2️⃣ 17:00                                │
-│  3️⃣ 18:00 (meiste Ueberlappung)          │
+│  3️⃣ 18:00 (maximum overlap)              │
 │                                           │
-│  Endet: <t:1711555200:R>                 │
+│  Ends: <t:1711555200:R>                   │
 └──────────────────────────────────────────┘
 ```
 
-Zeitoptionen werden automatisch aus den verfuegbaren Zeitfenstern berechnet.
+Time options are calculated automatically from the available time windows.
 
-## Status-Aenderungs-Nachricht
+## Status Change Message
 
-Wenn sich der Roster-Status aendert (z.B. ein Spieler meldet sich ab):
+When the roster status changes (e.g. a player drops out):
 
 ```
-📢 Schedule-Update: Status hat sich geaendert
+📢 Schedule update: status changed
    NOT_ENOUGH → WITH_SUBS
 ```
 
-Wird nur gepostet:
-- Fuer den heutigen Tag
-- Nach der taeglichen Post-Zeit
-- Wenn sich der Status tatsaechlich geaendert hat
+This message is only posted when:
+
+- The change is for today
+- The daily post time has already passed
+- The status has actually changed

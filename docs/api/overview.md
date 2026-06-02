@@ -1,26 +1,26 @@
-# API-Uebersicht
+# API Overview
 
-## Basis-URL
+## Base URL
 
 ```
 http://localhost:3001/api
 ```
 
-Production: Konfiguriert ueber `BOT_API_URL` / `NEXT_PUBLIC_BOT_API_URL`.
+Production: configured via `BOT_API_URL` / `NEXT_PUBLIC_BOT_API_URL`.
 
-## Authentifizierung
+## Authentication
 
-Die meisten Endpunkte erfordern einen JWT Bearer Token:
+Most endpoints require a JWT bearer token:
 
 ```http
 Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
 ```
 
-Tokens werden ueber die Login-Endpunkte bezogen. Siehe [Authentifizierung](/guide/authentication).
+Tokens are obtained through the login endpoints. See [Authentication](/guide/authentication).
 
-## Antwort-Format
+## Response Format
 
-### Erfolg
+### Success
 
 ```json
 {
@@ -29,133 +29,133 @@ Tokens werden ueber die Login-Endpunkte bezogen. Siehe [Authentifizierung](/guid
 }
 ```
 
-### Fehler
+### Error
 
 ```json
 {
-  "error": "Fehlerbeschreibung"
+  "error": "Error description"
 }
 ```
 
 ### HTTP Status Codes
 
-| Code | Bedeutung |
-|------|-----------|
-| `200` | Erfolg |
-| `201` | Erstellt |
-| `400` | Ungueltige Anfrage |
-| `401` | Nicht authentifiziert |
-| `403` | Keine Berechtigung |
-| `404` | Nicht gefunden |
-| `429` | Rate Limit erreicht |
-| `500` | Server-Fehler |
+| Code  | Meaning             |
+| ----- | ------------------- |
+| `200` | OK                  |
+| `201` | Created             |
+| `400` | Bad Request         |
+| `401` | Unauthenticated     |
+| `403` | Forbidden           |
+| `404` | Not Found           |
+| `429` | Rate Limit Exceeded |
+| `500` | Server Error        |
 
 ## Rate Limiting
 
-- **Global:** Standard-Limit fuer alle Endpunkte
-- **Sensitiv:** Strengeres Limit fuer Login und Admin-Aktionen
-- Response-Header: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`
+- **Global:** standard limit applied to all endpoints
+- **Sensitive:** stricter limit for login and admin actions
+- Response headers: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`
 
-## Endpunkt-Uebersicht
+## Endpoint Overview
 
-### Authentifizierung
-| Methode | Pfad | Auth | Beschreibung |
-|---------|------|------|-------------|
-| `POST` | `/auth/admin/login` | - | Admin-Login |
-| `POST` | `/auth/user/login` | - | User-Login |
-| `GET` | `/auth/discord` | - | Discord OAuth starten |
-| `GET` | `/auth/discord/callback` | - | OAuth Callback |
-| `GET` | `/auth/user` | JWT | Aktueller User |
+### Authentication
+| Method | Path                      | Auth | Description           |
+| ------ | ------------------------- | ---- | --------------------- |
+| `POST` | `/auth/admin/login`       | -    | Admin login           |
+| `POST` | `/auth/user/login`        | -    | User login            |
+| `GET`  | `/auth/discord`           | -    | Start Discord OAuth   |
+| `GET`  | `/auth/discord/callback`  | -    | OAuth callback        |
+| `GET`  | `/auth/user`              | JWT  | Current user          |
 
 ### Schedule
-| Methode | Pfad | Auth | Beschreibung |
-|---------|------|------|-------------|
-| `GET` | `/schedule/next14` | JWT | Naechste 14 Tage |
-| `GET` | `/schedule/paginated` | Admin | Paginierte Historie |
-| `POST` | `/schedule/update-reason` | Admin | Grund aktualisieren |
-| `POST` | `/schedule/update-availability` | JWT | Verfuegbarkeit setzen |
-| `GET` | `/schedule-details` | JWT | Analysierte Details fuer Datum |
-| `GET` | `/schedule-details-batch` | JWT | Batch-Abfrage |
+| Method | Pfad                              | Auth  | Description                       |
+| ------ | --------------------------------- | ----- | --------------------------------- |
+| `GET`  | `/schedule/next14`                | JWT   | Next 14 days                      |
+| `GET`  | `/schedule/paginated`             | Admin | Paginated history                 |
+| `POST` | `/schedule/update-reason`         | Admin | Update reason                     |
+| `POST` | `/schedule/update-availability`   | JWT   | Set availability                  |
+| `GET`  | `/schedule-details`               | JWT   | Analyzed details for a date       |
+| `GET`  | `/schedule-details-batch`         | JWT   | Batch query                       |
 
 ### User Mappings
-| Methode | Pfad | Auth | Beschreibung |
-|---------|------|------|-------------|
-| `GET` | `/user-mappings` | Optional | Alle Spieler |
-| `POST` | `/user-mappings` | Admin | Spieler hinzufuegen |
-| `PUT` | `/user-mappings/reorder` | Admin | Reihenfolge aendern |
-| `PUT` | `/user-mappings/:discordId` | Admin | Spieler bearbeiten |
-| `DELETE` | `/user-mappings/:discordId` | Admin | Spieler entfernen |
+| Method   | Path                          | Auth     | Description       |
+| -------- | ----------------------------- | -------- | ----------------- |
+| `GET`    | `/user-mappings`              | Optional | All players       |
+| `POST`   | `/user-mappings`              | Admin    | Add player        |
+| `PUT`    | `/user-mappings/reorder`      | Admin    | Reorder players   |
+| `PUT`    | `/user-mappings/:discordId`   | Admin    | Edit player       |
+| `DELETE` | `/user-mappings/:discordId`   | Admin    | Remove player     |
 
 ### Scrims
-| Methode | Pfad | Auth | Beschreibung |
-|---------|------|------|-------------|
-| `GET` | `/scrims` | JWT | Alle Scrims |
-| `GET` | `/scrims/stats/summary` | JWT | Statistiken |
-| `GET` | `/scrims/range/:start/:end` | JWT | Scrims im Zeitraum |
-| `GET` | `/scrims/:id` | JWT | Einzelner Scrim |
-| `POST` | `/scrims` | Admin | Scrim erstellen |
-| `PUT` | `/scrims/:id` | Admin | Scrim bearbeiten |
-| `DELETE` | `/scrims/:id` | Admin | Scrim loeschen |
+| Method   | Path                            | Auth  | Description           |
+| -------- | ------------------------------- | ----- | --------------------- |
+| `GET`    | `/scrims`                       | JWT   | All scrims            |
+| `GET`    | `/scrims/stats/summary`         | JWT   | Statistics            |
+| `GET`    | `/scrims/range/:start/:end`     | JWT   | Scrims in date range  |
+| `GET`    | `/scrims/:id`                   | JWT   | Single scrim          |
+| `POST`   | `/scrims`                       | Admin | Create scrim          |
+| `PUT`    | `/scrims/:id`                   | Admin | Edit scrim            |
+| `DELETE` | `/scrims/:id`                   | Admin | Delete scrim          |
 
-### Abwesenheiten
-| Methode | Pfad | Auth | Beschreibung |
-|---------|------|------|-------------|
-| `GET` | `/absences` | JWT | Abwesenheiten |
-| `POST` | `/absences` | JWT | Erstellen |
-| `PUT` | `/absences/:id` | JWT | Bearbeiten |
-| `DELETE` | `/absences/:id` | JWT | Loeschen |
+### Absences
+| Method   | Path              | Auth | Description    |
+| -------- | ----------------- | ---- | -------------- |
+| `GET`    | `/absences`       | JWT  | List absences  |
+| `POST`   | `/absences`       | JWT  | Create         |
+| `PUT`    | `/absences/:id`   | JWT  | Edit           |
+| `DELETE` | `/absences/:id`   | JWT  | Delete         |
 
-### Wiederkehrende Verfuegbarkeit
-| Methode | Pfad | Auth | Beschreibung |
-|---------|------|------|-------------|
-| `GET` | `/recurring-availability` | JWT | Eigene Eintraege |
-| `POST` | `/recurring-availability` | JWT | Setzen |
-| `DELETE` | `/recurring-availability/:day` | JWT | Tag loeschen |
-| `DELETE` | `/recurring-availability` | JWT | Alle loeschen |
+### Recurring Availability
+| Method   | Path                                | Auth | Description       |
+| -------- | ----------------------------------- | ---- | ----------------- |
+| `GET`    | `/recurring-availability`           | JWT  | Own entries       |
+| `POST`   | `/recurring-availability`           | JWT  | Set entry         |
+| `DELETE` | `/recurring-availability/:day`      | JWT  | Delete one day    |
+| `DELETE` | `/recurring-availability`           | JWT  | Delete all        |
 
-### Strategien
-| Methode | Pfad | Auth | Beschreibung |
-|---------|------|------|-------------|
-| `GET` | `/strategies` | JWT | Alle Strategien |
-| `POST` | `/strategies` | JWT* | Erstellen (mit Upload) |
-| `PUT` | `/strategies/:id` | JWT* | Bearbeiten |
-| `DELETE` | `/strategies/:id` | JWT* | Loeschen |
-| `GET` | `/strategies/folders` | JWT | Ordner-Struktur |
-| `POST` | `/strategies/folders` | JWT* | Ordner erstellen |
+### Strategies
+| Method   | Path                       | Auth  | Description                |
+| -------- | -------------------------- | ----- | -------------------------- |
+| `GET`    | `/strategies`              | JWT   | All strategies             |
+| `POST`   | `/strategies`              | JWT*  | Create (with upload)       |
+| `PUT`    | `/strategies/:id`          | JWT*  | Edit                       |
+| `DELETE` | `/strategies/:id`          | JWT*  | Delete                     |
+| `GET`    | `/strategies/folders`      | JWT   | Folder tree                |
+| `POST`   | `/strategies/folders`      | JWT*  | Create folder              |
 
-*Berechtigungsabhaengig von `stratbook.editPermission` Setting
+*Permission depends on the `stratbook.editPermission` setting.
 
-### VOD-Kommentare
-| Methode | Pfad | Auth | Beschreibung |
-|---------|------|------|-------------|
-| `GET` | `/vod-comments/scrim/:scrimId` | JWT | Kommentare laden |
-| `POST` | `/vod-comments` | JWT | Kommentar erstellen |
-| `PUT` | `/vod-comments/:id` | JWT | Bearbeiten |
-| `DELETE` | `/vod-comments/:id` | JWT | Loeschen |
+### VOD Comments
+| Method   | Path                              | Auth | Description       |
+| -------- | --------------------------------- | ---- | ----------------- |
+| `GET`    | `/vod-comments/scrim/:scrimId`    | JWT  | Load comments     |
+| `POST`   | `/vod-comments`                   | JWT  | Create comment    |
+| `PUT`    | `/vod-comments/:id`               | JWT  | Edit              |
+| `DELETE` | `/vod-comments/:id`               | JWT  | Delete            |
 
-### Aktionen
-| Methode | Pfad | Auth | Beschreibung |
-|---------|------|------|-------------|
-| `POST` | `/actions/schedule` | Admin | Schedule posten |
-| `POST` | `/actions/remind` | Admin | Erinnerungen senden |
-| `POST` | `/actions/poll` | Admin | Poll erstellen |
-| `POST` | `/actions/notify` | Admin | DM senden |
-| `POST` | `/actions/clear-channel` | Admin | Channel leeren |
-| `POST` | `/actions/training-poll` | Admin | Training-Poll |
-| `POST` | `/actions/pin-message` | Admin | Nachricht pinnen |
+### Actions
+| Method | Path                       | Auth  | Description           |
+| ------ | -------------------------- | ----- | --------------------- |
+| `POST` | `/actions/schedule`        | Admin | Post schedule         |
+| `POST` | `/actions/remind`          | Admin | Send reminders        |
+| `POST` | `/actions/poll`            | Admin | Create poll           |
+| `POST` | `/actions/notify`          | Admin | Send DM               |
+| `POST` | `/actions/clear-channel`   | Admin | Clear channel         |
+| `POST` | `/actions/training-poll`   | Admin | Training poll         |
+| `POST` | `/actions/pin-message`     | Admin | Pin message           |
 
 ### Settings
-| Methode | Pfad | Auth | Beschreibung |
-|---------|------|------|-------------|
-| `GET` | `/settings` | - | Alle Settings laden |
-| `POST` | `/settings` | Admin | Settings aktualisieren |
-| `POST` | `/settings/reload-config` | Admin | Config neu laden |
+| Method | Path                         | Auth  | Description            |
+| ------ | ---------------------------- | ----- | ---------------------- |
+| `GET`  | `/settings`                  | -     | Load all settings      |
+| `POST` | `/settings`                  | Admin | Update settings        |
+| `POST` | `/settings/reload-config`    | Admin | Reload config          |
 
 ### System
-| Methode | Pfad | Auth | Beschreibung |
-|---------|------|------|-------------|
-| `GET` | `/health` | - | Health Check |
-| `GET` | `/bot-status` | - | Bot-Status |
-| `GET` | `/admin/logs` | Admin | System-Logs |
-| `GET` | `/discord/channels` | Admin | Discord Channels |
-| `GET` | `/discord/roles` | Admin | Discord Rollen |
+| Method | Path                  | Auth  | Description       |
+| ------ | --------------------- | ----- | ----------------- |
+| `GET`  | `/health`             | -     | Health check      |
+| `GET`  | `/bot-status`         | -     | Bot status        |
+| `GET`  | `/admin/logs`         | Admin | System logs       |
+| `GET`  | `/discord/channels`   | Admin | Discord channels  |
+| `GET`  | `/discord/roles`      | Admin | Discord roles     |

@@ -1,71 +1,71 @@
-# Matches & Statistiken
+# Matches & Statistics
 
 ## Matches (Scrim Management)
 
-Die Matches-Komponente (`components/shared/matches.tsx`) wird sowohl im User-Portal als auch im Admin-Panel verwendet.
+The matches component (`components/shared/matches.tsx`) is used in both the user portal and the admin panel.
 
 ### Features
 
-**Scrim-Liste:**
-- Alle Scrims in chronologischer Reihenfolge
-- Filter nach Map, Ergebnis, Zeitraum
-- Kompakte Karten mit Kerndaten
+**Scrim list:**
+- All scrims in chronological order
+- Filter by map, result, and time range
+- Compact cards with the key details
 
-**Scrim-Details:**
-- Datum, Gegner, Ergebnis, Score
-- Karte und Match-Typ
-- Agenten beider Teams
-- VOD-Link und Match-Link
-- Notizen
+**Scrim details:**
+- Date, opponent, result, score
+- Map and match type
+- Agents on both teams
+- VOD link and match link
+- Notes
 
-**CRUD (nur Admin):**
-- Scrim erstellen mit vollstaendigen Details
-- Bearbeiten aller Felder
-- Loeschen (mit Cascade auf VOD-Kommentare)
+**CRUD (admin only):**
+- Create a scrim with full details
+- Edit any field
+- Delete (cascades to VOD comments)
 
-### Agenten-Picker
+### Agent Picker
 
-Eigene Komponente (`agent-picker.tsx`) fuer die Multi-Auswahl von Valorant-Agenten:
+A dedicated component (`agent-picker.tsx`) handles multi-selection of Valorant agents:
 
-**Verfuegbare Agenten:** Astra, Breach, Brimstone, Chamber, Clove, Cypher, Deadlock, Fade, Gekko, Harbor, Iso, Jett, KAY/O, Killjoy, Neon, Omen, Phoenix, Raze, Reyna, Sage, Skye, Sova, Tejo, Viper, Vyse, Waylay, Yoru
+**Available agents:** Astra, Breach, Brimstone, Chamber, Clove, Cypher, Deadlock, Fade, Gekko, Harbor, Iso, Jett, KAY/O, Killjoy, Neon, Omen, Phoenix, Raze, Reyna, Sage, Skye, Sova, Tejo, Viper, Vyse, Waylay, Yoru
 
-**Verfuegbare Maps:** Abyss, Ascent, Bind, Breeze, Corrode, Fracture, Haven, Icebox, Lotus, Pearl, Split, Sunset
+**Available maps:** Abyss, Ascent, Bind, Breeze, Corrode, Fracture, Haven, Icebox, Lotus, Pearl, Split, Sunset
 
-**Match-Typen:** Scrim, Tournament, Premier, Custom
+**Match types:** Scrim, Tournament, Premier, Custom
 
-## Statistiken
+## Statistics
 
-Die Statistik-Komponente (`components/shared/statistics.tsx`) zeigt aggregierte Daten mit Recharts.
+The statistics component (`components/shared/statistics.tsx`) shows aggregated data using Recharts.
 
-### Visualisierungen
+### Visualizations
 
-**Gesamt-Uebersicht:**
-- Win/Loss/Draw Verteilung
-- Gesamt-Win-Rate in Prozent
+**Overall summary:**
+- Win/loss/draw distribution
+- Overall win rate as a percentage
 
-**Map-Statistiken:**
-- Win-Rate pro Karte
-- Anzahl Spiele pro Karte
-- Balkendiagramm
+**Map statistics:**
+- Win rate per map
+- Number of games per map
+- Bar chart
 
-**Agenten-Statistiken:**
-- Meistgespielte Agenten
-- Win-Rate pro Agent
+**Agent statistics:**
+- Most-played agents
+- Win rate per agent
 
-**Zeitverlauf:**
-- Win-Rate ueber Zeit
-- Match-Frequenz
-- Trend-Linien
+**Time series:**
+- Win rate over time
+- Match frequency
+- Trend lines
 
-### Datenquelle
+### Data Source
 
-Alle Statistiken werden aus den gespeicherten Scrim-Daten berechnet:
+All statistics are derived from the stored scrim data:
 
 ```
-GET /api/scrims           → Rohdaten
-GET /api/scrims/stats/summary  → Vorab-berechnete Zusammenfassung
+GET /api/scrims                → Raw data
+GET /api/scrims/stats/summary  → Pre-computed summary
 ```
 
-## VOD-Integration
+## VOD Integration
 
-Scrims mit `vodUrl` haben einen direkten Link zum [VOD-Review](/dashboard/vod-review) System.
+Scrims with a `vodUrl` include a direct link to the [VOD Review](/dashboard/vod-review) system.

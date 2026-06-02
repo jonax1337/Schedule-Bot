@@ -1,10 +1,9 @@
-# Datenbank-Schema
+# Database Schema
 
-## Uebersicht
+Schedule-Bot persists everything in **PostgreSQL** through **Prisma 7**. The full schema
+lives in `prisma/schema.prisma`.
 
-Schedule-Bot verwendet **PostgreSQL** mit **Prisma 7** als ORM. Das Schema ist in `prisma/schema.prisma` definiert.
-
-## ER-Diagramm
+## Entity map
 
 ```
 ┌─────────────────┐     ┌──────────────────────┐
@@ -20,14 +19,14 @@ Schedule-Bot verwendet **PostgreSQL** mit **Prisma 7** als ORM. Das Schema ist i
                         └──────────────────────┘
 
 ┌─────────────────┐     ┌──────────────────────┐
-│  UserMapping     │     │ RecurringAvailability │
+│  UserMapping    │     │ RecurringAvailability│
 │─────────────────│     │──────────────────────│
 │ discordId (PK)  │     │ id                   │
-│ discordUsername  │     │ userId               │
-│ displayName     │     │ dayOfWeek (0-6)      │
+│ discordUsername │     │ userId               │
+│ displayName     │     │ dayOfWeek (0–6)      │
 │ role (UserRole) │     │ availability         │
 │ timezone        │     │ active               │
-│ isAdmin         │     │ unique(userId,day)   │
+│ isAdmin         │     │ unique(userId, day)  │
 │ sortOrder       │     └──────────────────────┘
 └─────────────────┘
 
@@ -37,7 +36,7 @@ Schedule-Bot verwendet **PostgreSQL** mit **Prisma 7** als ORM. Das Schema ist i
 │ id              │     │ id                   │
 │ date            │     │ scrimId (FK)         │
 │ opponent        │     │ userName             │
-│ result (Enum)   │     │ timestamp            │
+│ result (enum)   │     │ timestamp            │
 │ scoreUs/Them    │     │ content              │
 │ map             │     └──────────────────────┘
 │ matchType       │
@@ -57,7 +56,7 @@ Schedule-Bot verwendet **PostgreSQL** mit **Prisma 7** als ORM. Das Schema ist i
 └─────────────────┘
 ```
 
-### Strategie-Tabellen
+### Stratbook tables
 
 ```
 ┌──────────────────┐     ┌──────────────────────┐
@@ -87,113 +86,129 @@ Schedule-Bot verwendet **PostgreSQL** mit **Prisma 7** als ORM. Das Schema ist i
                     └────────────┘  └──────────────┘
 ```
 
-## Tabellen im Detail
+## Tables
 
 ### Schedule
 
-| Spalte | Typ | Beschreibung |
-|--------|-----|-------------|
-| `id` | Int (Auto) | Primaerschluessel |
-| `date` | String (Unique) | Datum im Format DD.MM.YYYY |
-| `reason` | String? | Grund (Training, Premier, Off-Day, etc.) |
-| `focus` | String? | Detail-Text |
-| `createdAt` | DateTime | Erstellt |
-| `updatedAt` | DateTime | Aktualisiert |
+| Column | Type | Description |
+| --- | --- | --- |
+| `id` | int (auto) | Primary key |
+| `date` | string (unique) | `DD.MM.YYYY` |
+| `reason` | string? | Reason (Training, Premier, Off-Day, …) |
+| `focus` | string? | Detail text |
+| `createdAt` | datetime | Created |
+| `updatedAt` | datetime | Updated |
 
 ### SchedulePlayer
 
-| Spalte | Typ | Beschreibung |
-|--------|-----|-------------|
-| `id` | Int (Auto) | Primaerschluessel |
-| `scheduleId` | Int (FK) | Referenz auf Schedule |
-| `userId` | String | Discord-ID des Spielers |
-| `displayName` | String | Anzeigename |
-| `role` | UserRole | MAIN, SUB oder COACH |
-| `availability` | String | Zeitfenster, "x" oder "" |
-| `sortOrder` | Int | Sortierreihenfolge |
+| Column | Type | Description |
+| --- | --- | --- |
+| `id` | int (auto) | Primary key |
+| `scheduleId` | int (FK) | → `Schedule` |
+| `userId` | string | Discord ID |
+| `displayName` | string | Display name at snapshot time |
+| `role` | UserRole | MAIN / SUB / COACH |
+| `availability` | string | Time window, `"x"`, or empty |
+| `sortOrder` | int | Display order |
 
-**Indizes:** `scheduleId`, `userId`
+**Indexes:** `scheduleId`, `userId`.
 
 ### UserMapping
 
-| Spalte | Typ | Beschreibung |
-|--------|-----|-------------|
-| `discordId` | String (PK) | Discord-ID (eindeutig) |
-| `discordUsername` | String | Discord Benutzername |
-| `displayName` | String | Anzeigename im System |
-| `role` | UserRole | MAIN, SUB oder COACH |
-| `timezone` | String? | IANA-Zeitzone (optional) |
-| `isAdmin` | Boolean | Admin-Berechtigung |
-| `sortOrder` | Int | Sortierreihenfolge |
+| Column | Type | Description |
+| --- | --- | --- |
+| `discordId` | string (PK) | Discord ID (unique) |
+| `discordUsername` | string | Discord username |
+| `displayName` | string | Display name |
+| `role` | UserRole | MAIN / SUB / COACH |
+| `timezone` | string? | IANA timezone (optional) |
+| `isAdmin` | boolean | Admin flag |
+| `sortOrder` | int | Display order |
 
-**Indizes:** `discordId`, `[role, sortOrder]`
+**Indexes:** `discordId`, `[role, sortOrder]`.
 
 ### Scrim
 
-| Spalte | Typ | Beschreibung |
-|--------|-----|-------------|
-| `id` | String | UUID Primaerschluessel |
-| `date` | String | Datum (DD.MM.YYYY) |
-| `opponent` | String | Gegnername |
-| `result` | ScrimResult | WIN, LOSS oder DRAW |
-| `scoreUs` | Int | Eigene Runden |
-| `scoreThem` | Int | Gegner-Runden |
-| `map` | String | Kartenname |
-| `matchType` | String? | Scrim, Tournament, Premier, Custom |
-| `ourAgents` | String? | Eigene Agenten (kommagetrennt) |
-| `theirAgents` | String? | Gegner-Agenten (kommagetrennt) |
-| `vodUrl` | String? | VOD-Link |
-| `matchLink` | String? | Match-Link |
-| `notes` | String? | Notizen |
+| Column | Type | Description |
+| --- | --- | --- |
+| `id` | string | UUID primary key |
+| `date` | string | `DD.MM.YYYY` |
+| `opponent` | string | Opponent name |
+| `result` | ScrimResult | WIN / LOSS / DRAW |
+| `scoreUs` | int | Our rounds |
+| `scoreThem` | int | Opponent rounds |
+| `map` | string | Map name |
+| `matchType` | string? | Scrim, Tournament, Premier, Custom, … |
+| `ourAgents` | string? | Comma-separated agents |
+| `theirAgents` | string? | Comma-separated agents |
+| `vodUrl` | string? | VOD URL |
+| `matchLink` | string? | Match link |
+| `notes` | string? | Notes |
 
 ### VodComment
 
-| Spalte | Typ | Beschreibung |
-|--------|-----|-------------|
-| `id` | Int (Auto) | Primaerschluessel |
-| `scrimId` | String (FK) | Referenz auf Scrim |
-| `userName` | String | Kommentar-Autor |
-| `timestamp` | Int | Zeitstempel in Sekunden |
-| `content` | String | Kommentar-Text |
+| Column | Type | Description |
+| --- | --- | --- |
+| `id` | int (auto) | Primary key |
+| `scrimId` | string (FK) | → `Scrim` |
+| `userName` | string | Comment author |
+| `timestamp` | int | Seconds into the VOD |
+| `content` | string | Comment body |
 
-**Indizes:** `[scrimId, timestamp]`
-**Cascade:** Loeschen eines Scrims loescht alle Kommentare.
+**Index:** `[scrimId, timestamp]`. **Cascade:** deleting a Scrim deletes its comments.
 
 ### Absence
 
-| Spalte | Typ | Beschreibung |
-|--------|-----|-------------|
-| `id` | Int (Auto) | Primaerschluessel |
-| `userId` | String | Discord-ID |
-| `startDate` | String | Beginn (DD.MM.YYYY) |
-| `endDate` | String | Ende (DD.MM.YYYY), inklusive |
-| `reason` | String? | Optionaler Grund |
+| Column | Type | Description |
+| --- | --- | --- |
+| `id` | int (auto) | Primary key |
+| `userId` | string | Discord ID |
+| `startDate` | string | First absent day (`DD.MM.YYYY`) |
+| `endDate` | string | Last absent day (inclusive) |
+| `reason` | string? | Optional reason |
 
-**Indizes:** `userId`, `[startDate, endDate]`
+**Indexes:** `userId`, `[startDate, endDate]`.
 
 ### RecurringAvailability
 
-| Spalte | Typ | Beschreibung |
-|--------|-----|-------------|
-| `id` | Int (Auto) | Primaerschluessel |
-| `userId` | String | Discord-ID |
-| `dayOfWeek` | Int | 0 (So) bis 6 (Sa) |
-| `availability` | String | Zeitfenster oder "x" |
-| `active` | Boolean | Aktiviert/Deaktiviert |
+| Column | Type | Description |
+| --- | --- | --- |
+| `id` | int (auto) | Primary key |
+| `userId` | string | Discord ID |
+| `dayOfWeek` | int | 0 (Sun) – 6 (Sat) |
+| `availability` | string | Time window or `"x"` |
+| `active` | boolean | Toggle |
 
-**Unique:** `[userId, dayOfWeek]`
+**Unique:** `[userId, dayOfWeek]`.
 
 ### Setting
 
-| Spalte | Typ | Beschreibung |
-|--------|-----|-------------|
-| `id` | Int (Auto) | Primaerschluessel |
-| `key` | String (Unique) | Dot-Notation Key |
-| `value` | String | Wert als String |
+| Column | Type | Description |
+| --- | --- | --- |
+| `id` | int (auto) | Primary key |
+| `key` | string (unique) | Dot-notation key |
+| `value` | string | Always stored as string |
+
+### Notable setting keys
+
+| Key | Stored as | Description |
+| --- | --- | --- |
+| `discord.channelId` | snowflake | Schedule channel ID |
+| `discord.pingRoleId` | snowflake or empty | Ping role for daily/weekly posts |
+| `discord.pinnedWeekMessageId` | snowflake or empty | Bot-managed pin for the weekly overview |
+| `discord.pinnedWeekStartDate` | `DD.MM.YYYY` or empty | Monday of the pinned week |
+| `scheduling.dailyPostTime` | `HH:MM` | Daily schedule post |
+| `scheduling.timezone` | IANA timezone | Cron timezone |
+| `scheduling.weeklyPingEnabled` | bool | Weekly planning DM master toggle |
+| `scheduling.weeklyPingTime` | `HH:MM` | Weekly planning DM time |
+| `scheduling.weeklyPingDays` | comma-separated ints | Cron-style weekdays (`0=Sun..6=Sat`) |
+
+See [Configuration](/guide/configuration) for the full settings catalogue.
 
 ## Enums
 
 ### UserRole
+
 ```prisma
 enum UserRole {
   MAIN
@@ -203,6 +218,7 @@ enum UserRole {
 ```
 
 ### ScrimResult
+
 ```prisma
 enum ScrimResult {
   WIN
@@ -211,12 +227,15 @@ enum ScrimResult {
 }
 ```
 
-## Wichtige Hinweise
+## Gotchas
 
-::: warning Datumsformat
-Daten werden als TEXT (String) im Format `DD.MM.YYYY` gespeichert, nicht als DATE-Typ. Vergleiche und Sortierungen erfolgen ueber String-Operationen.
+::: warning Date format
+Dates are stored as TEXT in `DD.MM.YYYY` format, **not** as `DATE`. Comparisons and
+sorting work via string ops, so the format is non-negotiable. Use the helpers in
+`src/shared/utils/dateFormatter.ts` to produce and parse them.
 :::
 
-::: info Prisma Client Output
-Der generierte Client liegt in `src/generated/prisma`. Nach Schema-Aenderungen muss `npm run db:generate` ausgefuehrt werden.
+::: info Prisma client location
+The generated client lives in `src/generated/prisma`. After any schema change run
+`npm run db:generate`.
 :::

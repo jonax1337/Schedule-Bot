@@ -1,95 +1,95 @@
-# Komponenten
+# Components
 
-## UI-Primitives
+## UI Primitives
 
-Das Dashboard nutzt **35 Radix UI Komponenten** als Basis, gestylt mit Tailwind CSS (shadcn/ui Pattern):
+The dashboard is built on **35 Radix UI components** styled with Tailwind CSS (the shadcn/ui pattern):
 
-### Interaktive Elemente
-| Komponente | Beschreibung |
-|------------|-------------|
-| `Button` | Standard-Button mit Varianten (default, destructive, outline, ghost) |
-| `LoadingButton` | Button mit Lade-Zustand |
-| `Input` | Text-Eingabefeld |
-| `Label` | Formular-Label |
-| `Checkbox` | Checkbox mit Label |
-| `Switch` | Toggle-Switch |
-| `Slider` | Schieberegler |
-| `Select` | Dropdown-Auswahl |
+### Interactive Elements
+| Component | Description |
+|-----------|-------------|
+| `Button` | Standard button with variants (default, destructive, outline, ghost) |
+| `LoadingButton` | Button with loading state |
+| `Input` | Text input field |
+| `Label` | Form label |
+| `Checkbox` | Checkbox with label |
+| `Switch` | Toggle switch |
+| `Slider` | Range slider |
+| `Select` | Dropdown selector |
 
 ### Layout
-| Komponente | Beschreibung |
-|------------|-------------|
-| `Card` | Karten-Container (Header, Content, Footer) |
-| `Sidebar` | Kollabierbare Seitenleiste |
-| `Tabs` | Tab-Navigation |
-| `Accordion` | Aufklappbare Sektionen |
-| `Collapsible` | Ein-/ausblendbar |
-| `Separator` | Horizontale Trennlinie |
-| `ScrollArea` | Scrollbarer Bereich mit Custom-Scrollbar |
-| `Sheet` | Mobile Drawer (von der Seite) |
-| `Table` | Daten-Tabelle |
+| Component | Description |
+|-----------|-------------|
+| `Card` | Card container (header, content, footer) |
+| `Sidebar` | Collapsible sidebar |
+| `Tabs` | Tabbed navigation |
+| `Accordion` | Expandable sections |
+| `Collapsible` | Show/hide container |
+| `Separator` | Horizontal divider |
+| `ScrollArea` | Scrollable area with custom scrollbar |
+| `Sheet` | Mobile drawer (slides in from the side) |
+| `Table` | Data table |
 
 ### Overlays
-| Komponente | Beschreibung |
-|------------|-------------|
-| `Dialog` | Modal-Dialog |
-| `AlertDialog` | Bestaetigungs-Dialog |
-| `ConfirmDialog` | Vereinfachter Bestaetigungs-Dialog |
-| `Popover` | Popup-Inhalt |
-| `Tooltip` | Hover-Tooltip |
-| `DropdownMenu` | Dropdown-Menu |
-| `ContextMenu` | Rechtsklick-Menu |
+| Component | Description |
+|-----------|-------------|
+| `Dialog` | Modal dialog |
+| `AlertDialog` | Confirmation dialog |
+| `ConfirmDialog` | Simplified confirmation dialog |
+| `Popover` | Popup content |
+| `Tooltip` | Hover tooltip |
+| `DropdownMenu` | Dropdown menu |
+| `ContextMenu` | Right-click menu |
 
-### Daten
-| Komponente | Beschreibung |
-|------------|-------------|
-| `Avatar` | Benutzer-Avatar (Bild + Fallback) |
-| `Badge` | Status-Badge |
-| `Breadcrumb` | Breadcrumb-Navigation |
-| `Chart` | Recharts-Wrapper mit Legend und Tooltip |
-| `Command` | Command-Palette (cmdk) |
+### Data
+| Component | Description |
+|-----------|-------------|
+| `Avatar` | User avatar (image with fallback) |
+| `Badge` | Status badge |
+| `Breadcrumb` | Breadcrumb navigation |
+| `Chart` | Recharts wrapper with legend and tooltip |
+| `Command` | Command palette (cmdk) |
 
-### Spezial
-| Komponente | Beschreibung |
-|------------|-------------|
-| `TimezonePicker` | Zeitzonen-Auswahl mit Suche |
-| `PageSpinner` | Ganzseitige Lade-Animation |
-| `Sonner` | Toast-Benachrichtigungen |
+### Specialized
+| Component | Description |
+|-----------|-------------|
+| `TimezonePicker` | Searchable timezone selector |
+| `PageSpinner` | Full-page loading animation |
+| `Sonner` | Toast notifications |
 
-## Geteilte Komponenten
+## Shared Components
 
 ### `nav-user.tsx`
-Benutzer-Info im Sidebar-Footer mit:
-- Avatar, Name, Rolle
-- Logout-Funktion
+User info in the sidebar footer, including:
+- Avatar, name, role
+- Logout action
 
 ### `sidebar-branding-header.tsx`
-Team-Branding im Sidebar-Header:
-- Logo (wenn URL konfiguriert)
-- Team-Name
+Team branding in the sidebar header:
+- Logo (when a URL is configured)
+- Team name
 - Tagline
 
 ### `sidebar-nav-group.tsx`
-Navigations-Gruppe in der Sidebar:
-- Gruppentitel
-- Liste von Navigations-Items mit Icons
+Navigation group in the sidebar:
+- Group title
+- List of navigation items with icons
 
 ### `agent-picker.tsx`
-Multi-Select fuer Valorant-Agenten:
-- Checkbox-Liste aller Agenten
-- Ausgewaaehlte als Badges
-- Normalisierte Namen (KAY/O → KAYO)
+Multi-select for Valorant agents:
+- Checkbox list of all agents
+- Selected agents shown as badges
+- Normalized names (KAY/O → KAYO)
 
 ### `pdf-preview-dialog.tsx`
-PDF-Vorschau in einem Dialog:
-- Iframe-basierte Anzeige
-- Download-Button
+PDF preview inside a dialog:
+- Iframe-based viewer
+- Download button
 
 ## Custom Hooks
 
 ### `useIsMobile()`
 ```typescript
-const isMobile = useIsMobile(); // true wenn < 768px
+const isMobile = useIsMobile(); // true when < 768px
 ```
 
 ### `useBranding(defaults?)`
@@ -112,18 +112,18 @@ const { user, isLoading } = useUserDiscordId();
 
 ## Animation Utilities
 
-`lib/animations.ts` stellt vorgefertigte Animationsklassen bereit:
+`lib/animations.ts` provides prebuilt animation classes:
 
 ```typescript
 import { stagger, microInteractions } from '@/lib/animations';
 
-// Gestaffelte Animation
+// Staggered animation
 <div className={stagger(index, 'fast', 'fadeIn')}>
 
-// Hover-Effekt
+// Hover effect
 <button className={microInteractions.hoverLift}>
 
-// Loading State
+// Loading state
 <div className={loadingStates.shimmer}>
 ```
 
@@ -135,7 +135,7 @@ import { withErrorBoundary } from '@/components/error-boundary';
 const SafeComponent = withErrorBoundary(MyComponent);
 ```
 
-Faengt Render-Fehler ab und zeigt:
-- Fehlermeldung
-- "Erneut versuchen" Button
-- "Seite neu laden" Button
+Catches render errors and shows:
+- An error message
+- A "Try again" button
+- A "Reload page" button

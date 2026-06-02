@@ -1,14 +1,14 @@
 # Render Deployment
 
-## Uebersicht
+## Overview
 
-Schedule-Bot kann auf [Render](https://render.com) deployed werden. Die Konfiguration liegt in `render.yaml` (Blueprint).
+Schedule-Bot can be deployed to [Render](https://render.com). The configuration lives in `render.yaml` (Blueprint).
 
 ## Blueprint
 
-Die `render.yaml` definiert alle Services und die Datenbank:
+`render.yaml` defines all services and the database:
 
-### Datenbank
+### Database
 
 ```yaml
 databases:
@@ -52,16 +52,16 @@ services:
 
 ## Setup
 
-### 1. Blueprint deployen
+### 1. Deploy the Blueprint
 
-1. Render Dashboard → "New" → "Blueprint"
-2. GitHub Repository verbinden
-3. Render erkennt `render.yaml` automatisch
-4. Services und Datenbank werden erstellt
+1. Render dashboard -> "New" -> "Blueprint"
+2. Connect the GitHub repository
+3. Render detects `render.yaml` automatically
+4. Services and database are provisioned
 
-### 2. Sync-Variablen setzen
+### 2. Set synced variables
 
-Folgende Variablen muessen manuell gesetzt werden (als "Synced" markiert):
+The following variables must be set manually (marked as "Synced"):
 
 - `DISCORD_TOKEN`
 - `DISCORD_GUILD_ID`
@@ -75,11 +75,11 @@ Folgende Variablen muessen manuell gesetzt werden (als "Synced" markiert):
 
 ### 3. Deploy
 
-Nach dem Setzen aller Variablen: "Manual Deploy" → "Clear build cache & deploy".
+Once all variables are set: "Manual Deploy" -> "Clear build cache & deploy".
 
-## Hinweise
+## Notes
 
-- Render Free Tier: Services schlafen nach 15 Minuten Inaktivitaet ein
-- Fuer einen Discord Bot ist der Paid Plan empfohlen (Always On)
-- `JWT_SECRET` wird automatisch generiert
-- `DATABASE_URL` wird automatisch von der Datenbank uebernommen
+- Render free tier: services go to sleep after 15 minutes of inactivity
+- A paid plan (Always On) is recommended for a Discord bot
+- `JWT_SECRET` is generated automatically
+- `DATABASE_URL` is wired in automatically from the database

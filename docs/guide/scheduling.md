@@ -1,107 +1,169 @@
-# Scheduling-System
+# Scheduling System
 
-## Konzept
+Scheduling is the heart of Schedule-Bot. It tracks one row per day, snapshots player
+availability into that row, and surfaces the team's status across Discord and the
+dashboard.
 
-Das Scheduling-System ist das Herzstck von Schedule-Bot. Es verwaltet taegliche Trainingsplaene und die Verfuegbarkeit aller Spieler.
+## Day records
 
-## Tages-Schedule
+Each day owns a single schedule entry:
 
-Jeder Tag hat einen eigenen Schedule-Eintrag mit:
+| Field | Description |
+| --- | --- |
+| `date` | `DD.MM.YYYY` (stored as a unique TEXT column) |
+| `reason` | Free text — e.g. `Training`, `Scrims`, `Premier`, `Off-Day`, `VOD-Review` |
+| `focus` | Optional detail text (a topic, a map, a goal) |
+| `players` | Snapshot of every registered player with their availability for the day |
 
-- **Datum** im Format `DD.MM.YYYY`
-- **Grund** (Reason) - z.B. Training, Scrims, Premier, Off-Day, VOD-Review
-- **Fokus** (Focus) - Optionaler Detail-Text
-- **Spieler-Liste** - Snapshot aller registrierten Spieler mit Verfuegbarkeit
+::: tip Off-Day detection
+Any `reason` containing `"off"` (case-insensitive) flips the analyser to `OFF_DAY` — no
+roster math is performed and the daily post is short-circuited.
+:::
 
-### Schedule-Status
+## Status analyser
 
-Der Analyzer (`src/shared/utils/analyzer.ts`) ermittelt fuer jeden Tag einen Status:
+`analyzeSchedule()` in `src/shared/utils/analyzer.ts` derives a single status per day.
 
-| Status | Bedingung | Farbe |
-|--------|-----------|-------|
-| `OFF_DAY` | Grund enthaelt "off" | Lila |
-| `FULL_ROSTER` | 5+ Main-Spieler verfuegbar | Gruen |
-| `WITH_SUBS` | 4 Mains + ausreichend Subs fuer 5 | Orange |
-| `NOT_ENOUGH` | Weniger als 5 insgesamt verfuegbar | Rot |
+| Status | Trigger | Embed colour |
+| --- | --- | --- |
+| `OFF_DAY` | `reason` contains "off" | Purple |
+| `FULL_ROSTER` | ≥ 5 MAIN players available | Green |
+| `WITH_SUBS` | < 5 MAINs, but MAIN + SUB ≥ 5 | Orange |
+| `NOT_ENOUGH` | Fewer than 5 players available total | Red |
 
-**Prioritaet:** `OFF_DAY` > `FULL_ROSTER` > `WITH_SUBS` > `NOT_ENOUGH`
+Status priority for change notifications: `OFF_DAY` > `FULL_ROSTER` > `WITH_SUBS` >
+`NOT_ENOUGH`.
 
-### Automatische Erstellung
+## Availability values
 
-- Beim Start werden die naechsten **14 Tage** automatisch angelegt
-- `addMissingDays()` fuellt fehlende Eintraege auf
-- Wiederkehrende Verfuegbarkeiten werden automatisch auf leere Slots angewendet
-
-## Verfuegbarkeits-Formate
-
-```
-""              → Keine Antwort (❓)
-"x" oder "X"   → Nicht verfuegbar (❌)
-"HH:MM-HH:MM"  → Zeitfenster (✅), z.B. "14:00-20:00"
-```
-
-## Automatische Posts
-
-Der Scheduler postet taeglich den aktuellen Trainingsplan in den konfigurierten Discord-Channel.
+The `availability` column on `SchedulePlayer` is a TEXT field with three shapes:
 
 ```
-┌─────────────────────────────────────┐
-│     Taeglich um 18:00 (config)      │
-│                                     │
-│  1. Schedule fuer heute laden       │
-│  2. Status analysieren              │
-│  3. Embed erstellen & posten        │
-│  4. Ggf. Training-Poll erstellen    │
-└─────────────────────────────────────┘
+""                       — no response (⚪)
+"x" or "X"               — unavailable (❌)
+"HH:MM-HH:MM"            — single time window (✅)
+"HH:MM-HH:MM,HH:MM-..."  — multiple comma-separated windows
 ```
 
-### Erinnerungen
+Multi-window inputs come from the daily modal's "Additional windows" field. The analyser
+unions overlapping windows when computing the common time range.
 
-Vor dem taeglichen Post werden Erinnerungen an Spieler ohne Verfuegbarkeits-Angabe gesendet:
+## Day-record lifecycle
 
-- **1. Erinnerung:** X Stunden vor dem Post (konfigurierbar)
-- **2. Erinnerung:** Y Stunden vor dem Post (optional)
-- Abwesende Spieler und Coaches werden uebersprungen
-- DM-Nachrichten mit Aktions-Buttons
-
-### Status-Aenderungs-Benachrichtigungen
-
-`checkAndNotifyStatusChange()` wird nach jeder Verfuegbarkeits-Aenderung aufgerufen:
-
-1. Aktuellen Status berechnen
-2. Mit letztem bekannten Status vergleichen
-3. Bei Aenderung: Neues Embed posten
-4. Nur fuer heute und nach der taeglichen Post-Zeit aktiv
-
-## Roster-Synchronisation
-
-```
-User Mappings (Master)          Schedule Players (Snapshot)
-┌──────────────────┐            ┌──────────────────┐
-│ Player A (MAIN)  │────sync───▶│ Player A (MAIN)  │
-│ Player B (MAIN)  │────sync───▶│ Player B (MAIN)  │
-│ Player C (SUB)   │────sync───▶│ Player C (SUB)   │
-│ [neuer Spieler]  │────add────▶│ [neuer Spieler]  │
-└──────────────────┘            └──────────────────┘
+```mermaid
+flowchart LR
+    A[Bot start] --> B[addMissingDays · 14 days]
+    B --> C[applyRecurringToEmptySchedules]
+    C --> D[Daily post / reminders]
+    D --> E[Player updates availability]
+    E --> F[checkAndNotifyStatusChange]
+    F --> G[refreshWeeklyOverview]
 ```
 
-Wenn das Roster geaendert wird (Register/Unregister), synchronisiert `syncUserMappingsToSchedules()` alle **zukuenftigen** Schedule-Eintraege.
+- On bot start and at every weekly ping, `addMissingDays()` ensures the next 14 days have
+  rows for every registered player.
+- `applyRecurringToEmptySchedules()` fills empty slots from each player's weekly pattern
+  (recurring availability).
+- Manually set values are never overwritten by recurring patterns.
 
-## Ablauf: Verfuegbarkeit setzen
+## The daily post
 
-### Via Discord (`/set`)
+```
+When:   scheduling.dailyPostTime
+Where:  discord.channelId
 
-1. Spieler fuehrt `/set` aus
-2. Interaktives Menu mit Datumsauswahl
-3. Zeitfenster eingeben oder "nicht verfuegbar" waehlen
-4. Zeitzonen-Konvertierung (User → Bot-Timezone)
-5. Datenbank-Update
-6. `checkAndNotifyStatusChange()` pruefen
+  1. Load today's schedule
+  2. Analyse status
+  3. Build the embed and post it (with optional role ping)
+  4. If training-start polls are enabled and training can proceed,
+     create the poll
+```
 
-### Via Dashboard
+Details: [Scheduler & Cron Jobs](/bot/scheduler).
 
-1. User-Portal → Schedule-Tab
-2. Datum anklicken
-3. Verfuegbarkeit eingeben
-4. API-Call: `POST /api/schedule/update-availability`
-5. Automatische Benachrichtigung bei Status-Aenderung
+## Reminders
+
+There are three distinct DM flows, all checking the **current week's gaps** (not just
+today). Coaches and players with active absences are always skipped.
+
+| Trigger | When | Tone |
+| --- | --- | --- |
+| `reminderTask` (daily) | `dailyPostTime − reminderHoursBefore` | Warning — "open days" |
+| `duplicateReminderTask` (daily, optional) | `dailyPostTime − duplicateReminderHoursBefore` | Identical to above |
+| `weeklyPingTask` | `weeklyPingTime` on selected weekdays | Friendly — "plan your week" |
+| Dashboard "Send reminders" | manual click | Warning — "open days" |
+| `/remind` admin slash command | manual call | Warning — "open days" |
+
+::: tip Deduplication
+On days listed in `weeklyPingDays`, both reminder cron jobs no-op. Players receive
+exactly one DM that day — the friendlier `weeklyPingTask` one.
+:::
+
+## Change notifications
+
+Every availability update funnels through `checkAndNotifyStatusChange()`. It only fires
+**for today**, only **after the daily post time**, and only when the status priority
+actually changes. Same-priority shuffles (e.g. one MAIN swapping with another) stay
+silent.
+
+```mermaid
+flowchart LR
+    A[Availability update] --> B{Today?}
+    B -->|no| Z[skip]
+    B -->|yes| C{Past post time?}
+    C -->|no| Z
+    C -->|yes| D{Priority changed?}
+    D -->|no| Z
+    D -->|yes| E[Clean channel · post updated embed · refresh training poll]
+```
+
+If the new status allows training, a fresh training-start poll replaces any previous one.
+
+## Roster synchronisation
+
+`UserMapping` is the master roster; `SchedulePlayer` rows are per-day snapshots.
+
+```
+UserMappings (master)            SchedulePlayers (per day)
+┌─────────────────────┐          ┌─────────────────────┐
+│ Player A (MAIN)     │──sync──▶│ Player A (MAIN)     │
+│ Player B (MAIN)     │──sync──▶│ Player B (MAIN)     │
+│ Player C (SUB)      │──sync──▶│ Player C (SUB)      │
+│ [new player]        │──add──▶ │ [new player]        │
+└─────────────────────┘          └─────────────────────┘
+```
+
+Whenever the roster changes — register, unregister, role change —
+`syncUserMappingsToSchedules()` rewrites all **future** snapshot rows so they reflect the
+new roster.
+
+## Setting availability
+
+Players have three entry points; all of them feed into
+`updatePlayerAvailability(date, userId, availability)` and trigger
+`checkAndNotifyStatusChange()` + `refreshWeeklyOverview()`.
+
+### Discord — `/set`
+
+1. The bot shows a date select menu (next 14 days)
+2. The player picks a date
+3. They either submit a time window via modal or click "Not Available"
+4. Times in the player's personal timezone are converted to the bot timezone
+5. The DB is updated and a confirmation is sent ephemerally
+
+### Discord — pinned weekly overview
+
+The pinned message in `discord.channelId` carries seven date-buttons (Mon–Sun). Clicking
+any opens the same modal as `/set`. The pinned message itself updates live.
+
+### Discord — DM reminders
+
+Daily and weekly DMs include up to seven day-buttons. They open the same modal.
+
+### Dashboard
+
+1. User Portal → Schedule tab
+2. Pick a date and enter a window
+3. `POST /api/schedule/update-availability` runs the same backend pipeline
+
+See also: [Availability](/guide/availability), [Timezones](/guide/timezones).

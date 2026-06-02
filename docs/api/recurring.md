@@ -1,13 +1,13 @@
-# Wiederkehrende Verfuegbarkeit API
+# Recurring Availability API
 
-## Eigene Eintraege abrufen
+## Get Own Entries
 
 ```http
 GET /api/recurring-availability
 Authorization: Bearer <token>
 ```
 
-**Erfolg (200):**
+**Success (200):**
 ```json
 {
   "success": true,
@@ -30,18 +30,18 @@ Authorization: Bearer <token>
 }
 ```
 
-**Wochentage:**
-| Wert | Tag |
-|------|-----|
-| 0 | Sonntag |
-| 1 | Montag |
-| 2 | Dienstag |
-| 3 | Mittwoch |
-| 4 | Donnerstag |
-| 5 | Freitag |
-| 6 | Samstag |
+**Weekdays:**
+| Value | Day       |
+| ----- | --------- |
+| 0     | Sunday    |
+| 1     | Monday    |
+| 2     | Tuesday   |
+| 3     | Wednesday |
+| 4     | Thursday  |
+| 5     | Friday    |
+| 6     | Saturday  |
 
-## Verfuegbarkeit setzen
+## Set Availability
 
 ```http
 POST /api/recurring-availability
@@ -57,22 +57,22 @@ Content-Type: application/json
 }
 ```
 
-Erstellt oder aktualisiert den Eintrag fuer den angegebenen Wochentag (Upsert).
+Creates or updates the entry for the given weekday (upsert).
 
-## Einzelnen Tag loeschen
+## Delete a Single Day
 
 ```http
 DELETE /api/recurring-availability/:dayOfWeek
 Authorization: Bearer <token>
 ```
 
-**Beispiel:** `DELETE /api/recurring-availability/1` loescht den Montag-Eintrag.
+**Example:** `DELETE /api/recurring-availability/1` removes the Monday entry.
 
-## Alle Eintraege loeschen
+## Delete All Entries
 
 ```http
 DELETE /api/recurring-availability
 Authorization: Bearer <token>
 ```
 
-Loescht alle wiederkehrenden Verfuegbarkeiten des aktuellen Users.
+Removes all recurring availability entries for the current user.

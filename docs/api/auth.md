@@ -1,4 +1,4 @@
-# Authentifizierung API
+# Authentication API
 
 ## Admin Login
 
@@ -10,11 +10,11 @@ POST /api/auth/admin/login
 ```json
 {
   "username": "admin",
-  "password": "dein_passwort"
+  "password": "your_password"
 }
 ```
 
-**Erfolg (200):**
+**Success (200):**
 ```json
 {
   "success": true,
@@ -26,7 +26,7 @@ POST /api/auth/admin/login
 }
 ```
 
-**Fehler (401):**
+**Error (401):**
 ```json
 {
   "error": "Invalid credentials"
@@ -46,7 +46,7 @@ POST /api/auth/user/login
 }
 ```
 
-**Erfolg (200):**
+**Success (200):**
 ```json
 {
   "success": true,
@@ -59,20 +59,20 @@ POST /api/auth/user/login
 }
 ```
 
-## Discord OAuth starten
+## Start Discord OAuth
 
 ```http
 GET /api/auth/discord
 ```
 
-**Response (302):** Redirect zur Discord OAuth URL.
+**Response (302):** Redirect to the Discord OAuth URL.
 
-**Query-Parameter der Redirect-URL:**
-- `client_id` - Discord Application ID
+**Query parameters on the redirect URL:**
+- `client_id` - Discord application ID
 - `redirect_uri` - Callback URL
 - `response_type` - `code`
 - `scope` - `identify`
-- `state` - CSRF-Schutz Token
+- `state` - CSRF protection token
 
 ## Discord OAuth Callback
 
@@ -80,7 +80,7 @@ GET /api/auth/discord
 GET /api/auth/discord/callback?code=...&state=...
 ```
 
-**Erfolg (200):**
+**Success (200):**
 ```json
 {
   "success": true,
@@ -94,14 +94,14 @@ GET /api/auth/discord/callback?code=...&state=...
 }
 ```
 
-## Aktueller User
+## Current User
 
 ```http
 GET /api/auth/user
 Authorization: Bearer <token>
 ```
 
-**Erfolg (200):**
+**Success (200):**
 ```json
 {
   "success": true,
@@ -120,7 +120,7 @@ POST /api/auth/logout
 Authorization: Bearer <token>
 ```
 
-**Erfolg (200):**
+**Success (200):**
 ```json
 {
   "success": true

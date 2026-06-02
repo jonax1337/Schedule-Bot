@@ -1,13 +1,13 @@
 # Scrims API
 
-## Alle Scrims abrufen
+## List All Scrims
 
 ```http
 GET /api/scrims
 Authorization: Bearer <token>
 ```
 
-**Erfolg (200):**
+**Success (200):**
 ```json
 {
   "success": true,
@@ -25,21 +25,21 @@ Authorization: Bearer <token>
       "theirAgents": "Reyna, Astra, Fade, Cypher, Sage",
       "vodUrl": "https://youtube.com/watch?v=...",
       "matchLink": "",
-      "notes": "Gute CT-Side",
+      "notes": "Strong CT side",
       "comments": []
     }
   ]
 }
 ```
 
-## Scrim-Statistiken
+## Scrim Statistics
 
 ```http
 GET /api/scrims/stats/summary
 Authorization: Bearer <token>
 ```
 
-**Erfolg (200):**
+**Success (200):**
 ```json
 {
   "success": true,
@@ -57,21 +57,21 @@ Authorization: Bearer <token>
 }
 ```
 
-## Scrims nach Zeitraum
+## Scrims by Date Range
 
 ```http
 GET /api/scrims/range/01.03.2026/31.03.2026
 Authorization: Bearer <token>
 ```
 
-## Einzelner Scrim
+## Single Scrim
 
 ```http
 GET /api/scrims/:id
 Authorization: Bearer <token>
 ```
 
-## Scrim erstellen
+## Create Scrim
 
 ```http
 POST /api/scrims
@@ -96,13 +96,13 @@ Content-Type: application/json
 }
 ```
 
-**Ergebnis-Werte:** `WIN`, `LOSS`, `DRAW`
+**Result values:** `WIN`, `LOSS`, `DRAW`
 
-**Match-Typen:** `Scrim`, `Tournament`, `Premier`, `Custom`
+**Match types:** `Scrim`, `Tournament`, `Premier`, `Custom`
 
-**Verfuegbare Maps:** Abyss, Ascent, Bind, Breeze, Corrode, Fracture, Haven, Icebox, Lotus, Pearl, Split, Sunset
+**Available maps:** Abyss, Ascent, Bind, Breeze, Corrode, Fracture, Haven, Icebox, Lotus, Pearl, Split, Sunset
 
-## Scrim bearbeiten
+## Edit Scrim
 
 ```http
 PUT /api/scrims/:id
@@ -110,9 +110,9 @@ Authorization: Bearer <admin-token>
 Content-Type: application/json
 ```
 
-Body wie beim Erstellen (alle Felder optional).
+Same body as create (all fields optional).
 
-## Scrim loeschen
+## Delete Scrim
 
 ```http
 DELETE /api/scrims/:id
@@ -120,5 +120,5 @@ Authorization: Bearer <admin-token>
 ```
 
 ::: warning Cascade Delete
-Beim Loeschen eines Scrims werden alle zugehoerigen VOD-Kommentare automatisch mit geloescht.
+Deleting a scrim also removes all associated VOD comments.
 :::

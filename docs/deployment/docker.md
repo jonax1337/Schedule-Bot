@@ -2,28 +2,28 @@
 
 ## docker-compose.yml
 
-Das Projekt stellt eine `docker-compose.yml` bereit, die alle drei Services orchestriert.
+The project ships with a `docker-compose.yml` that orchestrates all three services.
 
 ### Services
 
 ```yaml
 services:
   db:          # PostgreSQL 16
-  bot:         # Backend (Bot + API)
-  dashboard:   # Next.js Frontend
+  bot:         # Backend (bot + API)
+  dashboard:   # Next.js frontend
 ```
 
-## Schnellstart
+## Quick Start
 
 ```bash
-# 1. .env konfigurieren
+# 1. Configure .env
 cp .env.example .env
-# Werte anpassen (DISCORD_TOKEN, ADMIN_PASSWORD_HASH, etc.)
+# Adjust values (DISCORD_TOKEN, ADMIN_PASSWORD_HASH, etc.)
 
-# 2. Starten
+# 2. Start
 docker-compose up -d
 
-# 3. Logs pruefen
+# 3. Check logs
 docker-compose logs -f bot
 docker-compose logs -f dashboard
 ```
@@ -49,9 +49,9 @@ db:
 ```
 
 ::: warning DB_PASSWORD
-Setze unbedingt ein sicheres Passwort in der `.env`:
+Always set a strong password in `.env`:
 ```env
-DB_PASSWORD=ein_sicheres_passwort
+DB_PASSWORD=a_secure_password
 ```
 :::
 
@@ -66,25 +66,25 @@ bot:
   environment:
     DATABASE_URL: postgresql://schedule_bot_user:${DB_PASSWORD}@db:5432/schedule_bot
     DISCORD_TOKEN: ${DISCORD_TOKEN}
-    # ... weitere Variablen
+    # ... additional variables
   ports:
     - "3001:3001"
   restart: unless-stopped
 ```
 
-### Dockerfile (Multi-Stage)
+### Dockerfile (multi-stage)
 
-**Builder Stage:**
+**Builder stage:**
 1. Node 20 Slim + OpenSSL
 2. `npm ci --ignore-scripts`
-3. Prisma Client generieren
-4. TypeScript kompilieren
+3. Generate the Prisma Client
+4. Compile TypeScript
 
-**Runner Stage:**
-1. Nur Production Dependencies
-2. Prisma Schema + Generated Client kopieren
-3. Kompilierten Code kopieren
-4. Start: Migrationen + `node dist/index.js`
+**Runner stage:**
+1. Production dependencies only
+2. Copy the Prisma schema and generated client
+3. Copy the compiled code
+4. Start: migrations + `node dist/index.js`
 
 ## Dashboard Service
 
@@ -103,49 +103,49 @@ dashboard:
 ```
 
 ::: info NEXT_PUBLIC_BOT_API_URL
-Diese Variable wird zur **Build-Zeit** eingebettet. Sie muss die oeffentlich erreichbare URL des Bot-API-Servers sein (nicht die interne Docker-URL).
+This variable is baked in at **build time**. It must point to the publicly reachable URL of the bot API server, not the internal Docker URL.
 :::
 
 ## Volumes
 
 ```yaml
 volumes:
-  pgdata:    # Persistente PostgreSQL-Daten
+  pgdata:    # Persistent PostgreSQL data
 ```
 
-## Netzwerk
+## Network
 
-Docker Compose erstellt automatisch ein internes Netzwerk. Services kommunizieren ueber ihren Service-Namen:
-- Dashboard → Bot: `http://bot:3001`
-- Bot → DB: `postgresql://...@db:5432/schedule_bot`
+Docker Compose creates an internal network automatically. Services talk to each other via their service name:
+- Dashboard -> Bot: `http://bot:3001`
+- Bot -> DB: `postgresql://...@db:5432/schedule_bot`
 
 ## Updates
 
 ```bash
-# Neuester Code
+# Pull the latest code
 git pull
 
-# Neu bauen und starten
+# Rebuild and restart
 docker-compose up -d --build
 
-# Nur einen Service neu bauen
+# Rebuild a single service
 docker-compose up -d --build bot
 ```
 
 ## Troubleshooting
 
-**Datenbank nicht erreichbar:**
+**Database unreachable:**
 ```bash
 docker-compose logs db
 docker-compose exec db pg_isready
 ```
 
-**Bot startet nicht:**
+**Bot won't start:**
 ```bash
 docker-compose logs bot
-# Haeufig: Fehlende .env Variablen
+# Common cause: missing .env variables
 ```
 
-**Dashboard zeigt keine Daten:**
-- Pruefen ob `NEXT_PUBLIC_BOT_API_URL` korrekt gesetzt ist
-- Pruefen ob Bot-API erreichbar ist: `curl http://localhost:3001/api/health`
+**Dashboard shows no data:**
+- Check that `NEXT_PUBLIC_BOT_API_URL` is set correctly
+- Check that the bot API is reachable: `curl http://localhost:3001/api/health`

@@ -1,61 +1,61 @@
-# User-Portal
+# User Portal
 
-## Uebersicht
+## Overview
 
-Das User-Portal ist die Hauptansicht fuer Spieler. Es ist unter `/` erreichbar und erfordert eine Anmeldung.
+The user portal is the main view for players. It is available at `/` and requires authentication.
 
 ## Tabs
 
 ### Schedule
 
-14-Tage Kalenderansicht mit Team-Verfuegbarkeit.
+14-day calendar view of the team's availability.
 
 **Features:**
-- Tageseintraege mit Grund (Training, Premier, Off-Day, etc.)
-- Spieler-Matrix mit Verfuegbarkeiten
-- Eigene Verfuegbarkeit direkt setzen
-- Zeitfenster-Eingabe mit Zeitzonen-Konvertierung
-- Farbkodierte Status-Indikatoren
-- Abwesende Spieler markiert
+- Daily entries with a reason (Training, Premier, Off-Day, etc.)
+- Player matrix with availabilities
+- Set your own availability directly
+- Time window input with timezone conversion
+- Color-coded status indicators
+- Absent players are marked
 
-**API-Aufrufe:**
-- `GET /api/schedule/next14` - Schedule laden
-- `POST /api/schedule/update-availability` - Verfuegbarkeit setzen
+**API calls:**
+- `GET /api/schedule/next14` - load the schedule
+- `POST /api/schedule/update-availability` - update availability
 
 ### Availability
 
-Verfuegbarkeits-Management fuer kommende Tage.
+Manage availability for upcoming days.
 
 **Features:**
-- Schnelle Zeiteingabe fuer mehrere Tage
-- Zeitzonen-Konvertierung (User → Bot)
-- Visuelle Zeitfenster-Anzeige
+- Quickly enter times across multiple days
+- Timezone conversion (user → bot)
+- Visual display of time windows
 
 ### Recurring
 
-Woechentliche Verfuegbarkeits-Muster.
+Weekly availability patterns.
 
 **Features:**
-- 7-Tage-Wochen-Matrix
-- Pro Tag: Zeitfenster oder "nicht verfuegbar"
-- Aenderungen werden auf zukuenftige leere Slots angewendet
+- 7-day weekly matrix
+- Per day: a time window or "unavailable"
+- Changes are applied to future empty slots
 
-**API-Aufrufe:**
+**API calls:**
 - `GET /api/recurring-availability`
 - `POST /api/recurring-availability`
 - `DELETE /api/recurring-availability/:day`
 
 ### Absences
 
-Abwesenheits-Verwaltung.
+Manage absences.
 
 **Features:**
-- Datum-Bereich waehlen (Start + Ende)
-- Optionaler Grund
-- Liste aller eigenen Abwesenheiten
-- Bearbeiten und Loeschen
+- Choose a date range (start + end)
+- Optional reason
+- List of all your own absences
+- Edit and delete
 
-**API-Aufrufe:**
+**API calls:**
 - `GET /api/absences`
 - `POST /api/absences`
 - `PUT /api/absences/:id`
@@ -63,43 +63,44 @@ Abwesenheits-Verwaltung.
 
 ### Matches
 
-Scrim-Uebersicht und -Verwaltung (geteilt mit Admin).
+Scrim overview and management (shared with admin).
 
-Siehe [Matches & Statistiken](/dashboard/matches).
+See [Matches & Statistics](/dashboard/matches).
 
 ### Stratbook
 
-Team-Strategien (geteilt mit Admin).
+Team strategies (shared with admin).
 
-Siehe [Stratbook](/dashboard/stratbook).
+See [Stratbook](/dashboard/stratbook).
 
 ### Statistics
 
-Scrim-Statistiken und Charts (geteilt mit Admin).
+Scrim statistics and charts (shared with admin).
 
-Siehe [Matches & Statistiken](/dashboard/matches).
+See [Matches & Statistics](/dashboard/matches).
 
 ## Layout
 
 ### Sidebar
 
-Die User-Sidebar zeigt:
-- **Team-Branding** (Name, Logo, Tagline)
-- **Navigation** (alle Tabs)
-- **User-Info** (Name, Rolle, Avatar)
-- **Logout-Button**
-- **Theme-Toggle** (Dark/Light)
+The user sidebar displays:
+- **Team branding** (name, logo, tagline)
+- **Navigation** (all tabs)
+- **User info** (name, role, avatar)
+- **Logout button**
+- **Theme toggle** (dark/light)
 
 ### Responsive Design
 
-- Auf kleinen Bildschirmen (< 768px) wird die Sidebar zu einem Hamburger-Menu
-- `useIsMobile()` Hook fuer responsive Logik
-- Sheet-basierte mobile Navigation
+- On small screens (< 768px) the sidebar collapses into a hamburger menu.
+- The `useIsMobile()` hook drives responsive logic.
+- Mobile navigation uses a `Sheet`-based drawer.
 
-## Authentifizierung
+## Authentication
 
-Beim Laden der Seite wird:
-1. Token aus localStorage gepreuft
-2. Token gegen Server validiert (`/api/auth/user`)
-3. Bei Fehler: Redirect zu `/login`
-4. Rolle wird server-seitig synchronisiert (kein localStorage-Vertrauen)
+When the page loads, the portal:
+
+1. Reads the token from localStorage.
+2. Validates it against the server (`/api/auth/user`).
+3. Redirects to `/login` on failure.
+4. Synchronizes the role server-side (localStorage is not trusted).

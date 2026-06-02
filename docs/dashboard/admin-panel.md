@@ -1,125 +1,135 @@
-# Admin-Panel
+# Admin Panel
 
-## Uebersicht
-
-Das Admin-Panel ist unter `/admin` erreichbar und erfordert Admin-Authentifizierung.
+The admin panel lives at `/admin` and requires admin authentication.
 
 ## Tabs
 
 ### Dashboard
 
-Admin-Uebersichtsseite mit Widgets:
+Admin landing page with status widgets:
 
-**Status-Karten (4er Grid):**
-- **Bot Status** - Online/Offline Indikator (Polling alle 10s)
-- **Uptime** - Bot-Laufzeit
-- **API Server** - Server-Status
-- **Discord Connection** - Gateway-Verbindung
+**Status cards (4-column grid)**
 
-**Informations-Karten:**
-- **Team Overview** - Roster-Anzahl (Main/Sub/Coach Aufschluesselung)
-- **Win Rate** - Gesamt-Win-Rate mit W/L/D
-- **Upcoming Schedules** - Naechste 14 Tage mit Status-Zusammenfassung
+- **Bot Status** — online/offline indicator (polled every 10 s)
+- **Uptime** — process uptime
+- **API Server** — server health
+- **Discord Connection** — gateway state
 
-**Quick Actions** - Links zu: Statistics, Users, Schedule, Matches, Actions, Settings, Logs
+**Information cards**
+
+- **Team Overview** — roster counts broken down by Main / Sub / Coach
+- **Win Rate** — overall record (W/L/D)
+- **Upcoming Schedules** — next 14 days with summarised status
+
+**Quick Actions** — shortcuts to Statistics, Users, Schedule, Matches, Actions,
+Settings, Logs.
 
 ### Statistics
 
-Geteilte Komponente - siehe [Matches & Statistiken](/dashboard/matches).
+Shared component — see [Matches & Statistics](/dashboard/matches).
 
 ### Settings
 
-Konfigurationsseite mit Sektionen:
+Configuration page split into themed cards.
 
-**Discord-Konfiguration:**
-- Schedule-Channel (Dropdown aus Server-Channels)
-- Ping-Rolle (Dropdown aus Server-Rollen)
-- Discord OAuth ein-/ausschalten
-- Client ID / Secret / Redirect URI
+**Discord**
 
-**Scheduling:**
-- Taegliche Post-Zeit (HH:MM)
-- Bot-Zeitzone (Timezone Picker)
-- Erinnerung #1 (Stunden vor Post)
-- Erinnerung #2 (Toggle + Stunden)
-- Training-Poll (Toggle)
+- Schedule channel (dropdown sourced from the server)
+- Ping role (dropdown sourced from the server)
+- Discord OAuth toggle
 
-**Branding:**
-- Team-Name
+**Scheduling**
+
+- Daily post time
+- Bot timezone (picker)
+- Reminder #1 hours before post
+- Reminder #2 toggle + hours before post
+- Training-start poll toggle + poll duration
+- Clean channel before post toggle
+- Change notifications toggle
+- **Weekly Planning Reminder**
+  - Toggle (master switch)
+  - Time of day for the planning DM
+  - Weekday picker — choose which days the DM fires on
+
+**Branding**
+
+- Team name
 - Tagline
-- Logo-URL
+- Logo URL
 
-**Stratbook:**
-- Bearbeitungsrechte (Admin-only / Alle)
+**Stratbook**
+
+- Edit permission — Admins only / All registered players
 
 ### Users
 
-User-Mapping Verwaltung:
+User-mapping management.
 
-**Features:**
-- Tabelle aller registrierten Spieler
-- Spalten: Discord-ID, Display Name, Rolle, Avatar
-- Hinzufuegen / Bearbeiten / Loeschen
-- Drag-and-Drop Sortierung (dnd-kit)
-- Rollen-Zuweisung (MAIN / SUB / COACH)
-- Admin-Flag Toggle
+- Table of every registered player (Discord ID, display name, role, avatar)
+- Add / edit / delete
+- Drag-and-drop sort order (dnd-kit)
+- Role assignment (MAIN / SUB / COACH)
+- Admin flag toggle
 
 ### Schedule
 
-Schedule-Editor fuer Admins:
+Schedule editor.
 
-**Features:**
-- Tages-Gruende bearbeiten (Training, Scrims, Premier, Off-Day, etc.)
-- Fokus-Text setzen
-- Paginierte Historie vergangener Tage
+- Edit per-day reason (`Training`, `Scrims`, `Premier`, `Off-Day`, …)
+- Edit focus text
+- Paginated history of past days
 
 ### Matches
 
-Geteilte Komponente - siehe [Matches & Statistiken](/dashboard/matches).
+Shared component — see [Matches & Statistics](/dashboard/matches).
 
 ### Stratbook
 
-Geteilte Komponente - siehe [Stratbook](/dashboard/stratbook).
+Shared component — see [Stratbook](/dashboard/stratbook).
 
 ### Actions
 
-Manuelle Bot-Aktionen:
+Manual bot actions.
 
-| Aktion | Beschreibung |
-|--------|-------------|
-| **Schedule posten** | Heutigen Schedule in Discord posten |
-| **Erinnerung senden** | Spieler ohne Verfuegbarkeit erinnern |
-| **Poll erstellen** | Quick Poll mit Frage und Optionen |
-| **Training-Poll** | Training-Start-Abstimmung |
-| **Benachrichtigung** | DM an Spieler (Info/Warnung/Alert) |
-| **Channel leeren** | Alle Nachrichten im Schedule-Channel loeschen |
-| **Nachricht pinnen** | Nachricht senden und anpinnen |
+| Action | Effect |
+| --- | --- |
+| **Post schedule** | Post today's schedule into the channel |
+| **Send reminders** | DM the "weekly availability — open days" message to every player with gaps |
+| **Create poll** | Quick poll with custom question and options |
+| **Training poll** | Force a training-start vote |
+| **Notify** | Send a DM to a target audience |
+| **Clear channel** | Delete every non-pinned message in the schedule channel |
+| **Pin message** | Send a message and pin it |
+
+::: tip Reminders here always fire
+The reminder button ignores the weekly-planning-day skip used by the daily cron. Manual
+triggers reflect deliberate intent.
+:::
 
 ### Security
 
-Sicherheits-Einstellungen und -Informationen.
+Security configuration and information (active sessions, password policy, etc.).
 
 ### Logs
 
-System-Logs mit Filterung:
+System logs with filtering.
 
-**Features:**
-- Log-Level Filter (Info, Warn, Error)
-- Einstellbare Anzahl (1-1000)
-- Farbkodierte Log-Eintraege
-- Auto-Refresh Option
-
-**API:** `GET /api/admin/logs?limit=100&level=error`
+- Level filter (Info / Warn / Error)
+- Configurable row count (1–1000)
+- Colour-coded entries
+- Optional auto-refresh
+- Backed by `GET /api/admin/logs?limit=100&level=error`
 
 ## Layout
 
-### Admin-Sidebar
+### Admin sidebar
 
-- **Navigation** zu allen Tabs
-- **Admin-Info** (Username)
-- **Logout** Button
-- **Theme-Toggle**
+- Tab navigation
+- Admin info (username)
+- Logout button
+- Theme toggle
 
 ### Breadcrumbs
 
-Dynamische Breadcrumb-Navigation basierend auf dem aktiven Tab, verwaltet ueber `BreadcrumbProvider` Context.
+Generated dynamically from the active tab via `BreadcrumbProvider` context.

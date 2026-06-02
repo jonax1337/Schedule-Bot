@@ -1,189 +1,190 @@
 # Slash Commands
 
-## Uebersicht
+There are seventeen slash commands across four groups. Admin commands require the
+Discord **Administrator** permission.
 
-Es gibt **17 Slash Commands** in vier Kategorien. Admin-Commands erfordern die Discord Administrator-Berechtigung.
-
-## Oeffentliche Commands
+## Public commands
 
 ### `/schedule`
 
-Zeigt die Team-Verfuegbarkeit fuer ein bestimmtes Datum.
+Shows the team availability for a specific date.
 
-| Parameter | Typ | Pflicht | Beschreibung |
-|-----------|-----|---------|-------------|
-| `date` | String | Nein | Datum (DD.MM.YYYY), Default: heute |
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `date` | string | no | `DD.MM.YYYY`, defaults to today |
 
-**Ausgabe:** Embed mit Spieler-Liste, Verfuegbarkeiten und Status-Analyse.
+**Output** — embed with player list, availability, and the analysed status.
 
 ### `/schedule-week`
 
-Zeigt eine 7-Tage-Uebersicht der naechsten Woche.
+Shows a compact 7-day outlook of the next week.
 
-**Ausgabe:** Kompakte Wochenansicht mit Status-Indikatoren pro Tag.
+**Output** — one inline field per day with a status icon and the common time window.
 
 ### `/my-schedule`
 
-Zeigt die persoenliche Verfuegbarkeit der naechsten 14 Tage.
+Shows your personal availability across the next 14 days.
 
-**Ausgabe:** Liste aller Tage mit eigener Verfuegbarkeit und Schedule-Gruenden.
+**Output** — list of dates with your own availability and each day's reason.
 
 ### `/view-scrims`
 
-Zeigt die letzten Scrim-Ergebnisse.
+Shows the most recent scrim results.
 
-| Parameter | Typ | Pflicht | Beschreibung |
-|-----------|-----|---------|-------------|
-| `limit` | Integer | Nein | Anzahl (Default: 10) |
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `limit` | integer | no | Number of results (default `10`) |
 
 ### `/scrim-stats`
 
-Zeigt aggregierte Scrim-Statistiken: Gesamtbilanz, Win-Rate, Map-Statistiken.
+Aggregated scrim statistics: overall record, win rate, per-map breakdown.
 
-## Spieler-Commands
+## Player commands
 
 ### `/set`
 
-Interaktiver Verfuegbarkeits-Assistent.
+Interactive availability wizard.
 
-**Ablauf:**
-1. Bot zeigt Datumsauswahl (Select Menu, naechste 14 Tage)
-2. Spieler waehlt Datum
-3. Optionen: Zeitfenster eingeben (Modal) oder "Nicht verfuegbar" (Button)
-4. Bei Zeitfenster: `HH:MM-HH:MM` eingeben
-5. Zeitzonen-Konvertierung und Speicherung
-6. Bestaetigung mit konvertierter Zeit
+**Flow**
+
+1. Bot shows a date select menu (next 14 days)
+2. Player picks a date
+3. Player either enters a time window in a modal or clicks **Not Available**
+4. Times in the player's personal timezone are converted to the bot timezone
+5. A confirmation is sent ephemerally
 
 ### `/set-timezone`
 
-Setzt die persoenliche Zeitzone.
+Sets the player's personal timezone (used for input conversion).
 
-| Parameter | Typ | Pflicht | Beschreibung |
-|-----------|-----|---------|-------------|
-| `timezone` | String | Ja | IANA-Zeitzone (Autocomplete) |
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `timezone` | string | yes | IANA timezone (autocomplete) |
 
-**Beispiele:** `Europe/Berlin`, `America/New_York`, `Asia/Tokyo`
+Examples: `Europe/Berlin`, `America/New_York`, `Asia/Tokyo`.
 
 ### `/remove-timezone`
 
-Entfernt die persoenliche Zeitzone. Die Bot-Zeitzone wird wieder verwendet.
+Removes the personal timezone. Inputs fall back to the bot timezone.
 
 ### `/set-recurring`
 
-Setzt wiederkehrende woechentliche Verfuegbarkeiten.
+Sets a weekly recurring availability pattern.
 
-| Parameter | Typ | Pflicht | Beschreibung |
-|-----------|-----|---------|-------------|
-| `days` | String | Ja | Kommagetrennt: `mon,wed,fri` |
-| `time` | String | Ja | Zeitfenster: `18:00-22:00` oder `x` |
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `days` | string | yes | Comma-separated weekdays — `mon,wed,fri` |
+| `time` | string | yes | `HH:MM-HH:MM` or `x` for unavailable |
 
-**Beispiel:**
-```
+**Example**
+
+```text
 /set-recurring days:mon,tue,wed,thu,fri time:18:00-22:00
 ```
 
 ### `/my-recurring`
 
-Zeigt die eigenen wiederkehrenden Verfuegbarkeiten in einer uebersichtlichen Tabelle.
+Shows your current recurring pattern in a clean table.
 
 ### `/clear-recurring`
 
-Loescht wiederkehrende Verfuegbarkeiten.
+Removes recurring entries.
 
-| Parameter | Typ | Pflicht | Beschreibung |
-|-----------|-----|---------|-------------|
-| `day` | String | Nein | Spezifischer Tag oder alle |
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `day` | string | no | Single weekday — omit to clear all |
 
-## Admin-Commands
+## Admin commands
 
-::: warning Berechtigung
-Alle Admin-Commands erfordern die Discord **Administrator**-Berechtigung.
+::: warning Administrator permission required
+Every command below needs the Discord **Administrator** permission.
 :::
 
 ### `/post-schedule`
 
-Postet den Schedule-Embed manuell in den konfigurierten Channel.
+Posts the schedule embed for a given date into `discord.channelId`.
 
-| Parameter | Typ | Pflicht | Beschreibung |
-|-----------|-----|---------|-------------|
-| `date` | String | Nein | Datum (Default: heute) |
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `date` | string | no | `DD.MM.YYYY` (defaults to today) |
 
 ### `/register`
 
-Registriert einen Spieler im System.
+Registers a player.
 
-| Parameter | Typ | Pflicht | Beschreibung |
-|-----------|-----|---------|-------------|
-| `user` | User | Ja | Discord-Benutzer |
-| `role` | String | Ja | `MAIN`, `SUB` oder `COACH` |
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `user` | user | yes | Discord user |
+| `role` | string | yes | `MAIN`, `SUB`, or `COACH` |
 
-**Seiteneffekte:**
-- Erstellt User Mapping
-- Synchronisiert in zukuenftige Schedules
+**Side effects**
+
+- Creates a `UserMapping`
+- `syncUserMappingsToSchedules()` propagates the new player to all future schedule rows
 
 ### `/unregister`
 
-Entfernt einen Spieler aus dem System.
+Removes a player from the roster.
 
-| Parameter | Typ | Pflicht | Beschreibung |
-|-----------|-----|---------|-------------|
-| `user` | User | Ja | Discord-Benutzer |
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `user` | user | yes | Discord user |
 
 ### `/remind`
 
-Sendet Erinnerungen an Spieler ohne Verfuegbarkeits-Angabe.
+Sends the **weekly availability — open days** DM to every player who still has open days
+in the current week. Coaches and players on absence are always skipped.
 
-| Parameter | Typ | Pflicht | Beschreibung |
-|-----------|-----|---------|-------------|
-| `date` | String | Nein | Datum (Default: heute) |
-
-Abwesende Spieler und Coaches werden automatisch uebersprungen.
+::: tip Manual triggers always fire
+Unlike the daily cron, the manual `/remind` ignores the weekly-planning-day skip — the
+DM goes out even on a day that already had a weekly planning ping.
+:::
 
 ### `/notify`
 
-Sendet DM-Benachrichtigungen.
+Sends DMs to a target audience.
 
-| Parameter | Typ | Pflicht | Beschreibung |
-|-----------|-----|---------|-------------|
-| `type` | String | Ja | `info`, `warning`, `alert` |
-| `target` | String | Ja | `all`, `mains`, `subs` oder User |
-| `user` | User | Nein | Spezifischer Empfaenger |
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `type` | string | yes | `info`, `warning`, `alert` |
+| `target` | string | yes | `all`, `mains`, `subs`, or a specific user |
+| `user` | user | no | Specific recipient when `target` is set to a user |
 
 ### `/poll`
 
-Erstellt eine Quick-Poll mit Reaktions-Abstimmung.
+Creates a quick reaction-based poll.
 
-| Parameter | Typ | Pflicht | Beschreibung |
-|-----------|-----|---------|-------------|
-| `question` | String | Ja | Poll-Frage |
-| `options` | String | Ja | Optionen (kommagetrennt) |
-| `duration` | Integer | Nein | Dauer in Minuten |
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `question` | string | yes | Poll prompt |
+| `options` | string | yes | Comma-separated options |
+| `duration` | integer | no | Lifetime in minutes |
 
 ### `/training-start-poll`
 
-Aktiviert/deaktiviert den automatischen Training-Start-Poll bei Schedule-Posts.
+Toggles the automatic training-start poll that fires alongside the daily schedule post.
 
 ### `/send-training-poll`
 
-Erstellt manuell einen Training-Start-Poll.
+Creates a training-start poll on demand.
 
-| Parameter | Typ | Pflicht | Beschreibung |
-|-----------|-----|---------|-------------|
-| `date` | String | Nein | Datum (Default: heute) |
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `date` | string | no | `DD.MM.YYYY` (defaults to today) |
 
 ### `/add-scrim`
 
-Erfasst ein Scrim-Ergebnis.
+Records a scrim result.
 
-| Parameter | Typ | Pflicht | Beschreibung |
-|-----------|-----|---------|-------------|
-| `date` | String | Ja | Datum (DD.MM.YYYY) |
-| `opponent` | String | Ja | Gegner-Team |
-| `result` | String | Ja | `win`, `loss`, `draw` |
-| `score_us` | Integer | Ja | Eigene Runden |
-| `score_them` | Integer | Ja | Gegner-Runden |
-| `map` | String | Ja | Karten-Name |
-| `our_agents` | String | Nein | Eigene Agenten |
-| `their_agents` | String | Nein | Gegner-Agenten |
-| `vod_url` | String | Nein | VOD-Link |
-| `notes` | String | Nein | Notizen |
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `date` | string | yes | `DD.MM.YYYY` |
+| `opponent` | string | yes | Opponent team |
+| `result` | string | yes | `win`, `loss`, `draw` |
+| `score_us` | integer | yes | Our rounds |
+| `score_them` | integer | yes | Opponent rounds |
+| `map` | string | yes | Map name |
+| `our_agents` | string | no | Our composition |
+| `their_agents` | string | no | Opponent composition |
+| `vod_url` | string | no | VOD link |
+| `notes` | string | no | Free-form notes |

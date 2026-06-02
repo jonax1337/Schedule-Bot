@@ -1,95 +1,95 @@
-# Authentifizierung
+# Authentication
 
-## Uebersicht
+## Overview
 
-Schedule-Bot verwendet ein mehrstufiges Authentifizierungs-System:
+Schedule-Bot uses a multi-tier authentication system:
 
-| Methode | Zugang | Verwendung |
-|---------|--------|-----------|
-| **Admin Login** | Username + Passwort | Admin-Dashboard |
-| **User Login** | Name aus Roster | User-Portal |
-| **Discord OAuth** | Discord-Konto | User-Portal (optional) |
-| **JWT Token** | Bearer Token | API-Zugriff |
+| Method | Credentials | Used for |
+|--------|-------------|----------|
+| **Admin login** | Username + password | Admin dashboard |
+| **User login** | Name from the roster | User portal |
+| **Discord OAuth** | Discord account | User portal (optional) |
+| **JWT token** | Bearer token | API access |
 
-## Admin-Authentifizierung
+## Admin Authentication
 
-### Login-Flow
+### Login Flow
 
 ```
 Admin → /admin/login
   │
-  ├─ Username + Passwort eingeben
+  ├─ Enter username + password
   │
   ├─ POST /api/auth/admin/login
   │     Body: { username, password }
   │
   ├─ Server: bcrypt.compare(password, ADMIN_PASSWORD_HASH)
   │
-  ├─ JWT Token generieren (role: 'admin', 24h Ablauf)
+  ├─ Generate JWT token (role: 'admin', 24h expiry)
   │
-  └─ Token in localStorage speichern → /admin
+  └─ Store token in localStorage → /admin
 ```
 
-### Passwort-Hash generieren
+### Generating a Password Hash
 
 ```bash
 npm run build
 node dist/generateHash.js
-# Eingabe: dein_passwort
-# Ausgabe: $2b$10$...
+# Input:  your_password
+# Output: $2b$10$...
 ```
 
-Den Hash als `ADMIN_PASSWORD_HASH` in `.env` setzen.
+Set the hash as `ADMIN_PASSWORD_HASH` in `.env`.
 
-## User-Authentifizierung
+## User Authentication
 
-### Roster-basierter Login
+### Roster-based Login
 
 ```
 User → /login
   │
-  ├─ Name aus Dropdown waehlen (aus user_mappings)
+  ├─ Pick a name from the dropdown (sourced from user_mappings)
   │
   ├─ POST /api/auth/user/login
   │     Body: { displayName }
   │
-  ├─ JWT Token generieren (role: 'user', 24h Ablauf)
+  ├─ Generate JWT token (role: 'user', 24h expiry)
   │
-  └─ Token in localStorage speichern → /
+  └─ Store token in localStorage → /
 ```
 
 ### Discord OAuth (optional)
 
-Wenn `discord.authEnabled` in den Settings aktiviert ist:
+When `discord.authEnabled` is turned on in settings:
 
 ```
-User → /login → "Mit Discord anmelden"
+User → /login → "Sign in with Discord"
   │
   ├─ GET /api/auth/discord → Discord OAuth URL
   │
-  ├─ User autorisiert auf discord.com
+  ├─ User authorizes the app on discord.com
   │
-  ├─ Discord redirected zu /auth/callback?code=...
+  ├─ Discord redirects to /auth/callback?code=...
   │
   ├─ Callback: GET /api/auth/discord/callback?code=...&state=...
   │
-  ├─ Server: Code gegen Token tauschen, User-Info laden
+  ├─ Server: exchange code for token, fetch user info
   │
-  ├─ Discord-ID mit user_mappings abgleichen
+  ├─ Match Discord ID against user_mappings
   │
-  ├─ JWT Token generieren
+  ├─ Generate JWT token
   │
-  └─ Token speichern → /
+  └─ Store token → /
 ```
 
-**Voraussetzungen fuer OAuth:**
-- `DISCORD_CLIENT_ID` und `DISCORD_CLIENT_SECRET` gesetzt
-- `DISCORD_REDIRECT_URI` konfiguriert
-- `discord.authEnabled` in Settings auf `true`
+**OAuth requirements:**
+- `DISCORD_CLIENT_ID` and `DISCORD_CLIENT_SECRET` are set
+- `DISCORD_REDIRECT_URI` is configured
+- `discord.authEnabled` in settings is `true`
 
 ## JWT Tokens
 
-### Struktur
+### Structure
 
 ```json
 {
@@ -101,13 +101,13 @@ User → /login → "Mit Discord anmelden"
 }
 ```
 
-### Lebensdauer
+### Lifetime
 
-- Ablauf: **24 Stunden** nach Erstellung
-- Kein Refresh-Token-Mechanismus
-- Bei Ablauf: Redirect zum Login
+- Expiry: **24 hours** after creation
+- No refresh-token mechanism
+- On expiry: redirect to the login page
 
-### Verwendung
+### Usage
 
 ```http
 Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
@@ -117,29 +117,29 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
 
 ### `verifyToken()`
 
-Pflicht-Authentifizierung. Gibt 401 zurueck wenn:
-- Kein Token vorhanden
-- Token abgelaufen
-- Token ungueltig
+Mandatory authentication. Returns 401 when:
+- No token is present
+- The token has expired
+- The token is invalid
 
 ### `optionalAuth()`
 
-Token wird geprueft falls vorhanden, aber nicht erforderlich. Nuetzlich fuer Endpunkte mit unterschiedlichem Verhalten fuer authentifizierte vs. anonyme Requests.
+Verifies the token if one is present, but does not require it. Useful for endpoints whose behavior differs between authenticated and anonymous requests.
 
 ### `requireAdmin()`
 
-Erfordert `verifyToken()` + Rolle `admin`. Gibt 403 zurueck bei fehlendem Admin-Status.
+Requires `verifyToken()` plus the `admin` role. Returns 403 when the admin role is missing.
 
 ### `resolveCurrentUser()`
 
-Löst den aktuellen Benutzer zur Discord-ID auf. Wird fuer Ownership-Checks verwendet.
+Resolves the current user to a Discord ID. Used for ownership checks.
 
 ### `requireOwnershipOrAdmin()`
 
-Factory-Funktion: Erstellt Middleware, die entweder Besitz des Datensatzes oder Admin-Rolle erfordert.
+Factory function: returns middleware that requires either ownership of the record or the admin role.
 
 ```typescript
-// Beispiel: Nur eigene Abwesenheit oder Admin
+// Example: only the owner of an absence, or an admin
 router.delete('/absences/:id',
   verifyToken,
   requireOwnershipOrAdmin(getAbsenceOwner),
@@ -147,11 +147,11 @@ router.delete('/absences/:id',
 );
 ```
 
-## Sicherheitsfeatures
+## Security Features
 
-- **bcrypt** - Passwort-Hashing mit Salt
-- **Rate Limiting** - Max. Login-Versuche pro Zeitfenster
-- **CORS** - Nur erlaubte Origins
-- **Helmet** - Security Headers
-- **Kein Token-Caching** - Tokens werden bei jedem Request validiert
-- **Server-seitige Rollen-Pruefung** - localStorage-Manipulation wird verhindert
+- **bcrypt** — password hashing with salt
+- **Rate limiting** — caps login attempts per time window
+- **CORS** — only allowed origins
+- **Helmet** — security headers
+- **No token caching** — tokens are validated on every request
+- **Server-side role checks** — prevents localStorage tampering

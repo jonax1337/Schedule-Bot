@@ -1,15 +1,15 @@
-# Abwesenheiten API
+# Absences API
 
-## Abwesenheiten abrufen
+## List Absences
 
 ```http
 GET /api/absences
 Authorization: Bearer <token>
 ```
 
-Admins sehen alle Abwesenheiten, User nur ihre eigenen.
+Admins see all absences; regular users only see their own.
 
-**Erfolg (200):**
+**Success (200):**
 ```json
 {
   "success": true,
@@ -19,14 +19,14 @@ Admins sehen alle Abwesenheiten, User nur ihre eigenen.
       "userId": "123456789012345678",
       "startDate": "01.04.2026",
       "endDate": "07.04.2026",
-      "reason": "Urlaub",
+      "reason": "Vacation",
       "createdAt": "2026-03-27T12:00:00.000Z"
     }
   ]
 }
 ```
 
-## Abwesenheit erstellen
+## Create Absence
 
 ```http
 POST /api/absences
@@ -39,15 +39,15 @@ Content-Type: application/json
 {
   "startDate": "01.04.2026",
   "endDate": "07.04.2026",
-  "reason": "Urlaub"
+  "reason": "Vacation"
 }
 ```
 
-::: info Datumsformat
-Daten muessen im Format `DD.MM.YYYY` angegeben werden. Das Enddatum ist inklusive.
+::: info Date Format
+Dates must be provided in `DD.MM.YYYY` format. The end date is inclusive.
 :::
 
-## Abwesenheit bearbeiten
+## Edit Absence
 
 ```http
 PUT /api/absences/:id
@@ -55,22 +55,22 @@ Authorization: Bearer <token>
 Content-Type: application/json
 ```
 
-**Body (alle Felder optional):**
+**Body (all fields optional):**
 ```json
 {
   "startDate": "02.04.2026",
   "endDate": "08.04.2026",
-  "reason": "Urlaub verlaengert"
+  "reason": "Vacation extended"
 }
 ```
 
-Nur der Ersteller oder ein Admin kann bearbeiten.
+Only the creator or an admin can edit.
 
-## Abwesenheit loeschen
+## Delete Absence
 
 ```http
 DELETE /api/absences/:id
 Authorization: Bearer <token>
 ```
 
-Nur der Ersteller oder ein Admin kann loeschen.
+Only the creator or an admin can delete.

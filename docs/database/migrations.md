@@ -1,39 +1,39 @@
-# Migrationen
+# Migrations
 
-## Prisma Migrationen
+## Prisma Migrations
 
-Schedule-Bot nutzt **Prisma Migrate** fuer Datenbank-Migrationen.
+Schedule-Bot uses **Prisma Migrate** for database migrations.
 
-## Befehle
+## Commands
 
-### Entwicklung
+### Development
 
 ```bash
-# Neue Migration erstellen (nach Schema-Aenderung)
+# Create a new migration (after a schema change)
 npm run db:migrate
-# Alias fuer: prisma migrate dev
+# Alias for: prisma migrate dev
 
-# Schema direkt pushen (ohne Migration)
+# Push the schema directly (without a migration)
 npm run db:push
-# Alias fuer: prisma db push
+# Alias for: prisma db push
 ```
 
-### Produktion
+### Production
 
 ```bash
-# Ausstehende Migrationen ausfuehren
+# Apply pending migrations
 npx prisma migrate deploy
 ```
 
-### Prisma Client neu generieren
+### Regenerate the Prisma Client
 
 ```bash
 npm run db:generate
-# Alias fuer: prisma generate
+# Alias for: prisma generate
 ```
 
-::: warning Nach Schema-Aenderungen
-Nach jeder Aenderung an `prisma/schema.prisma` muss der Prisma Client neu generiert werden:
+::: warning After schema changes
+The Prisma Client must be regenerated after every change to `prisma/schema.prisma`:
 ```bash
 npm run db:generate
 ```
@@ -41,17 +41,17 @@ npm run db:generate
 
 ## Prisma Studio
 
-Visueller Datenbank-Editor:
+Visual database editor:
 
 ```bash
 npm run db:studio
 ```
 
-Oeffnet eine Web-Oberflaeche zum direkten Bearbeiten der Datenbank-Daten.
+Opens a web UI for editing database records directly.
 
-## Migrations-Verzeichnis
+## Migrations Directory
 
-Migrationen werden in `prisma/migrations/` gespeichert:
+Migrations are stored in `prisma/migrations/`:
 
 ```
 prisma/
@@ -65,44 +65,44 @@ prisma/
 └── ...
 ```
 
-## Docker-Deployment
+## Docker Deployment
 
-Im Dockerfile werden Migrationen automatisch beim Start ausgefuehrt:
+In the Dockerfile, migrations are applied automatically on startup:
 
 ```sh
 (npx prisma migrate deploy || npx prisma db push --accept-data-loss) && node dist/index.js
 ```
 
-Falls Migrationen fehlschlagen, wird als Fallback `db push` verwendet.
+If migrations fail, `db push` is used as a fallback.
 
-## Prisma-Konfiguration
+## Prisma Configuration
 
-Die Prisma-Konfiguration liegt in `prisma.config.ts`:
+The Prisma configuration lives in `prisma.config.ts`:
 
 ```typescript
-// Schema-Pfad
+// Schema path
 schema: 'prisma/schema.prisma'
 
-// Migrations-Pfad
+// Migrations path
 migrations: 'prisma/migrations'
 
-// Datenquelle
+// Data source
 datasource: DATABASE_URL
 ```
 
-## Erste Einrichtung
+## Initial Setup
 
-Bei einer komplett neuen Datenbank:
+For a brand-new database:
 
 ```bash
-# 1. Datenbank erstellen (falls nicht vorhanden)
+# 1. Create the database (if it doesn't exist)
 createdb schedule_bot
 
-# 2. Migrationen ausfuehren
+# 2. Run migrations
 npm run db:migrate
 
-# 3. (Optional) Prisma Client generieren
+# 3. (Optional) Generate the Prisma Client
 npm run db:generate
 ```
 
-Der Bot initialisiert beim ersten Start automatisch Default-Settings und Seed-Daten ueber `initializeDatabaseIfEmpty()`.
+On first startup, the bot automatically initializes default settings and seed data via `initializeDatabaseIfEmpty()`.

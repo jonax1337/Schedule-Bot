@@ -1,129 +1,158 @@
-# Verfuegbarkeiten
+# Availability
 
-## Einmalige Verfuegbarkeit
+Availability is the single most important data point in Schedule-Bot. Every player keeps
+their own record per day; the bot derives all other state — daily status, training polls,
+reminders — from those values.
 
-Spieler geben ihre Verfuegbarkeit pro Tag an. Es gibt drei moegliche Zustaende:
+## Per-day availability
 
-| Wert | Bedeutung | Anzeige |
-|------|-----------|---------|
-| `""` (leer) | Keine Antwort | ❓ |
-| `"x"` oder `"X"` | Nicht verfuegbar | ❌ |
-| `"HH:MM-HH:MM"` | Zeitfenster | ✅ + Zeitraum |
+Each `SchedulePlayer` row carries a free-form `availability` string:
 
-### Setzen via Discord
+| Value | Meaning | Display |
+| --- | --- | --- |
+| `""` (empty) | No response | ⚪ |
+| `"x"` or `"X"` | Unavailable | ❌ |
+| `"HH:MM-HH:MM"` | Single time window | ✅ + range |
+| `"HH:MM-HH:MM, HH:MM-HH:MM"` | Multiple comma-separated windows | ✅ + ranges |
 
-```
-/set
-```
+Times are stored in the **bot timezone** (`scheduling.timezone`). When a player has a
+personal timezone, all inputs are converted on the way in and displayed in the local
+timezone of the viewer using Discord timestamps.
 
-Oeffnet ein interaktives Menu mit:
-1. **Datumsauswahl** (naechste 14 Tage)
-2. **Zeitfenster-Eingabe** oder Button fuer "nicht verfuegbar"
-3. **Bestaetigung** mit Zeitzonen-Info
+## Setting availability
 
-### Setzen via Dashboard
+There are five entry points, all funneling into
+`updatePlayerAvailability(date, userId, value)`:
 
-Im User-Portal unter dem Tab "Verfuegbarkeit" koennen Spieler ihre Zeiten fuer die kommenden Tage eintragen.
+| Entry point | What it does |
+| --- | --- |
+| `/set` slash command | Interactive date picker → modal or "Not Available" button |
+| Pinned weekly overview | 7 day-buttons → time-input modal |
+| Daily reminder DM | Up to 7 day-buttons → time-input modal |
+| Weekly planning DM | Up to 7 day-buttons → time-input modal |
+| Dashboard | User Portal → Schedule tab |
 
-## Wiederkehrende Verfuegbarkeit
-
-Spieler koennen woechentliche Muster definieren, die automatisch auf neue Schedule-Eintraege angewendet werden.
-
-### Datenmodell
-
-| Feld | Typ | Beschreibung |
-|------|-----|-------------|
-| `userId` | String | Discord-ID des Spielers |
-| `dayOfWeek` | Int (0-6) | Wochentag (0=Sonntag, 6=Samstag) |
-| `availability` | String | Zeitfenster oder "x" |
-| `active` | Boolean | Aktiv/Inaktiv |
-
-### Setzen via Discord
+The time-input modal has three fields:
 
 ```
+From:                 14:00
+To:                   22:00
+Additional windows:   17:00-20:00, 21:00-23:00   (optional)
+```
+
+All four producers route into the same `handleTimeModal` handler, so behaviour — timezone
+conversion, change notifications, weekly-overview refresh — is identical regardless of
+where the player triggered the modal.
+
+::: tip Marking a day unavailable
+The modal does not accept `x`. To mark a day as unavailable, use the **"❌ Not Available"**
+button next to the time-input button in the daily schedule post, or use `/set` directly.
+:::
+
+## Recurring availability
+
+Players can pin a weekly pattern. New schedule days inherit those values whenever a slot
+is still empty.
+
+### Data model
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `userId` | string | Discord ID |
+| `dayOfWeek` | int (0–6) | 0 = Sunday … 6 = Saturday |
+| `availability` | string | Time window or `"x"` |
+| `active` | boolean | Toggle without deleting |
+
+### Setting via Discord
+
+```text
 /set-recurring days:mon,wed,fri time:18:00-22:00
 ```
 
-Optionen:
-- `days` - Kommagetrennte Wochentage (mon, tue, wed, thu, fri, sat, sun)
-- `time` - Zeitfenster im Format `HH:MM-HH:MM` oder `x` fuer nicht verfuegbar
+| Option | Description |
+| --- | --- |
+| `days` | Comma-separated weekdays (`mon, tue, wed, thu, fri, sat, sun`) |
+| `time` | Time window `HH:MM-HH:MM` or `x` for unavailable |
 
-### Anzeigen
+### Viewing and clearing
 
-```
-/my-recurring
-```
-
-### Loeschen
-
-```
-/clear-recurring              # Alle loeschen
-/clear-recurring day:monday   # Einzelnen Tag loeschen
+```text
+/my-recurring                   # tabular view of the current pattern
+/clear-recurring                # remove every recurring entry
+/clear-recurring day:monday     # remove a single weekday
 ```
 
-### Automatische Anwendung
-
-Beim Start und bei der Erstellung neuer Schedule-Eintraege:
+### Apply logic
 
 ```
-1. Leere Schedule-Slots identifizieren
-2. Wochentag des Datums bestimmen
-3. Aktive Recurring-Eintraege fuer diesen Tag laden
-4. Auf leere Slots anwenden
-5. Bereits gesetzte Verfuegbarkeiten werden NICHT ueberschrieben
+1. Identify empty SchedulePlayer slots in the next 14 days
+2. Look up the user's recurring entry for that weekday
+3. Apply only when the slot is still empty
+4. Existing manual entries are never overwritten
+5. Removing a recurring entry resets matching slots back to empty
 ```
 
-## Abwesenheiten
+Recurring patterns are applied at startup, after each weekly ping (`addMissingDays` +
+`applyRecurringToEmptySchedules`), and any time the player edits their pattern.
 
-Spieler koennen Abwesenheitszeitraeume eintragen (Urlaub, etc.).
+## Absences
 
-### Datenmodell
+Players can mark longer absences (vacation, exam week, anything). Absences override
+availability for the affected dates.
 
-| Feld | Typ | Beschreibung |
-|------|-----|-------------|
-| `userId` | String | Discord-ID |
-| `startDate` | String | Beginn (DD.MM.YYYY) |
-| `endDate` | String | Ende (DD.MM.YYYY) |
-| `reason` | String | Optionaler Grund |
+### Data model
 
-### Auswirkungen
+| Field | Type | Description |
+| --- | --- | --- |
+| `userId` | string | Discord ID |
+| `startDate` | string | First absent date (`DD.MM.YYYY`) |
+| `endDate` | string | Last absent date (inclusive) |
+| `reason` | string | Optional free text |
 
-- Abwesende Spieler erhalten **keine Erinnerungen**
-- Im Schedule erscheinen sie mit ✈️ (absent)
-- Im Analyzer werden sie als nicht verfuegbar gewertet
-- Im Dashboard werden sie separat markiert
+### Side effects
 
-### Verwalten
+- The player is displayed as ✈️ in embeds and the dashboard
+- The analyser treats them as unavailable
+- Both daily and weekly reminder DMs skip them
+- The pinned weekly overview shows ✈️ for the absent days
 
-**Via Dashboard** (empfohlen):
-- User-Portal → Tab "Abwesenheiten"
-- Zeitraum und optionalen Grund eingeben
+### Managing absences
 
-**Via API:**
+**Dashboard (recommended)** — User Portal → Absences tab.
+
+**API**
 
 ```bash
-# Erstellen
+# create
 POST /api/absences
 {
   "startDate": "01.04.2026",
-  "endDate": "07.04.2026",
-  "reason": "Urlaub"
+  "endDate":   "07.04.2026",
+  "reason":    "Vacation"
 }
 
-# Auflisten
+# list
 GET /api/absences
 
-# Loeschen
+# delete
 DELETE /api/absences/:id
 ```
 
-## Zeitzonen-Interaktion
+## Timezone handling
 
-Alle Zeitangaben werden automatisch konvertiert:
+```mermaid
+flowchart LR
+    A[Player input · local TZ] --> B[convertTimeRangeBetweenTimezones]
+    B --> C[Stored in bot TZ]
+    C --> D[convertTimeToUnixTimestamp]
+    D --> E[Discord timestamps · viewer-local]
+    C --> F[Dashboard TimezoneProvider]
+    F --> G[Local time in browser]
+```
 
-1. **Eingabe:** Spieler gibt Zeit in seiner Zeitzone an
-2. **Speicherung:** Zeit wird in Bot-Zeitzone konvertiert
-3. **Anzeige Discord:** Unix-Timestamps (`<t:TIMESTAMP:t>`) fuer automatische lokale Konvertierung
-4. **Anzeige Dashboard:** Konvertierung via `TimezoneProvider` Context
+1. Player enters times in their personal timezone (or the bot timezone if none is set)
+2. The value is converted to the bot timezone before persistence
+3. Discord embeds render times as `<t:TIMESTAMP:t>` so every viewer sees local time
+4. The dashboard runs all conversion through `TimezoneProvider`
 
-Siehe [Zeitzonen](/guide/timezones) fuer Details.
+See [Timezones](/guide/timezones) for the full conversion pipeline.

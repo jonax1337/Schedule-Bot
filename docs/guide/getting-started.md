@@ -1,109 +1,111 @@
-# Erste Schritte
+# Getting Started
 
-## Voraussetzungen
+## Prerequisites
 
-- **Node.js** >= 20.9.0
-- **PostgreSQL** 16+ (oder Docker)
-- **Discord Bot Token** ([Discord Developer Portal](https://discord.com/developers/applications))
-- **npm** oder **pnpm**
+- **Node.js** ≥ 20.9.0
+- **PostgreSQL** 16 or newer (or Docker)
+- **Discord Bot Token** — create at the [Discord Developer Portal](https://discord.com/developers/applications)
+- **npm** (or any compatible package manager)
 
 ## Installation
 
-### 1. Repository klonen
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/jonax1337/Schedule-Bot.git
 cd Schedule-Bot
 ```
 
-### 2. Abhaengigkeiten installieren
+### 2. Install dependencies
 
 ```bash
-# Backend
+# backend
 npm install
 
-# Frontend
+# frontend
 cd dashboard && npm install && cd ..
 ```
 
-### 3. Umgebungsvariablen konfigurieren
+### 3. Configure environment variables
 
-Kopiere die `.env.example` und passe die Werte an:
+Copy the example and edit:
 
 ```bash
 cp .env.example .env
 ```
 
-**Pflicht-Variablen:**
+**Required variables**
 
 ```env
 # Discord
-DISCORD_TOKEN=dein_bot_token
-DISCORD_GUILD_ID=deine_server_id
+DISCORD_TOKEN=your_bot_token
+DISCORD_GUILD_ID=your_server_id
 
-# Datenbank
+# Database
 DATABASE_URL=postgresql://user:password@localhost:5432/schedule_bot
 
-# Admin-Zugang
+# Admin
 ADMIN_USERNAME=admin
-ADMIN_PASSWORD_HASH=bcrypt_hash_hier
-JWT_SECRET=min_32_zeichen_zufaellig
+ADMIN_PASSWORD_HASH=bcrypt_hash_here
+JWT_SECRET=at_least_32_random_chars
 ```
 
-::: tip Admin-Passwort generieren
+::: tip Generate an admin password hash
 ```bash
 npm run build
 node dist/generateHash.js
 ```
-Gibt einen bcrypt-Hash aus, den du als `ADMIN_PASSWORD_HASH` eintragen kannst.
+The script prompts for a password and prints a bcrypt hash you can paste into
+`ADMIN_PASSWORD_HASH`.
 :::
 
-### 4. Datenbank einrichten
+See [Configuration](/guide/configuration) for the full list of environment variables and
+runtime settings.
 
-**Mit Docker (empfohlen):**
+### 4. Set up the database
+
+**With Docker (recommended)**
 
 ```bash
 docker-compose up -d db
 ```
 
-**Ohne Docker:**
-
-Stelle sicher, dass PostgreSQL laeuft und die Datenbank existiert:
+**Without Docker** — ensure PostgreSQL is running and the database exists:
 
 ```sql
 CREATE DATABASE schedule_bot;
 ```
 
-**Migrationen ausfuehren:**
+Then apply migrations:
 
 ```bash
 npm run db:migrate
 ```
 
-### 5. Starten
+### 5. Start the bot
 
-**Backend (Bot + API):**
+**Backend (bot + API)**
 
 ```bash
 npm run dev
 ```
 
-Der Bot verbindet sich mit Discord und die API startet auf Port 3001.
+The bot connects to Discord and the API listens on `:3001`.
 
-**Dashboard:**
+**Dashboard**
 
 ```bash
 cd dashboard
 npm run dev
 ```
 
-Das Dashboard ist unter `http://localhost:3000` erreichbar.
+The dashboard is reachable at <http://localhost:3000>.
 
-## Discord Bot einrichten
+## Discord bot setup
 
-### Bot-Berechtigungen
+### Bot permissions
 
-Der Bot benoetigt folgende Berechtigungen im Discord Server:
+The bot needs the following permissions in your Discord server:
 
 - View Channels
 - Send Messages
@@ -111,46 +113,51 @@ Der Bot benoetigt folgende Berechtigungen im Discord Server:
 - Add Reactions
 - Use Slash Commands
 - Read Message History
+- **Manage Messages** — required to pin the weekly overview message
 
-### Bot einladen
+### Invite the bot
 
-Verwende den OAuth2 URL Generator im [Developer Portal](https://discord.com/developers/applications) mit den obigen Berechtigungen und dem `bot` + `applications.commands` Scope.
+Use the OAuth2 URL Generator in the
+[Developer Portal](https://discord.com/developers/applications) with the permissions
+above plus the `bot` and `applications.commands` scopes.
 
-### Erste Konfiguration
+### First-time configuration
 
-1. Bot startet und registriert automatisch alle Slash Commands
-2. Oeffne das Admin-Dashboard: `http://localhost:3000/admin/login`
-3. Konfiguriere unter **Settings**:
-   - Discord Channel fuer Schedule-Posts
-   - Ping-Rolle fuer Benachrichtigungen
-   - Taegliche Post-Zeit und Erinnerungen
-   - Team-Name und Branding
+1. The bot starts and registers every slash command automatically
+2. Open the admin dashboard at <http://localhost:3000/admin/login>
+3. Configure **Settings**:
+   - Schedule channel and ping role
+   - Daily post time and reminders
+   - Weekly planning reminder (days + time)
+   - Team name and branding
 
-### Spieler registrieren
+### Register players
 
+```text
+/register user:@Player role:MAIN
 ```
-/register user:@Spieler role:MAIN
-```
 
-Oder ueber das Admin-Dashboard unter **User Management**.
+Or open the admin dashboard and use **User Management** for bulk operations.
 
-## Schnellstart mit Docker
+## Quick start with Docker
 
-Fuer ein komplettes Setup mit einem Befehl:
+For an all-in-one setup:
 
 ```bash
-# .env konfigurieren (siehe oben)
+# configure .env (see above)
 docker-compose up -d
 ```
 
-Dies startet:
-- PostgreSQL auf Port 5432
-- Bot + API auf Port 3001
-- Dashboard auf Port 3000
+This starts:
 
-## Naechste Schritte
+- PostgreSQL on `:5432`
+- Bot + API on `:3001`
+- Dashboard on `:3000`
 
-- [Architektur](/guide/architecture) - Verstehe den internen Aufbau
-- [Konfiguration](/guide/configuration) - Alle Einstellungsmoeglichkeiten
-- [Slash Commands](/bot/commands) - Alle Discord-Befehle
-- [API-Referenz](/api/overview) - REST Endpoints
+## Next steps
+
+- [Architecture](/guide/architecture) — Internal structure
+- [Configuration](/guide/configuration) — Every setting explained
+- [Scheduling System](/guide/scheduling) — How the daily and weekly flows work
+- [Slash Commands](/bot/commands) — Every Discord command
+- [API Reference](/api/overview) — REST endpoints

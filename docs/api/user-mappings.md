@@ -1,14 +1,14 @@
 # User Mappings API
 
-## Alle Spieler abrufen
+## List All Players
 
 ```http
 GET /api/user-mappings
 ```
 
-Auth ist optional. Liefert alle registrierten Spieler sortiert nach Rolle und Reihenfolge.
+Authentication is optional. Returns all registered players sorted by role and sort order.
 
-**Erfolg (200):**
+**Success (200):**
 ```json
 {
   "success": true,
@@ -26,7 +26,7 @@ Auth ist optional. Liefert alle registrierten Spieler sortiert nach Rolle und Re
 }
 ```
 
-## Spieler hinzufuegen
+## Add Player
 
 ```http
 POST /api/user-mappings
@@ -44,7 +44,7 @@ Content-Type: application/json
 }
 ```
 
-## Spieler bearbeiten
+## Edit Player
 
 ```http
 PUT /api/user-mappings/:discordId
@@ -52,24 +52,24 @@ Authorization: Bearer <admin-token>
 Content-Type: application/json
 ```
 
-**Body (alle Felder optional):**
+**Body (all fields optional):**
 ```json
 {
-  "displayName": "NeuerName",
+  "displayName": "NewName",
   "role": "SUB",
   "isAdmin": true,
   "timezone": "America/New_York"
 }
 ```
 
-## Spieler entfernen
+## Remove Player
 
 ```http
 DELETE /api/user-mappings/:discordId
 Authorization: Bearer <admin-token>
 ```
 
-## Reihenfolge aendern
+## Reorder Players
 
 ```http
 PUT /api/user-mappings/reorder
@@ -88,4 +88,4 @@ Content-Type: application/json
 }
 ```
 
-Unterstuetzt Drag-and-Drop Sortierung im Admin-Dashboard.
+Powers drag-and-drop sorting in the admin dashboard.

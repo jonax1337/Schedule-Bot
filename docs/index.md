@@ -4,16 +4,16 @@ layout: home
 hero:
   name: Schedule-Bot
   text: E-Sports Team Management
-  tagline: Discord Bot & Web Dashboard fuer professionelles Valorant Team-Scheduling
+  tagline: Discord bot & web dashboard for serious Valorant team scheduling.
   image:
     src: /logo.png
     alt: Schedule-Bot Logo
   actions:
     - theme: brand
-      text: Erste Schritte
+      text: Get Started
       link: /guide/getting-started
     - theme: alt
-      text: API-Referenz
+      text: API Reference
       link: /api/overview
     - theme: alt
       text: GitHub
@@ -22,40 +22,41 @@ hero:
 features:
   - icon: 🤖
     title: Discord Bot
-    details: Slash Commands, interaktive Buttons, Polls und automatische Schedule-Posts direkt in eurem Discord Server.
+    details: Slash commands, interactive buttons, polls and automatic schedule posts — all driven from inside your team's Discord.
   - icon: 🖥️
     title: Web Dashboard
-    details: Admin-Panel und User-Portal mit Next.js - Scheduling, Matches, Stratbook und Statistiken auf einen Blick.
+    details: Admin panel + user portal built on Next.js. Scheduling, matches, the stratbook and statistics in one place.
   - icon: 📅
-    title: Intelligentes Scheduling
-    details: 14-Tage-Vorschau, wiederkehrende Verfuegbarkeiten, Abwesenheits-Tracking und automatische Erinnerungen.
+    title: Smart Scheduling
+    details: 14-day outlook, weekly recurring availability, absence tracking and automated reminders that respect each player's plan.
   - icon: 🎮
-    title: Scrim Management
-    details: Match-Tracking mit Karten, Agenten, Ergebnissen, VOD-Links und detaillierten Statistiken.
+    title: Scrim Tracking
+    details: Capture results with maps, agents and VOD links — then read the meta off rich, filterable statistics.
   - icon: 📋
     title: Stratbook
-    details: Rich-Text Editor fuer Team-Strategien mit Karten- und Agenten-Tags, Ordnerstruktur und Bildupload.
+    details: Rich-text editor for team strategies with map/agent tags, folders, image and PDF upload, and configurable permissions.
   - icon: 🌍
-    title: Zeitzonen-Support
-    details: Automatische Zeitkonvertierung pro Spieler mit IANA-Zeitzonen und Discord-Timestamps.
+    title: Timezone-Aware
+    details: Per-player IANA timezones, automatic conversion on input, Discord timestamps on output — every viewer sees their local time.
 ---
 
-## Schnelluebersicht
+## At a glance
 
-Schedule-Bot ist ein All-in-One Management-Tool fuer E-Sports Teams. Es kombiniert einen Discord Bot mit einem Web Dashboard und einer REST API in einem einzigen Node.js-Prozess.
+Schedule-Bot is an all-in-one management tool for E-sports teams. It bundles a Discord
+bot, a REST API, and a Next.js dashboard into a single Node.js process.
 
-### Drei Komponenten
+### Three components
 
-| Komponente | Technologie | Port | Beschreibung |
-|------------|-------------|------|-------------|
-| **Discord Bot** | discord.js v14 | - | Slash Commands, Buttons, Polls |
-| **API Server** | Express.js v5 | :3001 | REST API mit JWT Auth |
-| **Dashboard** | Next.js v16 | :3000 | Admin-Panel & User-Portal |
+| Component | Stack | Port | Role |
+| --- | --- | --- | --- |
+| **Discord Bot** | discord.js v14 | — | Slash commands, buttons, polls |
+| **API Server** | Express v5 | `:3001` | REST API with JWT auth |
+| **Dashboard** | Next.js v16 | `:3000` | Admin panel & user portal |
 
-### Tech Stack
+### Tech stack
 
-- **Backend:** TypeScript, Node.js, Express.js, discord.js
-- **Frontend:** Next.js 16, React 19, Tailwind CSS 4, Radix UI
-- **Datenbank:** PostgreSQL mit Prisma 7
-- **Scheduling:** node-cron
-- **Auth:** JWT + bcrypt + Discord OAuth
+- **Backend** — TypeScript, Node.js, Express, discord.js
+- **Frontend** — Next.js 16, React 19, Tailwind CSS 4, Radix UI
+- **Database** — PostgreSQL with Prisma 7
+- **Scheduling** — node-cron with timezone-aware crons
+- **Auth** — JWT + bcrypt + Discord OAuth

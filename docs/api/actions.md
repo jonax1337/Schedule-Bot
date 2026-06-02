@@ -1,8 +1,9 @@
-# Bot-Aktionen API
+# Bot Actions API
 
-Alle Aktions-Endpunkte erfordern Admin-Authentifizierung.
+Endpoints for manually triggering bot behaviour from the dashboard. All routes require
+admin authentication.
 
-## Schedule posten
+## Post schedule
 
 ```http
 POST /api/actions/schedule
@@ -10,16 +11,17 @@ Authorization: Bearer <admin-token>
 Content-Type: application/json
 ```
 
-**Body (optional):**
+**Body (optional)**
+
 ```json
-{
-  "date": "27.03.2026"
-}
+{ "date": "27.03.2026" }
 ```
 
-Ohne `date` wird der heutige Tag gepostet. Postet den Schedule-Embed in den konfigurierten Discord-Channel.
+If `date` is omitted, today is used. Posts the analysed schedule embed into
+`discord.channelId`, mentioning `discord.pingRoleId` when configured, and creates a
+training-start poll if enabled and possible.
 
-## Erinnerungen senden
+## Send reminders
 
 ```http
 POST /api/actions/remind
@@ -27,16 +29,16 @@ Authorization: Bearer <admin-token>
 Content-Type: application/json
 ```
 
-**Body (optional):**
-```json
-{
-  "date": "27.03.2026"
-}
-```
+Sends a "weekly availability — open days" DM to every player who still has at least one
+empty day in the current week. Coaches and players on absence are skipped.
 
-Sendet DM-Erinnerungen an alle Spieler ohne Verfuegbarkeits-Angabe fuer das Datum. Abwesende und Coaches werden uebersprungen.
+::: warning No date parameter
+The legacy `date` body field is ignored. The reminder always checks **gaps in the current
+week**, not a single date. The endpoint also bypasses the weekly-day skip used by the
+daily cron — manual triggers always fire.
+:::
 
-## Poll erstellen
+## Create poll
 
 ```http
 POST /api/actions/poll
@@ -44,22 +46,23 @@ Authorization: Bearer <admin-token>
 Content-Type: application/json
 ```
 
-**Body:**
+**Body**
+
 ```json
 {
-  "question": "Wann koennt ihr heute?",
-  "options": ["18:00", "19:00", "20:00"],
+  "question": "When can you play today?",
+  "options":  ["18:00", "19:00", "20:00"],
   "duration": 60
 }
 ```
 
-| Feld | Typ | Pflicht | Beschreibung |
-|------|-----|---------|-------------|
-| `question` | string | Ja | Poll-Frage |
-| `options` | string[] | Ja | Antwortmoeglichkeiten (2-10) |
-| `duration` | number | Nein | Dauer in Minuten (Default: 60) |
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `question` | string | yes | Poll prompt |
+| `options` | string[] | yes | 2–10 answer choices |
+| `duration` | number | no | Lifetime in minutes (default `60`) |
 
-## Benachrichtigung senden
+## Send notification
 
 ```http
 POST /api/actions/notify
@@ -67,35 +70,37 @@ Authorization: Bearer <admin-token>
 Content-Type: application/json
 ```
 
-**Body:**
+**Body**
+
 ```json
 {
-  "type": "info",
-  "message": "Training faellt heute aus!",
-  "target": "all"
+  "type":    "info",
+  "message": "Training is cancelled today.",
+  "target":  "all"
 }
 ```
 
-| Feld | Typ | Werte | Beschreibung |
-|------|-----|-------|-------------|
-| `type` | string | `info`, `warning`, `alert` | Nachrichtentyp |
-| `message` | string | - | Nachrichtentext |
-| `target` | string | `all`, `mains`, `subs`, Discord-ID | Empfaenger |
+| Field | Type | Allowed values | Description |
+| --- | --- | --- | --- |
+| `type` | string | `info`, `warning`, `alert` | Message tone (controls embed colour) |
+| `message` | string | — | Message body |
+| `target` | string | `all`, `mains`, `subs`, or a Discord ID | Who receives the DM |
 
-## Channel leeren
+## Clear channel
 
 ```http
 POST /api/actions/clear-channel
 Authorization: Bearer <admin-token>
 ```
 
-Loescht alle Nachrichten im konfigurierten Schedule-Channel.
+Deletes all non-pinned messages in `discord.channelId`.
 
-::: danger Vorsicht
-Diese Aktion ist nicht umkehrbar. Alle Nachrichten im Channel werden geloescht.
+::: danger Irreversible
+This wipes the channel. The pinned weekly overview is kept (it is pinned), but every
+other message is removed.
 :::
 
-## Training-Poll erstellen
+## Create training-start poll
 
 ```http
 POST /api/actions/training-poll
@@ -103,16 +108,15 @@ Authorization: Bearer <admin-token>
 Content-Type: application/json
 ```
 
-**Body (optional):**
+**Body (optional)**
+
 ```json
-{
-  "date": "27.03.2026"
-}
+{ "date": "27.03.2026" }
 ```
 
-Erstellt einen Training-Start-Poll basierend auf den verfuegbaren Zeitfenstern der Spieler.
+Creates a training-start poll based on the players' available time windows for that date.
 
-## Nachricht pinnen
+## Pin message
 
 ```http
 POST /api/actions/pin-message
@@ -120,11 +124,10 @@ Authorization: Bearer <admin-token>
 Content-Type: application/json
 ```
 
-**Body:**
+**Body**
+
 ```json
-{
-  "content": "Wichtige Ankuendigung: ..."
-}
+{ "content": "Important announcement: ..." }
 ```
 
-Sendet eine Nachricht in den Schedule-Channel und pinnt sie an.
+Sends the message into `discord.channelId` and pins it.

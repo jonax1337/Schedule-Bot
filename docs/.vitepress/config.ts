@@ -2,8 +2,8 @@ import { defineConfig } from 'vitepress'
 
 export default defineConfig({
   title: 'Schedule-Bot',
-  description: 'Discord Bot & Web Dashboard for E-Sports Team Scheduling',
-  lang: 'de-DE',
+  description: 'Discord bot & web dashboard for E-sports team scheduling',
+  lang: 'en-US',
   base: '/Schedule-Bot/',
 
   head: [
@@ -18,7 +18,7 @@ export default defineConfig({
       { text: 'API', link: '/api/overview' },
       { text: 'Dashboard', link: '/dashboard/overview' },
       { text: 'Bot', link: '/bot/overview' },
-      { text: 'Datenbank', link: '/database/schema' },
+      { text: 'Database', link: '/database/schema' },
       { text: 'Deployment', link: '/deployment/docker' },
       {
         text: 'Links',
@@ -31,39 +31,39 @@ export default defineConfig({
     sidebar: {
       '/guide/': [
         {
-          text: 'Einfuehrung',
+          text: 'Introduction',
           items: [
-            { text: 'Uebersicht', link: '/guide/overview' },
-            { text: 'Erste Schritte', link: '/guide/getting-started' },
-            { text: 'Architektur', link: '/guide/architecture' },
-            { text: 'Konfiguration', link: '/guide/configuration' },
+            { text: 'Overview', link: '/guide/overview' },
+            { text: 'Getting Started', link: '/guide/getting-started' },
+            { text: 'Architecture', link: '/guide/architecture' },
+            { text: 'Configuration', link: '/guide/configuration' },
           ]
         },
         {
-          text: 'Konzepte',
+          text: 'Concepts',
           items: [
-            { text: 'Scheduling-System', link: '/guide/scheduling' },
-            { text: 'Verfuegbarkeiten', link: '/guide/availability' },
-            { text: 'Zeitzonen', link: '/guide/timezones' },
-            { text: 'Authentifizierung', link: '/guide/authentication' },
+            { text: 'Scheduling System', link: '/guide/scheduling' },
+            { text: 'Availability', link: '/guide/availability' },
+            { text: 'Timezones', link: '/guide/timezones' },
+            { text: 'Authentication', link: '/guide/authentication' },
           ]
         }
       ],
       '/api/': [
         {
-          text: 'API-Referenz',
+          text: 'API Reference',
           items: [
-            { text: 'Uebersicht', link: '/api/overview' },
-            { text: 'Authentifizierung', link: '/api/auth' },
+            { text: 'Overview', link: '/api/overview' },
+            { text: 'Authentication', link: '/api/auth' },
             { text: 'Schedule', link: '/api/schedule' },
             { text: 'User Mappings', link: '/api/user-mappings' },
             { text: 'Scrims', link: '/api/scrims' },
-            { text: 'Abwesenheiten', link: '/api/absences' },
-            { text: 'Wiederkehrende Verfuegbarkeit', link: '/api/recurring' },
-            { text: 'Strategien', link: '/api/strategies' },
-            { text: 'VOD-Kommentare', link: '/api/vod-comments' },
-            { text: 'Aktionen', link: '/api/actions' },
-            { text: 'Einstellungen', link: '/api/settings' },
+            { text: 'Absences', link: '/api/absences' },
+            { text: 'Recurring Availability', link: '/api/recurring' },
+            { text: 'Strategies', link: '/api/strategies' },
+            { text: 'VOD Comments', link: '/api/vod-comments' },
+            { text: 'Actions', link: '/api/actions' },
+            { text: 'Settings', link: '/api/settings' },
           ]
         }
       ],
@@ -71,13 +71,13 @@ export default defineConfig({
         {
           text: 'Dashboard',
           items: [
-            { text: 'Uebersicht', link: '/dashboard/overview' },
-            { text: 'User-Portal', link: '/dashboard/user-portal' },
-            { text: 'Admin-Panel', link: '/dashboard/admin-panel' },
-            { text: 'Matches & Statistiken', link: '/dashboard/matches' },
+            { text: 'Overview', link: '/dashboard/overview' },
+            { text: 'User Portal', link: '/dashboard/user-portal' },
+            { text: 'Admin Panel', link: '/dashboard/admin-panel' },
+            { text: 'Matches & Statistics', link: '/dashboard/matches' },
             { text: 'Stratbook', link: '/dashboard/stratbook' },
-            { text: 'VOD-Review', link: '/dashboard/vod-review' },
-            { text: 'Komponenten', link: '/dashboard/components' },
+            { text: 'VOD Review', link: '/dashboard/vod-review' },
+            { text: 'Components', link: '/dashboard/components' },
           ]
         }
       ],
@@ -85,22 +85,22 @@ export default defineConfig({
         {
           text: 'Discord Bot',
           items: [
-            { text: 'Uebersicht', link: '/bot/overview' },
+            { text: 'Overview', link: '/bot/overview' },
             { text: 'Slash Commands', link: '/bot/commands' },
-            { text: 'Interaktionen', link: '/bot/interactions' },
-            { text: 'Embeds & Nachrichten', link: '/bot/embeds' },
-            { text: 'Scheduler & Cron-Jobs', link: '/bot/scheduler' },
+            { text: 'Interactions', link: '/bot/interactions' },
+            { text: 'Embeds & Messages', link: '/bot/embeds' },
+            { text: 'Scheduler & Cron Jobs', link: '/bot/scheduler' },
             { text: 'Polls', link: '/bot/polls' },
           ]
         }
       ],
       '/database/': [
         {
-          text: 'Datenbank',
+          text: 'Database',
           items: [
             { text: 'Schema', link: '/database/schema' },
             { text: 'Repositories', link: '/database/repositories' },
-            { text: 'Migrationen', link: '/database/migrations' },
+            { text: 'Migrations', link: '/database/migrations' },
           ]
         }
       ],
@@ -111,7 +111,7 @@ export default defineConfig({
             { text: 'Docker', link: '/deployment/docker' },
             { text: 'Railway', link: '/deployment/railway' },
             { text: 'Render', link: '/deployment/render' },
-            { text: 'Umgebungsvariablen', link: '/deployment/environment' },
+            { text: 'Environment Variables', link: '/deployment/environment' },
           ]
         }
       ],
@@ -132,25 +132,25 @@ export default defineConfig({
 
     outline: {
       level: [2, 3],
-      label: 'Auf dieser Seite'
+      label: 'On this page'
     },
 
     editLink: {
       pattern: 'https://github.com/jonax1337/Schedule-Bot/edit/main/docs/:path',
-      text: 'Diese Seite auf GitHub bearbeiten'
+      text: 'Edit this page on GitHub'
     },
 
     lastUpdated: {
-      text: 'Zuletzt aktualisiert'
+      text: 'Last updated'
     },
 
     docFooter: {
-      prev: 'Vorherige Seite',
-      next: 'Naechste Seite'
+      prev: 'Previous',
+      next: 'Next'
     },
 
-    returnToTopLabel: 'Nach oben',
+    returnToTopLabel: 'Back to top',
     sidebarMenuLabel: 'Menu',
-    darkModeSwitchLabel: 'Erscheinungsbild',
+    darkModeSwitchLabel: 'Appearance',
   }
 })

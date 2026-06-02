@@ -1,90 +1,107 @@
-# Interaktionen
+# Interactions
 
-## Uebersicht
+Beyond slash commands the bot uses three interactive Discord surfaces:
 
-Neben Slash Commands nutzt der Bot interaktive Discord-Elemente:
+- **Buttons** — quick actions (set availability, navigate days)
+- **Modals** — form input (time windows)
+- **Select menus** — date and timezone pickers
 
-- **Buttons** - Schnellaktionen (Verfuegbarkeit setzen, navigieren)
-- **Modals** - Formular-Eingaben (Zeitfenster, benutzerdefinierte Werte)
-- **Select Menus** - Dropdown-Auswahl (Datum, Zeitzone)
+`interaction.event.ts` is the single dispatcher. It inspects `customId` prefixes and
+hands off to the right handler.
 
-Alle Interaktionen werden in `interaction.event.ts` entgegengenommen und an die spezifischen Handler dispatched.
+## Availability buttons
 
-## Verfuegbarkeits-Buttons
+### Daily schedule post
 
-Beim `/set` Command erscheinen interaktive Elemente:
+The daily post embeds two buttons per relevant date:
 
-### Datumsauswahl
-- **Select Menu** mit den naechsten 14 Tagen
-- Zeigt Datum + Wochentag + aktuellen Status
+| Button | Action |
+| --- | --- |
+| **✅ Available** (`set_custom_DATE`) | Opens the 3-field time modal |
+| **❌ Not Available** (`set_unavailable_DATE`) | Marks the day as `x` immediately |
 
-### Verfuegbarkeits-Optionen
-- **"Zeitfenster eingeben"** Button → Oeffnet Modal
-- **"Nicht verfuegbar"** Button → Setzt direkt auf `x`
-- **"Zuruecksetzen"** Button → Loescht Verfuegbarkeit
+### Pinned weekly overview
 
-### Zeitfenster-Modal
-- **Eingabefeld** fuer `HH:MM-HH:MM` Format
-- Validierung: Korrekte Zeitangaben, Start vor Ende
-- Zeitzonen-Hinweis im Modal-Text
+The pinned message in `discord.channelId` carries **7 day-buttons** — one per weekday of
+the current week. Clicking any opens the same time modal as `/set`. The pinned message
+itself updates live whenever availability changes anywhere.
 
-## Navigations-Buttons
+### DM reminders
 
-Fuer mehrseitige Embeds (Schedule-Woche, Scrim-Liste):
+Daily and weekly planning DMs include up to **7 day-buttons** (split across two rows)
+for the days that still have gaps. Each button opens the same time modal.
 
-- **⬅️ Zurueck** - Vorherige Seite
-- **➡️ Weiter** - Naechste Seite
-- Timeout nach 5 Minuten Inaktivitaet
+## Time-input modal
 
-## Erinnerungs-Buttons
+Triggered by every `set_custom_DATE` button. Three fields:
 
-DM-Erinnerungen enthalten Aktions-Buttons:
+| Field | Required | Description |
+| --- | --- | --- |
+| `start_time` | yes | `HH:MM` |
+| `end_time` | yes | `HH:MM` |
+| `additional_windows` | no | Comma-separated extra windows, e.g. `17:00-20:00, 21:00-23:00` |
 
-- **"Verfuegbarkeit setzen"** - Oeffnet Zeitfenster-Modal direkt in der DM
-- **"Nicht verfuegbar"** - Setzt Status auf `x`
-- **"Zeitzone setzen"** - Erscheint nur wenn keine Zeitzone konfiguriert ist
+On submit the value is parsed, converted from the player's timezone to the bot timezone
+if needed, and persisted via `updatePlayerAvailability`. The submission then triggers
+both `checkAndNotifyStatusChange` and `refreshWeeklyOverview`.
 
-## Zeitzonen-Auswahl
+::: tip Marking unavailable
+The modal accepts time windows only. To mark a day as unavailable, use the
+**❌ Not Available** button (daily post) or the `/set` slash command's unavailable
+branch.
+:::
 
-- **Select Menu** mit gaengigen Zeitzonen
-- Gruppiert nach Regionen
-- Autocomplete-Unterstuetzung bei `/set-timezone`
+## Navigation buttons
 
-## Interaktions-Lifecycle
+For multi-day embeds (schedule navigation):
 
-```
-User klickt Button/Select
-        │
-        ▼
-  interaction.event.ts (Dispatcher)
-        │
-        ├─ Button CustomId pruefen
-        │   └─ An Handler weiterleiten
-        │
-        ├─ Modal Submit
-        │   └─ Eingabe validieren & verarbeiten
-        │
-        └─ Select Menu
-            └─ Auswahl verarbeiten
+- **← Previous Day**
+- **Today**
+- **Next Day →**
+
+Buttons are disabled when the target date is out of the 14-day window.
+
+## Timezone selector
+
+A select menu with common IANA timezones, rendered when a player without a personal
+timezone clicks the **🌍 Set Timezone** button on a reminder DM. `/set-timezone` exposes
+the full IANA list through autocomplete.
+
+## Interaction lifecycle
+
+```mermaid
+flowchart TD
+    A[Button / Select / Modal] --> B[interaction.event.ts]
+    B --> C{customId prefix}
+    C -->|schedule_*| D[handleDateNavigation]
+    C -->|set_custom_*| E[handleAvailabilityButton → showModal]
+    C -->|set_unavailable_*| F[handleAvailabilityButton → mark x]
+    C -->|set_timezone_prompt| G[handleTimezoneButton]
+    C -->|time_modal_*| H[handleTimeModal]
+    C -->|select_date| I[handleDateSelect]
+    C -->|select_timezone| J[handleTimezoneSelect]
+    C -->|info_modal_*| K[handleInfoModal]
 ```
 
 ### Custom IDs
 
-Interaktionen werden ueber Custom IDs identifiziert:
+Identifiers are deterministic so handlers can decode their context without any state:
 
+```text
+set_custom_DD.MM.YYYY        # opens the time modal for that date
+set_unavailable_DD.MM.YYYY   # marks the day unavailable
+schedule_prev_DD.MM.YYYY     # navigate one day back
+schedule_today               # jump to today
+schedule_next_DD.MM.YYYY     # navigate one day forward
+time_modal_DD.MM.YYYY        # modal submission for that date
+set_timezone_prompt          # open the timezone select menu
+select_timezone              # select-menu submission
+info_modal_TYPE_TARGET_USER  # /notify modal
 ```
-set_availability_date_{userId}
-set_availability_time_{userId}_{date}
-set_unavailable_{userId}_{date}
-reminder_set_{userId}_{date}
-poll_vote_{pollId}
-training_poll_{date}
-```
 
-Die User-ID im Custom ID stellt sicher, dass nur der aufrufende Spieler die Interaktion nutzen kann.
+## Date display
 
-## Timeout-Handling
-
-- Interaktionen haben standardmaessig einen **Timeout von 15 Minuten**
-- Nach Timeout werden Buttons deaktiviert
-- Collector-basiertes Handling fuer Multi-Step Flows
+All user-facing dates inside interaction replies use Discord timestamp tags
+(`<t:UNIX:F>` or `<t:UNIX:D>`). Each viewer sees the date in their own locale and
+timezone. Button labels and modal titles keep plain `DD.MM` text because Discord does
+not render timestamp tags in those surfaces.

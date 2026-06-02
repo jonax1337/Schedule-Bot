@@ -1,75 +1,75 @@
 # Stratbook
 
-## Uebersicht
+## Overview
 
-Das Stratbook (`components/shared/stratbook.tsx`) ist ein Team-internes Wiki fuer Valorant-Strategien. Es wird sowohl im User-Portal als auch im Admin-Panel angezeigt.
+The stratbook (`components/shared/stratbook.tsx`) is an internal team wiki for Valorant strategies. It is available in both the user portal and the admin panel.
 
 ## Features
 
-### Ordner-Struktur
+### Folder Structure
 
-- Hierarchische Ordner (verschachtelbar)
-- Farbkodierung (8 Farben)
-- Drag-and-Drop Sortierung
-- Erstellen, Umbenennen, Loeschen
+- Hierarchical folders (nestable)
+- Color coding (8 colors)
+- Drag-and-drop ordering
+- Create, rename, delete
 
-### Strategie-Dokumente
+### Strategy Documents
 
-Jede Strategie umfasst:
+Each strategy includes:
 
-| Feld | Beschreibung |
-|------|-------------|
-| **Titel** | Name der Strategie |
-| **Map** | Zugehoerige Karte (optional) |
+| Field | Description |
+|-------|-------------|
+| **Title** | Name of the strategy |
+| **Map** | Associated map (optional) |
 | **Side** | Attack / Defense (optional) |
-| **Tags** | Kommagetrennte Tags |
-| **Agents** | Beteiligte Agenten |
-| **Content** | Rich-Text Inhalt (TipTap JSON) |
-| **Images** | Hochgeladene Bilder |
-| **Files** | Hochgeladene PDFs |
+| **Tags** | Comma-separated tags |
+| **Agents** | Agents involved |
+| **Content** | Rich-text content (TipTap JSON) |
+| **Images** | Uploaded images |
+| **Files** | Uploaded PDFs |
 
-### Rich-Text Editor
+### Rich Text Editor
 
-Der Editor (`strategy-editor.tsx`) basiert auf TipTap und bietet:
+The editor (`strategy-editor.tsx`) is built on TipTap and supports:
 
-- **Formatierung:** Bold, Italic, Underline, Strikethrough
-- **Ueberschriften:** H1, H2, H3
-- **Listen:** Numeriert und Aufzaehlungen
-- **Links:** Verlinkte Texte
-- **Bilder:** Inline-Bilder (Upload oder URL)
-- **Code-Bloecke:** Syntax-Highlighting (lowlight)
-- **Text-Ausrichtung:** Links, Zentriert, Rechts
+- **Formatting:** bold, italic, underline, strikethrough
+- **Headings:** H1, H2, H3
+- **Lists:** ordered and unordered
+- **Links:** inline hyperlinks
+- **Images:** inline images (upload or URL)
+- **Code blocks:** syntax highlighting (lowlight)
+- **Text alignment:** left, center, right
 
-### Suche & Filter
+### Search & Filter
 
-- Volltextsuche in Titeln
-- Filter nach Map
-- Filter nach Tags
-- Filter nach Agenten
+- Full-text search on titles
+- Filter by map
+- Filter by tags
+- Filter by agents
 
-## Berechtigungen
+## Permissions
 
-Gesteuert ueber `stratbook.editPermission` Setting:
+Controlled by the `stratbook.editPermission` setting:
 
-| Wert | Lesen | Erstellen/Bearbeiten | Loeschen |
-|------|-------|---------------------|---------|
-| `admin` | Alle | Nur Admins | Nur Admins |
-| `all` | Alle | Alle Spieler | Nur Admins |
+| Value | Read | Create/Edit | Delete |
+|-------|------|-------------|--------|
+| `admin` | Everyone | Admins only | Admins only |
+| `all` | Everyone | All players | Admins only |
 
-## API-Endpunkte
+## API Endpoints
 
 ```
-GET    /api/strategies           → Alle Strategien
-POST   /api/strategies           → Erstellen (multipart/form-data)
-PUT    /api/strategies/:id       → Bearbeiten
-DELETE /api/strategies/:id       → Loeschen
+GET    /api/strategies              → All strategies
+POST   /api/strategies              → Create (multipart/form-data)
+PUT    /api/strategies/:id          → Update
+DELETE /api/strategies/:id          → Delete
 
-GET    /api/strategies/folders   → Ordner-Struktur
-POST   /api/strategies/folders   → Ordner erstellen
-PUT    /api/strategies/folders/:id → Ordner bearbeiten
-DELETE /api/strategies/folders/:id → Ordner loeschen (Cascade!)
+GET    /api/strategies/folders      → Folder tree
+POST   /api/strategies/folders      → Create folder
+PUT    /api/strategies/folders/:id  → Update folder
+DELETE /api/strategies/folders/:id  → Delete folder (cascades!)
 ```
 
-## PDF-Vorschau
+## PDF Preview
 
-Hochgeladene PDFs koennen ueber die `pdf-preview-dialog.tsx` Komponente direkt im Browser angesehen werden.
+Uploaded PDFs can be viewed directly in the browser through the `pdf-preview-dialog.tsx` component.

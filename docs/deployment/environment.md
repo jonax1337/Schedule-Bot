@@ -1,100 +1,100 @@
-# Umgebungsvariablen
+# Environment Variables
 
-## Vollstaendige Referenz
+## Full Reference
 
-### Pflicht-Variablen (Backend)
+### Required Variables (Backend)
 
-| Variable | Beschreibung | Beispiel |
+| Variable | Description | Example |
 |----------|-------------|---------|
-| `DISCORD_TOKEN` | Discord Bot Token aus dem Developer Portal | `MTIz...` |
-| `DISCORD_GUILD_ID` | ID des Discord Servers | `123456789012345678` |
-| `DATABASE_URL` | PostgreSQL Connection String | `postgresql://user:pass@localhost:5432/schedule_bot` |
-| `ADMIN_USERNAME` | Admin-Login Benutzername | `admin` |
-| `ADMIN_PASSWORD_HASH` | bcrypt-Hash des Admin-Passworts | `$2b$10$...` |
-| `JWT_SECRET` | Secret fuer JWT-Signierung (min. 32 Zeichen) | `abc123def456...` |
+| `DISCORD_TOKEN` | Discord bot token from the Developer Portal | `MTIz...` |
+| `DISCORD_GUILD_ID` | ID of the Discord server | `123456789012345678` |
+| `DATABASE_URL` | PostgreSQL connection string | `postgresql://user:pass@localhost:5432/schedule_bot` |
+| `ADMIN_USERNAME` | Admin login username | `admin` |
+| `ADMIN_PASSWORD_HASH` | bcrypt hash of the admin password | `$2b$10$...` |
+| `JWT_SECRET` | Secret used to sign JWTs (min. 32 characters) | `abc123def456...` |
 
-### Optionale Variablen (Backend)
+### Optional Variables (Backend)
 
-| Variable | Beschreibung | Default |
+| Variable | Description | Default |
 |----------|-------------|---------|
-| `PORT` | API Server Port | `3001` |
-| `DASHBOARD_URL` | Frontend-URL fuer CORS | `http://localhost:3000` |
-| `DISCORD_CLIENT_ID` | Discord OAuth Application ID | - |
-| `DISCORD_CLIENT_SECRET` | Discord OAuth Client Secret | - |
-| `DISCORD_REDIRECT_URI` | OAuth Redirect URI | `http://localhost:3000/auth/callback` |
+| `PORT` | API server port | `3001` |
+| `DASHBOARD_URL` | Frontend URL for CORS | `http://localhost:3000` |
+| `DISCORD_CLIENT_ID` | Discord OAuth application ID | - |
+| `DISCORD_CLIENT_SECRET` | Discord OAuth client secret | - |
+| `DISCORD_REDIRECT_URI` | OAuth redirect URI | `http://localhost:3000/auth/callback` |
 
-### Dashboard-Variablen
+### Dashboard Variables
 
-| Variable | Beschreibung | Default |
+| Variable | Description | Default |
 |----------|-------------|---------|
-| `BOT_API_URL` | Backend-URL (Server-seitig, intern) | `http://localhost:3001` |
-| `NEXT_PUBLIC_BOT_API_URL` | Backend-URL (Client-seitig, oeffentlich) | `http://localhost:3001` |
+| `BOT_API_URL` | Backend URL (server-side, internal) | `http://localhost:3001` |
+| `NEXT_PUBLIC_BOT_API_URL` | Backend URL (client-side, public) | `http://localhost:3001` |
 
-::: warning NEXT_PUBLIC_ Praefix
-Variablen mit `NEXT_PUBLIC_` werden zur **Build-Zeit** in den Client-Code eingebettet und sind im Browser sichtbar. Niemals Secrets mit diesem Praefix verwenden!
+::: warning NEXT_PUBLIC_ prefix
+Variables prefixed with `NEXT_PUBLIC_` are inlined into the client bundle at **build time** and are visible in the browser. Never use this prefix for secrets.
 :::
 
-## Umgebungs-Konfigurationen
+## Environment Configurations
 
-### Lokale Entwicklung
+### Local Development
 
 ```env
-DISCORD_TOKEN=dein_bot_token
-DISCORD_GUILD_ID=deine_server_id
+DISCORD_TOKEN=your_bot_token
+DISCORD_GUILD_ID=your_server_id
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/schedule_bot
 ADMIN_USERNAME=admin
 ADMIN_PASSWORD_HASH=$2b$10$...
-JWT_SECRET=ein_mindestens_32_zeichen_langer_string
+JWT_SECRET=a_string_at_least_32_characters_long
 DASHBOARD_URL=http://localhost:3000
 ```
 
 ### Docker
 
 ```env
-DISCORD_TOKEN=dein_bot_token
-DISCORD_GUILD_ID=deine_server_id
-DATABASE_URL=postgresql://schedule_bot_user:dein_passwort@db:5432/schedule_bot
-DB_PASSWORD=dein_passwort
+DISCORD_TOKEN=your_bot_token
+DISCORD_GUILD_ID=your_server_id
+DATABASE_URL=postgresql://schedule_bot_user:your_password@db:5432/schedule_bot
+DB_PASSWORD=your_password
 ADMIN_USERNAME=admin
 ADMIN_PASSWORD_HASH=$2b$10$...
-JWT_SECRET=ein_mindestens_32_zeichen_langer_string
+JWT_SECRET=a_string_at_least_32_characters_long
 DASHBOARD_URL=http://localhost:3000
 NEXT_PUBLIC_BOT_API_URL=http://localhost:3001
 ```
 
-### Produktion (Railway/Render)
+### Production (Railway/Render)
 
 ```env
-DISCORD_TOKEN=dein_bot_token
-DISCORD_GUILD_ID=deine_server_id
-DATABASE_URL=postgresql://...@host:5432/db  # Von Platform bereitgestellt
+DISCORD_TOKEN=your_bot_token
+DISCORD_GUILD_ID=your_server_id
+DATABASE_URL=postgresql://...@host:5432/db  # Provided by the platform
 ADMIN_USERNAME=admin
 ADMIN_PASSWORD_HASH=$2b$10$...
-JWT_SECRET=langer_zufaelliger_string
-DISCORD_CLIENT_ID=deine_client_id
-DISCORD_CLIENT_SECRET=dein_client_secret
-DISCORD_REDIRECT_URI=https://dein-dashboard.example.com/auth/callback
-DASHBOARD_URL=https://dein-dashboard.example.com
-NEXT_PUBLIC_BOT_API_URL=https://dein-backend.example.com
+JWT_SECRET=long_random_string
+DISCORD_CLIENT_ID=your_client_id
+DISCORD_CLIENT_SECRET=your_client_secret
+DISCORD_REDIRECT_URI=https://your-dashboard.example.com/auth/callback
+DASHBOARD_URL=https://your-dashboard.example.com
+NEXT_PUBLIC_BOT_API_URL=https://your-backend.example.com
 BOT_API_URL=http://backend-internal:3001
 ```
 
-## Admin-Passwort generieren
+## Generating the Admin Password
 
 ```bash
-# 1. Backend bauen
+# 1. Build the backend
 npm run build
 
-# 2. Hash generieren
+# 2. Generate the hash
 node dist/generateHash.js
-# Eingabe: dein_passwort
-# Ausgabe: $2b$10$Xk7yQf...
+# Input:  your_password
+# Output: $2b$10$Xk7yQf...
 
-# 3. In .env eintragen
+# 3. Add it to .env
 ADMIN_PASSWORD_HASH=$2b$10$Xk7yQf...
 ```
 
-## JWT Secret generieren
+## Generating a JWT Secret
 
 ```bash
 # Option 1: OpenSSL
@@ -104,10 +104,10 @@ openssl rand -base64 48
 node -e "console.log(require('crypto').randomBytes(48).toString('base64'))"
 ```
 
-## Sicherheitshinweise
+## Security Notes
 
-- `.env` Dateien niemals committen (ist in `.gitignore`)
-- `JWT_SECRET` muss einzigartig pro Deployment sein
-- `ADMIN_PASSWORD_HASH` niemals im Klartext speichern
-- `DISCORD_TOKEN` bei Kompromittierung sofort im Developer Portal regenerieren
-- In Produktion: HTTPS fuer alle oeffentlichen URLs verwenden
+- Never commit `.env` files (already listed in `.gitignore`)
+- `JWT_SECRET` must be unique per deployment
+- Never store `ADMIN_PASSWORD_HASH` in plain text
+- If `DISCORD_TOKEN` is compromised, regenerate it immediately in the Developer Portal
+- In production, use HTTPS for all public URLs

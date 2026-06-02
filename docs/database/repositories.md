@@ -1,102 +1,102 @@
 # Repositories
 
-## Uebersicht
+## Overview
 
-Alle Datenbank-Zugriffe laufen ueber Repository-Dateien in `src/repositories/`. Kein direkter Prisma-Zugriff in Routes, Commands oder Services.
+All database access goes through repository files in `src/repositories/`. There is no direct Prisma access from routes, commands, or services.
 
 ## database.repository.ts
 
-Singleton Prisma-Client mit PostgreSQL Adapter.
+Singleton Prisma client with the PostgreSQL adapter.
 
 ```typescript
 import { prisma } from '../repositories/database.repository.js';
 ```
 
-**Funktionen:**
-- `connectDatabase()` - Verbindung herstellen
-- `disconnectDatabase()` - Verbindung trennen und Pool schliessen
+**Functions:**
+- `connectDatabase()` - Open the connection
+- `disconnectDatabase()` - Close the connection and the pool
 
 ## schedule.repository.ts
 
-| Funktion | Beschreibung |
+| Function | Description |
 |----------|-------------|
-| `getScheduleForDate(date)` | Vollstaendigen Schedule fuer ein Datum laden |
-| `getNext14DaysSchedule()` | Batch: Naechste 14 Tage |
-| `getSchedulesForDates(dates)` | Multi-Datum Abfrage |
-| `updatePlayerAvailability(date, userId, availability)` | Verfuegbarkeit setzen |
-| `upsertSchedule(date, reason, focus)` | Schedule erstellen/aktualisieren |
-| `addMissingDays()` | Fehlende Tage auffuellen |
-| `applyRecurringToEmptySchedules()` | Recurring auf leere Slots anwenden |
-| `syncUserMappingsToSchedules()` | Roster-Aenderungen synchronisieren |
-| `getSchedulesPaginated(offset)` | Paginierte Historie |
-| `updateScheduleReason(date, reason, focus)` | Grund/Fokus aendern |
+| `getScheduleForDate(date)` | Load the full schedule for a given date |
+| `getNext14DaysSchedule()` | Batch: load the next 14 days |
+| `getSchedulesForDates(dates)` | Multi-date lookup |
+| `updatePlayerAvailability(date, userId, availability)` | Set a player's availability |
+| `upsertSchedule(date, reason, focus)` | Create or update a schedule |
+| `addMissingDays()` | Fill in missing days |
+| `applyRecurringToEmptySchedules()` | Apply recurring availability to empty slots |
+| `syncUserMappingsToSchedules()` | Sync roster changes |
+| `getSchedulesPaginated(offset)` | Paginated history |
+| `updateScheduleReason(date, reason, focus)` | Update reason/focus |
 
 ## user-mapping.repository.ts
 
-| Funktion | Beschreibung |
+| Function | Description |
 |----------|-------------|
-| `getUserMappings()` | Alle Mappings (sortiert nach Rolle + Order) |
-| `addUserMapping(mapping)` | Neues Mapping erstellen |
-| `updateUserMapping(discordId, updates)` | Mapping aktualisieren |
-| `removeUserMapping(discordId)` | Mapping loeschen |
-| `reorderUserMappingsBatch(orderings)` | Batch-Reorder (Drag-Drop) |
+| `getUserMappings()` | All mappings (sorted by role + order) |
+| `addUserMapping(mapping)` | Create a new mapping |
+| `updateUserMapping(discordId, updates)` | Update a mapping |
+| `removeUserMapping(discordId)` | Delete a mapping |
+| `reorderUserMappingsBatch(orderings)` | Batch reorder (drag-and-drop) |
 
 ## absence.repository.ts
 
-| Funktion | Beschreibung |
+| Function | Description |
 |----------|-------------|
-| `getAbsencesForUser(userId)` | Abwesenheiten eines Spielers |
-| `getAllAbsences()` | Alle Abwesenheiten |
-| `createAbsence(userId, startDate, endDate, reason)` | Erstellen |
-| `updateAbsence(id, data)` | Aktualisieren |
-| `deleteAbsence(id)` | Loeschen |
-| `isUserAbsentOnDate(userId, date)` | Pruefen ob abwesend |
-| `getAbsentUserIdsForDate(date)` | Alle Abwesenden fuer Datum |
-| `getAbsentUserIdsForDates(dates)` | Batch-Pruefung |
+| `getAbsencesForUser(userId)` | A player's absences |
+| `getAllAbsences()` | All absences |
+| `createAbsence(userId, startDate, endDate, reason)` | Create |
+| `updateAbsence(id, data)` | Update |
+| `deleteAbsence(id)` | Delete |
+| `isUserAbsentOnDate(userId, date)` | Check whether a user is absent |
+| `getAbsentUserIdsForDate(date)` | All absent users for a date |
+| `getAbsentUserIdsForDates(dates)` | Batch check |
 
 ## recurring-availability.repository.ts
 
-| Funktion | Beschreibung |
+| Function | Description |
 |----------|-------------|
-| `getRecurringForUser(userId)` | Eintraege eines Spielers |
-| `getAllActiveRecurring()` | Alle aktiven Eintraege |
-| `setRecurring(userId, dayOfWeek, availability)` | Setzen (Upsert) |
-| `clearRecurringDay(userId, dayOfWeek)` | Tag loeschen |
-| `clearRecurringAll(userId)` | Alle loeschen |
+| `getRecurringForUser(userId)` | A player's entries |
+| `getAllActiveRecurring()` | All active entries |
+| `setRecurring(userId, dayOfWeek, availability)` | Set (upsert) |
+| `clearRecurringDay(userId, dayOfWeek)` | Clear a single day |
+| `clearRecurringAll(userId)` | Clear all entries |
 
 ## scrim.repository.ts
 
-| Funktion | Beschreibung |
+| Function | Description |
 |----------|-------------|
-| `getAllScrims()` | Alle Scrims (neueste zuerst) |
-| `getScrimById(id)` | Einzelner Scrim mit Kommentaren |
-| `addScrim(data)` | Erstellen |
-| `updateScrim(id, data)` | Aktualisieren |
-| `deleteScrim(id)` | Loeschen (Cascade: Kommentare) |
-| `getScrimStats()` | Win/Loss/Draw Statistiken |
-| `getScrimsByDateRange(start, end)` | Zeitraum-Abfrage |
+| `getAllScrims()` | All scrims (newest first) |
+| `getScrimById(id)` | A single scrim with its comments |
+| `addScrim(data)` | Create |
+| `updateScrim(id, data)` | Update |
+| `deleteScrim(id)` | Delete (cascades to comments) |
+| `getScrimStats()` | Win/loss/draw statistics |
+| `getScrimsByDateRange(start, end)` | Date-range query |
 
 ## vod-comment.repository.ts
 
-| Funktion | Beschreibung |
+| Function | Description |
 |----------|-------------|
-| `getCommentsForScrim(scrimId)` | Kommentare laden (nach Timestamp sortiert) |
-| `addComment(scrimId, userName, timestamp, content)` | Erstellen |
-| `deleteComment(id)` | Loeschen |
+| `getCommentsForScrim(scrimId)` | Load comments (sorted by timestamp) |
+| `addComment(scrimId, userName, timestamp, content)` | Create |
+| `deleteComment(id)` | Delete |
 
 ## strategy.repository.ts
 
-| Funktion | Beschreibung |
+| Function | Description |
 |----------|-------------|
-| Ordner CRUD | Erstellen, Lesen, Aktualisieren, Loeschen, Sortieren |
-| Strategie CRUD | Erstellen, Lesen, Aktualisieren, Loeschen |
-| Bild-Management | Upload, Loeschen |
-| Datei-Management | Upload, Loeschen |
+| Folder CRUD | Create, read, update, delete, sort |
+| Strategy CRUD | Create, read, update, delete |
+| Image management | Upload, delete |
+| File management | Upload, delete |
 
 ## database-initializer.ts
 
-| Funktion | Beschreibung |
+| Function | Description |
 |----------|-------------|
-| `initializeDatabaseIfEmpty()` | Tabellen und Defaults anlegen |
-| `checkTablesExist()` | Schema-Pruefung |
-| `checkForMissingTables()` | Fehlende Tabellen erkennen |
+| `initializeDatabaseIfEmpty()` | Create tables and defaults |
+| `checkTablesExist()` | Schema check |
+| `checkForMissingTables()` | Detect missing tables |

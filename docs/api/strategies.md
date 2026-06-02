@@ -1,13 +1,13 @@
-# Strategien API
+# Strategies API
 
-## Alle Strategien abrufen
+## List All Strategies
 
 ```http
 GET /api/strategies
 Authorization: Bearer <token>
 ```
 
-**Erfolg (200):**
+**Success (200):**
 ```json
 {
   "success": true,
@@ -30,7 +30,7 @@ Authorization: Bearer <token>
 }
 ```
 
-## Strategie erstellen
+## Create Strategy
 
 ```http
 POST /api/strategies
@@ -38,26 +38,26 @@ Authorization: Bearer <token>
 Content-Type: multipart/form-data
 ```
 
-**Form Fields:**
-| Feld | Typ | Pflicht | Beschreibung |
-|------|-----|---------|-------------|
-| `title` | string | Ja | Strategie-Titel |
-| `map` | string | Nein | Karten-Name |
-| `side` | string | Nein | `attack` / `defense` |
-| `tags` | string | Nein | Kommagetrennte Tags |
-| `agents` | string | Nein | Kommagetrennte Agenten |
-| `content` | JSON string | Ja | TipTap JSON Content |
-| `folderId` | string | Nein | Ordner-ID |
-| `images` | File[] | Nein | Bild-Uploads |
-| `files` | File[] | Nein | PDF-Uploads |
+**Form fields:**
+| Field      | Type        | Required | Description              |
+| ---------- | ----------- | -------- | ------------------------ |
+| `title`    | string      | Yes      | Strategy title           |
+| `map`      | string      | No       | Map name                 |
+| `side`     | string      | No       | `attack` / `defense`     |
+| `tags`     | string      | No       | Comma-separated tags     |
+| `agents`   | string      | No       | Comma-separated agents   |
+| `content`  | JSON string | Yes      | TipTap JSON content      |
+| `folderId` | string      | No       | Folder ID                |
+| `images`   | File[]      | No       | Image uploads            |
+| `files`    | File[]      | No       | PDF uploads              |
 
-::: info Berechtigungen
-Wer Strategien erstellen/bearbeiten darf, haengt vom Setting `stratbook.editPermission` ab:
-- `admin` - Nur Admins
-- `all` - Alle registrierten Spieler
+::: info Permissions
+Who can create or edit strategies depends on the `stratbook.editPermission` setting:
+- `admin` - admins only
+- `all` - all registered players
 :::
 
-## Strategie bearbeiten
+## Edit Strategy
 
 ```http
 PUT /api/strategies/:id
@@ -65,25 +65,25 @@ Authorization: Bearer <token>
 Content-Type: multipart/form-data
 ```
 
-Gleiche Felder wie beim Erstellen. Neue Uploads werden hinzugefuegt.
+Same fields as create. New uploads are appended.
 
-## Strategie loeschen
+## Delete Strategy
 
 ```http
 DELETE /api/strategies/:id
 Authorization: Bearer <token>
 ```
 
-## Ordner-Struktur
+## Folder Tree
 
-### Ordner abrufen
+### Get Folders
 
 ```http
 GET /api/strategies/folders
 Authorization: Bearer <token>
 ```
 
-### Ordner erstellen
+### Create Folder
 
 ```http
 POST /api/strategies/folders
@@ -100,9 +100,9 @@ Content-Type: application/json
 }
 ```
 
-**Verfuegbare Farben:** 8 vordefinierte Hex-Werte fuer die Ordner-Farbkodierung.
+**Available colors:** 8 predefined hex values for folder color coding.
 
-### Ordner bearbeiten / loeschen
+### Edit / Delete Folder
 
 ```http
 PUT /api/strategies/folders/:id
@@ -110,5 +110,5 @@ DELETE /api/strategies/folders/:id
 ```
 
 ::: warning Cascade Delete
-Beim Loeschen eines Ordners werden alle enthaltenen Strategien und Unterordner mit geloescht.
+Deleting a folder also removes all contained strategies and subfolders.
 :::

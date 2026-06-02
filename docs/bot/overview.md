@@ -1,8 +1,9 @@
-# Discord Bot Uebersicht
+# Discord Bot Overview
 
-## Architektur
+The Discord bot is built on **discord.js v14** and is the team's primary interaction
+surface for everything availability-related.
 
-Der Discord Bot basiert auf **discord.js v14** und verwaltet die Team-Kommunikation direkt im Discord Server.
+## Architecture
 
 ```
 Discord Gateway
@@ -11,10 +12,11 @@ Discord Gateway
   Client (client.ts)
       │
       ├─ Events
-      │   ├─ ready.event.ts        → Commands registrieren, Polls wiederherstellen
-      │   └─ interaction.event.ts  → Dispatching zu Handlers
+      │   ├─ ready.event.ts        → register commands, recover polls,
+      │   │                          refresh weekly overview
+      │   └─ interaction.event.ts  → dispatch to handlers
       │
-      ├─ Commands (Slash Commands)
+      ├─ Commands (slash commands)
       │   ├─ schedule.commands.ts
       │   ├─ availability.commands.ts
       │   ├─ user-management.commands.ts
@@ -24,70 +26,83 @@ Discord Gateway
       │   └─ recurring.commands.ts
       │
       ├─ Interactions
-      │   ├─ interactive.ts         → Buttons, Modals, Select Menus
-      │   ├─ polls.ts               → Quick Polls
-      │   ├─ trainingStartPoll.ts   → Training-Start Polls
-      │   ├─ reminder.ts            → DM-Erinnerungen
-      │   └─ pollBase.ts            → Gemeinsame Poll-Logik
+      │   ├─ interactive.ts          → buttons, modals, select menus
+      │   ├─ polls.ts                → quick polls
+      │   ├─ trainingStartPoll.ts    → training-start polls
+      │   ├─ reminder.ts             → DM reminders (daily + weekly)
+      │   └─ pollBase.ts             → shared poll plumbing
       │
       └─ Utils
-          ├─ schedule-poster.ts     → Schedule-Posts & Benachrichtigungen
-          └─ command-helpers.ts     → Hilfsfunktionen
+          ├─ schedule-poster.ts      → daily post + status-change notifier
+          ├─ weekly-overview.ts      → pinned weekly message + day-buttons
+          ├─ week-utils.ts           → week math helpers
+          └─ command-helpers.ts
 ```
 
-## Client-Konfiguration
+## Client configuration
 
 ### Intents
 
-| Intent | Verwendung |
-|--------|-----------|
-| `Guilds` | Server-Events, Channel-Zugriff |
-| `GuildMembers` | Mitglieder-Verwaltung |
-| `GuildMessageReactions` | Poll-Abstimmungen |
+| Intent | Used for |
+| --- | --- |
+| `Guilds` | Server events, channel fetches |
+| `GuildMembers` | Roster lookups |
+| `GuildMessageReactions` | Poll voting |
 
 ### Partials
 
-| Partial | Verwendung |
-|---------|-----------|
-| `Message` | Reaktionen auf aeltere Nachrichten |
-| `Reaction` | Partielle Reaktionsdaten |
+| Partial | Used for |
+| --- | --- |
+| `Message` | Reactions on older messages |
+| `Reaction` | Partial reaction payloads |
 
-## Berechtigungen
+## Permissions
 
-Der Bot benoetigt folgende Discord-Berechtigungen:
+The bot needs these Discord permissions:
 
-- **View Channels** - Channels sehen
-- **Send Messages** - Nachrichten senden
-- **Embed Links** - Embeds erstellen
-- **Add Reactions** - Reaktionen fuer Polls
-- **Use Slash Commands** - Slash Commands nutzen
-- **Read Message History** - Nachrichten-Verlauf lesen
+- **View Channels**
+- **Send Messages**
+- **Embed Links**
+- **Add Reactions**
+- **Use Slash Commands**
+- **Read Message History**
+- **Manage Messages** — required to pin the weekly overview message
 
 ## Startup
 
-Beim Bot-Ready Event (`ready.event.ts`):
+On `clientReady` (`ready.event.ts`):
 
-1. **Commands registrieren** - Alle Slash Commands beim Discord API registrieren
-2. **Polls wiederherstellen** - Offene Polls aus dem Speicher laden
-3. **Training-Polls wiederherstellen** - Laufende Training-Polls laden
-4. **Status setzen** - Bot-Aktivitaet anzeigen
+1. **Register commands** — push every slash command to the Discord API
+2. **Recover polls** — re-bind open quick polls from the channel
+3. **Recover training polls** — re-bind open training-start polls
+4. **Refresh the pinned weekly overview** — edit the existing pin or post a new one
+5. **Set the presence**
 
-## Embed-Farbschema
+## Embed colour scheme
 
-| Farbe | Hex | Verwendung |
-|-------|-----|-----------|
-| Gruen | `0x2ecc71` | Erfolg, Full Roster |
-| Orange | `0xf39c12` | Warnung, With Subs |
-| Rot | `0xe74c3c` | Fehler, Not Enough |
-| Lila | `0x9b59b6` | Off Day |
-| Blau | `0x3498db` | Info |
+| Colour | Hex | Used for |
+| --- | --- | --- |
+| Green | `0x2ecc71` | Success, Full Roster |
+| Orange | `0xf39c12` | Warning, With Subs |
+| Red | `0xe74c3c` | Error, Not Enough |
+| Purple | `0x9b59b6` | Off-Day |
+| Blue | `0x3498db` | Info, Weekly Overview |
 
-## Player-Status Indikatoren
+## Player status icons
 
-| Symbol | Bedeutung |
-|--------|-----------|
-| ✅ | Verfuegbar (mit Zeitfenster) |
-| ❌ | Nicht verfuegbar |
-| ❓ | Keine Antwort |
-| ✈️ | Abwesend |
-| 🔄 | Sub wird benoetigt |
+| Icon | Meaning |
+| --- | --- |
+| ✅ | Available (with time window) |
+| ❌ | Unavailable |
+| ⚪ | No response |
+| ✈️ | Absent |
+| 🔄 | Sub required |
+
+## Date formatting
+
+Every date shown to a player is rendered as a Discord timestamp tag — `<t:UNIX:F>` or
+`<t:UNIX:D>` depending on whether time of day is meaningful — so each viewer sees their
+own locale and timezone. Times within a day use `<t:UNIX:t>`.
+
+Button labels and modal titles still display plain `DD.MM.YYYY` because Discord does not
+render timestamp tags in those surfaces.

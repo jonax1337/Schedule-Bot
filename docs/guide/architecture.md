@@ -1,188 +1,196 @@
-# Architektur
+# Architecture
 
-## Systemuebersicht
+## System overview
 
-Schedule-Bot folgt einer mehrschichtigen Architektur mit klarer Trennung von Verantwortlichkeiten.
+Schedule-Bot follows a layered architecture with clear separation between presentation,
+API, business logic and persistence.
 
 ```
 ┌───────────────────────────────────────────────────────────┐
 │                    Presentation Layer                      │
 │  ┌─────────────────┐  ┌──────────────────────────────┐    │
 │  │   Discord Bot    │  │     Next.js Dashboard        │    │
-│  │  (discord.js)    │  │    (React 19 + Radix UI)     │    │
+│  │  (discord.js)    │  │   (React 19 + Radix UI)      │    │
 │  └────────┬────────┘  └──────────────┬───────────────┘    │
 │           │                          │                     │
 ├───────────▼──────────────────────────▼─────────────────────┤
-│                     API Layer (Express.js)                  │
-│  Routes │ Controllers │ Middleware │ Validation │ Auth      │
+│                  API Layer (Express.js)                    │
+│  Routes │ Controllers │ Middleware │ Validation │ Auth     │
 ├────────────────────────────────────────────────────────────┤
-│                    Business Logic Layer                     │
-│  Services │ Analyzer │ Scheduler │ Settings Manager         │
+│                  Business Logic Layer                      │
+│  Services │ Analyzer │ Scheduler │ Settings Manager        │
 ├────────────────────────────────────────────────────────────┤
-│                    Data Access Layer                        │
-│  Repositories │ Prisma ORM │ Database Initializer           │
+│                  Data Access Layer                         │
+│  Repositories │ Prisma ORM │ Database Initializer          │
 ├────────────────────────────────────────────────────────────┤
-│                    PostgreSQL Database                      │
+│                  PostgreSQL Database                       │
 └────────────────────────────────────────────────────────────┘
 ```
 
-## Startup-Sequenz
+## Startup sequence
 
-Der Startprozess in `src/index.ts` folgt einer strikten Reihenfolge:
+`src/index.ts` runs a strict boot order:
 
 ```
-1. connectDatabase()              → PostgreSQL-Verbindung herstellen
-2. initializeDatabaseIfEmpty()    → Tabellen und Default-Settings anlegen
-3. reloadConfig()                 → Settings aus DB laden
-4. addMissingDays()               → Naechste 14 Tage sicherstellen
-5. applyRecurringToEmptySchedules → Wiederkehrende Verfuegbarkeiten anwenden
-6. startApiServer()               → Express auf :3001 starten
-7. startBot()                     → Discord-Client verbinden
-8. startScheduler()               → Cron-Jobs starten (nach Bot-Ready)
+1. connectDatabase()                  → PostgreSQL connection
+2. initializeDatabaseIfEmpty()        → tables + default settings
+3. reloadConfig()                     → load settings into runtime config
+4. addMissingDays()                   → ensure the next 14 days exist
+5. applyRecurringToEmptySchedules()   → apply weekly patterns to empty slots
+6. startApiServer()                   → Express on :3001
+7. startBot()                         → connect the Discord client
+8. (on clientReady)                   → startScheduler() + refreshWeeklyOverview()
 ```
 
-Beim Herunterfahren (SIGINT/SIGTERM) wird in umgekehrter Reihenfolge aufgeraeumt.
+`SIGINT` / `SIGTERM` tears everything down in reverse order.
 
-## Verzeichnis-Struktur (Backend)
+## Backend directory layout
 
 ```
 src/
-├── index.ts                          # Entry Point & Startup
+├── index.ts                          # Entry point & startup
 ├── api/
-│   ├── server.ts                     # Express-App mit Middleware
+│   ├── server.ts                     # Express app + middleware stack
 │   ├── controllers/
-│   │   └── auth.controller.ts        # Login-Logik (Admin + User + OAuth)
+│   │   └── auth.controller.ts        # Admin login, user login, OAuth
 │   └── routes/
-│       ├── index.ts                  # Route-Aggregator
-│       ├── auth.routes.ts            # /api/auth/*
-│       ├── schedule.routes.ts        # /api/schedule/*
-│       ├── actions.routes.ts         # /api/actions/*
-│       ├── user-mapping.routes.ts    # /api/user-mappings/*
-│       ├── settings.routes.ts        # /api/settings
-│       ├── scrim.routes.ts           # /api/scrims/*
-│       ├── absence.routes.ts         # /api/absences/*
+│       ├── index.ts                  # Route aggregator
+│       ├── auth.routes.ts
+│       ├── schedule.routes.ts
+│       ├── actions.routes.ts
+│       ├── user-mapping.routes.ts
+│       ├── settings.routes.ts
+│       ├── scrim.routes.ts
+│       ├── absence.routes.ts
 │       ├── recurring-availability.routes.ts
-│       ├── strategy.routes.ts        # /api/strategies/*
-│       ├── discord.routes.ts         # /api/discord/*
-│       ├── admin.routes.ts           # /api/admin/*
-│       └── vod-comment.routes.ts     # /api/vod-comments/*
+│       ├── strategy.routes.ts
+│       ├── discord.routes.ts
+│       ├── admin.routes.ts
+│       └── vod-comment.routes.ts
 ├── bot/
-│   ├── client.ts                     # Discord-Client Singleton
+│   ├── client.ts                     # Discord client singleton
 │   ├── commands/
-│   │   ├── definitions.ts            # Slash Command Schemas
-│   │   ├── index.ts                  # Command Router
-│   │   ├── schedule.commands.ts      # /schedule, /post-schedule, /schedule-week
-│   │   ├── availability.commands.ts  # /set, /my-schedule, Timezone-Commands
-│   │   ├── user-management.commands.ts  # /register, /unregister
-│   │   ├── admin.commands.ts         # /notify
-│   │   ├── poll.commands.ts          # /poll
-│   │   ├── scrim.commands.ts         # /add-scrim, /view-scrims, /scrim-stats
-│   │   └── recurring.commands.ts     # /set-recurring, /my-recurring, /clear-recurring
+│   │   ├── definitions.ts            # Slash command schemas
+│   │   ├── index.ts                  # Command router
+│   │   ├── schedule.commands.ts
+│   │   ├── availability.commands.ts
+│   │   ├── user-management.commands.ts
+│   │   ├── admin.commands.ts
+│   │   ├── poll.commands.ts
+│   │   ├── scrim.commands.ts
+│   │   └── recurring.commands.ts
 │   ├── events/
-│   │   ├── ready.event.ts            # Bot-Ready: Commands registrieren, Polls wiederherstellen
-│   │   └── interaction.event.ts      # Interaction Dispatcher
+│   │   ├── ready.event.ts
+│   │   └── interaction.event.ts
 │   ├── interactions/
-│   │   ├── interactive.ts            # Buttons, Modals, Select Menus
-│   │   ├── polls.ts                  # Quick Polls
-│   │   ├── trainingStartPoll.ts      # Training-Start-Polls
-│   │   ├── reminder.ts              # Erinnerungs-System
-│   │   └── pollBase.ts              # Gemeinsame Poll-Logik
+│   │   ├── interactive.ts            # Buttons, modals, select menus
+│   │   ├── polls.ts                  # Quick polls
+│   │   ├── trainingStartPoll.ts      # Training-start polls
+│   │   ├── reminder.ts               # DM reminders (daily + weekly)
+│   │   └── pollBase.ts
 │   ├── utils/
-│   │   ├── schedule-poster.ts        # Schedule posten & Status-Benachrichtigungen
-│   │   └── command-helpers.ts        # Hilfsfunktionen fuer Commands
+│   │   ├── schedule-poster.ts        # Daily post + status-change notifier
+│   │   ├── weekly-overview.ts        # Pinned weekly message + buttons
+│   │   ├── week-utils.ts             # Week math helpers
+│   │   └── command-helpers.ts
 │   └── embeds/
-│       └── embed.ts                  # Embed-Builder & Farbschema
+│       └── embed.ts                  # Embed builders + timestamp helpers
 ├── jobs/
-│   └── scheduler.ts                  # node-cron Management
+│   └── scheduler.ts                  # node-cron management
 ├── repositories/
-│   ├── database.repository.ts        # Prisma-Client Singleton
-│   ├── database-initializer.ts       # DB-Setup & Default-Daten
-│   ├── schedule.repository.ts        # Schedule-Queries
-│   ├── user-mapping.repository.ts    # User-Mapping-Queries
-│   ├── absence.repository.ts         # Abwesenheits-Queries
+│   ├── database.repository.ts        # Prisma client singleton
+│   ├── database-initializer.ts       # Schema bootstrap + defaults
+│   ├── schedule.repository.ts
+│   ├── user-mapping.repository.ts
+│   ├── absence.repository.ts
 │   ├── recurring-availability.repository.ts
-│   ├── scrim.repository.ts           # Scrim-Queries
-│   ├── vod-comment.repository.ts     # VOD-Kommentar-Queries
-│   └── strategy.repository.ts        # Strategie-Queries
+│   ├── scrim.repository.ts
+│   ├── vod-comment.repository.ts
+│   └── strategy.repository.ts
 ├── services/
-│   ├── absence.service.ts            # Abwesenheits-Logik & Validierung
+│   ├── absence.service.ts
 │   ├── recurring-availability.service.ts
-│   ├── strategy.service.ts           # Berechtigungspruefung
+│   ├── strategy.service.ts
 │   └── vod-comment.service.ts
 └── shared/
-    ├── config/
-    │   └── config.ts                 # Globale Konfiguration
-    ├── middleware/
-    │   ├── auth.ts                   # JWT-Verifikation & Rollen
-    │   ├── validation.ts             # Joi-Schemata
-    │   ├── rateLimiter.ts            # Rate Limiting
-    │   └── passwordManager.ts        # bcrypt-Verwaltung
-    ├── types/
-    │   └── types.ts                  # TypeScript-Interfaces
+    ├── config/config.ts              # Runtime config snapshot
+    ├── middleware/                   # auth, validation, rate-limit, etc.
+    ├── types/types.ts                # TypeScript interfaces
     └── utils/
-        ├── analyzer.ts               # Schedule-Analyse (Status-Ermittlung)
-        ├── scheduleDetails.ts        # Kombinierte Abfrage + Analyse
-        ├── dateFormatter.ts          # DD.MM.YYYY Hilfsfunktionen
-        ├── timezoneConverter.ts      # Zeitzonen-Konvertierung
-        ├── settingsManager.ts        # Settings laden/speichern/cachen
-        └── logger.ts                 # In-Memory Logging
+        ├── analyzer.ts               # Schedule status analyser
+        ├── scheduleDetails.ts        # Analyze + fetch helper
+        ├── dateFormatter.ts          # DD.MM.YYYY helpers
+        ├── timezoneConverter.ts      # IANA timezone conversion
+        ├── settingsManager.ts        # Settings cache + persistence
+        └── logger.ts                 # In-memory log buffer
 ```
 
-## Design Patterns
+## Design patterns
 
-### Repository Pattern
-Alle Datenbank-Zugriffe laufen ueber dedizierte Repository-Dateien. Kein direkter Prisma-Zugriff in Routes oder Commands.
+### Repository pattern
+
+All Prisma queries live in dedicated repository files. Routes and commands never reach
+into Prisma directly.
 
 ```typescript
-// Beispiel: schedule.repository.ts
+// schedule.repository.ts
 export async function getScheduleForDate(date: string) {
   return prisma.schedule.findUnique({
     where: { date },
-    include: { players: true }
+    include: { players: true },
   });
 }
 ```
 
-### Settings Management
-Settings werden in der Datenbank als Key-Value-Paare gespeichert (Dot-Notation). Zwei Zugriffsarten:
+### Settings management
 
-1. **`config`** (config.ts) - Fuer Scheduler und Bot-Core
-2. **`loadSettings()`** (settingsManager.ts) - Vollstaendige Settings inkl. Branding
+Settings are flat dot-notation keys in the `settings` table. Two access paths:
 
-Bei Aenderung: `POST /api/settings` → DB-Speicherung → `reloadConfig()` → `restartScheduler()`
+1. **`config`** (`src/shared/config/config.ts`) — minimum runtime state used by the
+   scheduler and bot core
+2. **`loadSettings()`** / **`getSetting()`** (`src/shared/utils/settingsManager.ts`) —
+   full settings shape including branding and stratbook permissions
 
-### User Mappings vs Schedule Players
+On `POST /api/settings` the API persists the values, calls `reloadConfig()`, then
+`restartScheduler()`. Hot reload — no process restart needed.
 
-- **`user_mappings`** = Master-Roster (Stamm-Daten der Teammitglieder)
-- **`schedule_players`** = Tages-Snapshots (kopiert beim Erstellen eines Schedule-Eintrags)
-- **`syncUserMappingsToSchedules()`** synchronisiert Roster-Aenderungen in zukuenftige Eintraege
+### UserMapping vs SchedulePlayer
 
-### Middleware-Stack
+- **`user_mappings`** — master roster (team members)
+- **`schedule_players`** — per-day snapshots created when a schedule row is seeded
+- **`syncUserMappingsToSchedules()`** — replays roster changes into every **future**
+  snapshot row
+
+### Middleware stack
 
 ```
-Request → Helmet → CORS → Rate Limiter → [Auth] → [Validation] → Handler → Response
+Request
+  → Helmet (security headers: CSP, HSTS …)
+  → CORS (origin allowlist)
+  → Rate limiter (global + per endpoint)
+  → [Auth] (verifyToken / requireAdmin / ownership checks)
+  → [Validation] (Joi schemas)
+  → Handler
+  → Response
 ```
 
-- **Helmet** - Security Headers (CSP, HSTS, etc.)
-- **CORS** - Origin-Whitelist
-- **Rate Limiter** - Global + endpunktspezifisch
-- **Auth** - Optional oder erforderlich je nach Route
-- **Validation** - Joi-basierte Eingabepruefung
+## ES module specifics
 
-## ES Module Besonderheiten
+The project uses `"type": "module"`:
 
-Das Projekt verwendet `"type": "module"`:
+- Every relative import needs a `.js` extension — even for `.ts` files
+- `__dirname` is unavailable — derive it via
+  `fileURLToPath(import.meta.url)`
+- Prisma client import: `import { PrismaClient } from '../generated/prisma/client.js'`
 
-- Alle Imports benoetigen die `.js`-Endung (auch fuer `.ts`-Dateien)
-- Kein `__dirname` verfuegbar - stattdessen `fileURLToPath(import.meta.url)`
-- Prisma Client Import: `import { PrismaClient } from '../generated/prisma/client.js'`
+## Circular dependencies
 
-## Zirkulaere Abhaengigkeiten
-
-Der Bot-Client wird in mehreren Modulen verwendet (Scheduler, API-Aktionen, Interaktionen). Bei Bedarf werden dynamische Imports genutzt:
+The Discord client is consumed by the scheduler, API actions and interaction handlers.
+Where the static import would create a cycle, we use dynamic imports:
 
 ```typescript
 const { postScheduleToChannel } = await import('../bot/utils/schedule-poster.js');
 ```
 
-`schedule-poster.ts` re-exportiert vom `client.ts`, um den Abhaengigkeits-Graphen zu vereinfachen.
+`schedule-poster.ts` also re-exports from `client.ts` so other modules can grab the
+client through a single hop.

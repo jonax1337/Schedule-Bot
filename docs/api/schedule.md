@@ -1,13 +1,13 @@
 # Schedule API
 
-## Naechste 14 Tage abrufen
+## Get the Next 14 Days
 
 ```http
 GET /api/schedule/next14
 Authorization: Bearer <token>
 ```
 
-**Erfolg (200):**
+**Success (200):**
 ```json
 {
   "success": true,
@@ -32,20 +32,20 @@ Authorization: Bearer <token>
 }
 ```
 
-## Paginierte Schedule-Historie
+## Paginated Schedule History
 
 ```http
 GET /api/schedule/paginated?page=1&limit=14
 Authorization: Bearer <admin-token>
 ```
 
-**Query-Parameter:**
-| Parameter | Typ | Default | Beschreibung |
-|-----------|-----|---------|-------------|
-| `page` | number | 1 | Seitennummer |
-| `limit` | number | 14 | Eintraege pro Seite |
+**Query parameters:**
+| Parameter | Type   | Default | Description       |
+| --------- | ------ | ------- | ----------------- |
+| `page`    | number | 1       | Page number       |
+| `limit`   | number | 14      | Entries per page  |
 
-## Verfuegbarkeit aktualisieren
+## Update Availability
 
 ```http
 POST /api/schedule/update-availability
@@ -62,7 +62,7 @@ Content-Type: application/json
 }
 ```
 
-**Erfolg (200):**
+**Success (200):**
 ```json
 {
   "success": true,
@@ -74,13 +74,13 @@ Content-Type: application/json
 }
 ```
 
-::: info Verfuegbarkeits-Werte
-- `"14:00-20:00"` - Zeitfenster
-- `"x"` - Nicht verfuegbar
-- `""` - Keine Angabe (zuruecksetzen)
+::: info Availability Values
+- `"14:00-20:00"` - time window
+- `"x"` - unavailable
+- `""` - no response (reset)
 :::
 
-## Schedule-Grund aktualisieren
+## Update Schedule Reason
 
 ```http
 POST /api/schedule/update-reason
@@ -93,18 +93,18 @@ Content-Type: application/json
 {
   "date": "27.03.2026",
   "reason": "Premier",
-  "focus": "Map-Pool Vorbereitung"
+  "focus": "Map pool preparation"
 }
 ```
 
-## Analysierte Schedule-Details
+## Analyzed Schedule Details
 
 ```http
 GET /api/schedule-details?date=27.03.2026
 Authorization: Bearer <token>
 ```
 
-**Erfolg (200):**
+**Success (200):**
 ```json
 {
   "success": true,
@@ -126,11 +126,11 @@ Authorization: Bearer <token>
 }
 ```
 
-## Batch Schedule-Details
+## Batch Schedule Details
 
 ```http
 GET /api/schedule-details-batch?dates=27.03.2026,28.03.2026,29.03.2026
 Authorization: Bearer <token>
 ```
 
-Liefert Details fuer mehrere Daten in einem Request.
+Returns analyzed details for multiple dates in a single request.

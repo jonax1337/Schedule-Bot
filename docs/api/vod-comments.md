@@ -1,13 +1,13 @@
-# VOD-Kommentare API
+# VOD Comments API
 
-## Kommentare fuer Scrim laden
+## Load Comments for a Scrim
 
 ```http
 GET /api/vod-comments/scrim/:scrimId
 Authorization: Bearer <token>
 ```
 
-**Erfolg (200):**
+**Success (200):**
 ```json
 {
   "success": true,
@@ -17,7 +17,7 @@ Authorization: Bearer <token>
       "scrimId": "abc123",
       "userName": "Player1",
       "timestamp": 125,
-      "content": "Guter Smoke hier @Player2 #rotation",
+      "content": "Nice smoke here @Player2 #rotation",
       "createdAt": "2026-03-27T12:00:00.000Z",
       "updatedAt": "2026-03-27T12:00:00.000Z"
     }
@@ -25,9 +25,9 @@ Authorization: Bearer <token>
 }
 ```
 
-**Hinweis:** `timestamp` ist in Sekunden ab Videobeginn. Kommentare werden nach `timestamp` sortiert zurueckgegeben.
+**Note:** `timestamp` is in seconds from the start of the video. Comments are returned sorted by `timestamp`.
 
-## Kommentar erstellen
+## Create Comment
 
 ```http
 POST /api/vod-comments
@@ -40,19 +40,19 @@ Content-Type: application/json
 {
   "scrimId": "abc123",
   "timestamp": 125,
-  "content": "Guter Smoke hier @Player2 #rotation"
+  "content": "Nice smoke here @Player2 #rotation"
 }
 ```
 
-Der `userName` wird automatisch aus dem JWT Token uebernommen.
+The `userName` is taken automatically from the JWT token.
 
-### Formatierung
+### Formatting
 
-Kommentare unterstuetzen:
-- **@Mentions** - `@PlayerName` fuer Spieler-Erwaehnung
-- **#Hashtags** - `#rotation`, `#mistake`, `#clutch` etc. fuer Kategorisierung
+Comments support:
+- **@Mentions** - `@PlayerName` to mention a player
+- **#Hashtags** - `#rotation`, `#mistake`, `#clutch`, etc. for categorization
 
-## Kommentar bearbeiten
+## Edit Comment
 
 ```http
 PUT /api/vod-comments/:id
@@ -63,18 +63,18 @@ Content-Type: application/json
 **Body:**
 ```json
 {
-  "content": "Aktualisierter Text",
+  "content": "Updated text",
   "timestamp": 130
 }
 ```
 
-Nur der Ersteller oder ein Admin kann bearbeiten.
+Only the creator or an admin can edit.
 
-## Kommentar loeschen
+## Delete Comment
 
 ```http
 DELETE /api/vod-comments/:id
 Authorization: Bearer <token>
 ```
 
-Nur der Ersteller oder ein Admin kann loeschen.
+Only the creator or an admin can delete.

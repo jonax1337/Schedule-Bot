@@ -2,56 +2,58 @@
 
 ## Quick Polls
 
-Einfache Abstimmungen mit Reaktions-Emojis.
+Simple votes using reaction emojis.
 
-### Erstellen
+### Creating a Poll
 
 **Discord:**
 ```
-/poll question:Welche Map spielen wir? options:Ascent,Haven,Bind duration:30
+/poll question:Which map do we play? options:Ascent,Haven,Bind duration:30
 ```
 
 **API:**
 ```bash
 POST /api/actions/poll
 {
-  "question": "Welche Map spielen wir?",
+  "question": "Which map do we play?",
   "options": ["Ascent", "Haven", "Bind"],
   "duration": 30
 }
 ```
 
-### Funktionsweise
+### How it Works
 
-1. Bot sendet Embed mit Frage und Optionen
-2. Nummerierte Emoji-Reaktionen werden hinzugefuegt (1️⃣, 2️⃣, 3️⃣, ...)
-3. Spieler klicken auf Reaktionen zum Abstimmen
-4. Jeder Spieler kann nur eine Option waehlen (bei Mehrfach-Reaktion wird die alte entfernt)
-5. Nach Ablauf der Zeit werden die Ergebnisse angezeigt
+1. The bot sends an embed containing the question and options.
+2. Numbered emoji reactions are added (1️⃣, 2️⃣, 3️⃣, ...).
+3. Players click a reaction to cast their vote.
+4. Each player may only choose one option (selecting another removes the previous one).
+5. Once the timer expires, the results are shown.
 
-### Ergebnis-Anzeige
+### Result Display
 
-Nach Ablauf:
-- Poll-Nachricht wird geloescht
-- Neue Nachricht mit Ergebnissen wird gepostet
-- Zeigt Stimmenanzahl pro Option und Gewinner
+When the poll ends:
 
-### Wiederherstellung
+- The poll message is deleted.
+- A new message with the results is posted.
+- It shows the vote count per option and the winning choice.
 
-Bei Bot-Neustart werden laufende Polls automatisch wiederhergestellt:
-- Offene Polls werden aus dem internen Speicher geladen
-- Remaining-Timer werden neu berechnet
-- Reaction-Listener werden neu registriert
+### Recovery
+
+Running polls are restored automatically when the bot restarts:
+
+- Open polls are loaded from internal storage.
+- Remaining timers are recalculated.
+- Reaction listeners are re-registered.
 
 ## Training-Start Polls
 
-Spezieller Poll-Typ zur Abstimmung ueber die Trainings-Startzeit.
+A specialized poll type for deciding the training start time.
 
-### Automatisch
+### Automatic
 
-Wenn `scheduling.trainingPollEnabled` aktiv ist, wird bei jedem Schedule-Post automatisch ein Training-Poll erstellt.
+When `scheduling.trainingPollEnabled` is active, a training poll is automatically created with every schedule post.
 
-### Manuell
+### Manual
 
 **Discord:**
 ```
@@ -63,56 +65,59 @@ Wenn `scheduling.trainingPollEnabled` aktiv ist, wird bei jedem Schedule-Post au
 POST /api/actions/training-poll
 ```
 
-### Zeitberechnung
+### Time Calculation
 
-Die Poll-Optionen werden automatisch aus den Verfuegbarkeiten berechnet:
+Poll options are derived automatically from player availability:
 
 ```
-Spieler-Verfuegbarkeiten:
+Player availability:
   Player1: 14:00 - 20:00
   Player2: 16:00 - 22:00
   Player3: 14:00 - 20:00
   Player4: 18:00 - 22:00
   Sub1:    14:00 - 22:00
 
-Berechnete Optionen:
-  1️⃣ 16:00 (fruehest moeglicher Start mit Sub)
-  2️⃣ 18:00 (alle verfuegbar)
-  3️⃣ 19:00 (spaeterer Start)
+Calculated options:
+  1️⃣ 16:00 (earliest possible start with sub)
+  2️⃣ 18:00 (everyone available)
+  3️⃣ 19:00 (later start)
 ```
 
-Die Optionen basieren auf den gemeinsamen Zeitfenstern und priorisieren Zeiten mit maximaler Spieler-Ueberlappung.
+Options are based on shared time windows and prioritize times with the highest player overlap.
 
 ### Toggle
 
-Der automatische Training-Poll kann ein-/ausgeschaltet werden:
+The automatic training poll can be enabled or disabled:
 
 ```
 /training-start-poll
 ```
 
-Oder ueber die Admin-Settings im Dashboard.
+It can also be toggled in the admin settings on the dashboard.
 
-## Poll-Architektur
+## Poll Architecture
 
-### Basis-Klasse (pollBase.ts)
+### Base Class (`pollBase.ts`)
 
-Gemeinsame Logik fuer alle Poll-Typen:
-- Vote-Tracking pro User
-- Reaktions-Handler (Add/Remove)
-- Timer-Management
-- Ergebnis-Berechnung
+Shared logic used by every poll type:
 
-### Quick Poll (polls.ts)
+- Per-user vote tracking
+- Reaction handlers (add/remove)
+- Timer management
+- Result aggregation
 
-Erweitert die Basis um:
-- Frei konfigurierbare Fragen und Optionen
-- Flexible Dauer
-- Emoji-basierte Optionen
+### Quick Poll (`polls.ts`)
 
-### Training Poll (trainingStartPoll.ts)
+Extends the base class with:
 
-Erweitert die Basis um:
-- Automatische Optionsberechnung aus Verfuegbarkeiten
-- Integration mit Schedule-Post
-- Wiederherstellung nach Neustart
+- Freely configurable questions and options
+- Flexible duration
+- Emoji-based options
+
+### Training Poll (`trainingStartPoll.ts`)
+
+Extends the base class with:
+
+- Automatic option calculation from availabilities
+- Integration with the schedule post
+- Recovery after restart
