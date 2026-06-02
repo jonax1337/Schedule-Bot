@@ -7,7 +7,7 @@ import { logger, getErrorMessage } from '../../shared/utils/logger.js';
 import { getCurrentWeekMonday, getWeekDates, WEEKDAY_LABELS } from './week-utils.js';
 import { parseDDMMYYYY } from '../../shared/utils/dateFormatter.js';
 import { getAnalyzedSchedule } from '../../shared/utils/scheduleDetails.js';
-import type { PlayerAvailability, ScheduleResult, ScheduleStatus, TimeRange } from '../../shared/types/types.js';
+import type { PlayerAvailability, TimeRange } from '../../shared/types/types.js';
 
 interface RosterEntry {
   userId: string;
@@ -35,30 +35,6 @@ function playerLine(player: PlayerAvailability, date: string, tz: string): strin
   return `⚪ ${player.displayName}`;
 }
 
-const STATUS_LABEL: Record<ScheduleStatus, string> = {
-  OFF_DAY: '🟣 Off-Day',
-  FULL_ROSTER: '✅ Full Roster',
-  WITH_SUBS: '⚠️ With Subs',
-  NOT_ENOUGH: '❌ Not Enough',
-};
-
-function isAwaitingResponses(result: ScheduleResult): boolean {
-  const nonAbsentMains = result.schedule.players.filter(p => p.role === 'MAIN' && !p.isAbsent);
-  if (nonAbsentMains.length === 0) return false;
-  return nonAbsentMains.every(p => !p.available && p.rawValue.trim() === '');
-}
-
-function statusHeader(result: ScheduleResult, date: string, tz: string): string {
-  if (isAwaitingResponses(result)) return '⚪ Awaiting responses';
-  let label = STATUS_LABEL[result.status];
-  if (result.commonTimeRange) {
-    const sTs = convertTimeToUnixTimestamp(date, result.commonTimeRange.start, tz);
-    const eTs = convertTimeToUnixTimestamp(date, result.commonTimeRange.end, tz);
-    label += ` · <t:${sTs}:t>-<t:${eTs}:t>`;
-  }
-  return label;
-}
-
 async function buildDayField(
   date: string,
   weekdayLabel: string,
@@ -79,16 +55,11 @@ async function buildDayField(
     return { name, value: `🟣 **Off-Day**${focus ? `\n_${focus}_` : ''}`, inline: true };
   }
 
-  const lines: string[] = [`**${statusHeader(result, date, tz)}**`];
   const lookup = new Map(result.schedule.players.map(p => [p.userId, p]));
-  for (const entry of roster) {
+  const lines = roster.map(entry => {
     const pa = lookup.get(entry.userId);
-    if (pa) {
-      lines.push(playerLine(pa, date, tz));
-    } else {
-      lines.push(`⚪ ${entry.displayName}`);
-    }
-  }
+    return pa ? playerLine(pa, date, tz) : `⚪ ${entry.displayName}`;
+  });
 
   return { name, value: lines.join('\n'), inline: true };
 }
