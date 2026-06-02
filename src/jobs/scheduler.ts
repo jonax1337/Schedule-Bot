@@ -2,7 +2,6 @@ import cron from 'node-cron';
 import { config } from '../shared/config/config.js';
 import { postScheduleToChannel, client } from '../bot/client.js';
 import { sendRemindersToUsersWithoutEntry } from '../bot/interactions/reminder.js';
-import { postWeeklyEntryMessage } from '../bot/interactions/weekly-entry.js';
 import { refreshWeeklyOverview } from '../bot/utils/weekly-overview.js';
 import { addMissingDays } from '../repositories/schedule.repository.js';
 import { getCurrentWeekMonday, getNextWeekMonday } from '../bot/utils/week-utils.js';
@@ -118,16 +117,16 @@ export function startScheduler(): void {
       weeklyCron,
       async () => {
         const dayOfWeek = new Date().toLocaleString('en-US', { weekday: 'long', timeZone: timezone });
-        const variant: 'current' | 'next' = dayOfWeek === 'Sunday' ? 'next' : 'current';
-        const weekMonday = variant === 'next' ? getNextWeekMonday() : getCurrentWeekMonday();
-        logger.info('Running weekly ping', `${variant} week (${weekMonday})`);
+        const targetWeek: 'current' | 'next' = dayOfWeek === 'Sunday' ? 'next' : 'current';
+        const weekMonday = targetWeek === 'next' ? getNextWeekMonday() : getCurrentWeekMonday();
+        logger.info('Running weekly planning reminder', `${targetWeek} week (${weekMonday})`);
         try {
           await addMissingDays();
           await refreshWeeklyOverview(client);
-          await postWeeklyEntryMessage(weekMonday, variant, client);
-          logger.success('Weekly ping completed', `${variant} week ${weekMonday}`);
+          await sendRemindersToUsersWithoutEntry(client, { weekMonday, variant: 'weekly-planning' });
+          logger.success('Weekly planning reminder completed', `${targetWeek} week ${weekMonday}`);
         } catch (error) {
-          logger.error('Weekly ping failed', getErrorMessage(error));
+          logger.error('Weekly planning reminder failed', getErrorMessage(error));
         }
       },
       { timezone },

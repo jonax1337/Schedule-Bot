@@ -44,11 +44,9 @@ router.post('/schedule', verifyToken, requireAdmin, async (req: AuthRequest, res
 // Send reminders manually
 router.post('/remind', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
   try {
-    const { date } = req.body;
-    const convertedDate = convertToDD_MM_YYYY(date);
-    await sendRemindersToUsersWithoutEntry(client, convertedDate);
-    
-    logger.success('Manual reminder sent', `Date: ${convertedDate || 'today'} by ${req.user?.username}`);
+    await sendRemindersToUsersWithoutEntry(client);
+
+    logger.success('Manual reminder sent', `By ${req.user?.username} (current week)`);
     res.json({ success: true, message: 'Reminders sent successfully' });
   } catch (error) {
     logger.error('Failed to send reminders', getErrorMessage(error));

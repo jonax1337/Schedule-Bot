@@ -10,8 +10,6 @@ export async function handleSendRemindersCommand(interaction: ChatInputCommandIn
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   try {
-    const dateOption = interaction.options.getString('date');
-    const targetDate = dateOption || undefined;
 
     await interaction.editReply({
       content: '⏳ Sending reminders to users without availability entry...',
@@ -19,7 +17,7 @@ export async function handleSendRemindersCommand(interaction: ChatInputCommandIn
 
     // Get client dynamically to avoid circular dependency
     const { client } = await import('../client.js');
-    await sendRemindersToUsersWithoutEntry(client, targetDate);
+    await sendRemindersToUsersWithoutEntry(client);
 
     await interaction.editReply({
       content: `✅ Reminders sent successfully! Check console for details.`,
