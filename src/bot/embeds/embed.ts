@@ -36,6 +36,16 @@ function formatPlayer(player: PlayerAvailability, date?: string): string {
   return `❌ ~~${player.displayName}~~`;
 }
 
+/**
+ * Convert a DD.MM.YYYY date to a Unix timestamp anchored at noon in the bot timezone.
+ * Noon is safe across all viewer timezones: even the most westward zone (UTC-12) stays
+ * within the same calendar day when Discord renders the timestamp with the `:D` / `:F`
+ * formats, so every viewer sees the correct date.
+ */
+export function dateToUnixTimestamp(date: string, timezone: string): number {
+  return convertTimeToUnixTimestamp(date, '12:00', timezone);
+}
+
 export function convertTimeToUnixTimestamp(date: string, time: string, timezone: string): number {
   const [day, month, year] = date.split('.').map(Number);
   const [hours, minutes] = time.split(':').map(Number);
@@ -66,11 +76,13 @@ export function convertTimeToUnixTimestamp(date: string, time: string, timezone:
 export function buildScheduleEmbed(result: ScheduleResult): EmbedBuilder {
   const { schedule, status, commonTimeRange, canProceed } = result;
 
+  const dateTs = dateToUnixTimestamp(schedule.date, config.scheduling.timezone);
+
   // Off-Day
   if (status === 'OFF_DAY') {
     return new EmbedBuilder()
-      .setTitle(schedule.dateFormatted)
-      .setDescription('**Off-Day** — No practice today.')
+      .setTitle('📅 Schedule')
+      .setDescription(`<t:${dateTs}:F>\n\n**Off-Day** — No practice today.`)
       .setColor(COLORS.OFF_DAY)
       .setThumbnail(THUMBNAIL_URL)
       .setTimestamp();
@@ -78,17 +90,15 @@ export function buildScheduleEmbed(result: ScheduleResult): EmbedBuilder {
 
   const embed = new EmbedBuilder()
     .setColor(canProceed ? (status === 'FULL_ROSTER' ? COLORS.SUCCESS : COLORS.WARNING) : COLORS.ERROR)
-    .setTitle(schedule.dateFormatted)
+    .setTitle('📅 Schedule')
     .setThumbnail(THUMBNAIL_URL)
     .setTimestamp();
 
-  // Reason & Focus
-  if (schedule.reason || schedule.focus) {
-    let desc = '';
-    if (schedule.reason) desc += `**Reason:** ${schedule.reason}`;
-    if (schedule.focus) desc += `\n**Focus:** ${schedule.focus}`;
-    embed.setDescription(desc);
-  }
+  // Header: localized date + optional reason / focus
+  let desc = `<t:${dateTs}:F>`;
+  if (schedule.reason) desc += `\n\n**Reason:** ${schedule.reason}`;
+  if (schedule.focus) desc += `\n**Focus:** ${schedule.focus}`;
+  embed.setDescription(desc);
 
   // Main Roster
   const mainPlayers = schedule.players.filter(p => p.role === 'MAIN');

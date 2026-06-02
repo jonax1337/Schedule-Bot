@@ -17,7 +17,7 @@ import { getUserMapping, updateUserMapping } from '../../repositories/user-mappi
 import { updatePlayerAvailability, getScheduleForDate, getNext14Dates } from '../../repositories/schedule.repository.js';
 import { isUserAbsentOnDate, getAbsentUserIdsForDate } from '../../repositories/absence.repository.js';
 import { parseSchedule, analyzeSchedule } from '../../shared/utils/analyzer.js';
-import { buildScheduleEmbed, convertTimeToUnixTimestamp, COLORS, NOTIFICATION_TYPE_CONFIG } from '../embeds/embed.js';
+import { buildScheduleEmbed, convertTimeToUnixTimestamp, dateToUnixTimestamp, COLORS, NOTIFICATION_TYPE_CONFIG } from '../embeds/embed.js';
 import { getTodayFormatted, addDays, normalizeDateFormat, isDateAfterOrEqual } from '../../shared/utils/dateFormatter.js';
 import { getScheduleStatus, checkAndNotifyStatusChange } from '../utils/schedule-poster.js';
 import { refreshWeeklyOverview } from '../utils/weekly-overview.js';
@@ -150,8 +150,9 @@ export async function handleDateNavigation(
   const sheetData = await getScheduleForDate(targetDate);
 
   if (!sheetData) {
+    const dateTs = dateToUnixTimestamp(targetDate, config.scheduling.timezone);
     await interaction.editReply({
-      content: `No data found for ${targetDate}.`,
+      content: `No data found for <t:${dateTs}:D>.`,
       components: [],
     });
     return;
@@ -231,8 +232,9 @@ export async function handleAvailabilityButton(
     const success = await updatePlayerAvailability(date, userMapping.discordId, 'x');
 
     if (success) {
+      const dateTs = dateToUnixTimestamp(date, config.scheduling.timezone);
       await interaction.editReply({
-        content: `✅ You have been marked as not available for ${date}.`,
+        content: `✅ You have been marked as not available for <t:${dateTs}:F>.`,
       });
 
       // Check and notify status change (fire and forget)
@@ -329,7 +331,7 @@ export async function handleTimeModal(
   const success = await updatePlayerAvailability(date, userMapping.discordId, timeRange);
 
   if (success) {
-    const normalizedDate = normalizeDateFormat(date);
+    const dateTs = dateToUnixTimestamp(date, botTz);
     // Format all windows with Discord timestamps
     const windowSegments = timeRange.split(',').map(s => s.trim());
     const formattedWindows = windowSegments.map(seg => {
@@ -339,7 +341,7 @@ export async function handleTimeModal(
       return `<t:${startTs}:t> - <t:${endTs}:t>`;
     });
     await interaction.editReply({
-      content: `✅ Your availability for ${normalizedDate} has been set to ${formattedWindows.join(', ')}.`,
+      content: `✅ Your availability for <t:${dateTs}:F> has been set to ${formattedWindows.join(', ')}.`,
     });
 
     // Check and notify status change (fire and forget)
@@ -374,8 +376,9 @@ export async function handleDateSelect(
     );
   }
 
+  const selectedTs = dateToUnixTimestamp(selectedDate, config.scheduling.timezone);
   await interaction.reply({
-    content: `What is your availability for **${selectedDate}**?`,
+    content: `What is your availability for <t:${selectedTs}:F>?`,
     components,
     flags: MessageFlags.Ephemeral,
   });
@@ -414,14 +417,16 @@ export async function sendWeekOverview(
         timeInfo = `<t:${startTs}:t>-<t:${endTs}:t>`;
       }
 
+      const dateTs = dateToUnixTimestamp(date, config.scheduling.timezone);
       embed.addFields({
-        name: `${statusEmoji} ${date}`,
+        name: `${statusEmoji} <t:${dateTs}:d>`,
         value: `Players: ${availableCount}/5\nTime: ${timeInfo}`,
         inline: true,
       });
     } else {
+      const dateTs = dateToUnixTimestamp(date, config.scheduling.timezone);
       embed.addFields({
-        name: `❓ ${date}`,
+        name: `❓ <t:${dateTs}:d>`,
         value: 'No data',
         inline: true,
       });
@@ -498,7 +503,8 @@ export async function sendMySchedule(
       } else {
         status = '⚪ No entry';
       }
-      description += `**${date}**: ${status}\n`;
+      const dateTs = dateToUnixTimestamp(date, config.scheduling.timezone);
+      description += `<t:${dateTs}:D>: ${status}\n`;
     }
     embed.setDescription(description);
   }

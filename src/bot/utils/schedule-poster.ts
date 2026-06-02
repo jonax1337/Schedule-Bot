@@ -1,7 +1,7 @@
 import { TextChannel, EmbedBuilder, Client } from 'discord.js';
 import { config } from '../../shared/config/config.js';
 import { getAnalyzedSchedule } from '../../shared/utils/scheduleDetails.js';
-import { buildScheduleEmbed, COLORS } from '../embeds/embed.js';
+import { buildScheduleEmbed, COLORS, dateToUnixTimestamp } from '../embeds/embed.js';
 import { getTodayFormatted } from '../../shared/utils/dateFormatter.js';
 import { logger, getErrorMessage } from '../../shared/utils/logger.js';
 import type { ScheduleStatus, ScheduleResult } from '../../shared/types/types.js';
@@ -34,9 +34,10 @@ export async function postScheduleToChannel(date?: string, clientInstance?: Clie
     const result = await getAnalyzedSchedule(targetDate);
 
     if (!result) {
+      const dateTs = dateToUnixTimestamp(displayDate, config.scheduling.timezone);
       const embed = new EmbedBuilder()
-        .setTitle(displayDate)
-        .setDescription('No schedule data available for this date.')
+        .setTitle('📅 Schedule')
+        .setDescription(`<t:${dateTs}:F>\n\nNo schedule data available for this date.`)
         .setColor(COLORS.ERROR);
       await channel.send({ embeds: [embed] });
       return;

@@ -2,10 +2,9 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Client, EmbedBuilder, Tex
 import { config } from '../../shared/config/config.js';
 import { loadSettings, updateSetting } from '../../shared/utils/settingsManager.js';
 import { getUserMappings } from '../../repositories/user-mapping.repository.js';
-import { COLORS, convertTimeToUnixTimestamp } from '../embeds/embed.js';
+import { COLORS, convertTimeToUnixTimestamp, dateToUnixTimestamp } from '../embeds/embed.js';
 import { logger, getErrorMessage } from '../../shared/utils/logger.js';
 import { getCurrentWeekMonday, getWeekDates, WEEKDAY_LABELS } from './week-utils.js';
-import { parseDDMMYYYY } from '../../shared/utils/dateFormatter.js';
 import { getAnalyzedSchedule } from '../../shared/utils/scheduleDetails.js';
 import type { PlayerAvailability, TimeRange } from '../../shared/types/types.js';
 
@@ -45,8 +44,9 @@ async function buildDayField(
   roster: RosterEntry[],
   tz: string,
 ): Promise<{ name: string; value: string; inline: boolean }> {
-  const [day, month] = date.split('.');
-  const name = `📅 ${weekdayLabel} ${day}.${month}`;
+  // Field names render Discord timestamps; viewers see their local date format.
+  const dateTs = dateToUnixTimestamp(date, tz);
+  const name = `📅 ${weekdayLabel} · <t:${dateTs}:d>`;
 
   const result = await getAnalyzedSchedule(date);
 
@@ -92,17 +92,11 @@ function buildDayButtonRows(weekMonday: string): ActionRowBuilder<ButtonBuilder>
   return rows;
 }
 
-function formatWeekRange(weekMonday: string): string {
-  const dates = getWeekDates(weekMonday);
-  const start = parseDDMMYYYY(dates[0]);
-  const end = parseDDMMYYYY(dates[6]);
-  const fmt = (d: Date) => `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.`;
-  return `${fmt(start)} - ${fmt(end)}${end.getFullYear()}`;
-}
-
 export async function buildWeeklyOverviewEmbed(weekMonday: string): Promise<EmbedBuilder> {
   const dates = getWeekDates(weekMonday);
   const tz = config.scheduling.timezone;
+  const startTs = dateToUnixTimestamp(dates[0], tz);
+  const endTs = dateToUnixTimestamp(dates[6], tz);
 
   const userMappings = await getUserMappings();
   const roster: RosterEntry[] = userMappings
@@ -112,7 +106,8 @@ export async function buildWeeklyOverviewEmbed(weekMonday: string): Promise<Embe
 
   const embed = new EmbedBuilder()
     .setColor(COLORS.INFO)
-    .setTitle(`Weekly Overview — ${formatWeekRange(weekMonday)}`)
+    .setTitle('📋 Weekly Overview')
+    .setDescription(`<t:${startTs}:D> — <t:${endTs}:D>`)
     .setTimestamp();
 
   for (let i = 0; i < dates.length; i++) {

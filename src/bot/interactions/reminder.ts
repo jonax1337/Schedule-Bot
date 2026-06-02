@@ -1,7 +1,8 @@
 import { Client, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { config } from '../../shared/config/config.js';
 import { getUserMappings } from '../../repositories/user-mapping.repository.js';
-import { getTodayFormatted, normalizeDateFormat, parseDDMMYYYY } from '../../shared/utils/dateFormatter.js';
-import { COLORS } from '../embeds/embed.js';
+import { getTodayFormatted, normalizeDateFormat } from '../../shared/utils/dateFormatter.js';
+import { COLORS, dateToUnixTimestamp } from '../embeds/embed.js';
 import { createAvailabilityButtons } from './interactive.js';
 import { logger, getErrorMessage } from '../../shared/utils/logger.js';
 import { getCurrentWeekMonday, getMissingDaysForUser, getWeekDates, type MissingDayInfo } from '../utils/week-utils.js';
@@ -42,24 +43,22 @@ function createMissingDayButtonRows(missing: MissingDayInfo[]): ActionRowBuilder
   return rows;
 }
 
-function formatWeekRange(weekMonday: string): string {
-  const dates = getWeekDates(weekMonday);
-  const start = parseDDMMYYYY(dates[0]);
-  const end = parseDDMMYYYY(dates[6]);
-  const fmt = (d: Date) => `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.`;
-  return `${fmt(start)} - ${fmt(end)}${end.getFullYear()}`;
-}
-
 function buildReminderEmbed(variant: ReminderVariant, weekMonday: string, missing: MissingDayInfo[]): EmbedBuilder {
-  const range = formatWeekRange(weekMonday);
-  const dayList = missing.map(m => `• **${m.weekdayLabel}** (${m.date})`).join('\n');
+  const tz = config.scheduling.timezone;
+  const dates = getWeekDates(weekMonday);
+  const startTs = dateToUnixTimestamp(dates[0], tz);
+  const endTs = dateToUnixTimestamp(dates[6], tz);
+  const range = `<t:${startTs}:D> — <t:${endTs}:D>`;
+  const dayList = missing
+    .map(m => `• <t:${dateToUnixTimestamp(m.date, tz)}:F>`)
+    .join('\n');
   const isCurrentWeek = weekMonday === getCurrentWeekMonday();
 
   if (variant === 'weekly-planning') {
     const title = isCurrentWeek ? '📆 Plan this week' : '📆 Plan next week';
     const intro = isCurrentWeek
       ? `The week ${range} has started. Please fill in your availability for the days you can play.`
-      : `The next week is coming up (${range}). Please set your availability so the team can plan ahead.`;
+      : `The next week is coming up: ${range}. Please set your availability so the team can plan ahead.`;
 
     return new EmbedBuilder()
       .setColor(COLORS.INFO)
@@ -118,11 +117,12 @@ export async function sendReminderToUser(client: Client, userId: string, date: s
   try {
     const user = await client.users.fetch(userId);
     const normalizedDate = normalizeDateFormat(date || getTodayFormatted());
+    const dateTs = dateToUnixTimestamp(normalizedDate, config.scheduling.timezone);
 
     const embed = new EmbedBuilder()
       .setColor(COLORS.WARNING)
       .setTitle('Availability Reminder')
-      .setDescription(`You haven't set your availability for **${normalizedDate}** yet.\n\nPlease set your availability using the buttons below.`)
+      .setDescription(`You haven't set your availability for <t:${dateTs}:F> yet.\n\nPlease set your availability using the buttons below.`)
       .setFooter({ text: 'Schedule Bot' })
       .setTimestamp();
 
