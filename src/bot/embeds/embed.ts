@@ -157,18 +157,6 @@ export function buildScheduleEmbed(result: ScheduleResult): EmbedBuilder {
   return embed;
 }
 
-export function buildReminderEmbed(date: string, dateFormatted: string): EmbedBuilder {
-  return new EmbedBuilder()
-    .setColor(COLORS.WARNING)
-    .setTitle('⏰ Reminder: Update Your Availability')
-    .setDescription(
-      `Please update your availability for **${dateFormatted}**.\n\n` +
-      `Use \`/availability\` or visit the dashboard to set your times.`
-    )
-    .setThumbnail(THUMBNAIL_URL)
-    .setTimestamp();
-}
-
 export function buildPollEmbed(question: string, options: string[]): EmbedBuilder {
   const optionsList = options.map((opt, i) => `${i + 1}️⃣ ${opt}`).join('\n');
 

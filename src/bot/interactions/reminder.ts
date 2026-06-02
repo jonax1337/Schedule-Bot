@@ -1,9 +1,7 @@
 import { Client, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { config } from '../../shared/config/config.js';
 import { getUserMappings } from '../../repositories/user-mapping.repository.js';
-import { getTodayFormatted, normalizeDateFormat } from '../../shared/utils/dateFormatter.js';
 import { COLORS, dateToUnixTimestamp } from '../embeds/embed.js';
-import { createAvailabilityButtons } from './interactive.js';
 import { logger, getErrorMessage } from '../../shared/utils/logger.js';
 import { getCurrentWeekMonday, getMissingDaysForUser, getWeekDates, type MissingDayInfo } from '../utils/week-utils.js';
 
@@ -114,27 +112,3 @@ export async function sendRemindersToUsersWithoutEntry(
   }
 }
 
-export async function sendReminderToUser(client: Client, userId: string, date: string): Promise<boolean> {
-  try {
-    const user = await client.users.fetch(userId);
-    const normalizedDate = normalizeDateFormat(date || getTodayFormatted());
-    const dateTs = dateToUnixTimestamp(normalizedDate, config.scheduling.timezone);
-
-    const embed = new EmbedBuilder()
-      .setColor(COLORS.WARNING)
-      .setTitle('Availability Reminder')
-      .setDescription(`You haven't set your availability for <t:${dateTs}:D> yet.\n\nPlease set your availability using the buttons below.`)
-      .setFooter({ text: 'Schedule Bot' })
-      .setTimestamp();
-
-    await user.send({
-      embeds: [embed],
-      components: [createAvailabilityButtons(normalizedDate)],
-    });
-
-    return true;
-  } catch (error) {
-    logger.error(`Failed to send reminder to user ${userId}`, getErrorMessage(error));
-    return false;
-  }
-}
