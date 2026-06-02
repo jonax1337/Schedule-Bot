@@ -494,23 +494,64 @@ export function Settings() {
           </div>
 
           {settings.scheduling.weeklyPingEnabled && (
-            <div className="space-y-2 pl-4 border-l-2 border-muted">
-              <Label htmlFor="weeklyPingTime">Weekly Ping Time</Label>
-              <Input
-                id="weeklyPingTime"
-                type="time"
-                value={settings.scheduling.weeklyPingTime}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    scheduling: { ...settings.scheduling, weeklyPingTime: e.target.value },
-                  })
-                }
-                className={microInteractions.focusRing}
-              />
-              <p className="text-sm text-muted-foreground">
-                Time of day when the weekly ping is posted on Sundays and Mondays (24-hour format)
-              </p>
+            <div className="space-y-4 pl-4 border-l-2 border-muted">
+              <div className="space-y-2">
+                <Label htmlFor="weeklyPingTime">Weekly Ping Time</Label>
+                <Input
+                  id="weeklyPingTime"
+                  type="time"
+                  value={settings.scheduling.weeklyPingTime}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      scheduling: { ...settings.scheduling, weeklyPingTime: e.target.value },
+                    })
+                  }
+                  className={microInteractions.focusRing}
+                />
+                <p className="text-sm text-muted-foreground">
+                  Time of day when the weekly ping is posted (24-hour format)
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Ping Days</Label>
+                <div className="flex flex-wrap gap-2">
+                  {([
+                    { idx: 1, label: 'Mon' },
+                    { idx: 2, label: 'Tue' },
+                    { idx: 3, label: 'Wed' },
+                    { idx: 4, label: 'Thu' },
+                    { idx: 5, label: 'Fri' },
+                    { idx: 6, label: 'Sat' },
+                    { idx: 0, label: 'Sun' },
+                  ] as const).map(({ idx, label }) => {
+                    const active = settings.scheduling.weeklyPingDays.includes(idx);
+                    return (
+                      <Button
+                        key={idx}
+                        type="button"
+                        variant={active ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => {
+                          const days = settings.scheduling.weeklyPingDays;
+                          const next = active ? days.filter(d => d !== idx) : [...days, idx].sort((a, b) => a - b);
+                          setSettings({
+                            ...settings,
+                            scheduling: { ...settings.scheduling, weeklyPingDays: next },
+                          });
+                        }}
+                        className={microInteractions.smooth}
+                      >
+                        {label}
+                      </Button>
+                    );
+                  })}
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Days the ping is sent. Sundays target the upcoming week, other days target the current week. No days selected = no ping (pinned overview still maintained).
+                </p>
+              </div>
             </div>
           )}
         </CardContent>

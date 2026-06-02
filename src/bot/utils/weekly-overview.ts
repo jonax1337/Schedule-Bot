@@ -1,4 +1,4 @@
-import { Client, EmbedBuilder, TextChannel } from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Client, EmbedBuilder, TextChannel } from 'discord.js';
 import { config } from '../../shared/config/config.js';
 import { loadSettings, updateSetting } from '../../shared/utils/settingsManager.js';
 import { getUserMappings } from '../../repositories/user-mapping.repository.js';
@@ -35,6 +35,10 @@ function playerLine(player: PlayerAvailability, date: string, tz: string): strin
   return `⚪ ${player.displayName}`;
 }
 
+// Trailing blank line gives the field breathing room on mobile, where Discord
+// stacks inline fields without spacing.
+const MOBILE_SPACER = '\n​';
+
 async function buildDayField(
   date: string,
   weekdayLabel: string,
@@ -47,12 +51,16 @@ async function buildDayField(
   const result = await getAnalyzedSchedule(date);
 
   if (!result) {
-    return { name, value: '⚪ No schedule', inline: true };
+    return { name, value: '⚪ No schedule' + MOBILE_SPACER, inline: true };
   }
 
   if (result.status === 'OFF_DAY') {
     const focus = result.schedule.focus?.trim();
-    return { name, value: `🟣 **Off-Day**${focus ? `\n_${focus}_` : ''}`, inline: true };
+    return {
+      name,
+      value: `🟣 **Off-Day**${focus ? `\n_${focus}_` : ''}` + MOBILE_SPACER,
+      inline: true,
+    };
   }
 
   const lookup = new Map(result.schedule.players.map(p => [p.userId, p]));
@@ -61,7 +69,27 @@ async function buildDayField(
     return pa ? playerLine(pa, date, tz) : `⚪ ${entry.displayName}`;
   });
 
-  return { name, value: lines.join('\n'), inline: true };
+  return { name, value: lines.join('\n') + MOBILE_SPACER, inline: true };
+}
+
+function buildDayButtonRows(weekMonday: string): ActionRowBuilder<ButtonBuilder>[] {
+  const dates = getWeekDates(weekMonday);
+  const rows: ActionRowBuilder<ButtonBuilder>[] = [
+    new ActionRowBuilder<ButtonBuilder>(),
+    new ActionRowBuilder<ButtonBuilder>(),
+  ];
+
+  dates.forEach((date, i) => {
+    const [day, month] = date.split('.');
+    const button = new ButtonBuilder()
+      .setCustomId(`set_custom_${date}`)
+      .setLabel(`${WEEKDAY_LABELS[i]} ${day}.${month}`)
+      .setStyle(ButtonStyle.Primary);
+    const targetRow = i < 4 ? rows[0] : rows[1];
+    targetRow.addComponents(button);
+  });
+
+  return rows;
 }
 
 function formatWeekRange(weekMonday: string): string {
@@ -122,10 +150,12 @@ export async function refreshWeeklyOverview(clientInstance?: Client): Promise<vo
     const existingId = settings.discord.pinnedWeekMessageId;
     const sameWeek = settings.discord.pinnedWeekStartDate === weekMonday;
 
+    const components = buildDayButtonRows(weekMonday);
+
     if (existingId && sameWeek) {
       try {
         const message = await channel.messages.fetch(existingId);
-        await message.edit({ embeds: [embed] });
+        await message.edit({ embeds: [embed], components });
         return;
       } catch {
         logger.warn('Weekly overview', `Stored message ${existingId} not found, creating new pin`);
@@ -141,7 +171,7 @@ export async function refreshWeeklyOverview(clientInstance?: Client): Promise<vo
       }
     }
 
-    const newMessage = await channel.send({ embeds: [embed] });
+    const newMessage = await channel.send({ embeds: [embed], components });
     try {
       await newMessage.pin();
     } catch (error) {

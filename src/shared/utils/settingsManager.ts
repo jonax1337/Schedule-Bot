@@ -1,6 +1,15 @@
 import { prisma } from '../../repositories/database.repository.js';
 import { logger, getErrorMessage } from './logger.js';
 
+function parseWeeklyPingDays(raw: string | undefined): number[] {
+  if (raw === undefined) return [...DEFAULT_SETTINGS.scheduling.weeklyPingDays];
+  if (raw === '') return [];
+  return raw
+    .split(',')
+    .map(s => parseInt(s.trim(), 10))
+    .filter(n => Number.isInteger(n) && n >= 0 && n <= 6);
+}
+
 function flattenSettings(settings: Settings): Record<string, string | number | boolean> {
   return {
     'discord.channelId': settings.discord.channelId,
@@ -19,6 +28,7 @@ function flattenSettings(settings: Settings): Record<string, string | number | b
     'scheduling.changeNotificationsEnabled': settings.scheduling.changeNotificationsEnabled,
     'scheduling.weeklyPingEnabled': settings.scheduling.weeklyPingEnabled,
     'scheduling.weeklyPingTime': settings.scheduling.weeklyPingTime,
+    'scheduling.weeklyPingDays': settings.scheduling.weeklyPingDays.join(','),
     'branding.teamName': settings.branding.teamName,
     'branding.tagline': settings.branding.tagline || DEFAULT_SETTINGS.branding.tagline!,
     'branding.logoUrl': settings.branding.logoUrl || '',
@@ -46,6 +56,7 @@ export interface Settings {
     changeNotificationsEnabled: boolean;
     weeklyPingEnabled: boolean;
     weeklyPingTime: string;
+    weeklyPingDays: number[];
   };
   branding: {
     teamName: string;
@@ -77,6 +88,7 @@ const DEFAULT_SETTINGS: Settings = {
     changeNotificationsEnabled: true,
     weeklyPingEnabled: true,
     weeklyPingTime: '12:00',
+    weeklyPingDays: [0, 1],
   },
   branding: {
     teamName: 'Valorant Bot',
@@ -161,6 +173,7 @@ export async function loadSettingsAsync(): Promise<Settings> {
         changeNotificationsEnabled: settingsMap['scheduling.changeNotificationsEnabled'] !== 'false',
         weeklyPingEnabled: settingsMap['scheduling.weeklyPingEnabled'] !== 'false',
         weeklyPingTime: settingsMap['scheduling.weeklyPingTime'] || DEFAULT_SETTINGS.scheduling.weeklyPingTime,
+        weeklyPingDays: parseWeeklyPingDays(settingsMap['scheduling.weeklyPingDays']),
       },
       branding: {
         teamName: settingsMap['branding.teamName'] || DEFAULT_SETTINGS.branding.teamName,

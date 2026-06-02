@@ -37,6 +37,7 @@ export const config = {
     trainingStartPollEnabled: settings.scheduling.trainingStartPollEnabled,
     weeklyPingEnabled: settings.scheduling.weeklyPingEnabled,
     weeklyPingTime: settings.scheduling.weeklyPingTime,
+    weeklyPingDays: settings.scheduling.weeklyPingDays,
   },
   admin: {
     username: requireEnv('ADMIN_USERNAME'),
@@ -62,6 +63,7 @@ export async function reloadConfig(): Promise<void> {
     trainingStartPollEnabled: s.scheduling.trainingStartPollEnabled,
     weeklyPingEnabled: s.scheduling.weeklyPingEnabled,
     weeklyPingTime: s.scheduling.weeklyPingTime,
+    weeklyPingDays: s.scheduling.weeklyPingDays,
   });
 
   logger.info('Configuration reloaded');

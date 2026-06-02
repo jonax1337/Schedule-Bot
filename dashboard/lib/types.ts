@@ -18,6 +18,7 @@ export interface Settings {
     changeNotificationsEnabled: boolean;
     weeklyPingEnabled: boolean;
     weeklyPingTime: string;
+    weeklyPingDays: number[];
   };
   branding: {
     teamName: string;

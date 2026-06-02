@@ -24,6 +24,7 @@ const DEFAULT_SETTINGS = {
   'scheduling.trainingStartPollEnabled': false,
   'scheduling.weeklyPingEnabled': true,
   'scheduling.weeklyPingTime': '12:00',
+  'scheduling.weeklyPingDays': '0,1',
   'branding.teamName': 'Valorant Bot',
   'branding.tagline': 'Schedule Manager',
   'branding.logoUrl': '',

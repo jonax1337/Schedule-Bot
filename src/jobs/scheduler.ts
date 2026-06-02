@@ -105,12 +105,14 @@ export function startScheduler(): void {
     );
   }
 
-  // Weekly availability ping (Sundays → next week, Mondays → current week)
-  if (config.scheduling.weeklyPingEnabled) {
+  // Weekly availability ping: configurable days (cron 0=Sun..6=Sat).
+  // Sundays target next week; all other days target the current week.
+  const pingDays = config.scheduling.weeklyPingDays;
+  if (config.scheduling.weeklyPingEnabled && pingDays.length > 0) {
     const { hour: wHour, minute: wMinute } = parseTime(config.scheduling.weeklyPingTime);
-    // Day-of-week in cron: 0=Sunday, 1=Monday
-    const weeklyCron = `${wMinute} ${wHour} * * 0,1`;
-    logger.info('Weekly ping configured', `At ${config.scheduling.weeklyPingTime} on Sun/Mon (${timezone})`);
+    const weeklyCron = `${wMinute} ${wHour} * * ${pingDays.join(',')}`;
+    const dayNames = pingDays.map(d => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d]).join(', ');
+    logger.info('Weekly ping configured', `At ${config.scheduling.weeklyPingTime} on ${dayNames} (${timezone})`);
 
     weeklyPingTask = cron.schedule(
       weeklyCron,

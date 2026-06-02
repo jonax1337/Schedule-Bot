@@ -75,6 +75,7 @@ export const settingsSchema = Joi.object({
     changeNotificationsEnabled: Joi.boolean(),
     weeklyPingEnabled: Joi.boolean(),
     weeklyPingTime: Joi.string().pattern(/^\d{2}:\d{2}$/),
+    weeklyPingDays: Joi.array().items(Joi.number().integer().min(0).max(6)).max(7).unique(),
   }).required(),
   branding: Joi.object({
     teamName: Joi.string().min(1).max(50).required(),
