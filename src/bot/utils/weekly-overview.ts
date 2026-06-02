@@ -165,7 +165,7 @@ export async function refreshWeeklyOverview(clientInstance?: Client): Promise<vo
     if (existingId && !sameWeek) {
       try {
         const oldMessage = await channel.messages.fetch(existingId);
-        if (oldMessage.pinned) await oldMessage.unpin().catch(() => {});
+        await oldMessage.delete().catch(() => {});
       } catch {
         // old message gone, ignore
       }
