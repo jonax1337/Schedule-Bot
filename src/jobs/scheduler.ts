@@ -22,6 +22,25 @@ function parseTime(timeStr: string): { hour: number; minute: number } {
 
 const DEFAULT_TIMEZONE = 'Europe/Berlin';
 
+const WEEKDAY_INDEX: Record<string, number> = {
+  Sunday: 0,
+  Monday: 1,
+  Tuesday: 2,
+  Wednesday: 3,
+  Thursday: 4,
+  Friday: 5,
+  Saturday: 6,
+};
+
+function isWeeklyPingDay(tz: string): boolean {
+  if (!config.scheduling.weeklyPingEnabled) return false;
+  const days = config.scheduling.weeklyPingDays;
+  if (days.length === 0) return false;
+  const name = new Date().toLocaleString('en-US', { weekday: 'long', timeZone: tz });
+  const idx = WEEKDAY_INDEX[name] ?? new Date().getDay();
+  return days.includes(idx);
+}
+
 function validateTimezone(tz: string): string {
   try {
     const supported = Intl.supportedValuesOf('timeZone');
@@ -67,6 +86,10 @@ export function startScheduler(): void {
   reminderTask = cron.schedule(
     reminderCronExpression,
     async () => {
+      if (isWeeklyPingDay(timezone)) {
+        logger.info('Daily reminder skipped', 'Today is a weekly planning day');
+        return;
+      }
       logger.info('Running scheduled reminders');
       try {
         await sendRemindersToUsersWithoutEntry(client);
@@ -90,6 +113,10 @@ export function startScheduler(): void {
     duplicateReminderTask = cron.schedule(
       dupReminderCronExpression,
       async () => {
+        if (isWeeklyPingDay(timezone)) {
+          logger.info('Duplicate reminder skipped', 'Today is a weekly planning day');
+          return;
+        }
         logger.info('Running duplicate reminders');
         try {
           await sendRemindersToUsersWithoutEntry(client);

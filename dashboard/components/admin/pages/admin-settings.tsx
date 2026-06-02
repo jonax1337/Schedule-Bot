@@ -472,9 +472,9 @@ export function Settings() {
 
           <div className="flex items-center justify-between space-x-2">
             <div className="space-y-0.5">
-              <Label htmlFor="weeklyPing">Weekly Availability Ping</Label>
+              <Label htmlFor="weeklyPing">Weekly Planning Reminder</Label>
               <p className="text-sm text-muted-foreground">
-                Post a per-day button picker in the channel every Sunday (for next week) and Monday (for this week), and maintain a pinned weekly overview
+                Send a personal DM with day-buttons on the selected weekdays so each player can plan their week. Sundays target the upcoming week, other days target the current week. The pinned weekly overview in the channel is maintained regardless of this toggle. On weekly-ping days the daily reminder is skipped so players don&apos;t receive duplicate DMs.
               </p>
             </div>
             <Switch
@@ -510,7 +510,7 @@ export function Settings() {
                   className={microInteractions.focusRing}
                 />
                 <p className="text-sm text-muted-foreground">
-                  Time of day when the weekly ping is posted (24-hour format)
+                  Time of day when the planning DM is sent (24-hour format)
                 </p>
               </div>
 
@@ -549,7 +549,7 @@ export function Settings() {
                   })}
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Days the ping is sent. Sundays target the upcoming week, other days target the current week. No days selected = no ping (pinned overview still maintained).
+                  Days the planning DM is sent. Select none to disable the DM entirely.
                 </p>
               </div>
             </div>
