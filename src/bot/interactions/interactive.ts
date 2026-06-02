@@ -234,7 +234,7 @@ export async function handleAvailabilityButton(
     if (success) {
       const dateTs = dateToUnixTimestamp(date, config.scheduling.timezone);
       await interaction.editReply({
-        content: `✅ You have been marked as not available for <t:${dateTs}:F>.`,
+        content: `✅ You have been marked as not available for <t:${dateTs}:D>.`,
       });
 
       // Check and notify status change (fire and forget)
@@ -341,7 +341,7 @@ export async function handleTimeModal(
       return `<t:${startTs}:t> - <t:${endTs}:t>`;
     });
     await interaction.editReply({
-      content: `✅ Your availability for <t:${dateTs}:F> has been set to ${formattedWindows.join(', ')}.`,
+      content: `✅ Your availability for <t:${dateTs}:D> has been set to ${formattedWindows.join(', ')}.`,
     });
 
     // Check and notify status change (fire and forget)
@@ -378,7 +378,7 @@ export async function handleDateSelect(
 
   const selectedTs = dateToUnixTimestamp(selectedDate, config.scheduling.timezone);
   await interaction.reply({
-    content: `What is your availability for <t:${selectedTs}:F>?`,
+    content: `What is your availability for <t:${selectedTs}:D>?`,
     components,
     flags: MessageFlags.Ephemeral,
   });

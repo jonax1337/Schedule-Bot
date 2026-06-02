@@ -49,8 +49,9 @@ function buildReminderEmbed(variant: ReminderVariant, weekMonday: string, missin
   const startTs = dateToUnixTimestamp(dates[0], tz);
   const endTs = dateToUnixTimestamp(dates[6], tz);
   const range = `<t:${startTs}:D> — <t:${endTs}:D>`;
+  // Match the Weekly Overview day-field style: 📅 short-weekday · short-date
   const dayList = missing
-    .map(m => `• <t:${dateToUnixTimestamp(m.date, tz)}:F>`)
+    .map(m => `📅 **${m.weekdayLabel.slice(0, 3)}** · <t:${dateToUnixTimestamp(m.date, tz)}:D>`)
     .join('\n');
   const isCurrentWeek = weekMonday === getCurrentWeekMonday();
 
@@ -122,7 +123,7 @@ export async function sendReminderToUser(client: Client, userId: string, date: s
     const embed = new EmbedBuilder()
       .setColor(COLORS.WARNING)
       .setTitle('Availability Reminder')
-      .setDescription(`You haven't set your availability for <t:${dateTs}:F> yet.\n\nPlease set your availability using the buttons below.`)
+      .setDescription(`You haven't set your availability for <t:${dateTs}:D> yet.\n\nPlease set your availability using the buttons below.`)
       .setFooter({ text: 'Schedule Bot' })
       .setTimestamp();
 

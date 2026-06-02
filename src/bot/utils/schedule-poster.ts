@@ -37,7 +37,7 @@ export async function postScheduleToChannel(date?: string, clientInstance?: Clie
       const dateTs = dateToUnixTimestamp(displayDate, config.scheduling.timezone);
       const embed = new EmbedBuilder()
         .setTitle('📅 Schedule')
-        .setDescription(`<t:${dateTs}:F>\n\nNo schedule data available for this date.`)
+        .setDescription(`<t:${dateTs}:D>\n\nNo schedule data available for this date.`)
         .setColor(COLORS.ERROR);
       await channel.send({ embeds: [embed] });
       return;

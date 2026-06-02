@@ -82,7 +82,7 @@ export function buildScheduleEmbed(result: ScheduleResult): EmbedBuilder {
   if (status === 'OFF_DAY') {
     return new EmbedBuilder()
       .setTitle('📅 Schedule')
-      .setDescription(`<t:${dateTs}:F>\n\n**Off-Day** — No practice today.`)
+      .setDescription(`<t:${dateTs}:D>\n\n**Off-Day** — No practice today.`)
       .setColor(COLORS.OFF_DAY)
       .setThumbnail(THUMBNAIL_URL)
       .setTimestamp();
@@ -95,7 +95,7 @@ export function buildScheduleEmbed(result: ScheduleResult): EmbedBuilder {
     .setTimestamp();
 
   // Header: localized date + optional reason / focus
-  let desc = `<t:${dateTs}:F>`;
+  let desc = `<t:${dateTs}:D>`;
   if (schedule.reason) desc += `\n\n**Reason:** ${schedule.reason}`;
   if (schedule.focus) desc += `\n**Focus:** ${schedule.focus}`;
   embed.setDescription(desc);
