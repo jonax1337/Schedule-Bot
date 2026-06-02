@@ -157,34 +157,9 @@ export function buildScheduleEmbed(result: ScheduleResult): EmbedBuilder {
   return embed;
 }
 
-export function buildPollEmbed(question: string, options: string[]): EmbedBuilder {
-  const optionsList = options.map((opt, i) => `${i + 1}️⃣ ${opt}`).join('\n');
-
-  return new EmbedBuilder()
-    .setColor(COLORS.SUCCESS)
-    .setTitle('📊 ' + question)
-    .setDescription(optionsList)
-    .setThumbnail(THUMBNAIL_URL)
-    .setTimestamp();
-}
-
 export const NOTIFICATION_TYPE_CONFIG: Record<string, { color: number; emoji: string }> = {
   info: { color: COLORS.INFO, emoji: '📢' },
   success: { color: COLORS.SUCCESS, emoji: '✅' },
   warning: { color: COLORS.WARNING, emoji: '⚠️' },
   error: { color: COLORS.ERROR, emoji: '❌' },
 };
-
-export function buildNotificationEmbed(
-  type: 'info' | 'success' | 'warning' | 'error',
-  title: string,
-  message: string
-): EmbedBuilder {
-  const typeConfig = NOTIFICATION_TYPE_CONFIG[type];
-
-  return new EmbedBuilder()
-    .setColor(typeConfig.color)
-    .setTitle(`${typeConfig.emoji} ${title}`)
-    .setDescription(message)
-    .setTimestamp();
-}
