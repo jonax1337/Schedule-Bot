@@ -112,7 +112,7 @@ export async function buildWeeklyOverviewEmbed(weekMonday: string): Promise<Embe
 
   const embed = new EmbedBuilder()
     .setColor(COLORS.INFO)
-    .setTitle(`📋 Weekly Overview — ${formatWeekRange(weekMonday)}`)
+    .setTitle(`Weekly Overview — ${formatWeekRange(weekMonday)}`)
     .setTimestamp();
 
   for (let i = 0; i < dates.length; i++) {

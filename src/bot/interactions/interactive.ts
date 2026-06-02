@@ -465,7 +465,7 @@ export async function sendMySchedule(
   }
 
   const embed = new EmbedBuilder()
-    .setTitle(`📋 Your Availability (${userMapping.displayName})`)
+    .setTitle(`Your Availability (${userMapping.displayName})`)
     .setColor(COLORS.SUCCESS)
     .setTimestamp();
 
