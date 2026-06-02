@@ -1,90 +1,75 @@
 import { Client, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
-import { getScheduleForDate } from '../../repositories/schedule.repository.js';
 import { getUserMappings } from '../../repositories/user-mapping.repository.js';
-import { getAbsentUserIdsForDate } from '../../repositories/absence.repository.js';
 import { getTodayFormatted, normalizeDateFormat } from '../../shared/utils/dateFormatter.js';
 import { COLORS } from '../embeds/embed.js';
 import { createAvailabilityButtons } from './interactive.js';
 import { logger, getErrorMessage } from '../../shared/utils/logger.js';
+import { getCurrentWeekMonday, getMissingDaysForUser, type MissingDayInfo } from '../utils/week-utils.js';
 
-/**
- * Create a "Set Timezone" button row for users without a timezone set.
- */
 function createTimezoneButtonRow(): ActionRowBuilder<ButtonBuilder> {
   return new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder()
       .setCustomId('set_timezone_prompt')
       .setLabel('🌍 Set Timezone')
-      .setStyle(ButtonStyle.Secondary)
+      .setStyle(ButtonStyle.Secondary),
   );
 }
 
-export async function sendRemindersToUsersWithoutEntry(client: Client, date?: string): Promise<void> {
-  const targetDate = date || getTodayFormatted();
-  const normalizedDate = normalizeDateFormat(targetDate);
-  
-  logger.info(`Checking for users without availability entry for ${normalizedDate}`);
+function createMissingDayButtonRows(missing: MissingDayInfo[]): ActionRowBuilder<ButtonBuilder>[] {
+  const rows: ActionRowBuilder<ButtonBuilder>[] = [];
+  const limited = missing.slice(0, 5);
+  let current = new ActionRowBuilder<ButtonBuilder>();
+  for (const day of limited) {
+    current.addComponents(
+      new ButtonBuilder()
+        .setCustomId(`weekly_day_${day.date}`)
+        .setLabel(`${day.weekdayLabel.slice(0, 3)} ${day.date.slice(0, 5)}`)
+        .setStyle(ButtonStyle.Primary),
+    );
+  }
+  rows.push(current);
+  return rows;
+}
+
+export async function sendRemindersToUsersWithoutEntry(client: Client, _legacyDate?: string): Promise<void> {
+  // _legacyDate is accepted for back-compat with callers that used to pass a specific date.
+  // The reminder now always checks the current week's gaps.
+  const weekMonday = getCurrentWeekMonday();
+  logger.info('Checking weekly availability gaps', `week starting ${weekMonday}`);
 
   try {
     const userMappings = await getUserMappings();
-    const scheduleData = await getScheduleForDate(normalizedDate);
-
-    if (!scheduleData) {
-      logger.info(`No schedule data found for ${normalizedDate}, skipping reminders`);
-      return;
-    }
-
-    // Fetch absent user IDs for this date
-    const absentUserIds = await getAbsentUserIdsForDate(normalizedDate);
-
     let remindersSent = 0;
 
     for (const mapping of userMappings) {
-      // Skip coach role
-      if (mapping.role === 'coach') {
-        continue;
-      }
+      if (mapping.role === 'coach') continue;
 
-      // Skip absent users - they don't need reminders
-      if (absentUserIds.includes(mapping.discordId)) {
-        continue;
-      }
+      const missing = await getMissingDaysForUser(mapping.discordId, weekMonday);
+      if (missing.length === 0) continue;
 
-      // Find player's availability in schedule
-      const playerEntry = scheduleData.players.find(p => p.userId === mapping.discordId);
-      const playerAvailability = playerEntry?.availability || '';
+      try {
+        const user = await client.users.fetch(mapping.discordId);
+        const dayList = missing.map(m => `• **${m.weekdayLabel}** (${m.date})`).join('\n');
 
-      // Check if player has no entry (empty or whitespace only)
-      if (!playerAvailability || playerAvailability.trim() === '') {
-        try {
-          const user = await client.users.fetch(mapping.discordId);
-          
-          const embed = new EmbedBuilder()
-            .setColor(COLORS.WARNING)
-            .setTitle('Availability Reminder')
-            .setDescription(`You haven't set your availability for **${normalizedDate}** yet.\n\nPlease set your availability using the buttons below.`)
-            .setTimestamp();
+        const embed = new EmbedBuilder()
+          .setColor(COLORS.WARNING)
+          .setTitle('Weekly Availability — Open Days')
+          .setDescription(`You still have **${missing.length} open day(s)** this week:\n\n${dayList}\n\nUse the buttons below to set the first few. The pinned weekly overview shows the full week.`)
+          .setTimestamp();
 
-          const components: any[] = [createAvailabilityButtons(normalizedDate)];
-          if (!mapping.timezone) {
-            components.push(createTimezoneButtonRow());
-          }
+        const components: ActionRowBuilder<ButtonBuilder>[] = createMissingDayButtonRows(missing);
+        if (!mapping.timezone) components.push(createTimezoneButtonRow());
 
-          await user.send({
-            embeds: [embed],
-            components,
-          });
-
-          remindersSent++;
-          logger.info(`Sent reminder to ${mapping.discordUsername} (${mapping.displayName})`);
-        } catch (error) {
-          logger.error(`Failed to send reminder to ${mapping.discordUsername}`, getErrorMessage(error));
-        }
+        await user.send({ embeds: [embed], components });
+        remindersSent++;
+        logger.info(`Sent weekly reminder to ${mapping.discordUsername}`, `${missing.length} open days`);
+      } catch (error) {
+        logger.error(`Failed to send reminder to ${mapping.discordUsername}`, getErrorMessage(error));
       }
     }
 
     const nonCoachCount = userMappings.filter(m => m.role !== 'coach').length;
-    logger.info(`Reminders sent: ${remindersSent}/${nonCoachCount} players`);
+    logger.info(`Weekly reminders sent: ${remindersSent}/${nonCoachCount} players`);
   } catch (error) {
     logger.error('Error sending reminders', getErrorMessage(error));
   }
@@ -93,8 +78,8 @@ export async function sendRemindersToUsersWithoutEntry(client: Client, date?: st
 export async function sendReminderToUser(client: Client, userId: string, date: string): Promise<boolean> {
   try {
     const user = await client.users.fetch(userId);
-    const normalizedDate = normalizeDateFormat(date);
-    
+    const normalizedDate = normalizeDateFormat(date || getTodayFormatted());
+
     const embed = new EmbedBuilder()
       .setColor(COLORS.WARNING)
       .setTitle('Availability Reminder')
@@ -104,7 +89,7 @@ export async function sendReminderToUser(client: Client, userId: string, date: s
 
     await user.send({
       embeds: [embed],
-      components: [createAvailabilityButtons(date)],
+      components: [createAvailabilityButtons(normalizedDate)],
     });
 
     return true;

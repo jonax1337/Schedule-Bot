@@ -2,11 +2,16 @@ import cron from 'node-cron';
 import { config } from '../shared/config/config.js';
 import { postScheduleToChannel, client } from '../bot/client.js';
 import { sendRemindersToUsersWithoutEntry } from '../bot/interactions/reminder.js';
+import { postWeeklyEntryMessage } from '../bot/interactions/weekly-entry.js';
+import { refreshWeeklyOverview } from '../bot/utils/weekly-overview.js';
+import { addMissingDays } from '../repositories/schedule.repository.js';
+import { getCurrentWeekMonday, getNextWeekMonday } from '../bot/utils/week-utils.js';
 import { logger, getErrorMessage } from '../shared/utils/logger.js';
 
 let scheduledTask: cron.ScheduledTask | null = null;
 let reminderTask: cron.ScheduledTask | null = null;
 let duplicateReminderTask: cron.ScheduledTask | null = null;
+let weeklyPingTask: cron.ScheduledTask | null = null;
 
 function parseTime(timeStr: string): { hour: number; minute: number } {
   const [hourStr, minuteStr] = timeStr.split(':');
@@ -100,6 +105,33 @@ export function startScheduler(): void {
     );
   }
 
+  // Weekly availability ping (Sundays → next week, Mondays → current week)
+  if (config.scheduling.weeklyPingEnabled) {
+    const { hour: wHour, minute: wMinute } = parseTime(config.scheduling.weeklyPingTime);
+    // Day-of-week in cron: 0=Sunday, 1=Monday
+    const weeklyCron = `${wMinute} ${wHour} * * 0,1`;
+    logger.info('Weekly ping configured', `At ${config.scheduling.weeklyPingTime} on Sun/Mon (${timezone})`);
+
+    weeklyPingTask = cron.schedule(
+      weeklyCron,
+      async () => {
+        const dayOfWeek = new Date().toLocaleString('en-US', { weekday: 'long', timeZone: timezone });
+        const variant: 'current' | 'next' = dayOfWeek === 'Sunday' ? 'next' : 'current';
+        const weekMonday = variant === 'next' ? getNextWeekMonday() : getCurrentWeekMonday();
+        logger.info('Running weekly ping', `${variant} week (${weekMonday})`);
+        try {
+          await addMissingDays();
+          await refreshWeeklyOverview(client);
+          await postWeeklyEntryMessage(weekMonday, variant, client);
+          logger.success('Weekly ping completed', `${variant} week ${weekMonday}`);
+        } catch (error) {
+          logger.error('Weekly ping failed', getErrorMessage(error));
+        }
+      },
+      { timezone },
+    );
+  }
+
   logger.success('Scheduler started');
 }
 
@@ -121,6 +153,10 @@ export function stopScheduler(): void {
   if (duplicateReminderTask) {
     duplicateReminderTask.stop();
     duplicateReminderTask = null;
+  }
+  if (weeklyPingTask) {
+    weeklyPingTask.stop();
+    weeklyPingTask = null;
   }
   logger.info('Scheduler stopped');
 }

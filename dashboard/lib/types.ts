@@ -3,6 +3,8 @@ export interface Settings {
     channelId: string;
     pingRoleId: string | null;
     allowDiscordAuth: boolean;
+    pinnedWeekMessageId?: string | null;
+    pinnedWeekStartDate?: string | null;
   };
   scheduling: {
     dailyPostTime: string;
@@ -14,6 +16,8 @@ export interface Settings {
     timezone: string;
     cleanChannelBeforePost: boolean;
     changeNotificationsEnabled: boolean;
+    weeklyPingEnabled: boolean;
+    weeklyPingTime: string;
   };
   branding: {
     teamName: string;

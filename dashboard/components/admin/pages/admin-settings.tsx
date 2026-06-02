@@ -469,6 +469,50 @@ export function Settings() {
               className={microInteractions.smooth}
             />
           </div>
+
+          <div className="flex items-center justify-between space-x-2">
+            <div className="space-y-0.5">
+              <Label htmlFor="weeklyPing">Weekly Availability Ping</Label>
+              <p className="text-sm text-muted-foreground">
+                Post a per-day button picker in the channel every Sunday (for next week) and Monday (for this week), and maintain a pinned weekly overview
+              </p>
+            </div>
+            <Switch
+              id="weeklyPing"
+              checked={settings.scheduling.weeklyPingEnabled}
+              onCheckedChange={(checked) =>
+                setSettings({
+                  ...settings,
+                  scheduling: {
+                    ...settings.scheduling,
+                    weeklyPingEnabled: checked,
+                  },
+                })
+              }
+              className={microInteractions.smooth}
+            />
+          </div>
+
+          {settings.scheduling.weeklyPingEnabled && (
+            <div className="space-y-2 pl-4 border-l-2 border-muted">
+              <Label htmlFor="weeklyPingTime">Weekly Ping Time</Label>
+              <Input
+                id="weeklyPingTime"
+                type="time"
+                value={settings.scheduling.weeklyPingTime}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    scheduling: { ...settings.scheduling, weeklyPingTime: e.target.value },
+                  })
+                }
+                className={microInteractions.focusRing}
+              />
+              <p className="text-sm text-muted-foreground">
+                Time of day when the weekly ping is posted on Sundays and Mondays (24-hour format)
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 

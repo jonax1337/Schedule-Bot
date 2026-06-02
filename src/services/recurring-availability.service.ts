@@ -9,6 +9,7 @@ import {
 } from '../repositories/recurring-availability.repository.js';
 import { getUserMapping } from '../repositories/user-mapping.repository.js';
 import { applyRecurringToEmptySchedules, clearRecurringFromSchedules } from '../repositories/schedule.repository.js';
+import { refreshWeeklyOverview } from '../bot/utils/weekly-overview.js';
 import { logger } from '../shared/utils/logger.js';
 
 const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -79,9 +80,9 @@ class RecurringAvailabilityService {
     const data = await setRecurring(userId, dayOfWeek, availability);
 
     // Apply to existing empty schedule entries
-    applyRecurringToEmptySchedules(userId).catch(err =>
-      logger.error('Failed to apply recurring to schedules', err)
-    );
+    applyRecurringToEmptySchedules(userId)
+      .then(() => refreshWeeklyOverview())
+      .catch(err => logger.error('Failed to apply recurring to schedules', err));
 
     return { success: true, data };
   }
@@ -118,9 +119,9 @@ class RecurringAvailabilityService {
     logger.info('Bulk recurring set', `${userId}: ${count} days → ${availability}`);
 
     // Apply to existing empty schedule entries
-    applyRecurringToEmptySchedules(userId).catch(err =>
-      logger.error('Failed to apply recurring to schedules', err)
-    );
+    applyRecurringToEmptySchedules(userId)
+      .then(() => refreshWeeklyOverview())
+      .catch(err => logger.error('Failed to apply recurring to schedules', err));
 
     return { success: true, count };
   }
@@ -145,9 +146,9 @@ class RecurringAvailabilityService {
 
     // Clear schedule entries that were set by this recurring entry
     if (oldAvailability) {
-      clearRecurringFromSchedules(userId, dayOfWeek, oldAvailability).catch(err =>
-        logger.error('Failed to clear recurring from schedules', err)
-      );
+      clearRecurringFromSchedules(userId, dayOfWeek, oldAvailability)
+        .then(() => refreshWeeklyOverview())
+        .catch(err => logger.error('Failed to clear recurring from schedules', err));
     }
 
     return { success: true };

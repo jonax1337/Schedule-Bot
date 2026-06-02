@@ -35,6 +35,8 @@ export const config = {
     duplicateReminderEnabled: settings.scheduling.duplicateReminderEnabled,
     duplicateReminderHoursBefore: settings.scheduling.duplicateReminderHoursBefore,
     trainingStartPollEnabled: settings.scheduling.trainingStartPollEnabled,
+    weeklyPingEnabled: settings.scheduling.weeklyPingEnabled,
+    weeklyPingTime: settings.scheduling.weeklyPingTime,
   },
   admin: {
     username: requireEnv('ADMIN_USERNAME'),
@@ -58,6 +60,8 @@ export async function reloadConfig(): Promise<void> {
     duplicateReminderEnabled: s.scheduling.duplicateReminderEnabled,
     duplicateReminderHoursBefore: s.scheduling.duplicateReminderHoursBefore,
     trainingStartPollEnabled: s.scheduling.trainingStartPollEnabled,
+    weeklyPingEnabled: s.scheduling.weeklyPingEnabled,
+    weeklyPingTime: s.scheduling.weeklyPingTime,
   });
 
   logger.info('Configuration reloaded');

@@ -10,6 +10,12 @@ import {
   handleTimezoneButton,
   handleTimezoneSelect,
 } from '../interactions/interactive.js';
+import {
+  isWeeklyDayButton,
+  isWeeklyDayModal,
+  handleWeeklyDayButton,
+  handleWeeklyDayModal,
+} from '../interactions/weekly-entry.js';
 
 /**
  * Handle all interaction events (commands, buttons, modals, etc.)
@@ -31,6 +37,8 @@ export async function handleInteraction(interaction: Interaction): Promise<void>
         interaction.customId.startsWith('set_custom_')
       ) {
         await handleAvailabilityButton(interaction);
+      } else if (isWeeklyDayButton(interaction.customId)) {
+        await handleWeeklyDayButton(interaction);
       } else if (interaction.customId === 'set_timezone_prompt') {
         await handleTimezoneButton(interaction);
       }
@@ -51,6 +59,8 @@ export async function handleInteraction(interaction: Interaction): Promise<void>
     if (interaction.isModalSubmit()) {
       if (interaction.customId.startsWith('info_modal_')) {
         await handleInfoModal(interaction);
+      } else if (isWeeklyDayModal(interaction.customId)) {
+        await handleWeeklyDayModal(interaction);
       } else if (interaction.customId.startsWith('time_modal_')) {
         await handleTimeModal(interaction);
       }

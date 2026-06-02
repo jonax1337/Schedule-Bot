@@ -48,7 +48,7 @@ async function main(): Promise<void> {
   await startBot();
 
   // Wait for bot to be ready before starting scheduler
-  client.once('clientReady', () => {
+  client.once('clientReady', async () => {
     logger.success('Discord bot ready', `Logged in as ${client.user?.tag}`);
 
     startScheduler();
@@ -56,6 +56,14 @@ async function main(): Promise<void> {
     const nextRun = getNextScheduledTime();
     if (nextRun) {
       logger.info('Next scheduled post', nextRun.toLocaleString('de-DE'));
+    }
+
+    // Refresh the pinned weekly overview so it reflects the current week
+    try {
+      const { refreshWeeklyOverview } = await import('./bot/utils/weekly-overview.js');
+      await refreshWeeklyOverview(client);
+    } catch (error) {
+      logger.error('Initial weekly overview refresh failed', getErrorMessage(error));
     }
 
     logger.success('Startup complete');

@@ -5,6 +5,7 @@ import { updatePlayerAvailability } from '../../repositories/schedule.repository
 import { getScheduleDetails, getScheduleDetailsBatch } from '../../shared/utils/scheduleDetails.js';
 import { isUserAbsentOnDate } from '../../repositories/absence.repository.js';
 import { getScheduleStatus, checkAndNotifyStatusChange } from '../../bot/utils/schedule-poster.js';
+import { refreshWeeklyOverview } from '../../bot/utils/weekly-overview.js';
 import { logger, getErrorMessage } from '../../shared/utils/logger.js';
 import type { ScheduleStatus } from '../../shared/types/types.js';
 
@@ -67,6 +68,9 @@ router.post('/update-reason', verifyToken, requireAdmin, async (req: AuthRequest
           logger.error('Change notification promise rejected', getErrorMessage(err));
         });
       }
+      refreshWeeklyOverview().catch(err => {
+        logger.error('Weekly overview refresh failed', getErrorMessage(err));
+      });
 
       res.json({ success: true, message: 'Schedule reason updated successfully' });
     } else {
@@ -117,6 +121,9 @@ router.post('/update-availability', verifyToken, resolveCurrentUser, requireOwne
       } else {
         logger.info('Change notification: skipped (no old status captured)');
       }
+      refreshWeeklyOverview().catch(err => {
+        logger.error('Weekly overview refresh failed', getErrorMessage(err));
+      });
 
       res.json({ success: true, message: 'Availability updated successfully' });
     } else {

@@ -60,6 +60,8 @@ export const settingsSchema = Joi.object({
     channelId: Joi.string().pattern(/^\d{17,19}$/).required(),
     pingRoleId: Joi.string().pattern(/^\d{17,19}$/).allow('', null),
     allowDiscordAuth: Joi.boolean(),
+    pinnedWeekMessageId: Joi.string().allow('', null),
+    pinnedWeekStartDate: Joi.string().allow('', null),
   }).required(),
   scheduling: Joi.object({
     dailyPostTime: Joi.string().pattern(/^\d{2}:\d{2}$/).required(),
@@ -71,6 +73,8 @@ export const settingsSchema = Joi.object({
     pollDurationMinutes: Joi.number().integer().min(1).max(10080),
     cleanChannelBeforePost: Joi.boolean(),
     changeNotificationsEnabled: Joi.boolean(),
+    weeklyPingEnabled: Joi.boolean(),
+    weeklyPingTime: Joi.string().pattern(/^\d{2}:\d{2}$/),
   }).required(),
   branding: Joi.object({
     teamName: Joi.string().min(1).max(50).required(),

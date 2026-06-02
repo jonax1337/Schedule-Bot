@@ -20,6 +20,7 @@ import { parseSchedule, analyzeSchedule } from '../../shared/utils/analyzer.js';
 import { buildScheduleEmbed, convertTimeToUnixTimestamp, COLORS, NOTIFICATION_TYPE_CONFIG } from '../embeds/embed.js';
 import { getTodayFormatted, addDays, normalizeDateFormat, isDateAfterOrEqual } from '../../shared/utils/dateFormatter.js';
 import { getScheduleStatus, checkAndNotifyStatusChange } from '../utils/schedule-poster.js';
+import { refreshWeeklyOverview } from '../utils/weekly-overview.js';
 import { config } from '../../shared/config/config.js';
 import { convertTimeRangeBetweenTimezones, getTimezoneAbbreviation, isValidTimezone } from '../../shared/utils/timezoneConverter.js';
 import { logger, getErrorMessage } from '../../shared/utils/logger.js';
@@ -238,6 +239,7 @@ export async function handleAvailabilityButton(
       if (oldStatus) {
         checkAndNotifyStatusChange(date, oldStatus).catch(() => {});
       }
+      refreshWeeklyOverview().catch(() => {});
     } else {
       await interaction.editReply({
         content: `❌ Error updating. Please try again later.`,
@@ -344,6 +346,7 @@ export async function handleTimeModal(
     if (oldStatus) {
       checkAndNotifyStatusChange(date, oldStatus).catch(() => {});
     }
+    refreshWeeklyOverview().catch(() => {});
   } else {
     await interaction.editReply({
       content: `❌ Error updating. Please try again later.`,

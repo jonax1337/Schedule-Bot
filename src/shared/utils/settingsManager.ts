@@ -6,6 +6,8 @@ function flattenSettings(settings: Settings): Record<string, string | number | b
     'discord.channelId': settings.discord.channelId,
     'discord.pingRoleId': settings.discord.pingRoleId || '',
     'discord.allowDiscordAuth': settings.discord.allowDiscordAuth,
+    'discord.pinnedWeekMessageId': settings.discord.pinnedWeekMessageId || '',
+    'discord.pinnedWeekStartDate': settings.discord.pinnedWeekStartDate || '',
     'scheduling.dailyPostTime': settings.scheduling.dailyPostTime,
     'scheduling.reminderHoursBefore': settings.scheduling.reminderHoursBefore,
     'scheduling.duplicateReminderEnabled': settings.scheduling.duplicateReminderEnabled,
@@ -15,6 +17,8 @@ function flattenSettings(settings: Settings): Record<string, string | number | b
     'scheduling.trainingStartPollEnabled': settings.scheduling.trainingStartPollEnabled,
     'scheduling.pollDurationMinutes': settings.scheduling.pollDurationMinutes,
     'scheduling.changeNotificationsEnabled': settings.scheduling.changeNotificationsEnabled,
+    'scheduling.weeklyPingEnabled': settings.scheduling.weeklyPingEnabled,
+    'scheduling.weeklyPingTime': settings.scheduling.weeklyPingTime,
     'branding.teamName': settings.branding.teamName,
     'branding.tagline': settings.branding.tagline || DEFAULT_SETTINGS.branding.tagline!,
     'branding.logoUrl': settings.branding.logoUrl || '',
@@ -27,6 +31,8 @@ export interface Settings {
     channelId: string;
     pingRoleId: string | null;
     allowDiscordAuth: boolean;
+    pinnedWeekMessageId: string | null;
+    pinnedWeekStartDate: string | null;
   };
   scheduling: {
     dailyPostTime: string;
@@ -38,6 +44,8 @@ export interface Settings {
     timezone: string;
     cleanChannelBeforePost: boolean;
     changeNotificationsEnabled: boolean;
+    weeklyPingEnabled: boolean;
+    weeklyPingTime: string;
   };
   branding: {
     teamName: string;
@@ -54,6 +62,8 @@ const DEFAULT_SETTINGS: Settings = {
     channelId: '',
     pingRoleId: null,
     allowDiscordAuth: false,
+    pinnedWeekMessageId: null,
+    pinnedWeekStartDate: null,
   },
   scheduling: {
     dailyPostTime: '12:00',
@@ -65,6 +75,8 @@ const DEFAULT_SETTINGS: Settings = {
     timezone: 'Europe/Berlin',
     cleanChannelBeforePost: false,
     changeNotificationsEnabled: true,
+    weeklyPingEnabled: true,
+    weeklyPingTime: '12:00',
   },
   branding: {
     teamName: 'Valorant Bot',
@@ -134,6 +146,8 @@ export async function loadSettingsAsync(): Promise<Settings> {
         channelId: settingsMap['discord.channelId'] || DEFAULT_SETTINGS.discord.channelId,
         pingRoleId: settingsMap['discord.pingRoleId'] || DEFAULT_SETTINGS.discord.pingRoleId,
         allowDiscordAuth: settingsMap['discord.allowDiscordAuth'] === 'true',
+        pinnedWeekMessageId: settingsMap['discord.pinnedWeekMessageId'] || null,
+        pinnedWeekStartDate: settingsMap['discord.pinnedWeekStartDate'] || null,
       },
       scheduling: {
         dailyPostTime: settingsMap['scheduling.dailyPostTime'] || DEFAULT_SETTINGS.scheduling.dailyPostTime,
@@ -145,6 +159,8 @@ export async function loadSettingsAsync(): Promise<Settings> {
         timezone: settingsMap['scheduling.timezone'] || DEFAULT_SETTINGS.scheduling.timezone,
         cleanChannelBeforePost: settingsMap['scheduling.cleanChannelBeforePost'] === 'true',
         changeNotificationsEnabled: settingsMap['scheduling.changeNotificationsEnabled'] !== 'false',
+        weeklyPingEnabled: settingsMap['scheduling.weeklyPingEnabled'] !== 'false',
+        weeklyPingTime: settingsMap['scheduling.weeklyPingTime'] || DEFAULT_SETTINGS.scheduling.weeklyPingTime,
       },
       branding: {
         teamName: settingsMap['branding.teamName'] || DEFAULT_SETTINGS.branding.teamName,
