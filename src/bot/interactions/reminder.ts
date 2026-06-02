@@ -22,7 +22,7 @@ function createMissingDayButtonRows(missing: MissingDayInfo[]): ActionRowBuilder
   for (const day of limited) {
     current.addComponents(
       new ButtonBuilder()
-        .setCustomId(`weekly_day_${day.date}`)
+        .setCustomId(`set_custom_${day.date}`)
         .setLabel(`${day.weekdayLabel.slice(0, 3)} ${day.date.slice(0, 5)}`)
         .setStyle(ButtonStyle.Primary),
     );
