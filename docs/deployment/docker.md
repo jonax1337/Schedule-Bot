@@ -50,7 +50,7 @@ db:
 
 ::: warning DB_PASSWORD
 Always set a strong password in `.env`:
-```env
+```ini
 DB_PASSWORD=a_secure_password
 ```
 :::

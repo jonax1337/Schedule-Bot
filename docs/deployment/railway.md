@@ -34,7 +34,7 @@ restartPolicyMaxRetries = 5
 
 In the Railway dashboard under "Variables":
 
-```env
+```ini
 DISCORD_TOKEN=...
 DISCORD_GUILD_ID=...
 ADMIN_USERNAME=admin
@@ -49,7 +49,7 @@ Create a separate service for the dashboard:
 1. "New" -> "Service"
 2. Root directory: `dashboard`
 3. Set the variables:
-   ```env
+   ```ini
    BOT_API_URL=http://schedule-bot-backend.railway.internal:3001
    NEXT_PUBLIC_BOT_API_URL=https://your-backend.railway.app
    ```

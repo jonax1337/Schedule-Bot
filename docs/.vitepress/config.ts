@@ -6,6 +6,9 @@ export default defineConfig({
   lang: 'en-US',
   base: '/Schedule-Bot/',
 
+  // localhost URLs in dev/setup docs are illustrative, not real links
+  ignoreDeadLinks: 'localhostLinks',
+
   head: [
     ['link', { rel: 'icon', type: 'image/png', href: '/Schedule-Bot/logo.png' }],
   ],

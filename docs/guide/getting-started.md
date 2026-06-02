@@ -36,7 +36,7 @@ cp .env.example .env
 
 **Required variables**
 
-```env
+```ini
 # Discord
 DISCORD_TOKEN=your_bot_token
 DISCORD_GUILD_ID=your_server_id
@@ -99,7 +99,7 @@ cd dashboard
 npm run dev
 ```
 
-The dashboard is reachable at <http://localhost:3000>.
+The dashboard is reachable at `http://localhost:3000`.
 
 ## Discord bot setup
 
@@ -124,7 +124,7 @@ above plus the `bot` and `applications.commands` scopes.
 ### First-time configuration
 
 1. The bot starts and registers every slash command automatically
-2. Open the admin dashboard at <http://localhost:3000/admin/login>
+2. Open the admin dashboard at `http://localhost:3000/admin/login`
 3. Configure **Settings**:
    - Schedule channel and ping role
    - Daily post time and reminders

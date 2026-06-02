@@ -38,7 +38,7 @@ Variables prefixed with `NEXT_PUBLIC_` are inlined into the client bundle at **b
 
 ### Local Development
 
-```env
+```ini
 DISCORD_TOKEN=your_bot_token
 DISCORD_GUILD_ID=your_server_id
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/schedule_bot
@@ -50,7 +50,7 @@ DASHBOARD_URL=http://localhost:3000
 
 ### Docker
 
-```env
+```ini
 DISCORD_TOKEN=your_bot_token
 DISCORD_GUILD_ID=your_server_id
 DATABASE_URL=postgresql://schedule_bot_user:your_password@db:5432/schedule_bot
@@ -64,7 +64,7 @@ NEXT_PUBLIC_BOT_API_URL=http://localhost:3001
 
 ### Production (Railway/Render)
 
-```env
+```ini
 DISCORD_TOKEN=your_bot_token
 DISCORD_GUILD_ID=your_server_id
 DATABASE_URL=postgresql://...@host:5432/db  # Provided by the platform
