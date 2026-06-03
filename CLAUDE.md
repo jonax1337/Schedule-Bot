@@ -62,7 +62,6 @@ src/
 │   └── utils/               # schedule-poster.ts (posting + notifications)
 ├── jobs/scheduler.ts        # node-cron management
 ├── repositories/            # Prisma data access layer
-├── services/                # Business logic (absence, strategy, vod-comment)
 └── shared/
     ├── config/config.ts     # Global config
     ├── middleware/          # auth, validation, rate limiting
@@ -90,8 +89,8 @@ dashboard/
 
 **Repository Pattern:**
 - All data access via `src/repositories/` (Prisma queries)
-- Services layer for business logic with authorization
-- Route handlers call services or repositories directly
+- Route handlers call repository functions directly; auth + validation happen in middleware/route
+- Cross-cutting business logic (e.g. recurring-schedule sync after a write) is inlined in the caller
 
 **User Mappings vs Schedule Players:**
 - `user_mappings` = master roster (team members)

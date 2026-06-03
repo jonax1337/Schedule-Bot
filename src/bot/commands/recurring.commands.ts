@@ -1,5 +1,16 @@
 import { ChatInputCommandInteraction, EmbedBuilder, MessageFlags } from 'discord.js';
-import { recurringAvailabilityService } from '../../services/recurring-availability.service.js';
+import {
+  getRecurringForUser,
+  getRecurringForUserAndDay,
+  setRecurring,
+  removeRecurring,
+  removeAllRecurringForUser,
+} from '../../repositories/recurring-availability.repository.js';
+import {
+  applyRecurringToEmptySchedules,
+  clearRecurringFromSchedules,
+} from '../../repositories/schedule.repository.js';
+import { refreshWeeklyOverview } from '../utils/weekly-overview.js';
 import { logger, getErrorMessage } from '../../shared/utils/logger.js';
 import { requireRegisteredUser } from '../utils/command-helpers.js';
 import { COLORS } from '../embeds/embed.js';
@@ -83,16 +94,17 @@ export async function handleSetRecurringCommand(interaction: ChatInputCommandInt
       }
     }
 
-    const result = await recurringAvailabilityService.setBulk(
-      interaction.user.id,
-      days,
-      timeValue,
-    );
-
-    if (!result.success) {
-      await interaction.editReply({ content: `❌ ${result.error}` });
-      return;
+    let count = 0;
+    for (const day of days) {
+      if (day < 0 || day > 6) continue;
+      await setRecurring(interaction.user.id, day, timeValue);
+      count++;
     }
+    logger.info('Bulk recurring set', `${interaction.user.id}: ${count} days → ${timeValue}`);
+
+    applyRecurringToEmptySchedules(interaction.user.id)
+      .then(() => refreshWeeklyOverview())
+      .catch(err => logger.error('Failed to apply recurring to schedules', err));
 
     const dayNames = days.sort((a, b) => a - b).map(d => WEEKDAY_NAMES[d]).join(', ');
     const displayValue = timeValue === 'x' ? 'Unavailable' : timeValue;
@@ -116,7 +128,7 @@ export async function handleMyRecurringCommand(interaction: ChatInputCommandInte
     const userMapping = await requireRegisteredUser(interaction);
     if (!userMapping) return;
 
-    const entries = await recurringAvailabilityService.getForUser(interaction.user.id);
+    const entries = await getRecurringForUser(interaction.user.id);
 
     if (entries.length === 0) {
       await interaction.editReply({
@@ -168,13 +180,9 @@ export async function handleClearRecurringCommand(interaction: ChatInputCommandI
     const dayInput = interaction.options.getString('day', true).toLowerCase().trim();
 
     if (dayInput === 'all') {
-      const result = await recurringAvailabilityService.removeAll(interaction.user.id);
-      if (!result.success) {
-        await interaction.editReply({ content: `❌ ${result.error}` });
-        return;
-      }
+      const count = await removeAllRecurringForUser(interaction.user.id);
       await interaction.editReply({
-        content: `✅ Cleared all recurring entries (${result.count} removed).`,
+        content: `✅ Cleared all recurring entries (${count} removed).`,
       });
       return;
     }
@@ -187,10 +195,15 @@ export async function handleClearRecurringCommand(interaction: ChatInputCommandI
       return;
     }
 
-    const result = await recurringAvailabilityService.remove(interaction.user.id, dayNum);
-    if (!result.success) {
-      await interaction.editReply({ content: `❌ ${result.error}` });
-      return;
+    const oldEntry = await getRecurringForUserAndDay(interaction.user.id, dayNum);
+    const oldAvailability = oldEntry?.availability || '';
+
+    await removeRecurring(interaction.user.id, dayNum);
+
+    if (oldAvailability) {
+      clearRecurringFromSchedules(interaction.user.id, dayNum, oldAvailability)
+        .then(() => refreshWeeklyOverview())
+        .catch(err => logger.error('Failed to clear recurring from schedules', err));
     }
 
     await interaction.editReply({

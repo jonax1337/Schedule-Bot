@@ -107,11 +107,6 @@ src/
 │   ├── scrim.repository.ts
 │   ├── vod-comment.repository.ts
 │   └── strategy.repository.ts
-├── services/
-│   ├── absence.service.ts
-│   ├── recurring-availability.service.ts
-│   ├── strategy.service.ts
-│   └── vod-comment.service.ts
 └── shared/
     ├── config/config.ts              # Runtime config snapshot
     ├── middleware/                   # auth, validation, rate-limit, etc.

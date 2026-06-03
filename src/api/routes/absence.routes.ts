@@ -1,7 +1,16 @@
 import { Router } from 'express';
-import { verifyToken, requireAdmin, AuthRequest, resolveCurrentUser, resolveTargetUser, requireOwnershipOrAdmin } from '../../shared/middleware/auth.js';
+import { verifyToken, AuthRequest, resolveCurrentUser, resolveTargetUser } from '../../shared/middleware/auth.js';
 import { sanitizeString, validate, absenceCreateSchema, absenceUpdateSchema, isValidDateFormat } from '../../shared/middleware/validation.js';
-import { absenceService } from '../../services/absence.service.js';
+import {
+  getAbsencesForUser,
+  getAllAbsences,
+  getAbsenceById,
+  createAbsence,
+  updateAbsence,
+  deleteAbsence,
+  getAbsentUserIdsForDates,
+} from '../../repositories/absence.repository.js';
+import { parseDDMMYYYY } from '../../shared/utils/dateFormatter.js';
 import { logger, getErrorMessage } from '../../shared/utils/logger.js';
 
 const router = Router();
@@ -14,7 +23,7 @@ router.get('/my', verifyToken, resolveCurrentUser, async (req: AuthRequest, res)
       return res.json({ success: true, absences: [] });
     }
 
-    const absences = await absenceService.getAbsencesForUser(req.resolvedUser.discordId);
+    const absences = await getAbsencesForUser(req.resolvedUser.discordId);
     res.json({ success: true, absences });
   } catch (error) {
     logger.error('Error fetching user absences', getErrorMessage(error));
@@ -39,14 +48,14 @@ router.get('/', verifyToken, resolveCurrentUser, async (req: AuthRequest, res) =
         return res.status(403).json({ error: 'You can only view your own absences' });
       }
 
-      const absences = await absenceService.getAbsencesForUser(userId);
+      const absences = await getAbsencesForUser(userId);
       res.json({ success: true, absences });
     } else {
       // Only admins can list all absences
       if (!isAdmin) {
         return res.status(403).json({ error: 'Admin access required to list all absences' });
       }
-      const absences = await absenceService.getAllAbsences();
+      const absences = await getAllAbsences();
       res.json({ success: true, absences });
     }
   } catch (error) {
@@ -76,7 +85,7 @@ router.get('/by-dates', verifyToken, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: 'Too many dates. Maximum 60 dates per request' });
     }
 
-    const absentByDate = await absenceService.getAbsentUserIdsForDates(dates);
+    const absentByDate = await getAbsentUserIdsForDates(dates);
     res.json({ success: true, absentByDate });
   } catch (error) {
     logger.error('Error fetching absences by dates', getErrorMessage(error));
@@ -88,26 +97,16 @@ router.get('/by-dates', verifyToken, async (req: AuthRequest, res) => {
 router.post('/', verifyToken, validate(absenceCreateSchema), resolveTargetUser, async (req: AuthRequest, res) => {
   try {
     const { startDate, endDate, reason } = req.body;
-    const isAdmin = req.user?.role === 'admin';
     const targetUserId = req.targetUserId!;
 
-    const sanitizedReason = sanitizeString(reason || '');
-
-    const result = await absenceService.createAbsence(
-      targetUserId,
-      startDate,
-      endDate,
-      sanitizedReason,
-      targetUserId,
-      isAdmin
-    );
-
-    if (!result.success) {
-      return res.status(400).json({ error: result.error });
+    if (parseDDMMYYYY(startDate) > parseDDMMYYYY(endDate)) {
+      return res.status(400).json({ error: 'Start date must be before or equal to end date' });
     }
 
+    const absence = await createAbsence(targetUserId, startDate, endDate, sanitizeString(reason || ''));
+
     logger.success('Absence created', `${targetUserId}: ${startDate} - ${endDate}`);
-    res.json({ success: true, absence: result.absence });
+    res.json({ success: true, absence });
   } catch (error) {
     logger.error('Failed to create absence', getErrorMessage(error));
     res.status(500).json({ error: 'Failed to create absence' });
@@ -122,23 +121,35 @@ router.put('/:id', verifyToken, validate(absenceUpdateSchema), resolveTargetUser
       return res.status(400).json({ error: 'Invalid absence ID' });
     }
 
-    const { startDate, endDate, reason } = req.body;
     const isAdmin = req.user?.role === 'admin';
-    const requestingUserId = isAdmin ? undefined : req.targetUserId;
 
+    const existing = await getAbsenceById(id);
+    if (!existing) {
+      return res.status(400).json({ error: 'Absence not found' });
+    }
+    if (!isAdmin && existing.userId !== req.targetUserId) {
+      return res.status(400).json({ error: 'You can only edit your own absences' });
+    }
+
+    const { startDate, endDate, reason } = req.body;
     const updateData: { startDate?: string; endDate?: string; reason?: string } = {};
     if (startDate) updateData.startDate = startDate;
     if (endDate) updateData.endDate = endDate;
     if (reason !== undefined) updateData.reason = sanitizeString(reason);
 
-    const result = await absenceService.updateAbsence(id, updateData, requestingUserId, isAdmin);
+    const newStart = updateData.startDate || existing.startDate;
+    const newEnd = updateData.endDate || existing.endDate;
+    if (parseDDMMYYYY(newStart) > parseDDMMYYYY(newEnd)) {
+      return res.status(400).json({ error: 'Start date must be before or equal to end date' });
+    }
 
-    if (!result.success) {
-      return res.status(400).json({ error: result.error });
+    const absence = await updateAbsence(id, updateData);
+    if (!absence) {
+      return res.status(400).json({ error: 'Failed to update absence' });
     }
 
     logger.success('Absence updated', `ID: ${id}`);
-    res.json({ success: true, absence: result.absence });
+    res.json({ success: true, absence });
   } catch (error) {
     logger.error('Error updating absence', getErrorMessage(error));
     res.status(500).json({ error: 'Failed to update absence' });
@@ -154,12 +165,18 @@ router.delete('/:id', verifyToken, resolveTargetUser, async (req: AuthRequest, r
     }
 
     const isAdmin = req.user?.role === 'admin';
-    const requestingUserId = isAdmin ? undefined : req.targetUserId;
 
-    const result = await absenceService.deleteAbsence(id, requestingUserId, isAdmin);
+    const existing = await getAbsenceById(id);
+    if (!existing) {
+      return res.status(400).json({ error: 'Absence not found' });
+    }
+    if (!isAdmin && existing.userId !== req.targetUserId) {
+      return res.status(400).json({ error: 'You can only delete your own absences' });
+    }
 
-    if (!result.success) {
-      return res.status(400).json({ error: result.error });
+    const success = await deleteAbsence(id);
+    if (!success) {
+      return res.status(400).json({ error: 'Failed to delete absence' });
     }
 
     logger.success('Absence deleted', `ID: ${id}`);

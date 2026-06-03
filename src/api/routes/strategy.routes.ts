@@ -6,16 +6,57 @@ import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { verifyToken, optionalAuth, AuthRequest } from '../../shared/middleware/auth.js';
 import { validate } from '../../shared/middleware/validation.js';
-import { strategyService } from '../../services/strategy.service.js';
-import { createStrategyImage, createStrategyFile, getStrategyFile, deleteStrategyFile } from '../../repositories/strategy.repository.js';
+import {
+  findAllStrategies,
+  findStrategyById,
+  createStrategy,
+  updateStrategy,
+  deleteStrategy,
+  linkOrphanImages,
+  findFolders,
+  findAllFolders,
+  findFolderById,
+  createFolder,
+  updateFolder,
+  deleteFolder,
+  moveStrategy,
+  duplicateStrategy,
+  duplicateFolder,
+  getFolderPath,
+  createStrategyImage,
+  createStrategyFile,
+  deleteStrategyFile,
+} from '../../repositories/strategy.repository.js';
+import { loadSettings } from '../../shared/utils/settingsManager.js';
 import { logger, getErrorMessage } from '../../shared/utils/logger.js';
 import { createStrategySchema, updateStrategySchema } from '../../shared/middleware/validation.js';
 
 const router = Router();
 
+function canEdit(userRole: 'admin' | 'user'): boolean {
+  if (userRole === 'admin') return true;
+  return loadSettings().stratbook.editPermission === 'all';
+}
+
+function extractImageFilenames(content: any): string[] {
+  const filenames: string[] = [];
+  const walk = (node: any) => {
+    if (!node) return;
+    if (node.type === 'image' && node.attrs?.src) {
+      const match = node.attrs.src.match(/\/uploads\/([^/?]+)/);
+      if (match) filenames.push(match[1]);
+    }
+    if (node.content && Array.isArray(node.content)) {
+      node.content.forEach(walk);
+    }
+  };
+  walk(content);
+  return filenames;
+}
+
 /** Middleware that checks strategy edit permission */
 function requireEditPermission(req: AuthRequest, res: Response, next: NextFunction) {
-  if (!strategyService.canEdit(req.user!.role)) {
+  if (!canEdit(req.user!.role)) {
     return res.status(403).json({ error: 'No permission to edit strategies' });
   }
   next();
@@ -98,7 +139,7 @@ router.post('/upload', verifyToken, (req: AuthRequest, res) => {
 
     try {
       // Check edit permission
-      if (!strategyService.canEdit(req.user!.role)) {
+      if (!canEdit(req.user!.role)) {
         // Clean up uploaded file
         fs.unlinkSync(req.file.path);
         return res.status(403).json({ error: 'No permission to upload images' });
@@ -133,7 +174,7 @@ router.get('/', optionalAuth, async (req: AuthRequest, res) => {
       filter.folderId = folderIdParam === 'null' || folderIdParam === '' ? null : parseInt(folderIdParam, 10);
     }
 
-    const strategies = await strategyService.getAll(Object.keys(filter).length > 0 ? filter : undefined);
+    const strategies = await findAllStrategies(Object.keys(filter).length > 0 ? filter : undefined);
     res.json({ success: true, strategies });
   } catch (error) {
     logger.error('Error fetching strategies', getErrorMessage(error));
@@ -148,12 +189,12 @@ router.get('/folders', optionalAuth, async (req: AuthRequest, res) => {
   try {
     const all = req.query.all === 'true';
     if (all) {
-      const folders = await strategyService.getAllFolders();
+      const folders = await findAllFolders();
       return res.json({ success: true, folders });
     }
     const parentId = req.query.parentId as string | undefined;
     const pid = parentId && parentId !== 'null' && parentId !== '' ? parseInt(parentId, 10) : null;
-    const folders = await strategyService.getFolders(pid);
+    const folders = await findFolders(pid);
     res.json({ success: true, folders });
   } catch (error) {
     logger.error('Error fetching folders', getErrorMessage(error));
@@ -166,7 +207,7 @@ router.get('/folders/:id/path', optionalAuth, async (req: AuthRequest, res) => {
   try {
     const id = parseInt(req.params.id as string, 10);
     if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
-    const path = await strategyService.getFolderPath(id);
+    const path = await getFolderPath(id);
     res.json({ success: true, path });
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch folder path' });
@@ -180,7 +221,7 @@ router.post('/folders', verifyToken, requireEditPermission, async (req: AuthRequ
     if (!name || typeof name !== 'string' || !name.trim()) {
       return res.status(400).json({ error: 'Name is required' });
     }
-    const folder = await strategyService.createFolder(name, parentId ?? null);
+    const folder = await createFolder(name.trim(), parentId ?? null);
     res.json({ success: true, folder });
   } catch (error: any) {
     if (error?.code === 'P2002') {
@@ -200,7 +241,7 @@ router.put('/folders/:id', verifyToken, requireEditPermission, async (req: AuthR
     if (!name || typeof name !== 'string' || !name.trim()) {
       return res.status(400).json({ error: 'Name is required' });
     }
-    const folder = await strategyService.renameFolder(id, name);
+    const folder = await updateFolder(id, { name: name.trim() });
     if (!folder) return res.status(404).json({ error: 'Folder not found' });
     res.json({ success: true, folder });
   } catch (error: any) {
@@ -220,7 +261,7 @@ router.put('/folders/:id/color', verifyToken, requireEditPermission, async (req:
     if (color !== null && (typeof color !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(color))) {
       return res.status(400).json({ error: 'Invalid color format. Use #RRGGBB or null.' });
     }
-    const folder = await strategyService.updateFolderColor(id, color ?? null);
+    const folder = await updateFolder(id, { color: color ?? null });
     if (!folder) return res.status(404).json({ error: 'Folder not found' });
     res.json({ success: true, folder });
   } catch (error) {
@@ -233,7 +274,7 @@ router.delete('/folders/:id', verifyToken, requireEditPermission, async (req: Au
   try {
     const id = parseInt(req.params.id as string, 10);
     if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
-    const success = await strategyService.deleteFolder(id);
+    const success = await deleteFolder(id);
     if (!success) return res.status(400).json({ error: 'Folder is not empty or not found' });
     res.json({ success: true });
   } catch (error) {
@@ -246,7 +287,7 @@ router.post('/duplicate/:id', verifyToken, requireEditPermission, async (req: Au
   try {
     const id = parseInt(req.params.id as string, 10);
     if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
-    const strategy = await strategyService.duplicateStrategy(id, req.body.folderId);
+    const strategy = await duplicateStrategy(id, req.body.folderId);
     if (!strategy) return res.status(404).json({ error: 'Strategy not found' });
     res.json({ success: true, strategy });
   } catch (error) {
@@ -259,7 +300,7 @@ router.post('/folders/:id/duplicate', verifyToken, requireEditPermission, async 
   try {
     const id = parseInt(req.params.id as string, 10);
     if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
-    const folder = await strategyService.duplicateFolder(id);
+    const folder = await duplicateFolder(id);
     if (!folder) return res.status(404).json({ error: 'Folder not found' });
     res.json({ success: true, folder });
   } catch (error: any) {
@@ -276,7 +317,12 @@ router.put('/move/:id', verifyToken, requireEditPermission, async (req: AuthRequ
     const id = parseInt(req.params.id as string, 10);
     if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
     const { folderId } = req.body;
-    const success = await strategyService.moveStrategy(id, folderId ?? null);
+    const targetFolderId = folderId ?? null;
+    if (targetFolderId !== null) {
+      const folder = await findFolderById(targetFolderId);
+      if (!folder) return res.status(404).json({ error: 'Strategy or folder not found' });
+    }
+    const success = await moveStrategy(id, targetFolderId);
     if (!success) return res.status(404).json({ error: 'Strategy or folder not found' });
     res.json({ success: true });
   } catch (error) {
@@ -290,7 +336,7 @@ router.get('/:id', optionalAuth, async (req: AuthRequest, res) => {
     const id = parseInt(req.params.id as string, 10);
     if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
 
-    const strategy = await strategyService.getById(id);
+    const strategy = await findStrategyById(id);
     if (!strategy) return res.status(404).json({ error: 'Strategy not found' });
 
     res.json({ success: true, strategy });
@@ -303,12 +349,17 @@ router.get('/:id', optionalAuth, async (req: AuthRequest, res) => {
 // Create strategy (auth required, permission check)
 router.post('/', verifyToken, requireEditPermission, validate(createStrategySchema), async (req: AuthRequest, res) => {
   try {
-    const strategy = await strategyService.create({
+    const strategy = await createStrategy({
       ...req.body,
       folderId: req.body.folderId ?? null,
       authorId: req.user!.username,
       authorName: req.user!.username,
     });
+
+    // Link any images that were uploaded before the strategy was saved
+    if (req.body.content) {
+      await linkOrphanImages(extractImageFilenames(req.body.content), strategy.id);
+    }
 
     res.json({ success: true, strategy });
   } catch (error) {
@@ -323,8 +374,12 @@ router.put('/:id', verifyToken, requireEditPermission, validate(updateStrategySc
     const id = parseInt(req.params.id as string, 10);
     if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
 
-    const strategy = await strategyService.update(id, req.body);
+    const strategy = await updateStrategy(id, req.body);
     if (!strategy) return res.status(404).json({ error: 'Strategy not found' });
+
+    if (req.body.content) {
+      await linkOrphanImages(extractImageFilenames(req.body.content), strategy.id);
+    }
 
     res.json({ success: true, strategy });
   } catch (error) {
@@ -340,15 +395,15 @@ router.delete('/:id', verifyToken, requireEditPermission, async (req: AuthReques
     if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
 
     // Delete associated image files from disk
-    const strategy = await strategyService.getById(id);
+    const strategy = await findStrategyById(id);
     if (!strategy) return res.status(404).json({ error: 'Strategy not found' });
 
-    const success = await strategyService.delete(id);
+    const success = await deleteStrategy(id);
     if (!success) return res.status(500).json({ error: 'Failed to delete strategy' });
 
     // Clean up image files from disk (DB records cascade-deleted)
     if (strategy.content) {
-      const filenames = strategyService.extractImageFilenames(strategy.content);
+      const filenames = extractImageFilenames(strategy.content);
       for (const filename of filenames) {
         const filePath = path.join(UPLOAD_DIR, filename);
         if (fs.existsSync(filePath)) {
@@ -407,7 +462,7 @@ router.post('/:id/files', verifyToken, (req: AuthRequest, res) => {
     }
 
     try {
-      if (!strategyService.canEdit(req.user!.role)) {
+      if (!canEdit(req.user!.role)) {
         fs.unlinkSync(req.file.path);
         return res.status(403).json({ error: 'No permission to upload files' });
       }
@@ -418,7 +473,7 @@ router.post('/:id/files', verifyToken, (req: AuthRequest, res) => {
         return res.status(400).json({ error: 'Invalid strategy ID' });
       }
 
-      const strategy = await strategyService.getById(strategyId);
+      const strategy = await findStrategyById(strategyId);
       if (!strategy) {
         fs.unlinkSync(req.file.path);
         return res.status(404).json({ error: 'Strategy not found' });

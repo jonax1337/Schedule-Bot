@@ -1,10 +1,28 @@
 import { Router } from 'express';
 import { verifyToken, AuthRequest, resolveCurrentUser, resolveTargetUser } from '../../shared/middleware/auth.js';
 import { validate, recurringAvailabilitySchema, recurringAvailabilityBulkSchema } from '../../shared/middleware/validation.js';
-import { recurringAvailabilityService } from '../../services/recurring-availability.service.js';
+import {
+  getRecurringForUser,
+  getRecurringForUserAndDay,
+  setRecurring,
+  removeRecurring,
+  removeAllRecurringForUser,
+} from '../../repositories/recurring-availability.repository.js';
+import { getUserMapping } from '../../repositories/user-mapping.repository.js';
+import {
+  applyRecurringToEmptySchedules,
+  clearRecurringFromSchedules,
+} from '../../repositories/schedule.repository.js';
+import { refreshWeeklyOverview } from '../../bot/utils/weekly-overview.js';
 import { logger, getErrorMessage } from '../../shared/utils/logger.js';
 
 const router = Router();
+
+function syncRecurringInBackground(userId: string): void {
+  applyRecurringToEmptySchedules(userId)
+    .then(() => refreshWeeklyOverview())
+    .catch(err => logger.error('Failed to apply recurring to schedules', err));
+}
 
 /**
  * GET /api/recurring-availability/my
@@ -17,7 +35,7 @@ router.get('/my', verifyToken, resolveCurrentUser, async (req: AuthRequest, res)
       return res.json({ entries: [] });
     }
 
-    const entries = await recurringAvailabilityService.getForUser(req.resolvedUser.discordId);
+    const entries = await getRecurringForUser(req.resolvedUser.discordId);
     res.json({ entries });
   } catch (error) {
     logger.error('Error fetching recurring availability', getErrorMessage(error));
@@ -40,7 +58,7 @@ router.get('/', verifyToken, resolveCurrentUser, async (req: AuthRequest, res) =
         return res.status(403).json({ error: 'You can only view your own recurring schedule' });
       }
 
-      const entries = await recurringAvailabilityService.getForUser(userId);
+      const entries = await getRecurringForUser(userId);
       res.json({ entries });
     } else {
       // No userId provided - resolve from JWT
@@ -48,7 +66,7 @@ router.get('/', verifyToken, resolveCurrentUser, async (req: AuthRequest, res) =
         return res.json({ entries: [] });
       }
 
-      const entries = await recurringAvailabilityService.getForUser(req.resolvedUser.discordId);
+      const entries = await getRecurringForUser(req.resolvedUser.discordId);
       res.json({ entries });
     }
   } catch (error) {
@@ -65,21 +83,17 @@ router.get('/', verifyToken, resolveCurrentUser, async (req: AuthRequest, res) =
 router.post('/', verifyToken, validate(recurringAvailabilitySchema), resolveTargetUser, async (req: AuthRequest, res) => {
   try {
     const { dayOfWeek, availability } = req.body;
-    const isAdmin = req.user?.role === 'admin';
     const targetUserId = req.targetUserId!;
 
-    const result = await recurringAvailabilityService.set(
-      targetUserId,
-      dayOfWeek,
-      availability,
-      isAdmin ? undefined : targetUserId
-    );
-
-    if (!result.success) {
-      return res.status(400).json({ error: result.error });
+    const mapping = await getUserMapping(targetUserId);
+    if (!mapping) {
+      return res.status(400).json({ error: 'User is not registered in the roster' });
     }
 
-    res.json({ success: true, entry: result.data });
+    const entry = await setRecurring(targetUserId, dayOfWeek, availability);
+    syncRecurringInBackground(targetUserId);
+
+    res.json({ success: true, entry });
   } catch (error) {
     logger.error('Error setting recurring availability', getErrorMessage(error));
     res.status(500).json({ error: 'Failed to set recurring availability' });
@@ -94,21 +108,24 @@ router.post('/', verifyToken, validate(recurringAvailabilitySchema), resolveTarg
 router.post('/bulk', verifyToken, validate(recurringAvailabilityBulkSchema), resolveTargetUser, async (req: AuthRequest, res) => {
   try {
     const { days, availability } = req.body;
-    const isAdmin = req.user?.role === 'admin';
     const targetUserId = req.targetUserId!;
 
-    const result = await recurringAvailabilityService.setBulk(
-      targetUserId,
-      days,
-      availability,
-      isAdmin ? undefined : targetUserId
-    );
-
-    if (!result.success) {
-      return res.status(400).json({ error: result.error });
+    const mapping = await getUserMapping(targetUserId);
+    if (!mapping) {
+      return res.status(400).json({ error: 'User is not registered in the roster' });
     }
 
-    res.json({ success: true, count: result.count });
+    let count = 0;
+    for (const day of days as number[]) {
+      if (day < 0 || day > 6) continue;
+      await setRecurring(targetUserId, day, availability);
+      count++;
+    }
+
+    logger.info('Bulk recurring set', `${targetUserId}: ${count} days → ${availability}`);
+    syncRecurringInBackground(targetUserId);
+
+    res.json({ success: true, count });
   } catch (error) {
     logger.error('Error bulk setting recurring availability', getErrorMessage(error));
     res.status(500).json({ error: 'Failed to bulk set recurring availability' });
@@ -122,21 +139,22 @@ router.post('/bulk', verifyToken, validate(recurringAvailabilityBulkSchema), res
 router.delete('/:dayOfWeek', verifyToken, resolveTargetUser, async (req: AuthRequest, res) => {
   try {
     const dayOfWeek = parseInt(req.params.dayOfWeek as string);
-    const isAdmin = req.user?.role === 'admin';
     const targetUserId = req.targetUserId!;
 
     if (isNaN(dayOfWeek) || dayOfWeek < 0 || dayOfWeek > 6) {
       return res.status(400).json({ error: 'Invalid day of week (0-6)' });
     }
 
-    const result = await recurringAvailabilityService.remove(
-      targetUserId,
-      dayOfWeek,
-      isAdmin ? undefined : targetUserId
-    );
+    // Fetch old value before deleting so we can clear matching schedule entries
+    const oldEntry = await getRecurringForUserAndDay(targetUserId, dayOfWeek);
+    const oldAvailability = oldEntry?.availability || '';
 
-    if (!result.success) {
-      return res.status(400).json({ error: result.error });
+    await removeRecurring(targetUserId, dayOfWeek);
+
+    if (oldAvailability) {
+      clearRecurringFromSchedules(targetUserId, dayOfWeek, oldAvailability)
+        .then(() => refreshWeeklyOverview())
+        .catch(err => logger.error('Failed to clear recurring from schedules', err));
     }
 
     res.json({ success: true });
@@ -152,19 +170,9 @@ router.delete('/:dayOfWeek', verifyToken, resolveTargetUser, async (req: AuthReq
  */
 router.delete('/', verifyToken, resolveTargetUser, async (req: AuthRequest, res) => {
   try {
-    const isAdmin = req.user?.role === 'admin';
     const targetUserId = req.targetUserId!;
-
-    const result = await recurringAvailabilityService.removeAll(
-      targetUserId,
-      isAdmin ? undefined : targetUserId
-    );
-
-    if (!result.success) {
-      return res.status(400).json({ error: result.error });
-    }
-
-    res.json({ success: true, count: result.count });
+    const count = await removeAllRecurringForUser(targetUserId);
+    res.json({ success: true, count });
   } catch (error) {
     logger.error('Error removing all recurring availability', getErrorMessage(error));
     res.status(500).json({ error: 'Failed to remove recurring availability' });
