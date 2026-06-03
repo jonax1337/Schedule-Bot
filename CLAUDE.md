@@ -211,10 +211,15 @@ VITE_BOT_API_URL           # Dashboard client-side API URL (default: http://loca
 2. Start dashboard: `cd dashboard && npm run dev` (:3000)
 3. Login: http://localhost:3000/admin/login
 
-**Dashboard dev-mode (no backend needed):**
+**Dashboard demo mode (no backend needed):**
 - `cd dashboard && npm run dev:mock` boots the dashboard with `VITE_DEV_MODE=true`.
-- Auth is short-circuited, `window.fetch` is intercepted, and every `/api/...` call returns fixture data from `src/lib/mock/fixtures.ts`.
-- A yellow banner at the top shows current role and a "Switch to admin/user view" button so you can preview both perspectives.
+- `window.fetch` is intercepted and every `/api/...` call is served from a sessionStorage-backed state store (`src/lib/mock/store.ts`, seeded from `src/lib/mock/fixtures.ts`). Edits (availability toggles, settings, new scrims, strategies, absences, VOD comments) persist across reloads within the tab.
+- Auth is NOT pre-filled — the user lands on `/login` and goes through the mocked auth flow (player picker, or "Continue with Discord" which round-trips through `/auth/callback`).
+- A yellow banner at the top of the shell shows current user and offers Reset (wipe edits + sign out) and Sign out.
+
+**Dashboard demo build for hosting:**
+- `cd dashboard && npm run build:demo` produces a static SPA in `dist/` with the demo mock baked in. Drop the folder on Vercel / Cloudflare Pages / GitHub Pages / Netlify / any static host.
+- `dashboard/vercel.json` already wires this up — push to a Vercel project pointing at the repo and it builds with `build:demo` automatically.
 - Use this to demo or design without running Postgres + the Discord bot.
 
 **Manual Triggers:**
