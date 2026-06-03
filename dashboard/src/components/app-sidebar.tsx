@@ -23,11 +23,14 @@ export interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
     homeUrl?: string
   }
   navGroups: NavGroupConfig[]
+  /** Optional row(s) rendered in the sidebar footer above the user pill. */
+  footerExtra?: React.ReactNode
   user?: NavUserInfo
   onLogout?: () => void
 }
 
-export function AppSidebar({ brand, navGroups, user, onLogout, ...props }: AppSidebarProps) {
+export function AppSidebar({ brand, navGroups, footerExtra, user, onLogout, ...props }: AppSidebarProps) {
+  const hasFooter = footerExtra || user
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
@@ -44,9 +47,10 @@ export function AppSidebar({ brand, navGroups, user, onLogout, ...props }: AppSi
           <NavMain key={group.label} label={group.label} items={group.items} />
         ))}
       </SidebarContent>
-      {user && (
+      {hasFooter && (
         <SidebarFooter>
-          <NavUser user={user} onLogout={onLogout} />
+          {footerExtra}
+          {user && <NavUser user={user} onLogout={onLogout} />}
         </SidebarFooter>
       )}
       <SidebarRail />

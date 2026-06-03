@@ -170,7 +170,10 @@ export function LoginForm({ redirectTo }: LoginFormProps) {
         </div>
 
         <p className="text-muted-foreground text-center text-sm">
-          Your selection is remembered on this device.
+          Your selection is remembered on this device.{' '}
+          <a href="/admin/login" className="text-foreground hover:underline">
+            Admin sign-in
+          </a>
         </p>
       </div>
     </div>

@@ -1,24 +1,32 @@
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from '@/components/ui/avatar'
+import { useMemo, useState } from 'react'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
 import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
 } from '@/components/ui/sidebar'
-import { ChevronsUpDownIcon, LogOutIcon, UserIcon } from 'lucide-react'
+import { ChevronsUpDownIcon, LogOutIcon, GlobeIcon, CheckIcon } from 'lucide-react'
+import { useTimezone, getTimezoneAbbr } from '@/lib/timezone'
 
 export interface NavUserInfo {
   name: string
@@ -32,10 +40,28 @@ interface NavUserProps {
   onLogout?: () => void
 }
 
+const ALL_TIMEZONES = (() => {
+  try {
+    return Intl.supportedValuesOf('timeZone')
+  } catch {
+    return ['UTC', 'Europe/Berlin', 'Europe/London', 'America/New_York', 'America/Los_Angeles', 'Asia/Tokyo']
+  }
+})()
+
 export function NavUser({ user, onLogout }: NavUserProps) {
   const { isMobile } = useSidebar()
+  const { userTimezone, setUserTimezone } = useTimezone()
+  const [tzSearch, setTzSearch] = useState('')
+
   const initials = (user.name?.charAt(0) ?? '?').toUpperCase()
   const subline = user.role || user.email || ''
+  const tzAbbr = getTimezoneAbbr(userTimezone)
+
+  const filteredZones = useMemo(() => {
+    if (!tzSearch) return ALL_TIMEZONES.slice(0, 60)
+    const q = tzSearch.toLowerCase()
+    return ALL_TIMEZONES.filter((tz) => tz.toLowerCase().includes(q)).slice(0, 60)
+  }, [tzSearch])
 
   return (
     <SidebarMenu>
@@ -58,7 +84,7 @@ export function NavUser({ user, onLogout }: NavUserProps) {
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent
-            className="w-(--radix-dropdown-menu-trigger-width) min-w-56"
+            className="min-w-56"
             side={isMobile ? 'bottom' : 'right'}
             align="end"
             sideOffset={4}
@@ -75,13 +101,40 @@ export function NavUser({ user, onLogout }: NavUserProps) {
                 </div>
               </div>
             </DropdownMenuLabel>
+
             <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuItem>
-                <UserIcon />
-                Profile
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
+
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <GlobeIcon />
+                <span>Timezone</span>
+                <span className="text-muted-foreground ml-auto pl-2 text-xs tabular-nums">{tzAbbr}</span>
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="p-0">
+                <Command shouldFilter={false} className="w-72">
+                  <CommandInput placeholder="Search timezone…" value={tzSearch} onValueChange={setTzSearch} />
+                  <CommandList className="max-h-72">
+                    <CommandEmpty>No timezone matches.</CommandEmpty>
+                    <CommandGroup>
+                      {filteredZones.map((tz) => (
+                        <CommandItem
+                          key={tz}
+                          value={tz}
+                          onSelect={() => {
+                            setUserTimezone(tz)
+                            setTzSearch('')
+                          }}
+                        >
+                          <CheckIcon className={tz === userTimezone ? 'opacity-100' : 'opacity-0'} />
+                          {tz}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+
             {onLogout && (
               <>
                 <DropdownMenuSeparator />

@@ -1,5 +1,5 @@
-import { useMemo, type ReactNode } from 'react'
-import { useSearchParams } from 'react-router'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useNavigate, useSearchParams } from 'react-router'
 import {
   Calendar,
   CalendarCheck,
@@ -9,13 +9,20 @@ import {
   PlaneTakeoff,
   BookOpen,
   RefreshCw,
+  ShieldCheckIcon,
 } from 'lucide-react'
 import { AppShell } from '@/components/app-shell'
+import {
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+} from '@/components/ui/sidebar'
 import type { NavGroupConfig } from '@/components/app-sidebar'
 import type { NavUserInfo } from '@/components/nav-user'
 import { useBranding } from '@/hooks/use-branding'
 import { useSidebarUserInfo } from '@/hooks/use-sidebar'
-import { getUser, logout } from '@/lib/auth'
+import { getAuthHeaders, getUser, logout } from '@/lib/auth'
+import { BOT_API_URL } from '@/lib/config'
 
 const TITLES: Record<string, string> = {
   schedule: 'Schedule',
@@ -28,6 +35,7 @@ const TITLES: Record<string, string> = {
 }
 
 export function UserShell({ children }: { children: ReactNode }) {
+  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const tab = searchParams.get('tab') || 'schedule'
 
@@ -35,6 +43,29 @@ export function UserShell({ children }: { children: ReactNode }) {
   const authUser = getUser()
   const userName = authUser?.username ?? localStorage.getItem('selectedUser')
   const { userRole, avatarUrl } = useSidebarUserInfo(userName)
+  const [isAdmin, setIsAdmin] = useState(authUser?.role === 'admin')
+
+  useEffect(() => {
+    if (authUser?.role === 'admin') return
+    if (!userName) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch(`${BOT_API_URL}/api/user-mappings`, { headers: getAuthHeaders() })
+        if (!res.ok) return
+        const data = await res.json()
+        const mapping = (data.mappings as Array<{ displayName: string; isAdmin?: boolean }> | undefined)?.find(
+          (m) => m.displayName === userName,
+        )
+        if (!cancelled && mapping?.isAdmin) setIsAdmin(true)
+      } catch {
+        /* silent */
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [userName, authUser?.role])
 
   const navGroups: NavGroupConfig[] = useMemo(
     () => [
@@ -76,6 +107,18 @@ export function UserShell({ children }: { children: ReactNode }) {
         homeUrl: '/?tab=schedule',
       }}
       navGroups={navGroups}
+      footerExtra={
+        isAdmin ? (
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton tooltip="Admin Dashboard" onClick={() => navigate('/admin')}>
+                <ShieldCheckIcon />
+                <span>Admin Dashboard</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        ) : undefined
+      }
       user={user}
       onLogout={() => void logout()}
       pageTitle={TITLES[tab]}

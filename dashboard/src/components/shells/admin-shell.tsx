@@ -1,5 +1,5 @@
 import { useMemo, type ReactNode } from 'react'
-import { useSearchParams } from 'react-router'
+import { useNavigate, useSearchParams } from 'react-router'
 import {
   Settings,
   Users,
@@ -11,8 +11,14 @@ import {
   LayoutDashboard,
   BarChart3,
   BookOpen,
+  ArrowLeftIcon,
 } from 'lucide-react'
 import { AppShell } from '@/components/app-shell'
+import {
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+} from '@/components/ui/sidebar'
 import type { NavGroupConfig } from '@/components/app-sidebar'
 import type { NavUserInfo } from '@/components/nav-user'
 import { useBranding } from '@/hooks/use-branding'
@@ -33,6 +39,7 @@ const TITLES: Record<string, string> = {
 }
 
 export function AdminShell({ children }: { children: ReactNode }) {
+  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const tab = searchParams.get('tab') || 'dashboard'
 
@@ -91,6 +98,16 @@ export function AdminShell({ children }: { children: ReactNode }) {
         homeUrl: '/admin?tab=dashboard',
       }}
       navGroups={navGroups}
+      footerExtra={
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton tooltip="Back to Schedule" onClick={() => navigate('/')}>
+              <ArrowLeftIcon />
+              <span>Back to Schedule</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      }
       user={user}
       onLogout={() => void logout()}
       pageTitle={TITLES[tab]}
