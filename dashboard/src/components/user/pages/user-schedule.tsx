@@ -17,17 +17,24 @@ import { ChevronLeft, ChevronRight, X, CheckCircle2, MinusCircle, Loader2 } from
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { cn } from '@/lib/utils'
 import { apiGet } from '@/lib/api'
 import { getUser } from '@/lib/auth'
 import { formatDateToDDMMYYYY, parseDDMMYYYY, getReasonBadgeClasses } from '@/lib/date-utils'
 
 interface PlayerEntry {
+  userId?: string
   displayName: string
   availability: string
   role: string
   sortOrder: number
+}
+
+interface UserMapping {
+  discordId: string
+  displayName: string
+  avatarUrl?: string | null
 }
 
 type RosterStatus = 'OFF_DAY' | 'FULL_ROSTER' | 'WITH_SUBS' | 'NOT_ENOUGH'
@@ -101,6 +108,20 @@ export function UserSchedule() {
         `/api/schedule/range?from=${fromKey}&to=${toKey}`,
       ),
   })
+
+  const { data: mappingsData } = useQuery({
+    queryKey: ['user-mappings'],
+    queryFn: () => apiGet<{ mappings: UserMapping[] }>('/api/user-mappings'),
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const avatarByDiscordId = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const mp of mappingsData?.mappings ?? []) {
+      if (mp.avatarUrl) m.set(mp.discordId, mp.avatarUrl)
+    }
+    return m
+  }, [mappingsData])
 
   const schedulesByDate = useMemo(() => {
     const list: ScheduleDay[] = Array.isArray(data) ? data : data?.schedules ?? []
@@ -232,7 +253,12 @@ export function UserSchedule() {
 
         {/* Side card — fixed width on lg, card-styled like the old NextJS version,
             capped at the row height so it never grows past the calendar */}
-        <DayDetailPanel date={selectedDateObj} schedule={selected} currentUser={currentUser} />
+        <DayDetailPanel
+          date={selectedDateObj}
+          schedule={selected}
+          currentUser={currentUser}
+          avatarByDiscordId={avatarByDiscordId}
+        />
       </div>
     </div>
   )
@@ -242,10 +268,12 @@ function DayDetailPanel({
   date,
   schedule,
   currentUser,
+  avatarByDiscordId,
 }: {
   date: Date
   schedule: ScheduleDay | null
   currentUser?: string
+  avatarByDiscordId: Map<string, string>
 }) {
   return (
     <aside className="bg-card flex flex-col overflow-hidden rounded-lg border lg:w-80 lg:shrink-0 lg:max-h-full">
@@ -290,6 +318,9 @@ function DayDetailPanel({
                   >
                     <div className="flex min-w-0 items-center gap-2">
                       <Avatar className="size-6 shrink-0">
+                        {p.userId && avatarByDiscordId.get(p.userId) && (
+                          <AvatarImage src={avatarByDiscordId.get(p.userId)} alt={p.displayName} />
+                        )}
                         <AvatarFallback className="text-[10px]">
                           {p.displayName.charAt(0).toUpperCase()}
                         </AvatarFallback>
