@@ -32,10 +32,18 @@ async function main(): Promise<void> {
     logger.error('Settings load failed', getErrorMessage(error));
   }
 
-  // Ensure next 14 days have schedule entries
+  // Materialize the seeding window and reconcile the roster.
+  // syncUserMappingsToSchedules backfills missing players into existing
+  // (past + future) schedules so historical counts reflect the current
+  // team, and prunes departed players from future schedules only.
   try {
-    const { addMissingDays, applyRecurringToEmptySchedules } = await import('./repositories/schedule.repository.js');
+    const {
+      addMissingDays,
+      applyRecurringToEmptySchedules,
+      syncUserMappingsToSchedules,
+    } = await import('./repositories/schedule.repository.js');
     await addMissingDays();
+    await syncUserMappingsToSchedules();
     await applyRecurringToEmptySchedules();
   } catch (error) {
     logger.error('Schedule verification failed', getErrorMessage(error));

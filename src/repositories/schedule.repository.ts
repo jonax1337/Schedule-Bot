@@ -138,13 +138,32 @@ export async function getSchedulesForDates(dates: string[]): Promise<ScheduleDat
 export function getNext14Dates(): string[] {
   const dates: string[] = [];
   const today = new Date();
-  
+
   for (let i = 0; i < 14; i++) {
     const date = new Date(today);
     date.setDate(today.getDate() + i);
     dates.push(formatDateToDDMMYYYY(date));
   }
-  
+
+  return dates;
+}
+
+/**
+ * How far ahead the bot keeps real schedule_players rows materialized.
+ * Discord pickers and the legacy "next 14 days" view still use 14;
+ * seeding / recurring application / clearing use this wider window so
+ * the dashboard calendar shows real data when users navigate forward.
+ */
+export const SCHEDULE_SEEDING_DAYS = 60;
+
+export function getSchedulingWindowDates(days: number = SCHEDULE_SEEDING_DAYS): string[] {
+  const dates: string[] = [];
+  const today = new Date();
+  for (let i = 0; i < days; i++) {
+    const date = new Date(today);
+    date.setDate(today.getDate() + i);
+    dates.push(formatDateToDDMMYYYY(date));
+  }
   return dates;
 }
 
@@ -225,10 +244,10 @@ export async function updatePlayerAvailability(
 }
 
 /**
- * Ensure all dates in next 14 days have schedule entries
+ * Ensure all dates in the seeding window have schedule entries.
  */
 export async function addMissingDays(): Promise<void> {
-  const dates = getNext14Dates();
+  const dates = getSchedulingWindowDates();
   const userMappings = await getUserMappings();
   const allRecurring = await getAllActiveRecurring();
 
@@ -286,64 +305,89 @@ export async function addMissingDays(): Promise<void> {
     }
   }
 
-  logger.success('Schedule entries verified', 'Next 14 days (with recurring)');
+  logger.success('Schedule entries verified', `Next ${SCHEDULE_SEEDING_DAYS} days (with recurring)`);
 }
 
 /**
- * Sync user mappings to all schedules
- * Called when user mappings change (add/remove/update)
+ * Sync the current roster onto every schedule_players snapshot.
+ *
+ * Past + future schedules: add missing current roster members with empty
+ * availability, and refresh displayName / role / sortOrder on existing
+ * rows. This fixes the "4/4 available" display when a player joined the
+ * team after older schedules were already created.
+ *
+ * Only future schedules (date >= today): also delete players who are no
+ * longer in the roster. Past schedules keep departed players intact so
+ * historical snapshots stay accurate ("who was on the team in March?").
+ *
+ * Called on startup to backfill, and from user-mapping routes whenever
+ * the roster changes.
  */
 export async function syncUserMappingsToSchedules(): Promise<void> {
-  const dates = getNext14Dates();
   const userMappings = await getUserMappings();
+  const validUserIds = userMappings.map(m => m.discordId);
 
-  for (const date of dates) {
-    const schedule = await prisma.schedule.findUnique({
-      where: { date },
-      include: { players: true },
-    });
+  const schedules = await prisma.schedule.findMany({
+    include: { players: true },
+  });
 
-    if (!schedule) continue;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
-    // Add missing players
+  let added = 0;
+  let removed = 0;
+
+  for (const schedule of schedules) {
+    const scheduleDate = parseDDMMYYYY(schedule.date);
+    const isFutureOrToday = scheduleDate.getTime() >= today.getTime();
+
     for (const mapping of userMappings) {
       const existingPlayer = schedule.players.find(p => p.userId === mapping.discordId);
-      
+      const targetRole = mapping.role.toUpperCase() as 'MAIN' | 'SUB' | 'COACH';
+
       if (!existingPlayer) {
         await prisma.schedulePlayer.create({
           data: {
             scheduleId: schedule.id,
             userId: mapping.discordId,
             displayName: mapping.displayName,
-            role: mapping.role.toUpperCase() as 'MAIN' | 'SUB' | 'COACH',
+            role: targetRole,
             availability: '',
             sortOrder: mapping.sortOrder,
           },
         });
-      } else {
-        // Update existing player with latest display name and sort order
+        added++;
+      } else if (
+        existingPlayer.displayName !== mapping.displayName ||
+        existingPlayer.role !== targetRole ||
+        existingPlayer.sortOrder !== mapping.sortOrder
+      ) {
         await prisma.schedulePlayer.update({
           where: { id: existingPlayer.id },
           data: {
             displayName: mapping.displayName,
-            role: mapping.role.toUpperCase() as 'MAIN' | 'SUB' | 'COACH',
+            role: targetRole,
             sortOrder: mapping.sortOrder,
           },
         });
       }
     }
 
-    // Remove players that no longer have mappings
-    const validUserIds = userMappings.map(m => m.discordId);
-    await prisma.schedulePlayer.deleteMany({
-      where: {
-        scheduleId: schedule.id,
-        userId: { notIn: validUserIds },
-      },
-    });
+    if (isFutureOrToday) {
+      const result = await prisma.schedulePlayer.deleteMany({
+        where: {
+          scheduleId: schedule.id,
+          userId: { notIn: validUserIds },
+        },
+      });
+      removed += result.count;
+    }
   }
 
-  logger.success('User mappings synced to schedules');
+  logger.success(
+    'User mappings synced to schedules',
+    `${schedules.length} schedules, +${added} added, -${removed} removed (future only)`,
+  );
 }
 
 /**
@@ -351,7 +395,7 @@ export async function syncUserMappingsToSchedules(): Promise<void> {
  * Optionally filter by userId to only apply for a specific user.
  */
 export async function applyRecurringToEmptySchedules(userId?: string): Promise<number> {
-  const dates = getNext14Dates();
+  const dates = getSchedulingWindowDates();
   const allRecurring = await getAllActiveRecurring();
 
   // Build lookup: Map<userId, Map<dayOfWeek, availability>>
@@ -409,7 +453,7 @@ export async function clearRecurringFromSchedules(
 ): Promise<number> {
   if (!oldAvailability) return 0;
 
-  const dates = getNext14Dates();
+  const dates = getSchedulingWindowDates();
   let clearedCount = 0;
 
   for (const date of dates) {
