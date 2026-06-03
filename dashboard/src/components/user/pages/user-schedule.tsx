@@ -71,8 +71,8 @@ export function UserSchedule() {
   const selectedDateObj = parseDDMMYYYY(selectedDate)
 
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col gap-4">
-      <header className="flex items-center justify-between gap-3">
+    <div className="flex h-full min-h-0 flex-col gap-4 overflow-hidden">
+      <header className="flex shrink-0 items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon-sm" onClick={() => setViewMonth(subMonths(viewMonth, 1))}>
             <ChevronLeft />
@@ -97,78 +97,83 @@ export function UserSchedule() {
         {isLoading && <Loader2 className="text-muted-foreground h-4 w-4 animate-spin" />}
       </header>
 
-      <div className="grid flex-1 min-h-0 grid-cols-1 gap-4 lg:grid-cols-4">
-        {/* Calendar — 3/4 width on lg, full width below */}
-        <div className="bg-border grid grid-cols-7 gap-px overflow-hidden rounded-lg border lg:col-span-3 self-start auto-rows-fr">
-          {WEEKDAY_LABELS.map((d) => (
-            <div key={d} className="bg-muted text-muted-foreground px-2 py-1.5 text-xs font-medium">
-              {d}
-            </div>
-          ))}
-          {days.map((day) => {
-            const key = formatDateToDDMMYYYY(day)
-            const schedule = schedulesByDate.get(key)
-            const myEntry = schedule?.players.find((p) => p.displayName === currentUser)
-            const myKind = myEntry ? getAvailabilityKind(myEntry.availability) : 'none'
-            const available =
-              schedule?.players.filter((p) => getAvailabilityKind(p.availability) === 'available').length ?? 0
-            const total = schedule?.players.length ?? 0
-            const inMonth = isSameMonth(day, viewMonth)
-            const today = isToday(day)
-            const isSel = isSameDay(day, selectedDateObj)
+      {/* Flex split: calendar fills remaining row, panel is a fixed-width card on the right (lg+).
+          Below lg, both stack vertically and panel sits below at natural height. */}
+      <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
+        {/* Calendar — fills available width and full row height */}
+        <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border lg:flex-1">
+          {/* Weekday header row */}
+          <div className="bg-muted grid shrink-0 grid-cols-7 border-b">
+            {WEEKDAY_LABELS.map((d) => (
+              <div key={d} className="text-muted-foreground px-2 py-1.5 text-xs font-medium">
+                {d}
+              </div>
+            ))}
+          </div>
+          {/* Days grid — equally distributes remaining height across week rows */}
+          <div className="bg-border grid min-h-0 flex-1 grid-cols-7 gap-px [grid-auto-rows:minmax(0,1fr)]">
+            {days.map((day) => {
+              const key = formatDateToDDMMYYYY(day)
+              const schedule = schedulesByDate.get(key)
+              const myEntry = schedule?.players.find((p) => p.displayName === currentUser)
+              const myKind = myEntry ? getAvailabilityKind(myEntry.availability) : 'none'
+              const available =
+                schedule?.players.filter((p) => getAvailabilityKind(p.availability) === 'available').length ?? 0
+              const total = schedule?.players.length ?? 0
+              const inMonth = isSameMonth(day, viewMonth)
+              const today = isToday(day)
+              const isSel = isSameDay(day, selectedDateObj)
 
-            return (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setSelectedDate(key)}
-                className={cn(
-                  'group/cell bg-background relative flex min-h-24 flex-col gap-1.5 p-2 text-left text-xs transition-colors hover:bg-muted/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
-                  !inMonth && 'text-muted-foreground/60 bg-muted/20',
-                  isSel && 'bg-accent ring-2 ring-ring ring-inset',
-                )}
-              >
-                <div className="flex items-center justify-between">
-                  <span
-                    className={cn(
-                      'flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium',
-                      today && 'bg-primary text-primary-foreground',
-                    )}
-                  >
-                    {format(day, 'd')}
-                  </span>
-                  {myEntry && (
-                    <span className="text-muted-foreground" aria-label={`Your status: ${myKind}`}>
-                      {myKind === 'available' && <CheckCircle2 className="text-emerald-500 h-3.5 w-3.5" />}
-                      {myKind === 'unavailable' && <X className="text-red-500 h-3.5 w-3.5" />}
-                      {myKind === 'none' && <MinusCircle className="text-muted-foreground/50 h-3.5 w-3.5" />}
-                    </span>
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setSelectedDate(key)}
+                  className={cn(
+                    'group/cell bg-background relative flex min-h-0 flex-col gap-1.5 overflow-hidden p-2 text-left text-xs transition-colors hover:bg-muted/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
+                    !inMonth && 'text-muted-foreground/60 bg-muted/20',
+                    isSel && 'bg-accent ring-2 ring-ring ring-inset',
                   )}
-                </div>
-                {schedule?.reason && (
-                  <Badge
-                    variant="secondary"
-                    className={cn('w-fit text-[10px] font-medium', getReasonBadgeClasses(schedule.reason))}
-                  >
-                    {schedule.reason}
-                  </Badge>
-                )}
-                {schedule && total > 0 && (
-                  <div className="text-muted-foreground mt-auto text-[11px] tabular-nums">
-                    {available}/{total} available
+                >
+                  <div className="flex shrink-0 items-center justify-between">
+                    <span
+                      className={cn(
+                        'flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium',
+                        today && 'bg-primary text-primary-foreground',
+                      )}
+                    >
+                      {format(day, 'd')}
+                    </span>
+                    {myEntry && (
+                      <span className="text-muted-foreground" aria-label={`Your status: ${myKind}`}>
+                        {myKind === 'available' && <CheckCircle2 className="text-emerald-500 h-3.5 w-3.5" />}
+                        {myKind === 'unavailable' && <X className="text-red-500 h-3.5 w-3.5" />}
+                        {myKind === 'none' && <MinusCircle className="text-muted-foreground/50 h-3.5 w-3.5" />}
+                      </span>
+                    )}
                   </div>
-                )}
-              </button>
-            )
-          })}
+                  {schedule?.reason && (
+                    <Badge
+                      variant="secondary"
+                      className={cn('w-fit shrink-0 text-[10px] font-medium', getReasonBadgeClasses(schedule.reason))}
+                    >
+                      {schedule.reason}
+                    </Badge>
+                  )}
+                  {schedule && total > 0 && (
+                    <div className="text-muted-foreground mt-auto shrink-0 text-[11px] tabular-nums">
+                      {available}/{total} available
+                    </div>
+                  )}
+                </button>
+              )
+            })}
+          </div>
         </div>
 
-        {/* Day detail — 1/4 width on lg, full width below */}
-        <DayDetailPanel
-          date={selectedDateObj}
-          schedule={selected}
-          currentUser={currentUser}
-        />
+        {/* Side card — fixed width on lg, card-styled like the old NextJS version,
+            capped at the row height so it never grows past the calendar */}
+        <DayDetailPanel date={selectedDateObj} schedule={selected} currentUser={currentUser} />
       </div>
     </div>
   )
@@ -184,17 +189,17 @@ function DayDetailPanel({
   currentUser?: string
 }) {
   return (
-    <aside className="bg-card flex min-h-0 flex-col overflow-hidden rounded-lg border lg:col-span-1">
+    <aside className="bg-card flex flex-col overflow-hidden rounded-lg border lg:w-80 lg:shrink-0 lg:max-h-full">
       <header className="flex flex-col gap-2 p-4">
-        <div className="flex items-baseline justify-between gap-2">
-          <h3 className="text-base font-semibold leading-tight">{format(date, 'EEE, MMM d')}</h3>
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h3 className="text-base font-semibold leading-tight">{format(date, 'EEEE, MMMM d')}</h3>
           {schedule?.reason && (
-            <Badge variant="secondary" className={cn('shrink-0 text-[10px]', getReasonBadgeClasses(schedule.reason))}>
+            <Badge variant="secondary" className={cn('shrink-0 text-xs', getReasonBadgeClasses(schedule.reason))}>
               {schedule.reason}
             </Badge>
           )}
         </div>
-        {schedule?.focus && <p className="text-muted-foreground text-xs leading-snug">{schedule.focus}</p>}
+        {schedule?.focus && <p className="text-muted-foreground text-sm leading-snug">{schedule.focus}</p>}
       </header>
 
       {!schedule || schedule.players.length === 0 ? (
@@ -213,7 +218,7 @@ function DayDetailPanel({
                   <li
                     key={p.displayName}
                     className={cn(
-                      'flex items-center justify-between gap-2 rounded-md px-2 py-1.5',
+                      'flex items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-sm',
                       isMe && 'bg-accent',
                     )}
                   >
@@ -223,20 +228,23 @@ function DayDetailPanel({
                           {p.displayName.charAt(0).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
-                      <span className={cn('truncate text-sm font-medium', isMe && 'text-foreground')}>
-                        {p.displayName}
-                      </span>
-                      {isMe && <Badge variant="outline" className="h-4 shrink-0 px-1 text-[9px]">You</Badge>}
+                      <span className={cn('truncate font-medium', isMe && 'text-foreground')}>{p.displayName}</span>
+                      {isMe && (
+                        <Badge variant="outline" className="h-5 shrink-0 text-[10px]">
+                          You
+                        </Badge>
+                      )}
+                      <span className="text-muted-foreground shrink-0 text-[11px] uppercase">{p.role}</span>
                     </div>
                     <span
                       className={cn(
-                        'shrink-0 tabular-nums text-[11px]',
+                        'shrink-0 tabular-nums text-xs',
                         kind === 'available' && 'text-emerald-600 dark:text-emerald-400',
                         kind === 'unavailable' && 'text-red-600 dark:text-red-400',
                         kind === 'none' && 'text-muted-foreground',
                       )}
                     >
-                      {kind === 'available' ? p.availability : kind === 'unavailable' ? '—' : '?'}
+                      {kind === 'available' ? p.availability : kind === 'unavailable' ? 'unavailable' : 'no response'}
                     </span>
                   </li>
                 )
