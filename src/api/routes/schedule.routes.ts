@@ -23,6 +23,31 @@ router.get('/next14', verifyToken, async (req: AuthRequest, res) => {
   }
 });
 
+// Get schedules in a date range (real data + future simulation from recurring)
+router.get('/range', verifyToken, async (req: AuthRequest, res) => {
+  try {
+    const from = (req.query.from as string)?.trim();
+    const to = (req.query.to as string)?.trim();
+    if (!from || !to) {
+      return res.status(400).json({ error: 'from and to are required (DD.MM.YYYY)' });
+    }
+    const datePattern = /^\d{2}\.\d{2}\.\d{4}$/;
+    if (!datePattern.test(from) || !datePattern.test(to)) {
+      return res.status(400).json({ error: 'Dates must be DD.MM.YYYY' });
+    }
+    const { getScheduleRange } = await import('../../repositories/schedule.repository.js');
+    const schedules = await getScheduleRange(from, to);
+    res.json({ success: true, schedules });
+  } catch (error) {
+    const msg = getErrorMessage(error);
+    logger.error('Error fetching schedule range', msg);
+    if (msg.includes('Invalid date range') || msg.includes('Range too wide')) {
+      return res.status(400).json({ error: msg });
+    }
+    res.status(500).json({ success: false, error: 'Failed to fetch schedule range' });
+  }
+});
+
 // Get schedules with pagination
 router.get('/paginated', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
   try {

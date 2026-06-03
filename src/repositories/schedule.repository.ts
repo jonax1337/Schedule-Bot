@@ -1,9 +1,12 @@
 import { prisma } from './database.repository.js';
 import { getUserMappings } from './user-mapping.repository.js';
 import { getAllActiveRecurring } from './recurring-availability.repository.js';
+import { getAbsentUserIdsForDates } from './absence.repository.js';
 import type { ScheduleData, SchedulePlayerData } from '../shared/types/types.js';
 import { logger, getErrorMessage } from '../shared/utils/logger.js';
 import { parseDDMMYYYY, formatDateToDDMMYYYY } from '../shared/utils/dateFormatter.js';
+
+export type ScheduleRangeEntry = ScheduleData & { simulated: boolean };
 
 /**
  * Get schedule for a specific date with all players
@@ -24,6 +27,105 @@ export async function getNext14DaysSchedule(): Promise<ScheduleData[]> {
   }
   
   return schedules;
+}
+
+/**
+ * Get all schedules in [from, to] (inclusive, DD.MM.YYYY).
+ * For dates that have a row in DB, returns the real data (simulated=false).
+ * For dates that have no row AND are today or in the future, returns a
+ * simulated entry built from the current roster + each player's recurring
+ * availability for that day-of-week, minus active absences.
+ * Past dates without DB data are omitted.
+ * Caps the range at 92 days to keep payloads bounded.
+ */
+export async function getScheduleRange(from: string, to: string): Promise<ScheduleRangeEntry[]> {
+  const fromDate = parseDDMMYYYY(from);
+  const toDate = parseDDMMYYYY(to);
+  if (!fromDate || !toDate || fromDate.getTime() > toDate.getTime()) {
+    throw new Error('Invalid date range');
+  }
+  const MS_PER_DAY = 24 * 60 * 60 * 1000;
+  const days = Math.floor((toDate.getTime() - fromDate.getTime()) / MS_PER_DAY) + 1;
+  if (days > 92) {
+    throw new Error('Range too wide (max 92 days)');
+  }
+
+  const allDates: { str: string; date: Date }[] = [];
+  for (let i = 0; i < days; i++) {
+    const d = new Date(fromDate);
+    d.setDate(fromDate.getDate() + i);
+    allDates.push({ str: formatDateToDDMMYYYY(d), date: d });
+  }
+
+  const dateStrings = allDates.map(x => x.str);
+  const [realSchedules, roster, allRecurring] = await Promise.all([
+    prisma.schedule.findMany({
+      where: { date: { in: dateStrings } },
+      include: { players: { orderBy: { sortOrder: 'asc' } } },
+    }),
+    getUserMappings(),
+    getAllActiveRecurring(),
+  ]);
+
+  const realByDate = new Map(realSchedules.map(s => [s.date, s]));
+
+  const recurringByUserDay = new Map<string, Map<number, string>>();
+  for (const r of allRecurring) {
+    let inner = recurringByUserDay.get(r.userId);
+    if (!inner) {
+      inner = new Map();
+      recurringByUserDay.set(r.userId, inner);
+    }
+    inner.set(r.dayOfWeek, r.availability);
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const missingFutureDates = allDates
+    .filter(d => !realByDate.has(d.str) && d.date.getTime() >= today.getTime())
+    .map(d => d.str);
+  const absentByDate = missingFutureDates.length > 0
+    ? await getAbsentUserIdsForDates(missingFutureDates)
+    : {};
+
+  const out: ScheduleRangeEntry[] = [];
+  for (const { str, date } of allDates) {
+    const real = realByDate.get(str);
+    if (real) {
+      out.push({
+        date: real.date,
+        reason: real.reason,
+        focus: real.focus,
+        players: real.players.map(p => ({
+          userId: p.userId,
+          displayName: p.displayName,
+          role: p.role as 'MAIN' | 'SUB' | 'COACH',
+          availability: p.availability,
+          sortOrder: p.sortOrder,
+        })),
+        simulated: false,
+      });
+      continue;
+    }
+    if (date.getTime() < today.getTime()) continue;
+    const dayOfWeek = date.getDay();
+    const absentSet = new Set(absentByDate[str] || []);
+    const players: SchedulePlayerData[] = roster.map(u => {
+      const availability = absentSet.has(u.discordId)
+        ? 'x'
+        : recurringByUserDay.get(u.discordId)?.get(dayOfWeek) ?? '';
+      return {
+        userId: u.discordId,
+        displayName: u.displayName,
+        role: u.role.toUpperCase() as 'MAIN' | 'SUB' | 'COACH',
+        availability,
+        sortOrder: u.sortOrder,
+      };
+    });
+    out.push({ date: str, reason: '', focus: '', players, simulated: true });
+  }
+  return out;
 }
 
 export async function getScheduleForDate(date: string): Promise<ScheduleData | null> {
