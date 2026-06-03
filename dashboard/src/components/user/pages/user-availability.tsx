@@ -1,21 +1,14 @@
-
-
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2, XCircle, Clock, CheckSquare, Check, PlaneTakeoff, CalendarDays, RefreshCw, Trash2, Minus } from 'lucide-react';
+import { CalendarDays } from 'lucide-react';
 import { PageSpinner } from '@/components/ui/page-spinner';
 import { toast } from 'sonner';
-import { stagger, microInteractions } from '@/lib/animations';
-import { cn } from '@/lib/utils';
 import { BOT_API_URL } from '@/lib/config';
 import { getAuthHeaders } from '@/lib/auth';
-import { useTimezone, getTimezoneAbbr } from '@/lib/timezone';
-import { parseDDMMYYYY, getWeekdayName, formatDateToDDMMYYYY } from '@/lib/date-utils';
+import { useTimezone } from '@/lib/timezone';
+import { parseDDMMYYYY, formatDateToDDMMYYYY } from '@/lib/date-utils';
 import { useUserDiscordId } from '@/hooks/use-user-discord-id';
+import { AvailabilityGrid, type AvailabilityEntry, type TimeWindow } from './availability-grid';
 
 interface AbsenceData {
   id: number;
@@ -34,78 +27,41 @@ function isDateInAbsence(date: string, absences: AbsenceData[]): boolean {
   });
 }
 
-interface TimeWindow {
-  from: string;
-  to: string;
-}
-
-interface DateEntry {
-  date: string;
-  value: string;
-  windows: TimeWindow[];
-  originalWindows: TimeWindow[];
-  isSaving?: boolean;
-  justSaved?: boolean;
-  isRecurring?: boolean;
-}
-
 export function UserAvailability() {
   const { user, isLoading: authLoading } = useUserDiscordId();
-  const userName = user?.userName || '';
   const userDiscordId = user?.discordId || '';
-  const { convertRangeToLocal, convertRangeToBot, isConverting, userTimezone, botTimezone, botTimezoneLoaded, timezoneVersion } = useTimezone();
-  const [entries, setEntries] = useState<DateEntry[]>([]);
+  const { convertRangeToLocal, convertRangeToBot, botTimezoneLoaded, timezoneVersion } = useTimezone();
+  const [entries, setEntries] = useState<AvailabilityEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [selectedDates, setSelectedDates] = useState<Set<string>>(new Set());
-  const [bulkTimeFrom, setBulkTimeFrom] = useState('');
-  const [bulkTimeTo, setBulkTimeTo] = useState('');
-  const [absences, setAbsences] = useState<AbsenceData[]>([]);
-  const autoSaveTimeoutsRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   useEffect(() => {
     if (authLoading || !userDiscordId || !botTimezoneLoaded) return;
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, userDiscordId, botTimezoneLoaded, timezoneVersion]);
-
-  // Cleanup timeouts on unmount
-  useEffect(() => {
-    return () => {
-      Object.values(autoSaveTimeoutsRef.current).forEach(timeout => {
-        clearTimeout(timeout);
-      });
-    };
-  }, []);
 
   const loadData = async () => {
     setLoading(true);
     try {
-
       const headers = getAuthHeaders();
-
-      // Fetch absences, schedule, and recurring in parallel
       const [absencesRes, scheduleRes, recurringRes] = await Promise.all([
         fetch(`${BOT_API_URL}/api/absences?userId=${userDiscordId}`, { headers }),
         fetch(`${BOT_API_URL}/api/schedule/next14`, { headers }),
         fetch(`${BOT_API_URL}/api/recurring-availability?userId=${userDiscordId}`, { headers }),
       ]);
 
-      // Parse responses with safe JSON handling
       const [absencesData, scheduleData, recurringData] = await Promise.all([
         absencesRes.ok ? absencesRes.json().catch(() => ({ absences: [] })) : Promise.resolve({ absences: [] }),
         scheduleRes.ok ? scheduleRes.json().catch(() => ({ schedules: [] })) : Promise.resolve({ schedules: [] }),
         recurringRes.ok ? recurringRes.json().catch(() => ({ entries: [] })) : Promise.resolve({ entries: [] }),
       ]);
 
-      // Build recurring lookup: dayOfWeek -> availability
       const recurringMap = new Map<number, string>();
       for (const entry of (recurringData.entries || [])) {
-        if (entry.active) {
-          recurringMap.set(entry.dayOfWeek, entry.availability);
-        }
+        if (entry.active) recurringMap.set(entry.dayOfWeek, entry.availability);
       }
 
-      setAbsences(absencesData.absences || []);
+      const absences: AbsenceData[] = absencesData.absences || [];
 
       if (!scheduleRes.ok) {
         toast.error('Failed to load schedule');
@@ -114,8 +70,7 @@ export function UserAvailability() {
       }
 
       const schedules = scheduleData.schedules || [];
-      const dateEntries: DateEntry[] = [];
-
+      const dateEntries: AvailabilityEntry[] = [];
       const today = new Date();
 
       for (let i = 0; i < 14; i++) {
@@ -130,29 +85,14 @@ export function UserAvailability() {
         const recurringValue = recurringMap.get(dayOfWeek);
         const isRecurring = !!(availability && recurringValue && availability === recurringValue);
 
-        let windows: TimeWindow[] = [{ from: '', to: '' }];
-
-        if (availability && availability !== 'x' && availability.includes('-')) {
-          const localRange = convertRangeToLocal(availability);
-          const segments = localRange.split(',');
-          const parsed: TimeWindow[] = [];
-          for (const segment of segments) {
-            const parts = segment.trim().split('-');
-            if (parts.length === 2) {
-              parsed.push({ from: parts[0].trim(), to: parts[1].trim() });
-            }
-          }
-          if (parsed.length > 0) {
-            windows = parsed;
-          }
-        }
+        const windows = parseWindows(availability, convertRangeToLocal);
 
         dateEntries.push({
           date: dateStr,
           value: availability,
           windows,
-          originalWindows: windows.map(w => ({ ...w })),
           isRecurring,
+          isAbsent: isDateInAbsence(dateStr, absences),
         });
       }
 
@@ -165,26 +105,21 @@ export function UserAvailability() {
     }
   };
 
-  // Unified save helper for single-date availability updates
   const updateEntry = async (
     date: string,
     availability: string,
-    localUpdates: Partial<DateEntry>,
-    opts?: { successMsg?: string; silent?: boolean }
+    localUpdates: Partial<AvailabilityEntry>,
   ) => {
     setEntries(prev => prev.map(e =>
       e.date === date ? { ...e, isSaving: true, justSaved: false } : e
     ));
-
     try {
       const response = await fetch(`${BOT_API_URL}/api/schedule/update-availability`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({ date, userId: userDiscordId, availability }),
       });
-
       if (response.ok) {
-        if (opts?.successMsg && !opts?.silent) toast.success(opts.successMsg);
         setEntries(prev => prev.map(e =>
           e.date === date ? { ...e, ...localUpdates, isSaving: false, justSaved: true } : e
         ));
@@ -192,7 +127,7 @@ export function UserAvailability() {
           setEntries(prev => prev.map(e =>
             e.date === date ? { ...e, justSaved: false } : e
           ));
-        }, 2000);
+        }, 1500);
       } else {
         toast.error('Failed to update availability');
         setEntries(prev => prev.map(e =>
@@ -207,470 +142,79 @@ export function UserAvailability() {
     }
   };
 
-  const saveEntry = async (date: string, windows: TimeWindow[], isAutoSave = false) => {
-    const completeWindows = windows.filter(w => w.from && w.to);
-    if (completeWindows.length === 0) {
-      if (!isAutoSave) toast.error('Please enter both start and end time');
+  const saveSlots = (date: string, windows: TimeWindow[]) => {
+    if (windows.length === 0) {
+      void updateEntry(date, '', {
+        value: '',
+        windows: [],
+        isRecurring: false,
+      });
       return;
     }
-    const localValue = completeWindows.map(w => `${w.from}-${w.to}`).join(',');
+    const localValue = windows.map(w => `${w.from}-${w.to}`).join(',');
     const botValue = convertRangeToBot(localValue);
-    await updateEntry(date, botValue, {
+    void updateEntry(date, botValue, {
       value: botValue,
-      originalWindows: completeWindows.map(w => ({ ...w })),
-    }, { successMsg: 'Availability updated!', silent: isAutoSave });
-  };
-
-  const clearAvailability = async (date: string, isAutoSave = true) => {
-    await updateEntry(date, '', {
-      value: '',
-      windows: [{ from: '', to: '' }],
-      originalWindows: [{ from: '', to: '' }],
-    }, { successMsg: 'Availability cleared', silent: isAutoSave });
-  };
-
-  const setUnavailable = async (date: string) => {
-    await updateEntry(date, 'x', {
-      value: 'x',
-      windows: [{ from: '', to: '' }],
-      originalWindows: [{ from: '', to: '' }],
-    }, { successMsg: 'Marked as not available' });
-  };
-
-  const clearEntry = async (date: string) => {
-    await updateEntry(date, '', {
-      value: '',
-      windows: [{ from: '', to: '' }],
-      originalWindows: [{ from: '', to: '' }],
+      windows: windows.map(w => ({ ...w })),
       isRecurring: false,
     });
   };
 
-  const handleTimeChange = (date: string, windowIndex: number, field: 'from' | 'to', value: string) => {
-    // Update local state immediately
-    setEntries(prev => prev.map(e => {
-      if (e.date !== date) return e;
-      const newWindows = e.windows.map((w, i) =>
-        i === windowIndex ? { ...w, [field]: value } : w
-      );
-      return { ...e, windows: newWindows };
-    }));
-
-    // Clear existing timeout for this date
-    if (autoSaveTimeoutsRef.current[date]) {
-      clearTimeout(autoSaveTimeoutsRef.current[date]);
-    }
-
-    // Set new timeout for auto-save
-    autoSaveTimeoutsRef.current[date] = setTimeout(() => {
-      // Get the updated entry
-      setEntries(current => {
-        const entry = current.find(e => e.date === date);
-        if (entry) {
-          const firstWindow = entry.windows[0];
-          if (firstWindow && firstWindow.from && firstWindow.to) {
-            // At least first window is filled, trigger auto-save
-            saveEntry(date, entry.windows, true);
-          } else if (firstWindow && !firstWindow.from && !firstWindow.to && entry.value) {
-            // First window is empty but there was a previous value - clear it
-            clearAvailability(date);
-          }
-        }
-        return current;
-      });
-    }, 1000); // Wait 1 second after last keystroke
-  };
-
-  const addWindow = (date: string) => {
-    setEntries(prev => prev.map(e =>
-      e.date === date ? { ...e, windows: [...e.windows, { from: '', to: '' }] } : e
-    ));
-  };
-
-  const removeWindow = (date: string, index: number) => {
-    setEntries(prev => prev.map(e => {
-      if (e.date !== date || e.windows.length <= 1) return e;
-      const newWindows = e.windows.filter((_, i) => i !== index);
-      return { ...e, windows: newWindows };
-    }));
-
-    // Trigger auto-save after removal
-    if (autoSaveTimeoutsRef.current[date]) {
-      clearTimeout(autoSaveTimeoutsRef.current[date]);
-    }
-    autoSaveTimeoutsRef.current[date] = setTimeout(() => {
-      setEntries(current => {
-        const entry = current.find(e => e.date === date);
-        if (entry) {
-          const firstWindow = entry.windows[0];
-          if (firstWindow && firstWindow.from && firstWindow.to) {
-            saveEntry(date, entry.windows, true);
-          }
-        }
-        return current;
-      });
-    }, 1000);
-  };
-
-  // Bulk Edit Functions
-  const toggleDateSelection = (date: string) => {
-    setSelectedDates(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(date)) {
-        newSet.delete(date);
-      } else {
-        newSet.add(date);
-      }
-      return newSet;
+  const setUnavailable = (date: string) => {
+    void updateEntry(date, 'x', {
+      value: 'x',
+      windows: [],
+      isRecurring: false,
     });
   };
 
-  const toggleSelectAll = () => {
-    const selectableDates = entries.filter(e => !isDateInAbsence(e.date, absences)).map(e => e.date);
-    if (selectedDates.size === selectableDates.length) {
-      setSelectedDates(new Set());
-    } else {
-      setSelectedDates(new Set(selectableDates));
-    }
+  const clearEntry = (date: string) => {
+    void updateEntry(date, '', {
+      value: '',
+      windows: [],
+      isRecurring: false,
+    });
   };
-
-  // Unified bulk update helper
-  const bulkUpdate = async (availability: string, localUpdates: Partial<DateEntry>, successMsg: string) => {
-    if (selectedDates.size === 0) {
-      toast.error('Please select at least one date');
-      return;
-    }
-    setSaving(true);
-    try {
-      const updates = Array.from(selectedDates).map(date =>
-        fetch(`${BOT_API_URL}/api/schedule/update-availability`, {
-          method: 'POST',
-          headers: getAuthHeaders(),
-          body: JSON.stringify({ date, userId: userDiscordId, availability }),
-        })
-      );
-      const results = await Promise.all(updates);
-      if (results.every(r => r.ok)) {
-        toast.success(successMsg);
-        setEntries(prev => prev.map(e =>
-          selectedDates.has(e.date) ? { ...e, ...localUpdates } : e
-        ));
-        setSelectedDates(new Set());
-        setBulkTimeFrom('');
-        setBulkTimeTo('');
-      } else {
-        toast.error('Some updates failed');
-      }
-    } catch {
-      toast.error('Failed to bulk update availability');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const bulkSetTime = async () => {
-    if (!bulkTimeFrom || !bulkTimeTo) {
-      toast.error('Please enter both start and end time');
-      return;
-    }
-    if (bulkTimeTo <= bulkTimeFrom) {
-      toast.error('End time must be after start time');
-      return;
-    }
-    const localValue = `${bulkTimeFrom}-${bulkTimeTo}`;
-    const botValue = convertRangeToBot(localValue);
-    await bulkUpdate(botValue, {
-      value: botValue,
-      windows: [{ from: bulkTimeFrom, to: bulkTimeTo }],
-      originalWindows: [{ from: bulkTimeFrom, to: bulkTimeTo }],
-    }, `Updated ${selectedDates.size} day(s)`);
-  };
-
-  const bulkSetUnavailable = () => bulkUpdate('x', {
-    value: 'x',
-    windows: [{ from: '', to: '' }],
-    originalWindows: [{ from: '', to: '' }],
-  }, `Marked ${selectedDates.size} day(s) as unavailable`);
-
-  const bulkClear = () => bulkUpdate('', {
-    value: '',
-    windows: [{ from: '', to: '' }],
-    originalWindows: [{ from: '', to: '' }],
-  }, `Cleared ${selectedDates.size} day(s)`);
 
   if (loading) {
     return <PageSpinner />;
   }
 
   return (
-    <div className="space-y-4">
-      {/* Bulk Actions Toolbar */}
-      {selectedDates.size > 0 && (
-        <Card className="animate-slideDown border-primary">
-          <CardHeader>
-            <CardTitle className="text-sm flex items-center gap-2">
-              <CheckSquare className="w-4 h-4" />
-              {selectedDates.size} day(s) selected
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-4 items-end">
-              <div className="flex gap-2 flex-1 min-w-[300px]">
-                <div className="flex-1">
-                  <label className="text-xs text-muted-foreground mb-1 block">Bulk From</label>
-                  <Input
-                    type="time"
-                    value={bulkTimeFrom}
-                    onChange={(e) => setBulkTimeFrom(e.target.value)}
-                    placeholder="Start time"
-                    className={microInteractions.focusRing}
-                  />
-                </div>
-                <div className="flex-1">
-                  <label className="text-xs text-muted-foreground mb-1 block">Bulk To</label>
-                  <Input
-                    type="time"
-                    value={bulkTimeTo}
-                    onChange={(e) => setBulkTimeTo(e.target.value)}
-                    placeholder="End time"
-                    className={microInteractions.focusRing}
-                  />
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  onClick={bulkSetTime}
-                  disabled={saving || !bulkTimeFrom || !bulkTimeTo}
-                  className={microInteractions.activePress}
-                >
-                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Set Time'}
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={bulkSetUnavailable}
-                  disabled={saving}
-                  className={microInteractions.activePress}
-                >
-                  Mark Unavailable
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={bulkClear}
-                  disabled={saving}
-                  className={microInteractions.activePress}
-                >
-                  Clear
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={() => setSelectedDates(new Set())}
-                  className={microInteractions.activePress}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Main Table */}
-      <Card className="animate-fadeIn">
-        <CardHeader>
+    <div className="flex h-full min-h-0 flex-col">
+      <Card className="animate-fadeIn flex-1 min-h-0 flex flex-col overflow-hidden">
+        <CardHeader className="shrink-0">
           <CardTitle className="flex items-center gap-2">
             <CalendarDays className="w-5 h-5" />
             Availability
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Set your availability for the next 14 days. Changes are auto-saved when you fill in both time fields.
+            Drag across the grid to mark when you're available over the next 14 days. Changes save automatically.
           </p>
         </CardHeader>
-        <CardContent>
-          <Table className="table-fixed w-full">
-            <colgroup>
-              <col className="w-10" />
-              <col className="w-[100px]" />
-              <col className="w-[100px]" />
-              <col className="w-[320px]" />
-              <col />
-              <col className="w-[180px]" />
-            </colgroup>
-            <TableHeader>
-              <TableRow>
-                <TableHead>
-                  <Checkbox
-                    checked={selectedDates.size === entries.length && entries.length > 0}
-                    onCheckedChange={toggleSelectAll}
-                    aria-label="Select all"
-                  />
-                </TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Weekday</TableHead>
-                <TableHead>Time</TableHead>
-                <TableHead>Current Status</TableHead>
-                <TableHead></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {entries.map((entry, index) => {
-                const isSelected = selectedDates.has(entry.date);
-                const isAbsent = isDateInAbsence(entry.date, absences);
-                const [day, month, year] = entry.date.split('.');
-                const dateObj = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-                const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
-                return (
-                  <TableRow
-                    key={entry.date}
-                    className={cn(
-                      isSelected && 'bg-primary/5',
-                      isAbsent && 'bg-purple-500/5 opacity-60',
-                      !isSelected && !isAbsent && isWeekend && 'bg-muted/30',
-                      stagger(index, 'fast', 'fadeIn')
-                    )}
-                  >
-                    <TableCell>
-                      <Checkbox
-                        checked={isSelected}
-                        onCheckedChange={() => toggleDateSelection(entry.date)}
-                        aria-label={`Select ${entry.date}`}
-                        disabled={isAbsent}
-                      />
-                    </TableCell>
-                    <TableCell className="font-medium">{entry.date}</TableCell>
-                    <TableCell className="text-muted-foreground">{getWeekdayName(entry.date)}</TableCell>
-                    {isAbsent ? (
-                      <>
-                        <TableCell colSpan={2}>
-                          <div className="flex items-center gap-2">
-                            <Input
-                              type="time"
-                              value=""
-                              className="w-28 opacity-40 cursor-not-allowed"
-                              disabled
-                            />
-                            <span className="text-muted-foreground text-xs">-</span>
-                            <Input
-                              type="time"
-                              value=""
-                              className="w-28 opacity-40 cursor-not-allowed"
-                              disabled
-                            />
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <span className="flex items-center gap-2 text-purple-500">
-                            <PlaneTakeoff className="w-4 h-4" />
-                            Absent
-                          </span>
-                        </TableCell>
-                        <TableCell></TableCell>
-                      </>
-                    ) : (
-                      <>
-                        <TableCell colSpan={2}>
-                          <div className="space-y-1">
-                            {entry.windows.map((window, windowIdx) => (
-                              <div key={windowIdx} className="flex items-center gap-2">
-                                <Input
-                                  type="time"
-                                  value={window.from}
-                                  onChange={(e) => handleTimeChange(entry.date, windowIdx, 'from', e.target.value)}
-                                  className={cn("w-28", microInteractions.focusRing)}
-                                  disabled={entry.isSaving}
-                                />
-                                <span className="text-muted-foreground text-xs">-</span>
-                                <Input
-                                  type="time"
-                                  value={window.to}
-                                  onChange={(e) => handleTimeChange(entry.date, windowIdx, 'to', e.target.value)}
-                                  className={cn("w-28", microInteractions.focusRing)}
-                                  disabled={entry.isSaving}
-                                />
-                                {windowIdx > 0 && (
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => removeWindow(entry.date, windowIdx)}
-                                    className="h-7 w-7 p-0"
-                                  >
-                                    <Minus className="w-3 h-3" />
-                                  </Button>
-                                )}
-                              </div>
-                            ))}
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => addWindow(entry.date)}
-                              className="h-6 text-xs text-muted-foreground"
-                              disabled={entry.isSaving}
-                            >
-                              + Add break
-                            </Button>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {entry.justSaved ? (
-                            <span className="flex items-center gap-2 text-green-600 animate-fadeIn">
-                              <Check className="w-4 h-4" />
-                              Saved
-                            </span>
-                          ) : entry.value === 'x' ? (
-                            <span className="flex items-center gap-2 text-red-500">
-                              <XCircle className="w-4 h-4" />
-                              Not Available
-                              {entry.isRecurring && (
-                                <RefreshCw className="w-3 h-3 text-muted-foreground" />
-                              )}
-                            </span>
-                          ) : entry.value ? (
-                            <span className="flex items-center gap-2 text-green-600">
-                              <Clock className="w-4 h-4" />
-                              {convertRangeToLocal(entry.value)}
-                              {isConverting && (
-                                <span className="text-xs text-muted-foreground">({entry.value} {getTimezoneAbbr(botTimezone)})</span>
-                              )}
-                              {entry.isRecurring && (
-                                <RefreshCw className="w-3 h-3 text-muted-foreground" />
-                              )}
-                            </span>
-                          ) : (
-                            <span className="text-gray-400">Not set</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-1 justify-end">
-                            {entry.value && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => clearEntry(entry.date)}
-                                disabled={saving || entry.isSaving}
-                                className={cn(microInteractions.activePress, microInteractions.smooth)}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            )}
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => setUnavailable(entry.date)}
-                              disabled={saving || entry.isSaving}
-                              className={cn(microInteractions.activePress, microInteractions.smooth)}
-                            >
-                              Not Available
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </>
-                    )}
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+        <CardContent className="flex-1 min-h-0 flex flex-col pb-6">
+          <AvailabilityGrid
+            entries={entries}
+            onSaveSlots={saveSlots}
+            onSetUnavailable={setUnavailable}
+            onClear={clearEntry}
+          />
         </CardContent>
       </Card>
     </div>
   );
+}
+
+function parseWindows(availability: string, convertRangeToLocal: (s: string) => string): TimeWindow[] {
+  if (!availability || availability === 'x' || availability === 'X') return [];
+  if (!availability.includes('-')) return [];
+  const local = convertRangeToLocal(availability);
+  const out: TimeWindow[] = [];
+  for (const seg of local.split(',')) {
+    const parts = seg.trim().split('-');
+    if (parts.length === 2 && parts[0] && parts[1]) {
+      out.push({ from: parts[0].trim(), to: parts[1].trim() });
+    }
+  }
+  return out;
 }
