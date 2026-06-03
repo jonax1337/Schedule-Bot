@@ -1,11 +1,12 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
-import { Shield, Loader2, ArrowLeft } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Field } from '@/components/ui/field'
+import { Loader2, Shield, ArrowLeft } from 'lucide-react'
 import { toast } from 'sonner'
+import { FullWidthDivider } from '@/components/full-width-divider'
 import { setAuthToken, setUser, getUser, validateToken, removeAuthToken } from '@/lib/auth'
 import { BOT_API_URL } from '@/lib/config'
 
@@ -61,62 +62,69 @@ export function AdminLoginPage() {
   }
 
   return (
-    <div className="flex min-h-svh w-full flex-col items-center justify-center p-6 md:p-10">
-      <div className="w-full max-w-sm">
-        <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="mb-4">
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Schedule
-        </Button>
-
-        <Card>
-          <CardHeader className="text-center">
-            <div className="bg-primary text-primary-foreground mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-lg shadow-sm">
-              <Shield className="h-6 w-6" />
+    <div className="relative w-full overflow-hidden px-4 md:h-screen">
+      <div className="*:px-6 relative mx-auto flex min-h-screen w-full max-w-sm flex-col justify-center border-x">
+        <div className="flex flex-col space-y-6">
+          <button
+            type="button"
+            onClick={() => navigate('/')}
+            className="text-muted-foreground hover:text-foreground inline-flex w-fit items-center gap-1.5 text-sm"
+          >
+            <ArrowLeft className="size-3.5" />
+            Back to schedule
+          </button>
+          <div className="flex items-center gap-3">
+            <div className="bg-primary text-primary-foreground flex size-10 items-center justify-center rounded-md">
+              <Shield className="size-5" />
             </div>
-            <CardTitle>Admin Dashboard</CardTitle>
-            <CardDescription>Enter your credentials to access the admin panel</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleLogin}>
-              <FieldGroup>
-                <Field>
-                  <FieldLabel htmlFor="username">Username</FieldLabel>
-                  <Input
-                    id="username"
-                    type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    placeholder="admin"
-                    autoComplete="username"
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="password">Password</FieldLabel>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    autoComplete="current-password"
-                  />
-                </Field>
-                <Field>
-                  <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Logging in...
-                      </>
-                    ) : (
-                      'Sign in'
-                    )}
-                  </Button>
-                </Field>
-              </FieldGroup>
-            </form>
-          </CardContent>
-        </Card>
+            <div className="space-y-0.5">
+              <h1 className="text-xl font-semibold tracking-wide">Admin Panel</h1>
+              <p className="text-muted-foreground text-sm">Sign in with your administrator account.</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="relative my-6 flex size-full flex-col gap-4 py-8">
+          <FullWidthDivider position="top" />
+          <form onSubmit={handleLogin} className="space-y-3">
+            <Field>
+              <Label htmlFor="username">Username</Label>
+              <Input
+                id="username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="admin"
+                autoComplete="username"
+                autoFocus
+              />
+            </Field>
+            <Field>
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                autoComplete="current-password"
+              />
+            </Field>
+            <Button type="submit" size="sm" className="w-full" disabled={loading}>
+              {loading ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" /> Signing in…
+                </>
+              ) : (
+                'Sign in'
+              )}
+            </Button>
+          </form>
+          <FullWidthDivider position="bottom" />
+        </div>
+
+        <p className="text-muted-foreground text-center text-sm">
+          Use the credentials configured in your bot environment.
+        </p>
       </div>
     </div>
   )

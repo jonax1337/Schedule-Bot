@@ -69,6 +69,8 @@ const routes: MockRoute[] = [
   // Schedule
   { method: 'GET', match: '/api/schedule/today', handler: () => ok(today) },
   { method: 'GET', match: '/api/schedule/week', handler: () => ok({ days: mockSchedules.slice(0, 7) }) },
+  { method: 'GET', match: '/api/schedule/next14', handler: () => ok(mockSchedules) },
+  { method: 'GET', match: '/api/schedule/month', handler: () => ok(mockSchedules) },
   { method: 'GET', match: /\/api\/schedule\/range/, handler: () => ok({ days: mockSchedules }) },
   { method: 'GET', match: /\/api\/schedule\/[0-9]{2}\.[0-9]{2}\.[0-9]{4}$/, handler: ({ url }) => {
     const date = url.pathname.split('/').pop()!

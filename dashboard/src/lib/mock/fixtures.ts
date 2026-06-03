@@ -65,12 +65,25 @@ const PLAYERS = mockUserMappings.mappings.map((m, i) => ({
 
 const REASONS = ['Training', 'Off-Day', 'VOD-Review', 'Scrims', 'Premier', 'Tournament']
 
-export const mockSchedules = [-2, -1, 0, 1, 2, 3, 4, 5, 6].map((offset, i) => ({
-  date: dateOffset(offset),
-  reason: REASONS[i % REASONS.length],
-  focus: i % 3 === 0 ? 'Map: Ascent — A-site executes' : i % 3 === 1 ? '' : 'Review last scrim block',
-  players: PLAYERS,
-}))
+// Spans ~60 days so the month calendar can navigate prev/next without
+// running out of mock data.
+export const mockSchedules = Array.from({ length: 60 }, (_, i) => i - 20).map((offset, i) => {
+  const playersForDay = PLAYERS.map((p, pIdx) => {
+    const seed = (offset * 7 + pIdx * 13) % 11
+    let availability = ''
+    if (seed < 0) availability = ''
+    else if (seed < 4) availability = pIdx === 4 ? '' : `${17 + (seed % 2)}:00-${21 + (seed % 3)}:00`
+    else if (seed < 7) availability = '19:00-22:00'
+    else if (seed < 9) availability = 'x'
+    return { ...p, availability }
+  })
+  return {
+    date: dateOffset(offset),
+    reason: offset === 0 ? 'Training' : REASONS[Math.abs(i + offset) % REASONS.length],
+    focus: offset % 3 === 0 ? 'Map: Ascent — A-site executes' : offset % 3 === 1 ? '' : 'Review last scrim block',
+    players: playersForDay,
+  }
+})
 
 export const mockScrims = Array.from({ length: 8 }).map((_, i) => {
   const result: 'win' | 'loss' | 'draw' = i % 3 === 0 ? 'win' : i % 3 === 1 ? 'loss' : 'draw'

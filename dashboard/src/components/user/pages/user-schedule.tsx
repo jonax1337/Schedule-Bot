@@ -1,838 +1,243 @@
+import { useMemo, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import {
+  addMonths,
+  eachDayOfInterval,
+  endOfMonth,
+  endOfWeek,
+  format,
+  isSameDay,
+  isSameMonth,
+  isToday,
+  startOfMonth,
+  startOfWeek,
+  subMonths,
+} from 'date-fns'
+import { ChevronLeft, ChevronRight, X, CheckCircle2, MinusCircle, Loader2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Separator } from '@/components/ui/separator'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { cn } from '@/lib/utils'
+import { apiGet } from '@/lib/api'
+import { getUser } from '@/lib/auth'
+import { formatDateToDDMMYYYY, parseDDMMYYYY, getReasonBadgeClasses } from '@/lib/date-utils'
 
-
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { CheckCircle2, XCircle, Clock, Loader2, Edit2, Save, X, Palmtree, PlaneTakeoff } from 'lucide-react';
-import { PageSpinner } from '@/components/ui/page-spinner';
-import { Input } from '@/components/ui/input';
-import { toast } from 'sonner';
-import { stagger, microInteractions } from '@/lib/animations';
-import { cn } from '@/lib/utils';
-import { BOT_API_URL } from '@/lib/config';
-import { validateToken, removeAuthToken, getUser, getAuthHeaders } from '@/lib/auth';
-import { useTimezone, getTimezoneAbbr } from '@/lib/timezone';
-import { getReasonBadgeClasses, formatDateToDDMMYYYY, WEEKDAY_NAMES } from '@/lib/date-utils';
-
-interface PlayerStatus {
-  name: string;
-  status: 'available' | 'unavailable' | 'not-set' | 'absent';
-  time?: string;
-  role?: 'main' | 'sub' | 'coach';
+interface PlayerEntry {
+  displayName: string
+  availability: string
+  role: string
+  sortOrder: number
+}
+interface ScheduleDay {
+  date: string
+  reason: string
+  focus: string
+  players: PlayerEntry[]
 }
 
-interface ScheduleDetails {
-  status: string;
-  startTime?: string;
-  endTime?: string;
-  availablePlayers: string[];
-  unavailablePlayers: string[];
-  noResponsePlayers: string[];
-}
+const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
-interface DateEntry {
-  date: string;
-  weekday: string;
-  availability: {
-    available: number;
-    unavailable: number;
-    notSet: number;
-    absent: number;
-  };
-  players: PlayerStatus[];
-  reason?: string;
-  isOffDay: boolean;
-  userHasSet: boolean;
-  userStatus?: 'available' | 'unavailable' | 'not-set' | 'absent';
-  scheduleDetails?: ScheduleDetails;
+function getAvailabilityKind(av: string): 'available' | 'unavailable' | 'none' {
+  if (!av) return 'none'
+  if (av === 'x' || av === 'X') return 'unavailable'
+  return 'available'
 }
 
 export function UserSchedule() {
-  const navigate = useNavigate();
-  const { convertRangeToLocal, convertRangeToBot, convertToLocal, isConverting, userTimezone, botTimezoneLoaded, timezoneVersion } = useTimezone();
-  const [entries, setEntries] = useState<DateEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState<DateEntry | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [loggedInUser, setLoggedInUser] = useState<string | null>(null);
-  const [editingUser, setEditingUser] = useState(false);
-  const [editTimeFrom, setEditTimeFrom] = useState('');
-  const [editTimeTo, setEditTimeTo] = useState('');
-  const [editStatus, setEditStatus] = useState<'available' | 'unavailable'>('available');
-  const [saving, setSaving] = useState(false);
-  const [userMappings, setUserMappings] = useState<string[] | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [editingReason, setEditingReason] = useState(false);
-  const [reasonValue, setReasonValue] = useState('');
+  const [viewMonth, setViewMonth] = useState(() => new Date())
+  const [selectedDate, setSelectedDate] = useState<string>(formatDateToDDMMYYYY(new Date()))
+  const currentUser = getUser()?.username ?? localStorage.getItem('selectedUser') ?? undefined
 
-  useEffect(() => {
-    if (!botTimezoneLoaded) return;
+  const { data, isLoading } = useQuery({
+    queryKey: ['schedule', 'next14'],
+    queryFn: () => apiGet<ScheduleDay[] | { days: ScheduleDay[] }>('/api/schedule/next14'),
+  })
 
-    const checkAuth = async () => {
-      try {
-        
+  const schedulesByDate = useMemo(() => {
+    const list: ScheduleDay[] = Array.isArray(data) ? data : data?.days ?? []
+    const m = new Map<string, ScheduleDay>()
+    list.forEach((s) => m.set(s.date, s))
+    return m
+  }, [data])
 
-        const user = localStorage.getItem('selectedUser');
+  const monthStart = startOfMonth(viewMonth)
+  const monthEnd = endOfMonth(viewMonth)
+  const gridStart = startOfWeek(monthStart, { weekStartsOn: 1 })
+  const gridEnd = endOfWeek(monthEnd, { weekStartsOn: 1 })
+  const days = eachDayOfInterval({ start: gridStart, end: gridEnd })
 
-        if (!user) {
-          navigate('/login', { replace: true });
-          return;
-        }
-
-        const isValid = await validateToken();
-
-        if (!isValid) {
-          removeAuthToken();
-          localStorage.removeItem('selectedUser');
-          localStorage.removeItem('sessionToken');
-          navigate('/login', { replace: true });
-          return;
-        }
-
-        const currentUser = getUser();
-        if (currentUser?.role === 'admin') {
-          setIsAdmin(true);
-        }
-
-        setLoggedInUser(user);
-        await loadScheduleData();
-      } catch (error) {
-        console.error('Auth check failed:', error);
-        navigate('/login', { replace: true });
-      }
-    };
-
-    checkAuth();
-  }, [navigate, botTimezoneLoaded, timezoneVersion]);
-
-  const loadScheduleData = async () => {
-    setLoading(true);
-    try {
-
-      const headers = getAuthHeaders();
-
-      // Build date strings for next 14 days (needed for absences API)
-      const today = new Date();
-      const dateStrings: string[] = [];
-      for (let i = 0; i < 14; i++) {
-        const date = new Date(today);
-        date.setDate(today.getDate() + i);
-        const day = String(date.getDate()).padStart(2, '0');
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const year = date.getFullYear();
-        dateStrings.push(`${day}.${month}.${year}`);
-      }
-
-      // Fetch schedule, mappings, and absences in parallel
-      const [scheduleRes, mappingsRes, absencesRes] = await Promise.all([
-        fetch(`${BOT_API_URL}/api/schedule/next14`, { headers }),
-        fetch(`${BOT_API_URL}/api/user-mappings`, { headers }),
-        fetch(`${BOT_API_URL}/api/absences/by-dates?dates=${dateStrings.join(',')}`, { headers }),
-      ]);
-
-      if (!scheduleRes.ok) {
-        toast.error('Failed to load schedule data');
-        setLoading(false);
-        return;
-      }
-
-      if (!mappingsRes.ok) {
-        toast.error('Failed to load user mappings');
-        setLoading(false);
-        return;
-      }
-
-      // Parse responses (with safe JSON handling)
-      const [scheduleData, mappingsData, absencesData] = await Promise.all([
-        scheduleRes.json().catch(() => ({ schedules: [] })),
-        mappingsRes.json().catch(() => ({ mappings: [] })),
-        absencesRes.ok ? absencesRes.json().catch(() => ({ absentByDate: {} })) : Promise.resolve({ absentByDate: {} }),
-      ]);
-
-      const schedules = scheduleData.schedules || [];
-      const mappings = mappingsData.mappings || [];
-      const absentByDate: Record<string, string[]> = absencesData.absentByDate || {};
-
-      setUserMappings(mappings.map((m: any) => m.displayName));
-
-      const loggedUser = localStorage.getItem('selectedUser');
-      const userMapping = mappings.find((m: any) => m.displayName === loggedUser);
-      const userDiscordId = userMapping?.discordId;
-
-      const dateEntries: DateEntry[] = [];
-
-      for (let i = 0; i < 14; i++) {
-        const date = new Date(today);
-        date.setDate(today.getDate() + i);
-        const dateStr = formatDateToDDMMYYYY(date);
-        const weekday = WEEKDAY_NAMES[date.getDay()];
-
-        const schedule = schedules.find((s: any) => s.date === dateStr);
-        const isOffDay = schedule?.reason === 'Off-Day';
-        const absentUserIds = absentByDate[dateStr] || [];
-
-        let available = 0;
-        let unavailable = 0;
-        let notSet = 0;
-        let absent = 0;
-        const players: PlayerStatus[] = [];
-        let userHasSet = false;
-        let userStatus: 'available' | 'unavailable' | 'not-set' | 'absent' = 'not-set';
-
-        if (schedule && schedule.players) {
-          schedule.players.forEach((player: any) => {
-            const mapping = mappings.find((m: any) => m.discordId === player.userId);
-            if (!mapping) return;
-
-            const playerName = mapping.displayName;
-            const availability = player.availability || '';
-            const isPlayerAbsent = absentUserIds.includes(player.userId);
-            let status: 'available' | 'unavailable' | 'not-set' | 'absent' = 'not-set';
-            let time: string | undefined;
-
-            if (isPlayerAbsent) {
-              status = 'absent';
-              absent++;
-            } else if (availability === 'x') {
-              status = 'unavailable';
-              unavailable++;
-            } else if (availability && availability !== '') {
-              status = 'available';
-              time = convertRangeToLocal(availability);
-              available++;
-            } else {
-              notSet++;
-            }
-
-            if (player.userId === userDiscordId) {
-              userHasSet = status !== 'not-set';
-              userStatus = status;
-            }
-
-            players.push({
-              name: playerName,
-              status,
-              time,
-              role: mapping.role?.toLowerCase() as 'main' | 'sub' | 'coach',
-            });
-          });
-        }
-
-        let scheduleDetails: ScheduleDetails | undefined;
-        if (schedule && !isOffDay) {
-          const availablePlayers = players.filter(p => p.status === 'available').map(p => p.name);
-          const unavailablePlayers = players.filter(p => p.status === 'unavailable' || p.status === 'absent').map(p => p.name);
-          const noResponsePlayers = players.filter(p => p.status === 'not-set').map(p => p.name);
-
-          let status = 'Unknown';
-          let startTime: string | undefined;
-          let endTime: string | undefined;
-
-          // Check if anyone has responded at all
-          const totalPlayers = players.length;
-          const respondedCount = players.filter(p => p.status !== 'not-set').length;
-          const hasAnyResponse = respondedCount > 0;
-
-          if (available >= 5) {
-            status = 'Able to play';
-            const times = players
-              .filter(p => p.status === 'available' && p.time)
-              .map(p => p.time!);
-
-            if (times.length > 0) {
-              // Each player may have multiple windows (comma-separated)
-              // Build minute bitmask per player and find the longest common contiguous window
-              const playerMinuteSets = times.map(t => {
-                const minutes = new Set<number>();
-                const segments = t.split(',').map(s => s.trim());
-                for (const seg of segments) {
-                  const parts = seg.split('-').map(s => s.trim());
-                  if (parts.length === 2) {
-                    const [sH, sM] = parts[0].split(':').map(Number);
-                    const [eH, eM] = parts[1].split(':').map(Number);
-                    const start = sH * 60 + sM;
-                    const end = eH * 60 + eM;
-                    for (let m = start; m < end; m++) minutes.add(m);
-                  }
-                }
-                return minutes;
-              });
-
-              // Intersect all players' minute sets
-              let common = playerMinuteSets[0];
-              for (let i = 1; i < playerMinuteSets.length; i++) {
-                const next = new Set<number>();
-                for (const m of common) {
-                  if (playerMinuteSets[i].has(m)) next.add(m);
-                }
-                common = next;
-              }
-
-              if (common.size > 0) {
-                // Find longest contiguous run
-                const sorted = [...common].sort((a, b) => a - b);
-                let bestStart = sorted[0], bestLen = 1;
-                let curStart = sorted[0], curLen = 1;
-                for (let i = 1; i < sorted.length; i++) {
-                  if (sorted[i] === sorted[i - 1] + 1) {
-                    curLen++;
-                  } else {
-                    if (curLen > bestLen) { bestStart = curStart; bestLen = curLen; }
-                    curStart = sorted[i]; curLen = 1;
-                  }
-                }
-                if (curLen > bestLen) { bestStart = curStart; bestLen = curLen; }
-
-                const sH = Math.floor(bestStart / 60);
-                const sM = bestStart % 60;
-                const eTotal = bestStart + bestLen;
-                const eH = Math.floor(eTotal / 60);
-                const eM = eTotal % 60;
-                startTime = `${String(sH).padStart(2, '0')}:${String(sM).padStart(2, '0')}`;
-                endTime = `${String(eH).padStart(2, '0')}:${String(eM).padStart(2, '0')}`;
-              }
-            }
-          } else if (available === 4) {
-            status = 'Almost there';
-          } else if (available === 3) {
-            status = 'More players needed';
-          } else if (available < 3 && hasAnyResponse) {
-            status = 'Insufficient players';
-          } else if (!hasAnyResponse) {
-            status = 'Unknown';
-          }
-
-          scheduleDetails = {
-            status,
-            startTime,
-            endTime,
-            availablePlayers,
-            unavailablePlayers,
-            noResponsePlayers,
-          };
-        }
-
-        dateEntries.push({
-          date: dateStr,
-          weekday,
-          availability: { available, unavailable, notSet, absent },
-          players,
-          reason: schedule?.reason,
-          isOffDay,
-          userHasSet,
-          userStatus,
-          scheduleDetails,
-        });
-      }
-
-      setEntries(dateEntries);
-    } catch (error) {
-      console.error('Failed to load schedule:', error);
-      toast.error('Failed to load schedule');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDateClick = (entry: DateEntry) => {
-    setSelectedDate(entry);
-    setDialogOpen(true);
-    setEditingUser(false);
-    setEditingReason(false);
-    setReasonValue(entry.reason || 'Training');
-  };
-
-  const isToday = (dateStr: string): boolean => {
-    const today = new Date();
-    const day = String(today.getDate()).padStart(2, '0');
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const year = today.getFullYear();
-    const todayStr = `${day}.${month}.${year}`;
-    return dateStr === todayStr;
-  };
-
-  const getStatusDot = (entry: DateEntry) => {
-    if (entry.isOffDay) {
-      return <div className="w-3 h-3 rounded-full bg-purple-500" />;
-    }
-
-    const { available, notSet } = entry.availability;
-    const totalPlayers = entry.players.length;
-    const hasAnyResponse = notSet < totalPlayers;
-    let color = 'bg-gray-400';
-
-    if (available >= 5) {
-      color = 'bg-green-500';
-    } else if (available === 4) {
-      color = 'bg-cyan-400';
-    } else if (available === 3) {
-      color = 'bg-yellow-500';
-    } else if (available < 3 && hasAnyResponse) {
-      color = 'bg-red-500';
-    } else if (!hasAnyResponse) {
-      color = 'bg-gray-400';
-    }
-
-    return <div className={`w-3 h-3 rounded-full ${color}`} />;
-  };
-
-  const startEditingUser = () => {
-    if (!selectedDate || !loggedInUser) return;
-
-    const userPlayer = selectedDate.players.find(p => p.name === loggedInUser);
-    if (userPlayer && userPlayer.status === 'available' && userPlayer.time) {
-      // Take the first window for editing (multi-window edit supported via Availability page)
-      const firstWindow = userPlayer.time.split(',')[0].trim();
-      const parts = firstWindow.split('-').map(t => t.trim());
-      setEditTimeFrom(parts[0] || '');
-      setEditTimeTo(parts[1] || '');
-      setEditStatus('available');
-    } else if (userPlayer && userPlayer.status === 'unavailable') {
-      setEditTimeFrom('');
-      setEditTimeTo('');
-      setEditStatus('unavailable');
-    } else {
-      setEditTimeFrom('');
-      setEditTimeTo('');
-      setEditStatus('available');
-    }
-
-    setEditingUser(true);
-  };
-
-  const saveUserAvailability = async () => {
-    if (!selectedDate || !loggedInUser) return;
-
-    setSaving(true);
-    try {
-
-      const mappingsRes = await fetch(`${BOT_API_URL}/api/user-mappings`, {
-        headers: getAuthHeaders(),
-      });
-      const mappingsData = await mappingsRes.json();
-      const userMapping = mappingsData.mappings.find((m: any) => m.displayName === loggedInUser);
-
-      if (!userMapping) {
-        toast.error('User mapping not found');
-        setSaving(false);
-        return;
-      }
-
-      let availability = 'x';
-      if (editStatus === 'available') {
-        if (!editTimeFrom || !editTimeTo) {
-          toast.error('Please enter both start and end time');
-          setSaving(false);
-          return;
-        }
-        if (editTimeTo <= editTimeFrom) {
-          toast.error('End time must be after start time');
-          setSaving(false);
-          return;
-        }
-        const localRange = `${editTimeFrom}-${editTimeTo}`;
-        availability = convertRangeToBot(localRange);
-      }
-
-      const response = await fetch(`${BOT_API_URL}/api/schedule/update-availability`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          date: selectedDate.date,
-          userId: userMapping.discordId,
-          availability,
-        }),
-      });
-
-      if (response.ok) {
-        toast.success('Availability updated!');
-        await loadScheduleData();
-        setDialogOpen(false);
-        setEditingUser(false);
-      } else {
-        toast.error('Failed to update availability');
-      }
-    } catch (error) {
-      console.error('Failed to save:', error);
-      toast.error('Failed to save availability');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const saveReason = async () => {
-    if (!selectedDate || !isAdmin) return;
-
-    setSaving(true);
-    try {
-
-      const response = await fetch(`${BOT_API_URL}/api/schedule/update-reason`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          date: selectedDate.date,
-          reason: reasonValue,
-        }),
-      });
-
-      if (response.ok) {
-        toast.success('Reason updated!');
-        await loadScheduleData();
-        setEditingReason(false);
-        setDialogOpen(false);
-      } else {
-        toast.error('Failed to update reason');
-      }
-    } catch (error) {
-      console.error('Failed to save reason:', error);
-      toast.error('Failed to save reason');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  if (loading) {
-    return <PageSpinner />;
-  }
+  const selected = schedulesByDate.get(selectedDate) ?? null
+  const selectedDateObj = parseDDMMYYYY(selectedDate)
 
   return (
-    <div className="space-y-4">
-      <div className="p-3 bg-card rounded-lg border animate-fadeIn">
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-          {[
-            { color: 'bg-purple-500', label: 'Off-Day' },
-            { color: 'bg-green-500', label: 'Able to play' },
-            { color: 'bg-cyan-400', label: 'Almost there' },
-            { color: 'bg-yellow-500', label: 'More players needed' },
-            { color: 'bg-red-500', label: 'Insufficient players' },
-            { color: 'bg-muted-foreground/50', label: 'Unknown' },
-          ].map(({ color, label }) => (
-            <div key={label} className="flex items-center gap-1.5">
-              <div className={`w-2 h-2 rounded-full ${color}`} />
-              <span className="text-xs text-muted-foreground">{label}</span>
-            </div>
-          ))}
+    <div className="flex h-full min-h-0 flex-1 flex-col gap-4">
+      <header className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon-sm" onClick={() => setViewMonth(subMonths(viewMonth, 1))}>
+            <ChevronLeft />
+          </Button>
+          <h2 className="text-lg font-semibold tabular-nums">{format(viewMonth, 'MMMM yyyy')}</h2>
+          <Button variant="outline" size="icon-sm" onClick={() => setViewMonth(addMonths(viewMonth, 1))}>
+            <ChevronRight />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              const t = new Date()
+              setViewMonth(t)
+              setSelectedDate(formatDateToDDMMYYYY(t))
+            }}
+            className="ml-2"
+          >
+            Today
+          </Button>
         </div>
-      </div>
+        {isLoading && <Loader2 className="text-muted-foreground h-4 w-4 animate-spin" />}
+      </header>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-        {entries.map((entry, index) => {
-          const isTodayDate = isToday(entry.date);
-          const totalPlayers = entry.players.length;
-          const availablePercent = totalPlayers > 0 ? (entry.availability.available / totalPlayers) * 100 : 0;
-          let ringClass = '';
-
-          if (isTodayDate) {
-            ringClass = 'ring-2 ring-primary glow-blue';
-          } else if (entry.isOffDay) {
-            ringClass = 'ring-1 ring-purple-500/40';
-          } else if (loggedInUser) {
-            if (entry.userStatus === 'absent') {
-              ringClass = 'ring-1 ring-purple-500/40';
-            } else if (entry.userStatus === 'available') {
-              ringClass = 'ring-1 ring-green-500/40';
-            } else if (entry.userStatus === 'unavailable') {
-              ringClass = 'ring-1 ring-red-500/40';
-            } else {
-              ringClass = 'ring-1 ring-muted-foreground/20';
-            }
-          }
+      <div className="bg-border grid grid-cols-7 gap-px overflow-hidden rounded-lg border">
+        {WEEKDAY_LABELS.map((d) => (
+          <div key={d} className="bg-muted text-muted-foreground px-2 py-1.5 text-xs font-medium">
+            {d}
+          </div>
+        ))}
+        {days.map((day) => {
+          const key = formatDateToDDMMYYYY(day)
+          const schedule = schedulesByDate.get(key)
+          const myEntry = schedule?.players.find((p) => p.displayName === currentUser)
+          const myKind = myEntry ? getAvailabilityKind(myEntry.availability) : 'none'
+          const available = schedule?.players.filter((p) => getAvailabilityKind(p.availability) === 'available').length ?? 0
+          const total = schedule?.players.length ?? 0
+          const inMonth = isSameMonth(day, viewMonth)
+          const today = isToday(day)
+          const isSel = isSameDay(day, selectedDateObj)
 
           return (
-            <Card
-              key={entry.date}
+            <button
+              key={key}
+              type="button"
+              onClick={() => setSelectedDate(key)}
               className={cn(
-                "cursor-pointer transition-all duration-300 ease-out hover:scale-[1.03] hover:shadow-md",
-                stagger(index, 'fast', 'slideUpScale'),
-                ringClass,
-                entry.isOffDay && 'bg-purple-500/5 opacity-60',
-                isTodayDate && 'shadow-sm'
+                'group/cell bg-background relative flex min-h-28 flex-col gap-1.5 p-2 text-left text-xs transition-colors hover:bg-muted/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
+                !inMonth && 'text-muted-foreground/60 bg-muted/20',
+                isSel && 'bg-accent ring-2 ring-ring ring-inset',
               )}
-              onClick={() => handleDateClick(entry)}
             >
-            <CardHeader className="pb-0">
               <div className="flex items-center justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <CardTitle className="text-base">{entry.date}</CardTitle>
-                    {isTodayDate && (
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-primary bg-primary/10 px-1.5 py-0.5 rounded">
-                        Today
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs text-muted-foreground mb-0">{entry.weekday}</p>
-                </div>
-                {getStatusDot(entry)}
-              </div>
-            </CardHeader>
-            <CardContent className="pt-0.5 pb-3">
-              {entry.isOffDay ? (
-                <div className="py-4"></div>
-              ) : (
-                <div className="space-y-1.5">
-                  <div className="space-y-0.5">
-                    <div className="flex items-center gap-1.5">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-green-600 dark:text-green-400" />
-                      <span className="text-sm font-medium">{entry.availability.available}</span>
-                      <span className="text-xs text-muted-foreground">available</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <XCircle className="w-3.5 h-3.5 text-red-600 dark:text-red-400" />
-                      <span className="text-sm font-medium">{entry.availability.unavailable}</span>
-                      <span className="text-xs text-muted-foreground">unavailable</span>
-                    </div>
-                    {entry.availability.absent > 0 && (
-                      <div className="flex items-center gap-1.5">
-                        <PlaneTakeoff className="w-3.5 h-3.5 text-purple-500 dark:text-purple-400" />
-                        <span className="text-sm font-medium">{entry.availability.absent}</span>
-                        <span className="text-xs text-muted-foreground">absent</span>
-                      </div>
-                    )}
-                    <div className="flex items-center gap-1.5">
-                      <Clock className="w-3.5 h-3.5 text-muted-foreground" />
-                      <span className="text-sm font-medium">{entry.availability.notSet}</span>
-                      <span className="text-xs text-muted-foreground">not set</span>
-                    </div>
-                  </div>
-                  {/* Availability progress bar */}
-                  {totalPlayers > 0 && (
-                    <div className="progress-bar mt-2">
-                      <div
-                        className={cn(
-                          'h-full rounded-full transition-all duration-500',
-                          availablePercent >= 71 ? 'bg-green-500' :
-                          availablePercent >= 57 ? 'bg-cyan-400' :
-                          availablePercent >= 43 ? 'bg-yellow-500' :
-                          availablePercent > 0 ? 'bg-red-500' :
-                          'bg-transparent'
-                        )}
-                        style={{ width: `${availablePercent}%` }}
-                      />
-                    </div>
+                <span
+                  className={cn(
+                    'flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium',
+                    today && 'bg-primary text-primary-foreground',
                   )}
+                >
+                  {format(day, 'd')}
+                </span>
+                {myEntry && (
+                  <span className="text-muted-foreground" aria-label={`Your status: ${myKind}`}>
+                    {myKind === 'available' && <CheckCircle2 className="text-emerald-500 h-3.5 w-3.5" />}
+                    {myKind === 'unavailable' && <X className="text-red-500 h-3.5 w-3.5" />}
+                    {myKind === 'none' && <MinusCircle className="text-muted-foreground/50 h-3.5 w-3.5" />}
+                  </span>
+                )}
+              </div>
+              {schedule?.reason && (
+                <Badge
+                  variant="secondary"
+                  className={cn('w-fit text-[10px] font-medium', getReasonBadgeClasses(schedule.reason))}
+                >
+                  {schedule.reason}
+                </Badge>
+              )}
+              {schedule && total > 0 && (
+                <div className="text-muted-foreground mt-auto text-[11px] tabular-nums">
+                  {available}/{total} available
                 </div>
               )}
-            </CardContent>
-          </Card>
-          );
+            </button>
+          )
         })}
       </div>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <div className="flex items-center gap-2 animate-fadeIn stagger-1">
-              <DialogTitle>{selectedDate?.date} - {selectedDate?.weekday}</DialogTitle>
-              {selectedDate && (
-                <span
-                  className={
-                    `inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${getReasonBadgeClasses(selectedDate.reason || 'Training')}`
-                  }
-                >
-                  {selectedDate.reason === 'Premier' && (
-                    <img
-                      src="/assets/Premier_logo.png"
-                      alt="Premier"
-                      width={14}
-                      height={14}
-                      className="mr-1.5"
-                    />
-                  )}
-                  {selectedDate.reason || 'Training'}
-                </span>
-              )}
-            </div>
-          </DialogHeader>
-          
-          {selectedDate && (
-            <div className="space-y-3 mt-4">
-              {selectedDate.isOffDay ? (
-                <div className="flex flex-col items-center justify-center py-12 space-y-4 opacity-60">
-                  <Palmtree className="w-24 h-24 text-muted-foreground" strokeWidth={1.5} />
-                  <p className="text-sm text-muted-foreground">There is nothing scheduled for today</p>
-                </div>
-              ) : (
-                <>
-                {selectedDate.scheduleDetails && (
-                  <div className={cn(
-                    "p-3 rounded-lg border",
-                    selectedDate.scheduleDetails.status === 'Able to play' ? 'bg-green-500/5 border-green-500/20' :
-                    selectedDate.scheduleDetails.status === 'Almost there' ? 'bg-cyan-500/5 border-cyan-500/20' :
-                    selectedDate.scheduleDetails.status === 'More players needed' ? 'bg-yellow-500/5 border-yellow-500/20' :
-                    selectedDate.scheduleDetails.status === 'Insufficient players' ? 'bg-red-500/5 border-red-500/20' :
-                    'bg-muted/50 border-border'
-                  )}>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Schedule Status</span>
-                      <Badge
-                        variant="outline"
-                        className={cn(
-                          "text-xs font-medium",
-                          selectedDate.scheduleDetails.status === 'Able to play' && 'border-green-500/50 bg-green-500/10 text-green-700 dark:text-green-400',
-                          selectedDate.scheduleDetails.status === 'Almost there' && 'border-cyan-500/50 bg-cyan-500/10 text-cyan-700 dark:text-cyan-400',
-                          selectedDate.scheduleDetails.status === 'More players needed' && 'border-yellow-500/50 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400',
-                          selectedDate.scheduleDetails.status === 'Insufficient players' && 'border-red-500/50 bg-red-500/10 text-red-700 dark:text-red-400',
-                          selectedDate.scheduleDetails.status === 'Unknown' && 'border-muted-foreground/30 bg-muted text-muted-foreground'
-                        )}
-                      >
-                        {selectedDate.scheduleDetails.status}
-                      </Badge>
-                    </div>
-                    {selectedDate.scheduleDetails.status === 'Able to play' && 
-                     selectedDate.scheduleDetails.startTime && 
-                     selectedDate.scheduleDetails.endTime && (
-                      <div className="mt-2 flex items-center gap-2 text-sm">
-                        <Clock className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-muted-foreground">
-                          {selectedDate.scheduleDetails.startTime} - {selectedDate.scheduleDetails.endTime}
-                          {isConverting && (
-                            <span className="ml-1 text-xs opacity-70">({getTimezoneAbbr(userTimezone)})</span>
-                          )}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-medium">Players</h4>
-                    {!editingUser && loggedInUser && selectedDate.players.find(p => p.name === loggedInUser)?.status !== 'absent' && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className={cn("h-7 text-xs", microInteractions.activePress, microInteractions.smooth)}
-                        onClick={startEditingUser}
-                      >
-                        <Edit2 className="w-3 h-3 mr-1" />
-                        Edit My Status
-                      </Button>
-                    )}
-                  </div>
-
-                  {editingUser && (
-                    <div className="p-3 bg-muted/50 rounded-lg border space-y-3">
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant={editStatus === 'available' ? 'default' : 'outline'}
-                          onClick={() => setEditStatus('available')}
-                          className="flex-1"
-                        >
-                          Available
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant={editStatus === 'unavailable' ? 'destructive' : 'outline'}
-                          onClick={() => setEditStatus('unavailable')}
-                          className="flex-1"
-                        >
-                          Unavailable
-                        </Button>
-                      </div>
-
-                      {editStatus === 'available' && (
-                        <div className="space-y-2">
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <label className="text-xs text-muted-foreground">From</label>
-                              <Input
-                                type="time"
-                                value={editTimeFrom}
-                                onChange={(e) => setEditTimeFrom(e.target.value)}
-                                className="h-8"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-xs text-muted-foreground">To</label>
-                              <Input
-                                type="time"
-                                value={editTimeTo}
-                                onChange={(e) => setEditTimeTo(e.target.value)}
-                                className="h-8"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          onClick={saveUserAvailability}
-                          disabled={saving}
-                          className="flex-1"
-                        >
-                          {saving ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Save className="w-3 h-3 mr-1" />}
-                          Save
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setEditingUser(false)}
-                          disabled={saving}
-                        >
-                          <X className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="space-y-1">
-                    {selectedDate.players
-                      .sort((a, b) => {
-                        const roleOrder = { main: 0, sub: 1, coach: 2 };
-                        return (roleOrder[a.role || 'sub'] || 1) - (roleOrder[b.role || 'sub'] || 1);
-                      })
-                      .map((player) => (
-                        <div
-                          key={player.name}
-                          className={cn(
-                            "flex items-center justify-between p-2.5 rounded-lg border transition-colors",
-                            player.status === 'available' && 'bg-green-500/5 border-green-500/15',
-                            player.status === 'unavailable' && 'bg-red-500/5 border-red-500/15',
-                            player.status === 'absent' && 'bg-purple-500/5 border-purple-500/15 opacity-60',
-                            player.status === 'not-set' && 'bg-muted/30 border-border',
-                            loggedInUser === player.name && 'accent-border-left'
-                          )}
-                        >
-                          <div className="flex items-center gap-2">
-                            <div className={cn(
-                              'w-2 h-2 rounded-full',
-                              player.status === 'available' ? 'bg-green-500' :
-                              player.status === 'absent' ? 'bg-purple-500' :
-                              player.status === 'unavailable' ? 'bg-red-500' :
-                              'bg-muted-foreground/40'
-                            )} />
-                            <span className="text-sm font-medium">{player.name}</span>
-                            {player.role && player.role !== 'main' && (
-                              <Badge variant="outline" className="text-[10px] h-4 px-1.5 text-muted-foreground">
-                                {player.role === 'sub' ? 'Sub' : player.role === 'coach' ? 'Coach' : player.role}
-                              </Badge>
-                            )}
-                          </div>
-                          {player.status === 'absent' ? (
-                            <span className="text-xs text-purple-500 dark:text-purple-400 font-medium flex items-center gap-1">
-                              <PlaneTakeoff className="w-3 h-3" />
-                              Absent
-                            </span>
-                          ) : player.time ? (
-                            <span className="text-xs font-mono text-muted-foreground tabular-nums">{player.time}</span>
-                          ) : null}
-                        </div>
-                      ))}
-                  </div>
-                </div>
-                </>
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <DayDetailPanel
+        date={selectedDateObj}
+        schedule={selected}
+        currentUser={currentUser}
+      />
     </div>
-  );
+  )
+}
+
+function DayDetailPanel({
+  date,
+  schedule,
+  currentUser,
+}: {
+  date: Date
+  schedule: ScheduleDay | null
+  currentUser?: string
+}) {
+  return (
+    <section className="rounded-lg border p-4">
+      <header className="flex flex-wrap items-baseline justify-between gap-2">
+        <div className="flex items-baseline gap-3">
+          <h3 className="text-base font-semibold">{format(date, 'EEEE, MMMM d')}</h3>
+          {schedule?.reason && (
+            <Badge variant="secondary" className={cn('text-xs', getReasonBadgeClasses(schedule.reason))}>
+              {schedule.reason}
+            </Badge>
+          )}
+        </div>
+        {schedule?.focus && <span className="text-muted-foreground text-sm">{schedule.focus}</span>}
+      </header>
+
+      {!schedule || schedule.players.length === 0 ? (
+        <p className="text-muted-foreground mt-3 text-sm">No schedule data for this day.</p>
+      ) : (
+        <>
+          <Separator className="my-3" />
+          <ul className="grid gap-1.5 sm:grid-cols-2">
+            {schedule.players
+              .slice()
+              .sort((a, b) => a.sortOrder - b.sortOrder)
+              .map((p) => {
+                const kind = getAvailabilityKind(p.availability)
+                const isMe = p.displayName === currentUser
+                return (
+                  <li
+                    key={p.displayName}
+                    className={cn(
+                      'flex items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-sm',
+                      isMe && 'bg-accent',
+                    )}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Avatar className="size-6">
+                        <AvatarFallback className="text-[10px]">
+                          {p.displayName.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className={cn('font-medium', isMe && 'text-foreground')}>{p.displayName}</span>
+                      {isMe && <Badge variant="outline" className="h-5 text-[10px]">You</Badge>}
+                      <span className="text-muted-foreground text-[11px] uppercase">{p.role}</span>
+                    </div>
+                    <span
+                      className={cn(
+                        'tabular-nums text-xs',
+                        kind === 'available' && 'text-emerald-600 dark:text-emerald-400',
+                        kind === 'unavailable' && 'text-red-600 dark:text-red-400',
+                        kind === 'none' && 'text-muted-foreground',
+                      )}
+                    >
+                      {kind === 'available' ? p.availability : kind === 'unavailable' ? 'unavailable' : 'no response'}
+                    </span>
+                  </li>
+                )
+              })}
+          </ul>
+        </>
+      )}
+    </section>
+  )
 }
