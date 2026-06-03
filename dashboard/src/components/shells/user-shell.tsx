@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { useNavigate, useSearchParams } from 'react-router'
+import { useMemo, type ReactNode } from 'react'
+import { useSearchParams } from 'react-router'
 import {
   Calendar,
   CalendarCheck,
@@ -7,25 +7,27 @@ import {
   Home,
   BarChart3,
   PlaneTakeoff,
-  ShieldCheck,
   BookOpen,
   RefreshCw,
 } from 'lucide-react'
 import { AppShell } from '@/components/app-shell'
-import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar'
-import type { SidebarNavGroup } from '@/components/app-shared'
+import type { NavGroupConfig } from '@/components/app-sidebar'
 import type { NavUserInfo } from '@/components/nav-user'
 import { useBranding } from '@/hooks/use-branding'
 import { useSidebarUserInfo } from '@/hooks/use-sidebar'
-import { getUser, getAuthHeaders, logout } from '@/lib/auth'
-import { BOT_API_URL } from '@/lib/config'
+import { getUser, logout } from '@/lib/auth'
 
-interface UserShellProps {
-  children: ReactNode
+const TITLES: Record<string, string> = {
+  schedule: 'Schedule',
+  availability: 'Availability',
+  recurring: 'Recurring',
+  absences: 'Absences',
+  matches: 'Matches',
+  stratbook: 'Stratbook',
+  statistics: 'Statistics',
 }
 
-export function UserShell({ children }: UserShellProps) {
-  const navigate = useNavigate()
+export function UserShell({ children }: { children: ReactNode }) {
   const [searchParams] = useSearchParams()
   const tab = searchParams.get('tab') || 'schedule'
 
@@ -33,54 +35,32 @@ export function UserShell({ children }: UserShellProps) {
   const authUser = getUser()
   const userName = authUser?.username ?? localStorage.getItem('selectedUser')
   const { userRole, avatarUrl } = useSidebarUserInfo(userName)
-  const [isAdmin, setIsAdmin] = useState(false)
 
-  useEffect(() => {
-    if (!userName) return
-    const fetchAdminStatus = async () => {
-      try {
-        const response = await fetch(`${BOT_API_URL}/api/user-mappings`, {
-          headers: getAuthHeaders(),
-        })
-        if (response.ok) {
-          const data = await response.json()
-          const mapping = data.mappings?.find((m: { displayName: string; isAdmin?: boolean }) => m.displayName === userName)
-          if (mapping) setIsAdmin(!!mapping.isAdmin)
-        }
-      } catch (error) {
-        console.error('Failed to fetch user role:', error)
-      }
-    }
-    fetchAdminStatus()
-  }, [userName])
-
-  const navGroups: SidebarNavGroup[] = useMemo(
+  const navGroups: NavGroupConfig[] = useMemo(
     () => [
       {
         label: 'Overview',
-        items: [{ title: 'Schedule', path: '/?tab=schedule', icon: <Home />, isActive: tab === 'schedule' }],
+        items: [{ title: 'Schedule', url: '/?tab=schedule', icon: <Home />, isActive: tab === 'schedule' }],
       },
       {
         label: 'My Schedule',
         items: [
-          { title: 'Availability', path: '/?tab=availability', icon: <CalendarCheck />, isActive: tab === 'availability' },
-          { title: 'Recurring', path: '/?tab=recurring', icon: <RefreshCw />, isActive: tab === 'recurring' },
-          { title: 'Absences', path: '/?tab=absences', icon: <PlaneTakeoff />, isActive: tab === 'absences' },
+          { title: 'Availability', url: '/?tab=availability', icon: <CalendarCheck />, isActive: tab === 'availability' },
+          { title: 'Recurring', url: '/?tab=recurring', icon: <RefreshCw />, isActive: tab === 'recurring' },
+          { title: 'Absences', url: '/?tab=absences', icon: <PlaneTakeoff />, isActive: tab === 'absences' },
         ],
       },
       {
         label: 'Team',
         items: [
-          { title: 'Matches', path: '/?tab=matches', icon: <Trophy />, isActive: tab === 'matches' },
-          { title: 'Stratbook', path: '/?tab=stratbook', icon: <BookOpen />, isActive: tab === 'stratbook' },
-          { title: 'Statistics', path: '/?tab=statistics', icon: <BarChart3 />, isActive: tab === 'statistics' },
+          { title: 'Matches', url: '/?tab=matches', icon: <Trophy />, isActive: tab === 'matches' },
+          { title: 'Stratbook', url: '/?tab=stratbook', icon: <BookOpen />, isActive: tab === 'stratbook' },
+          { title: 'Statistics', url: '/?tab=statistics', icon: <BarChart3 />, isActive: tab === 'statistics' },
         ],
       },
     ],
     [tab],
   )
-
-  const activePage = navGroups.flatMap((g) => g.items).find((i) => i.isActive)
 
   const user: NavUserInfo | undefined = userName
     ? { name: userName, avatar: avatarUrl ?? undefined, role: userRole || undefined }
@@ -88,30 +68,17 @@ export function UserShell({ children }: UserShellProps) {
 
   return (
     <AppShell
-      brandTitle={branding.teamName}
-      brandSubtitle={branding.tagline}
-      brandIcon={<Calendar />}
-      brandLogoUrl={branding.logoUrl}
-      onBrandClick={() => navigate('/?tab=schedule')}
+      brand={{
+        name: branding.teamName,
+        subtitle: branding.tagline,
+        logoUrl: branding.logoUrl,
+        fallbackIcon: <Calendar className="size-4" />,
+        homeUrl: '/?tab=schedule',
+      }}
       navGroups={navGroups}
-      footerExtra={
-        isAdmin ? (
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                tooltip="Admin Dashboard"
-                onClick={() => navigate('/admin')}
-              >
-                <ShieldCheck />
-                <span>Admin Dashboard</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        ) : undefined
-      }
       user={user}
       onLogout={() => void logout()}
-      page={activePage ? { title: activePage.title, icon: activePage.icon } : null}
+      pageTitle={TITLES[tab]}
     >
       {children}
     </AppShell>

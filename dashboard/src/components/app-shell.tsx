@@ -1,27 +1,49 @@
 import type { ReactNode } from 'react'
-import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
-import { AppHeader } from '@/components/app-header'
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbList,
+  BreadcrumbPage,
+} from '@/components/ui/breadcrumb'
+import { Separator } from '@/components/ui/separator'
+import {
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
+} from '@/components/ui/sidebar'
 import { AppSidebar, type AppSidebarProps } from '@/components/app-sidebar'
-import type { AppBreadcrumbPage } from '@/components/app-breadcrumbs'
 
 interface AppShellProps extends AppSidebarProps {
-  page?: AppBreadcrumbPage | null
-  headerRightSlot?: ReactNode
+  pageTitle?: string
+  pageIcon?: ReactNode
   children: ReactNode
 }
 
-export function AppShell({ page, headerRightSlot, children, ...sidebarProps }: AppShellProps) {
+export function AppShell({ pageTitle, pageIcon, children, ...sidebarProps }: AppShellProps) {
   return (
-    <div className="overflow-hidden">
-      <SidebarProvider className="relative h-svh">
-        <AppSidebar {...sidebarProps} />
-        <SidebarInset className="md:peer-data-[variant=inset]:ml-0">
-          <AppHeader page={page} rightSlot={headerRightSlot} />
-          <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-4 md:p-6">
-            {children}
+    <SidebarProvider>
+      <AppSidebar {...sidebarProps} />
+      <SidebarInset>
+        <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+          <div className="flex items-center gap-2 px-4">
+            <SidebarTrigger className="-ml-1" />
+            <Separator orientation="vertical" className="mr-2 h-4" />
+            {pageTitle && (
+              <Breadcrumb>
+                <BreadcrumbList>
+                  <BreadcrumbItem>
+                    <BreadcrumbPage className="flex items-center gap-2 [&>svg]:size-4">
+                      {pageIcon}
+                      {pageTitle}
+                    </BreadcrumbPage>
+                  </BreadcrumbItem>
+                </BreadcrumbList>
+              </Breadcrumb>
+            )}
           </div>
-        </SidebarInset>
-      </SidebarProvider>
-    </div>
+        </header>
+        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">{children}</div>
+      </SidebarInset>
+    </SidebarProvider>
   )
 }

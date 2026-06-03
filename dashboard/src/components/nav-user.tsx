@@ -1,4 +1,8 @@
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from '@/components/ui/avatar'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,7 +12,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { LogOutIcon, UserIcon } from 'lucide-react'
+import {
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  useSidebar,
+} from '@/components/ui/sidebar'
+import { ChevronsUpDownIcon, LogOutIcon, UserIcon } from 'lucide-react'
 
 export interface NavUserInfo {
   name: string
@@ -23,55 +33,67 @@ interface NavUserProps {
 }
 
 export function NavUser({ user, onLogout }: NavUserProps) {
+  const { isMobile } = useSidebar()
   const initials = (user.name?.charAt(0) ?? '?').toUpperCase()
+  const subline = user.role || user.email || ''
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Avatar className="size-8 cursor-pointer">
-          <AvatarImage src={user.avatar || undefined} />
-          <AvatarFallback>{initials}</AvatarFallback>
-        </Avatar>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-60">
-        <DropdownMenuItem className="flex items-center justify-start gap-2">
-          <DropdownMenuLabel className="flex items-center gap-3">
-            <Avatar className="size-10">
-              <AvatarImage src={user.avatar || undefined} />
-              <AvatarFallback>{initials}</AvatarFallback>
-            </Avatar>
-            <div>
-              <span className="text-foreground font-medium">{user.name}</span>
-              <br />
-              <div className="text-muted-foreground max-w-full overflow-hidden text-xs overflow-ellipsis whitespace-nowrap">
-                {user.role || user.email || ''}
+    <SidebarMenu>
+      <SidebarMenuItem>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <SidebarMenuButton
+              size="lg"
+              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+            >
+              <Avatar className="h-8 w-8 rounded-lg">
+                <AvatarImage src={user.avatar} alt={user.name} />
+                <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
+              </Avatar>
+              <div className="grid flex-1 text-left text-sm leading-tight">
+                <span className="truncate font-medium">{user.name}</span>
+                {subline && <span className="truncate text-xs">{subline}</span>}
               </div>
-            </div>
-          </DropdownMenuLabel>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuGroup>
-          <DropdownMenuItem>
-            <UserIcon />
-            Profile
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
-        {onLogout && (
-          <>
+              <ChevronsUpDownIcon className="ml-auto size-4" />
+            </SidebarMenuButton>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            className="w-(--radix-dropdown-menu-trigger-width) min-w-56"
+            side={isMobile ? 'bottom' : 'right'}
+            align="end"
+            sideOffset={4}
+          >
+            <DropdownMenuLabel className="p-0 font-normal">
+              <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+                <Avatar className="h-8 w-8 rounded-lg">
+                  <AvatarImage src={user.avatar} alt={user.name} />
+                  <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
+                </Avatar>
+                <div className="grid flex-1 text-left text-sm leading-tight">
+                  <span className="truncate font-medium">{user.name}</span>
+                  {subline && <span className="truncate text-xs">{subline}</span>}
+                </div>
+              </div>
+            </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem
-                className="w-full cursor-pointer"
-                variant="destructive"
-                onSelect={onLogout}
-              >
-                <LogOutIcon />
-                Log out
+              <DropdownMenuItem>
+                <UserIcon />
+                Profile
               </DropdownMenuItem>
             </DropdownMenuGroup>
-          </>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
+            {onLogout && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={onLogout}>
+                  <LogOutIcon />
+                  Log out
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </SidebarMenuItem>
+    </SidebarMenu>
   )
 }
