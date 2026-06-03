@@ -51,11 +51,11 @@ export function UserSchedule() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['schedule', 'next14'],
-    queryFn: () => apiGet<ScheduleDay[] | { days: ScheduleDay[] }>('/api/schedule/next14'),
+    queryFn: () => apiGet<{ schedules: ScheduleDay[] } | ScheduleDay[]>('/api/schedule/next14'),
   })
 
   const schedulesByDate = useMemo(() => {
-    const list: ScheduleDay[] = Array.isArray(data) ? data : data?.days ?? []
+    const list: ScheduleDay[] = Array.isArray(data) ? data : data?.schedules ?? []
     const m = new Map<string, ScheduleDay>()
     list.forEach((s) => m.set(s.date, s))
     return m
