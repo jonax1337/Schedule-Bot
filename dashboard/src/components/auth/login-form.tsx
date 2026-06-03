@@ -116,7 +116,7 @@ export function LoginForm({ className, redirectTo, ...props }: LoginFormProps) {
     <div className={cn('flex flex-col gap-6', className)} {...props}>
       <Card>
         <CardHeader className="text-center">
-          <div className="bg-primary mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-2xl shadow-sm">
+          <div className="bg-primary mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-lg shadow-sm">
             <UserCircle className="text-primary-foreground h-7 w-7" />
           </div>
           <CardTitle className="text-xl">Welcome back</CardTitle>

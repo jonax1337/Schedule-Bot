@@ -70,7 +70,7 @@ export function AdminLoginPage() {
 
         <Card>
           <CardHeader className="text-center">
-            <div className="bg-primary text-primary-foreground mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-xl shadow-sm">
+            <div className="bg-primary text-primary-foreground mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-lg shadow-sm">
               <Shield className="h-6 w-6" />
             </div>
             <CardTitle>Admin Dashboard</CardTitle>
