@@ -169,8 +169,9 @@ DISCORD_REDIRECT_URI
 **Optional (URLs):**
 ```
 DASHBOARD_URL              # Production CORS for backend (default: localhost:3000)
-VITE_BOT_API_URL           # Dashboard client-side API URL (default: http://localhost:3001)
-                           # Baked into the SPA at build time via Vite's import.meta.env
+BOT_API_URL                # Dashboard client-side API URL (default: http://localhost:3001)
+                           # Baked into the SPA at build time via vite.config.ts `define`
+                           # (no VITE_ prefix needed — read from process.env in vite.config)
 ```
 
 ## Database Schema

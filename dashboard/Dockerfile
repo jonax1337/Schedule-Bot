@@ -5,8 +5,8 @@ FROM node:20-slim AS builder
 
 WORKDIR /app
 
-ARG VITE_BOT_API_URL=http://localhost:3001
-ENV VITE_BOT_API_URL=${VITE_BOT_API_URL}
+ARG BOT_API_URL=http://localhost:3001
+ENV BOT_API_URL=${BOT_API_URL}
 
 COPY package.json package-lock.json* ./
 RUN npm ci

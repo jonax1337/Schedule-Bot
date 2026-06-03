@@ -3,7 +3,10 @@
  * Centralizes environment variables and configuration constants.
  */
 
-export const BOT_API_URL = import.meta.env.VITE_BOT_API_URL || 'http://localhost:3001'
+// Injected by vite.config.ts at build time from process.env.BOT_API_URL.
+declare const __BOT_API_URL__: string
+
+export const BOT_API_URL = __BOT_API_URL__
 
 export const API_TIMEOUT = 30000
 export const API_MAX_RETRIES = 3

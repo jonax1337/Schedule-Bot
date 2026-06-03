@@ -47,7 +47,7 @@ services:
       context: ./dashboard
       dockerfile: Dockerfile
       args:
-        VITE_BOT_API_URL: ${VITE_BOT_API_URL:-http://localhost:3001}
+        BOT_API_URL: ${BOT_API_URL:-http://localhost:3001}
     restart: unless-stopped
     depends_on:
       - bot
