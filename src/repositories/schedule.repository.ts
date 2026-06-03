@@ -1,9 +1,17 @@
 import { prisma } from './database.repository.js';
 import { getUserMappings } from './user-mapping.repository.js';
 import { getAllActiveRecurring } from './recurring-availability.repository.js';
-import type { ScheduleData, SchedulePlayerData } from '../shared/types/types.js';
+import { getAbsentUserIdsForDates } from './absence.repository.js';
+import { parseSchedule, analyzeSchedule } from '../shared/utils/analyzer.js';
+import type { ScheduleData, SchedulePlayerData, ScheduleStatus } from '../shared/types/types.js';
 import { logger, getErrorMessage } from '../shared/utils/logger.js';
 import { parseDDMMYYYY, formatDateToDDMMYYYY } from '../shared/utils/dateFormatter.js';
+
+export interface ScheduleRangeEntry extends ScheduleData {
+  status: ScheduleStatus | null;
+  availableMainCount: number;
+  availableSubCount: number;
+}
 
 /**
  * Get schedule for a specific date with all players
@@ -27,10 +35,17 @@ export async function getNext14DaysSchedule(): Promise<ScheduleData[]> {
 }
 
 /**
- * Get all real schedule rows in [from, to] (inclusive, DD.MM.YYYY).
+ * Get all real schedule rows in [from, to] (inclusive, DD.MM.YYYY) with
+ * computed roster status (FULL_ROSTER / WITH_SUBS / NOT_ENOUGH / OFF_DAY)
+ * so the dashboard calendar can show an at-a-glance "can we play?" signal
+ * without re-implementing the analyzer client-side.
+ *
+ * status is null when no one has responded yet — the analyzer would emit
+ * NOT_ENOUGH but that's misleading for a fresh day with no signal.
+ *
  * Caps the range at 92 days to keep payloads bounded.
  */
-export async function getScheduleRange(from: string, to: string): Promise<ScheduleData[]> {
+export async function getScheduleRange(from: string, to: string): Promise<ScheduleRangeEntry[]> {
   const fromDate = parseDDMMYYYY(from);
   const toDate = parseDDMMYYYY(to);
   if (!fromDate || !toDate || fromDate.getTime() > toDate.getTime()) {
@@ -49,25 +64,46 @@ export async function getScheduleRange(from: string, to: string): Promise<Schedu
     dateStrings.push(formatDateToDDMMYYYY(d));
   }
 
-  const schedules = await prisma.schedule.findMany({
-    where: { date: { in: dateStrings } },
-    include: { players: { orderBy: { sortOrder: 'asc' } } },
-  });
+  const [schedules, absentByDate] = await Promise.all([
+    prisma.schedule.findMany({
+      where: { date: { in: dateStrings } },
+      include: { players: { orderBy: { sortOrder: 'asc' } } },
+    }),
+    getAbsentUserIdsForDates(dateStrings),
+  ]);
 
   return schedules
     .sort((a, b) => parseDDMMYYYY(a.date).getTime() - parseDDMMYYYY(b.date).getTime())
-    .map(s => ({
-      date: s.date,
-      reason: s.reason,
-      focus: s.focus,
-      players: s.players.map(p => ({
+    .map(s => {
+      const players: SchedulePlayerData[] = s.players.map(p => ({
         userId: p.userId,
         displayName: p.displayName,
         role: p.role as 'MAIN' | 'SUB' | 'COACH',
         availability: p.availability,
         sortOrder: p.sortOrder,
-      })),
-    }));
+      }));
+
+      const data: ScheduleData = { date: s.date, reason: s.reason, focus: s.focus, players };
+      const absentIds = absentByDate[s.date] ?? [];
+      const parsed = parseSchedule(data, absentIds);
+      const analysis = analyzeSchedule(parsed);
+
+      // Suppress status when nobody has responded yet — avoids a misleading
+      // "Not enough" stamp on freshly seeded days. Off-Days are surfaced
+      // regardless because the reason carries the intent.
+      const mainsNotAbsent = parsed.players.filter(p => p.role === 'MAIN' && !p.isAbsent);
+      const allMainsNoResponse =
+        mainsNotAbsent.length > 0 && mainsNotAbsent.every(p => !p.available && p.rawValue === '');
+      const status: ScheduleStatus | null =
+        analysis.status === 'OFF_DAY' || !allMainsNoResponse ? analysis.status : null;
+
+      return {
+        ...data,
+        status,
+        availableMainCount: analysis.availableMainCount,
+        availableSubCount: analysis.availableSubCount,
+      };
+    });
 }
 
 export async function getScheduleForDate(date: string): Promise<ScheduleData | null> {
