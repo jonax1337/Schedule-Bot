@@ -11,6 +11,9 @@ import { UserShell } from '@/components/shells/user-shell'
 import { AdminLoginPage } from '@/pages/admin-login'
 import { LoginPage } from '@/pages/login'
 import { AuthCallbackPage } from '@/pages/auth-callback'
+import { AdminHome } from '@/pages/admin-home'
+import { UserHome } from '@/pages/user-home'
+import VodReviewPage from '@/pages/vod-review'
 import { Placeholder } from '@/pages/placeholder'
 
 const queryClient = new QueryClient({
@@ -41,7 +44,7 @@ export default function App() {
                     element={
                       <ProtectedRoute>
                         <UserShell>
-                          <Placeholder title="User Dashboard" />
+                          <UserHome />
                         </UserShell>
                       </ProtectedRoute>
                     }
@@ -51,7 +54,7 @@ export default function App() {
                     element={
                       <ProtectedRoute requireAdmin>
                         <AdminShell>
-                          <Placeholder title="Admin Dashboard" />
+                          <AdminHome />
                         </AdminShell>
                       </ProtectedRoute>
                     }
@@ -60,9 +63,7 @@ export default function App() {
                     path="/vod/:scrimId"
                     element={
                       <ProtectedRoute>
-                        <UserShell>
-                          <Placeholder title="VOD Review" />
-                        </UserShell>
+                        <VodReviewPage />
                       </ProtectedRoute>
                     }
                   />
