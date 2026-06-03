@@ -16,6 +16,8 @@ export interface TimeWindow {
 }
 
 export interface AvailabilityEntry {
+  // Stable identifier passed back to callbacks. For dated views this is the
+  // DD.MM.YYYY string; for weekly views (recurring) it's a synthetic key.
   date: string;
   value: string;
   windows: TimeWindow[];
@@ -23,6 +25,10 @@ export interface AvailabilityEntry {
   justSaved?: boolean;
   isRecurring?: boolean;
   isAbsent?: boolean;
+  // Optional overrides for the column header. If omitted, the grid parses
+  // `date` as DD.MM.YYYY and renders weekday + day.month.
+  headerPrimary?: string;
+  headerSecondary?: string;
 }
 
 interface Props {
@@ -274,8 +280,15 @@ interface DayHeaderProps {
 }
 
 function DayHeader({ entry, onSetUnavailable, onClear, isLast }: DayHeaderProps) {
-  const [day, month] = entry.date.split('.');
-  const weekday = getWeekdayName(entry.date).slice(0, 3);
+  let primary = entry.headerPrimary;
+  let secondary = entry.headerSecondary;
+  if (primary === undefined) {
+    primary = getWeekdayName(entry.date).slice(0, 3);
+  }
+  if (secondary === undefined) {
+    const [day, month] = entry.date.split('.');
+    secondary = day && month ? `${day}.${month}` : '';
+  }
   const isUnavailable = entry.value === 'x';
   const hasWindows = entry.value && !isUnavailable;
 
@@ -287,8 +300,8 @@ function DayHeader({ entry, onSetUnavailable, onClear, isLast }: DayHeaderProps)
         entry.isAbsent && 'bg-purple-500/5',
       )}
     >
-      <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{weekday}</div>
-      <div className="text-sm font-semibold tabular-nums">{day}.{month}</div>
+      <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{primary}</div>
+      {secondary && <div className="text-sm font-semibold tabular-nums">{secondary}</div>}
       <div className="h-5 flex items-center gap-1">
         {entry.isSaving ? (
           <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />
