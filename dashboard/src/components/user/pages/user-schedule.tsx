@@ -29,11 +29,17 @@ interface PlayerEntry {
   role: string
   sortOrder: number
 }
+
+type RosterStatus = 'OFF_DAY' | 'FULL_ROSTER' | 'WITH_SUBS' | 'NOT_ENOUGH'
+
 interface ScheduleDay {
   date: string
   reason: string
   focus: string
   players: PlayerEntry[]
+  status?: RosterStatus | null
+  availableMainCount?: number
+  availableSubCount?: number
 }
 
 const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -42,6 +48,51 @@ function getAvailabilityKind(av: string): 'available' | 'unavailable' | 'none' {
   if (!av) return 'none'
   if (av === 'x' || av === 'X') return 'unavailable'
   return 'available'
+}
+
+// Schedules in DB only carry an explicit `reason` for off-days, tournaments,
+// etc. — regular training days are stored with reason="". For display we
+// fall back to "Training" so every populated day shows a tag.
+function getDisplayReason(schedule: ScheduleDay): string {
+  if (schedule.reason) return schedule.reason
+  return 'Training'
+}
+
+interface StatusMeta {
+  label: string
+  dotClass: string
+  badgeClass: string
+}
+
+function getStatusMeta(status: RosterStatus | null | undefined): StatusMeta | null {
+  switch (status) {
+    case 'FULL_ROSTER':
+      return {
+        label: 'Able to play',
+        dotClass: 'bg-emerald-500',
+        badgeClass: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
+      }
+    case 'WITH_SUBS':
+      return {
+        label: 'With subs',
+        dotClass: 'bg-amber-500',
+        badgeClass: 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400',
+      }
+    case 'NOT_ENOUGH':
+      return {
+        label: 'Not enough',
+        dotClass: 'bg-red-500',
+        badgeClass: 'border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-400',
+      }
+    case 'OFF_DAY':
+      return {
+        label: 'Off-Day',
+        dotClass: 'bg-violet-500',
+        badgeClass: 'border-violet-500/40 bg-violet-500/10 text-violet-700 dark:text-violet-400',
+      }
+    default:
+      return null
+  }
 }
 
 export function UserSchedule() {
@@ -157,16 +208,29 @@ export function UserSchedule() {
                       </span>
                     )}
                   </div>
-                  {schedule?.reason && (
+                  {schedule && (
                     <Badge
                       variant="secondary"
-                      className={cn('w-fit shrink-0 text-[10px] font-medium', getReasonBadgeClasses(schedule.reason))}
+                      className={cn(
+                        'w-fit shrink-0 text-[10px] font-medium',
+                        getReasonBadgeClasses(getDisplayReason(schedule)),
+                      )}
                     >
-                      {schedule.reason}
+                      {getDisplayReason(schedule)}
                     </Badge>
                   )}
                   {schedule && total > 0 && (
-                    <div className="text-muted-foreground mt-auto shrink-0 text-[11px] tabular-nums">
+                    <div className="text-muted-foreground mt-auto flex shrink-0 items-center gap-1.5 text-[11px] tabular-nums">
+                      {(() => {
+                        const meta = getStatusMeta(schedule.status)
+                        return meta ? (
+                          <span
+                            className={cn('h-1.5 w-1.5 shrink-0 rounded-full', meta.dotClass)}
+                            title={meta.label}
+                            aria-label={meta.label}
+                          />
+                        ) : null
+                      })()}
                       {available}/{total} available
                     </div>
                   )}
@@ -198,12 +262,26 @@ function DayDetailPanel({
       <header className="flex flex-col gap-2 p-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h3 className="text-base font-semibold leading-tight">{format(date, 'EEEE, MMMM d')}</h3>
-          {schedule?.reason && (
-            <Badge variant="secondary" className={cn('shrink-0 text-xs', getReasonBadgeClasses(schedule.reason))}>
-              {schedule.reason}
+          {schedule && (
+            <Badge
+              variant="secondary"
+              className={cn('shrink-0 text-xs', getReasonBadgeClasses(getDisplayReason(schedule)))}
+            >
+              {getDisplayReason(schedule)}
             </Badge>
           )}
         </div>
+        {schedule &&
+          (() => {
+            const meta = getStatusMeta(schedule.status)
+            if (!meta) return null
+            return (
+              <Badge variant="outline" className={cn('w-fit gap-1.5 text-xs', meta.badgeClass)}>
+                <span className={cn('h-1.5 w-1.5 rounded-full', meta.dotClass)} />
+                {meta.label}
+              </Badge>
+            )
+          })()}
         {schedule?.focus && <p className="text-muted-foreground text-sm leading-snug">{schedule.focus}</p>}
       </header>
 
