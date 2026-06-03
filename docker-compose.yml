@@ -41,19 +41,16 @@ services:
     ports:
       - "3001:3001"
 
-  # Dashboard: Next.js
+  # Dashboard: Vite + React (static SPA served by nginx)
   dashboard:
     build:
       context: ./dashboard
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_BOT_API_URL: ${NEXT_PUBLIC_BOT_API_URL:-http://localhost:3001}
+        VITE_BOT_API_URL: ${VITE_BOT_API_URL:-http://localhost:3001}
     restart: unless-stopped
     depends_on:
       - bot
-    environment:
-      BOT_API_URL: http://bot:3001
-      NEXT_PUBLIC_BOT_API_URL: ${NEXT_PUBLIC_BOT_API_URL:-http://localhost:3001}
     ports:
       - "3000:3000"
 

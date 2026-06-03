@@ -1,7 +1,7 @@
 node_modules
-.next
-.env
-.env.*
-*.log
+dist
 .git
-README.md
+*.log
+.env
+.env.local
+.DS_Store

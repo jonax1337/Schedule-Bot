@@ -2,12 +2,11 @@
 
 ## Project Overview
 
-Discord bot + web dashboard for E-Sports team scheduling. Three components in one Node.js process:
-- **Discord Bot** (discord.js) - Slash commands, buttons, polls
-- **API Server** (Express on :3001) - REST API with JWT auth
-- **Dashboard** (Next.js on :3000) - Admin panel + user portal
+Discord bot + web dashboard for E-Sports team scheduling. Two deployables:
+- **Backend** (Node.js): Discord bot (discord.js) + Express API (:3001) with JWT auth, all in one process
+- **Dashboard** (static SPA on :3000): Vite + React + React Router v7 admin panel + user portal, served by nginx in prod
 
-**Stack:** TypeScript, Prisma 7 (PostgreSQL), node-cron, TailwindCSS 4, Radix UI, TipTap editor
+**Stack:** TypeScript, Prisma 7 (PostgreSQL), node-cron, TailwindCSS 4, Radix UI, shadcn/ui (radix-luma preset) + Efferd blocks, TipTap editor, TanStack Query, recharts
 
 ## Commands
 
@@ -67,15 +66,24 @@ src/
     ├── middleware/          # auth, validation, rate limiting
     └── utils/               # analyzer, dateFormatter, logger, settingsManager
 
-dashboard/
-├── app/                     # Next.js App Router pages
-├── components/
-│   ├── admin/               # Admin pages + layout
-│   ├── user/                # User portal pages + layout
-│   ├── shared/              # Matches, Statistics, Stratbook, VOD review
-│   └── ui/                  # Radix primitives
-├── hooks/                   # use-mobile, use-branding, use-timezone
-└── lib/                     # api.ts, auth.ts, timezone.ts, constants.ts
+dashboard/                   # Vite SPA (no Next.js)
+├── index.html               # Vite entry HTML
+├── vite.config.ts           # Vite + Tailwind 4 plugin + path alias
+├── nginx.conf               # SPA-fallback config for prod container
+└── src/
+    ├── main.tsx             # Renders <App />
+    ├── App.tsx              # Providers + <BrowserRouter> + <Routes>
+    ├── pages/               # Route components (admin-home, user-home, login, vod-review, ...)
+    ├── components/
+    │   ├── shells/          # AdminShell, UserShell (wrap AppShell w/ schedule-bot nav)
+    │   ├── admin/pages/     # 7 admin tab components (Dashboard, Settings, ...)
+    │   ├── user/pages/      # 4 user tab components (Schedule, Availability, ...)
+    │   ├── shared/          # Matches, Statistics, Stratbook, VOD review
+    │   ├── auth/login-form  # User login form (Discord OAuth or player picker)
+    │   ├── ui/              # shadcn primitives (radix-luma)
+    │   └── app-*.tsx        # Efferd app-shell-3 building blocks (sidebar, header, ...)
+    ├── hooks/               # use-mobile, use-branding, use-sidebar, use-user-discord-id
+    └── lib/                 # api, auth, config, timezone, breadcrumb-context, animations, ...
 ```
 
 ### Key Patterns
@@ -125,9 +133,9 @@ dashboard/
 - Dashboard: `TimezoneProvider` context with localStorage + settings API
 
 ### ES Modules
-- Project uses `"type": "module"`
-- **All imports need `.js` extension** (even for .ts files)
-- No `__dirname` - use `fileURLToPath(import.meta.url)`
+- Backend uses `"type": "module"` — **all backend imports need `.js` extension** (even for .ts files)
+- No `__dirname` in backend — use `fileURLToPath(import.meta.url)`
+- Dashboard (Vite) uses bundler resolution — extensionless imports are fine, path alias `@/*` → `src/*`
 
 ### Prisma Client
 - Custom output: `src/generated/prisma`
@@ -160,9 +168,9 @@ DISCORD_REDIRECT_URI
 
 **Optional (URLs):**
 ```
-DASHBOARD_URL              # Production CORS (default: localhost:3000)
-BOT_API_URL                # Server-side proxy (default: http://localhost:3001)
-NEXT_PUBLIC_BOT_API_URL    # Client-side API (default: http://localhost:3001)
+DASHBOARD_URL              # Production CORS for backend (default: localhost:3000)
+VITE_BOT_API_URL           # Dashboard client-side API URL (default: http://localhost:3001)
+                           # Baked into the SPA at build time via Vite's import.meta.env
 ```
 
 ## Database Schema
