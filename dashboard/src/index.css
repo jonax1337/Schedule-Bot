@@ -1,0 +1,231 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "@fontsource-variable/inter";
+@plugin "@tailwindcss/typography";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ------------------------------------------------------------------
+   Plain shadcn defaults (New York-style) — neutral base color, classic
+   additive radius scale. Nothing customised on top; if you want a
+   different palette later, swap the :root / .dark blocks via tweakcn
+   or the shadcn theme generator and leave everything else alone.
+------------------------------------------------------------------ */
+
+@theme inline {
+  --font-sans: 'Inter Variable', sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  --font-heading: var(--font-sans);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Additive radius scale — the standard shadcn one. Pairs with
+     --radius: 0.5rem to give rounded-sm=4px, md=6px, lg=8px, xl=12px,
+     2xl=16px, 3xl=20px. Tame, not pillowy. */
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+}
+
+:root {
+  --radius: 0.5rem;
+
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+
+  --destructive: oklch(0.704 0.191 22.216);
+  --destructive-foreground: oklch(0.985 0 0);
+
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}
+
+/* ============================================================
+   Minimal animation system carried over from the Next.js build.
+   Only the keyframes + utility classes that page components
+   actually reference (animate-fadeIn, hover-lift, stagger-*, etc).
+============================================================ */
+:root {
+  --anim-duration-instant: 100ms;
+  --anim-duration-fast: 200ms;
+  --anim-duration-normal: 300ms;
+  --anim-duration-slow: 400ms;
+  --anim-ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+  --anim-ease-out: cubic-bezier(0.33, 1, 0.68, 1);
+  --anim-stagger-base: 50ms;
+  --anim-stagger-fast: 30ms;
+  --anim-stagger-slow: 75ms;
+}
+
+@keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+@keyframes slideUp { from { opacity: 0; transform: translateY(20px) } to { opacity: 1; transform: translateY(0) } }
+@keyframes slideDown { from { opacity: 0; transform: translateY(-20px) } to { opacity: 1; transform: translateY(0) } }
+@keyframes slideUpScale { from { opacity: 0; transform: translateY(20px) scale(0.96) } to { opacity: 1; transform: translateY(0) scale(1) } }
+@keyframes scaleIn { from { opacity: 0; transform: scale(0.95) } to { opacity: 1; transform: scale(1) } }
+@keyframes shimmer { 0% { background-position: -1000px 0 } 100% { background-position: 1000px 0 } }
+@keyframes appPulse { 0%, 100% { opacity: 1 } 50% { opacity: 0.5 } }
+
+.animate-fadeIn { animation: fadeIn var(--anim-duration-normal) var(--anim-ease-out) both }
+.animate-slideUp { animation: slideUp var(--anim-duration-slow) var(--anim-ease-smooth) both }
+.animate-slideDown { animation: slideDown var(--anim-duration-normal) var(--anim-ease-smooth) both }
+.animate-slideUpScale { animation: slideUpScale var(--anim-duration-slow) var(--anim-ease-smooth) both }
+.animate-scaleIn { animation: scaleIn var(--anim-duration-normal) var(--anim-ease-smooth) both }
+.animate-shimmer { animation: shimmer 2s infinite linear }
+
+/* Stagger delays */
+.stagger-1 { animation-delay: calc(1 * var(--anim-stagger-base)) }
+.stagger-2 { animation-delay: calc(2 * var(--anim-stagger-base)) }
+.stagger-3 { animation-delay: calc(3 * var(--anim-stagger-base)) }
+.stagger-4 { animation-delay: calc(4 * var(--anim-stagger-base)) }
+.stagger-5 { animation-delay: calc(5 * var(--anim-stagger-base)) }
+
+/* Micro-interactions */
+.hover-lift { transition: transform var(--anim-duration-fast) var(--anim-ease-out), box-shadow var(--anim-duration-fast) var(--anim-ease-out) }
+.hover-lift:hover { transform: translateY(-2px); box-shadow: 0 4px 12px oklch(0 0 0 / 0.15) }
+.hover-scale { transition: transform var(--anim-duration-fast) var(--anim-ease-smooth) }
+.hover-scale:hover { transform: scale(1.05) }
+.hover-scale-sm { transition: transform var(--anim-duration-fast) var(--anim-ease-smooth) }
+.hover-scale-sm:hover { transform: scale(1.02) }
+.hover-scale-card { transition: transform var(--anim-duration-normal) var(--anim-ease-smooth) }
+.hover-scale-card:hover { transform: scale(1.03) }
+.active-press { transition: transform var(--anim-duration-instant) var(--anim-ease-out) }
+.active-press:active { transform: scale(0.98) }
+.focus-ring-smooth { transition: box-shadow var(--anim-duration-fast) var(--anim-ease-out) }
+.transition-smooth { transition: all var(--anim-duration-fast) var(--anim-ease-out) }
+.transition-smooth-slow { transition: all var(--anim-duration-normal) var(--anim-ease-out) }
+.glass-smooth { transition: background-color var(--anim-duration-normal) var(--anim-ease-out), backdrop-filter var(--anim-duration-normal) var(--anim-ease-out) }
+
+.skeleton-pulse { animation: appPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite }
+
+/* Tinted card backgrounds for stat cards */
+.card-gradient-blue { background: oklch(0.96 0.005 250) }
+.card-gradient-green { background: oklch(0.96 0.01 155) }
+.card-gradient-purple { background: oklch(0.96 0.015 290) }
+.dark .card-gradient-blue { background: oklch(0.15 0.008 250) }
+.dark .card-gradient-green { background: oklch(0.15 0.012 155) }
+.dark .card-gradient-purple { background: oklch(0.15 0.012 290) }
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

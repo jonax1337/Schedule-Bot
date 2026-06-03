@@ -1,0 +1,102 @@
+import { useEffect, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Loader2, CheckCircle2, XCircle } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { setAuthToken, setUser } from '@/lib/auth'
+import { BOT_API_URL } from '@/lib/config'
+
+export function AuthCallbackPage() {
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
+  const [message, setMessage] = useState('Authenticating with Discord...')
+
+  useEffect(() => {
+    const handleCallback = async () => {
+      const code = searchParams.get('code')
+      const state = searchParams.get('state')
+      const error = searchParams.get('error')
+
+      if (error) {
+        setStatus('error')
+        setMessage(`Authentication failed: ${error}`)
+        return
+      }
+      if (!code || !state) {
+        setStatus('error')
+        setMessage('Missing authorization code or state')
+        return
+      }
+
+      try {
+        const response = await fetch(`${BOT_API_URL}/api/auth/discord/callback?code=${code}&state=${state}`)
+        if (!response.ok) {
+          const errorData = await response.json()
+          setStatus('error')
+          setMessage(errorData.message || 'Authentication failed')
+          setTimeout(() => {
+            navigate(`/login?error=${encodeURIComponent(errorData.message || 'Authentication failed')}`)
+          }, 3000)
+          return
+        }
+
+        const data = await response.json()
+        setAuthToken(data.token)
+        setUser(data.user)
+        localStorage.setItem('selectedUser', data.user.username)
+
+        setStatus('success')
+        setMessage(`Welcome back, ${data.user.username}!`)
+
+        const loginRedirect = localStorage.getItem('loginRedirect')
+        if (loginRedirect) localStorage.removeItem('loginRedirect')
+        setTimeout(() => navigate(loginRedirect || '/'), 1000)
+      } catch (error) {
+        console.error('Callback error:', error)
+        setStatus('error')
+        setMessage('Failed to complete authentication')
+        setTimeout(() => navigate('/login?error=Failed to complete authentication'), 3000)
+      }
+    }
+
+    handleCallback()
+  }, [searchParams, navigate])
+
+  return (
+    <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
+      <div className="w-full max-w-sm">
+        <Card>
+          <CardHeader className="text-center">
+            <div className="bg-primary/10 mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full">
+              {status === 'loading' && <Loader2 className="text-primary h-6 w-6 animate-spin" />}
+              {status === 'success' && <CheckCircle2 className="text-primary h-6 w-6" />}
+              {status === 'error' && <XCircle className="h-6 w-6 text-red-500" />}
+            </div>
+            <CardTitle>
+              {status === 'loading' && 'Authenticating'}
+              {status === 'success' && 'Success'}
+              {status === 'error' && 'Authentication Failed'}
+            </CardTitle>
+            <CardDescription>{message}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {status === 'loading' && (
+              <p className="text-muted-foreground text-center text-sm">
+                Please wait while we verify your Discord account...
+              </p>
+            )}
+            {status === 'error' && (
+              <Button onClick={() => navigate('/login')} variant="outline" className="w-full">
+                Back to Login
+              </Button>
+            )}
+            {status === 'success' && (
+              <p className="text-muted-foreground text-center text-sm">Redirecting to dashboard...</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
+}
