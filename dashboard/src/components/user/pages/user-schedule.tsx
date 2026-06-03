@@ -97,74 +97,79 @@ export function UserSchedule() {
         {isLoading && <Loader2 className="text-muted-foreground h-4 w-4 animate-spin" />}
       </header>
 
-      <div className="bg-border grid grid-cols-7 gap-px overflow-hidden rounded-lg border">
-        {WEEKDAY_LABELS.map((d) => (
-          <div key={d} className="bg-muted text-muted-foreground px-2 py-1.5 text-xs font-medium">
-            {d}
-          </div>
-        ))}
-        {days.map((day) => {
-          const key = formatDateToDDMMYYYY(day)
-          const schedule = schedulesByDate.get(key)
-          const myEntry = schedule?.players.find((p) => p.displayName === currentUser)
-          const myKind = myEntry ? getAvailabilityKind(myEntry.availability) : 'none'
-          const available = schedule?.players.filter((p) => getAvailabilityKind(p.availability) === 'available').length ?? 0
-          const total = schedule?.players.length ?? 0
-          const inMonth = isSameMonth(day, viewMonth)
-          const today = isToday(day)
-          const isSel = isSameDay(day, selectedDateObj)
+      <div className="grid flex-1 min-h-0 grid-cols-1 gap-4 lg:grid-cols-4">
+        {/* Calendar — 3/4 width on lg, full width below */}
+        <div className="bg-border grid grid-cols-7 gap-px overflow-hidden rounded-lg border lg:col-span-3 self-start auto-rows-fr">
+          {WEEKDAY_LABELS.map((d) => (
+            <div key={d} className="bg-muted text-muted-foreground px-2 py-1.5 text-xs font-medium">
+              {d}
+            </div>
+          ))}
+          {days.map((day) => {
+            const key = formatDateToDDMMYYYY(day)
+            const schedule = schedulesByDate.get(key)
+            const myEntry = schedule?.players.find((p) => p.displayName === currentUser)
+            const myKind = myEntry ? getAvailabilityKind(myEntry.availability) : 'none'
+            const available =
+              schedule?.players.filter((p) => getAvailabilityKind(p.availability) === 'available').length ?? 0
+            const total = schedule?.players.length ?? 0
+            const inMonth = isSameMonth(day, viewMonth)
+            const today = isToday(day)
+            const isSel = isSameDay(day, selectedDateObj)
 
-          return (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setSelectedDate(key)}
-              className={cn(
-                'group/cell bg-background relative flex min-h-28 flex-col gap-1.5 p-2 text-left text-xs transition-colors hover:bg-muted/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
-                !inMonth && 'text-muted-foreground/60 bg-muted/20',
-                isSel && 'bg-accent ring-2 ring-ring ring-inset',
-              )}
-            >
-              <div className="flex items-center justify-between">
-                <span
-                  className={cn(
-                    'flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium',
-                    today && 'bg-primary text-primary-foreground',
-                  )}
-                >
-                  {format(day, 'd')}
-                </span>
-                {myEntry && (
-                  <span className="text-muted-foreground" aria-label={`Your status: ${myKind}`}>
-                    {myKind === 'available' && <CheckCircle2 className="text-emerald-500 h-3.5 w-3.5" />}
-                    {myKind === 'unavailable' && <X className="text-red-500 h-3.5 w-3.5" />}
-                    {myKind === 'none' && <MinusCircle className="text-muted-foreground/50 h-3.5 w-3.5" />}
-                  </span>
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setSelectedDate(key)}
+                className={cn(
+                  'group/cell bg-background relative flex min-h-24 flex-col gap-1.5 p-2 text-left text-xs transition-colors hover:bg-muted/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
+                  !inMonth && 'text-muted-foreground/60 bg-muted/20',
+                  isSel && 'bg-accent ring-2 ring-ring ring-inset',
                 )}
-              </div>
-              {schedule?.reason && (
-                <Badge
-                  variant="secondary"
-                  className={cn('w-fit text-[10px] font-medium', getReasonBadgeClasses(schedule.reason))}
-                >
-                  {schedule.reason}
-                </Badge>
-              )}
-              {schedule && total > 0 && (
-                <div className="text-muted-foreground mt-auto text-[11px] tabular-nums">
-                  {available}/{total} available
+              >
+                <div className="flex items-center justify-between">
+                  <span
+                    className={cn(
+                      'flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium',
+                      today && 'bg-primary text-primary-foreground',
+                    )}
+                  >
+                    {format(day, 'd')}
+                  </span>
+                  {myEntry && (
+                    <span className="text-muted-foreground" aria-label={`Your status: ${myKind}`}>
+                      {myKind === 'available' && <CheckCircle2 className="text-emerald-500 h-3.5 w-3.5" />}
+                      {myKind === 'unavailable' && <X className="text-red-500 h-3.5 w-3.5" />}
+                      {myKind === 'none' && <MinusCircle className="text-muted-foreground/50 h-3.5 w-3.5" />}
+                    </span>
+                  )}
                 </div>
-              )}
-            </button>
-          )
-        })}
-      </div>
+                {schedule?.reason && (
+                  <Badge
+                    variant="secondary"
+                    className={cn('w-fit text-[10px] font-medium', getReasonBadgeClasses(schedule.reason))}
+                  >
+                    {schedule.reason}
+                  </Badge>
+                )}
+                {schedule && total > 0 && (
+                  <div className="text-muted-foreground mt-auto text-[11px] tabular-nums">
+                    {available}/{total} available
+                  </div>
+                )}
+              </button>
+            )
+          })}
+        </div>
 
-      <DayDetailPanel
-        date={selectedDateObj}
-        schedule={selected}
-        currentUser={currentUser}
-      />
+        {/* Day detail — 1/4 width on lg, full width below */}
+        <DayDetailPanel
+          date={selectedDateObj}
+          schedule={selected}
+          currentUser={currentUser}
+        />
+      </div>
     </div>
   )
 }
@@ -179,25 +184,25 @@ function DayDetailPanel({
   currentUser?: string
 }) {
   return (
-    <section className="rounded-lg border p-4">
-      <header className="flex flex-wrap items-baseline justify-between gap-2">
-        <div className="flex items-baseline gap-3">
-          <h3 className="text-base font-semibold">{format(date, 'EEEE, MMMM d')}</h3>
+    <aside className="bg-card lg:sticky lg:top-4 lg:self-start flex max-h-[calc(100svh-8rem)] flex-col overflow-hidden rounded-lg border lg:col-span-1">
+      <header className="flex flex-col gap-2 p-4">
+        <div className="flex items-baseline justify-between gap-2">
+          <h3 className="text-base font-semibold leading-tight">{format(date, 'EEE, MMM d')}</h3>
           {schedule?.reason && (
-            <Badge variant="secondary" className={cn('text-xs', getReasonBadgeClasses(schedule.reason))}>
+            <Badge variant="secondary" className={cn('shrink-0 text-[10px]', getReasonBadgeClasses(schedule.reason))}>
               {schedule.reason}
             </Badge>
           )}
         </div>
-        {schedule?.focus && <span className="text-muted-foreground text-sm">{schedule.focus}</span>}
+        {schedule?.focus && <p className="text-muted-foreground text-xs leading-snug">{schedule.focus}</p>}
       </header>
 
       {!schedule || schedule.players.length === 0 ? (
-        <p className="text-muted-foreground mt-3 text-sm">No schedule data for this day.</p>
+        <p className="text-muted-foreground px-4 pb-4 text-sm">No schedule data for this day.</p>
       ) : (
         <>
-          <Separator className="my-3" />
-          <ul className="grid gap-1.5 sm:grid-cols-2">
+          <Separator />
+          <ul className="flex flex-col gap-1 overflow-y-auto p-2">
             {schedule.players
               .slice()
               .sort((a, b) => a.sortOrder - b.sortOrder)
@@ -208,29 +213,30 @@ function DayDetailPanel({
                   <li
                     key={p.displayName}
                     className={cn(
-                      'flex items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-sm',
+                      'flex items-center justify-between gap-2 rounded-md px-2 py-1.5',
                       isMe && 'bg-accent',
                     )}
                   >
-                    <div className="flex items-center gap-2">
-                      <Avatar className="size-6">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <Avatar className="size-6 shrink-0">
                         <AvatarFallback className="text-[10px]">
                           {p.displayName.charAt(0).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
-                      <span className={cn('font-medium', isMe && 'text-foreground')}>{p.displayName}</span>
-                      {isMe && <Badge variant="outline" className="h-5 text-[10px]">You</Badge>}
-                      <span className="text-muted-foreground text-[11px] uppercase">{p.role}</span>
+                      <span className={cn('truncate text-sm font-medium', isMe && 'text-foreground')}>
+                        {p.displayName}
+                      </span>
+                      {isMe && <Badge variant="outline" className="h-4 shrink-0 px-1 text-[9px]">You</Badge>}
                     </div>
                     <span
                       className={cn(
-                        'tabular-nums text-xs',
+                        'shrink-0 tabular-nums text-[11px]',
                         kind === 'available' && 'text-emerald-600 dark:text-emerald-400',
                         kind === 'unavailable' && 'text-red-600 dark:text-red-400',
                         kind === 'none' && 'text-muted-foreground',
                       )}
                     >
-                      {kind === 'available' ? p.availability : kind === 'unavailable' ? 'unavailable' : 'no response'}
+                      {kind === 'available' ? p.availability : kind === 'unavailable' ? '—' : '?'}
                     </span>
                   </li>
                 )
@@ -238,6 +244,6 @@ function DayDetailPanel({
           </ul>
         </>
       )}
-    </section>
+    </aside>
   )
 }
