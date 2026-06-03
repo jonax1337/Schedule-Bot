@@ -5,7 +5,12 @@ import { Toaster } from '@/components/ui/sonner'
 import { ThemeProvider } from '@/components/theme-provider'
 import { TimezoneProvider } from '@/lib/timezone'
 import { BreadcrumbProvider } from '@/lib/breadcrumb-context'
-import { AppShell } from '@/components/app-shell'
+import { ProtectedRoute } from '@/components/protected-route'
+import { AdminShell } from '@/components/shells/admin-shell'
+import { UserShell } from '@/components/shells/user-shell'
+import { AdminLoginPage } from '@/pages/admin-login'
+import { LoginPage } from '@/pages/login'
+import { AuthCallbackPage } from '@/pages/auth-callback'
 import { Placeholder } from '@/pages/placeholder'
 
 const queryClient = new QueryClient({
@@ -18,14 +23,6 @@ const queryClient = new QueryClient({
   },
 })
 
-function ShellLayout({ title }: { title: string }) {
-  return (
-    <AppShell>
-      <Placeholder title={title} />
-    </AppShell>
-  )
-}
-
 export default function App() {
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
@@ -35,12 +32,41 @@ export default function App() {
             <BreadcrumbProvider>
               <BrowserRouter>
                 <Routes>
-                  <Route path="/login" element={<Placeholder title="User Login" />} />
-                  <Route path="/admin/login" element={<Placeholder title="Admin Login" />} />
-                  <Route path="/auth/callback" element={<Placeholder title="OAuth Callback" />} />
-                  <Route path="/" element={<ShellLayout title="User Dashboard" />} />
-                  <Route path="/admin" element={<ShellLayout title="Admin Dashboard" />} />
-                  <Route path="/vod/:scrimId" element={<ShellLayout title="VOD Review" />} />
+                  <Route path="/login" element={<LoginPage />} />
+                  <Route path="/admin/login" element={<AdminLoginPage />} />
+                  <Route path="/auth/callback" element={<AuthCallbackPage />} />
+
+                  <Route
+                    path="/"
+                    element={
+                      <ProtectedRoute>
+                        <UserShell>
+                          <Placeholder title="User Dashboard" />
+                        </UserShell>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin"
+                    element={
+                      <ProtectedRoute requireAdmin>
+                        <AdminShell>
+                          <Placeholder title="Admin Dashboard" />
+                        </AdminShell>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/vod/:scrimId"
+                    element={
+                      <ProtectedRoute>
+                        <UserShell>
+                          <Placeholder title="VOD Review" />
+                        </UserShell>
+                      </ProtectedRoute>
+                    }
+                  />
+
                   <Route path="*" element={<Placeholder title="404 — Not Found" />} />
                 </Routes>
               </BrowserRouter>

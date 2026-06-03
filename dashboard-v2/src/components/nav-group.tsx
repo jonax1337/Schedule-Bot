@@ -1,3 +1,4 @@
+import { Link } from "react-router";
 import {
 	Collapsible,
 	CollapsibleContent,
@@ -49,10 +50,10 @@ export function NavGroup({ label, items }: SidebarNavGroup) {
 														asChild
 														isActive={subItem.isActive}
 													>
-														<a href={subItem.path}>
+														<Link to={subItem.path ?? "#"}>
 															{subItem.icon}
 															<span>{subItem.title}</span>
-														</a>
+														</Link>
 													</SidebarMenuSubButton>
 												</SidebarMenuSubItem>
 											))}
@@ -61,10 +62,10 @@ export function NavGroup({ label, items }: SidebarNavGroup) {
 								</>
 							) : (
 								<SidebarMenuButton asChild isActive={item.isActive}>
-									<a href={item.path}>
+									<Link to={item.path ?? "#"}>
 										{item.icon}
 										<span>{item.title}</span>
-									</a>
+									</Link>
 								</SidebarMenuButton>
 							)}
 						</SidebarMenuItem>

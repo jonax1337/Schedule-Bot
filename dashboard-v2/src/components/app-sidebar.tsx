@@ -1,78 +1,95 @@
-import { LogoIcon } from "@/components/logo";
-import { Button } from "@/components/ui/button";
+import type { ReactNode } from 'react'
 import {
-	Sidebar,
-	SidebarContent,
-	SidebarFooter,
-	SidebarGroup,
-	SidebarHeader,
-	SidebarMenu,
-	SidebarMenuButton,
-	SidebarMenuItem,
-} from "@/components/ui/sidebar";
-import { NavGroup } from "@/components/nav-group";
-import { footerNavLinks, navGroups } from "@/components/app-shared";
-import { LatestChange } from "@/components/latest-change";
-import { PlusIcon, SearchIcon } from "lucide-react";
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarSeparator,
+} from '@/components/ui/sidebar'
+import { NavGroup } from '@/components/nav-group'
+import { NavUser, type NavUserInfo } from '@/components/nav-user'
+import type { SidebarNavGroup, SidebarNavItem } from '@/components/app-shared'
 
-export function AppSidebar() {
-	return (
-		<Sidebar collapsible="icon" variant="inset">
-			<SidebarHeader className="h-14 justify-center">
-				<SidebarMenuButton asChild>
-					<a href="#link">
-						<LogoIcon />
-						<span className="font-medium">Efferd</span>
-					</a>
-				</SidebarMenuButton>
-			</SidebarHeader>
-			<SidebarContent>
-				<SidebarGroup>
-					<SidebarMenuItem className="flex items-center gap-2">
-						<SidebarMenuButton
-							className="min-w-8 bg-primary text-primary-foreground duration-200 ease-linear hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground"
-							tooltip="Quick Create"
-						>
-							<PlusIcon
-							/>
-							<span>New Conversation</span>
-						</SidebarMenuButton>
-						<Button
-							aria-label="Search conversations"
-							className="size-8 group-data-[collapsible=icon]:opacity-0"
-							size="icon"
-							variant="outline"
-						>
-							<SearchIcon
-							/>
-							<span className="sr-only">Search conversations</span>
-						</Button>
-					</SidebarMenuItem>
-				</SidebarGroup>
-				{navGroups.map((group, index) => (
-					<NavGroup key={`sidebar-group-${index}`} {...group} />
-				))}
-			</SidebarContent>
-			<SidebarFooter>
-				<LatestChange />
-				<SidebarMenu className="mt-2">
-					{footerNavLinks.map((item) => (
-						<SidebarMenuItem key={item.title}>
-							<SidebarMenuButton
-								asChild
-								className="text-muted-foreground"
-								isActive={item.isActive}
-								size="sm"
-							>
-								<a href={item.path}>
-									{item.icon}
-									<span>{item.title}</span>
-								</a>
-							</SidebarMenuButton>
-						</SidebarMenuItem>
-					))}
-				</SidebarMenu>
-			</SidebarFooter>
-		</Sidebar>
-	);
+export interface AppSidebarProps {
+  brandTitle: string
+  brandSubtitle?: string
+  brandIcon: ReactNode
+  brandLogoUrl?: string
+  onBrandClick?: () => void
+  navGroups: SidebarNavGroup[]
+  footerNavLinks?: SidebarNavItem[]
+  footerExtra?: ReactNode
+  user?: NavUserInfo
+  onLogout?: () => void
+}
+
+export function AppSidebar({
+  brandTitle,
+  brandSubtitle,
+  brandIcon,
+  brandLogoUrl,
+  onBrandClick,
+  navGroups,
+  footerNavLinks,
+  footerExtra,
+  user,
+  onLogout,
+}: AppSidebarProps) {
+  return (
+    <Sidebar collapsible="icon" variant="inset">
+      <SidebarHeader className="h-14 justify-center">
+        <SidebarMenuButton onClick={onBrandClick} className="cursor-pointer">
+          {brandLogoUrl ? (
+            <img src={brandLogoUrl} alt="" className="size-5 rounded" />
+          ) : (
+            brandIcon
+          )}
+          <div className="flex flex-col leading-tight">
+            <span className="font-medium">{brandTitle}</span>
+            {brandSubtitle && (
+              <span className="text-muted-foreground text-xs">{brandSubtitle}</span>
+            )}
+          </div>
+        </SidebarMenuButton>
+      </SidebarHeader>
+      <SidebarContent>
+        {navGroups.map((group, index) => (
+          <NavGroup key={`sidebar-group-${index}`} {...group} />
+        ))}
+      </SidebarContent>
+      <SidebarFooter>
+        {footerExtra}
+        {footerNavLinks && footerNavLinks.length > 0 && (
+          <SidebarMenu className="mt-2">
+            {footerNavLinks.map((item) => (
+              <SidebarMenuItem key={item.title}>
+                <SidebarMenuButton
+                  asChild
+                  className="text-muted-foreground"
+                  isActive={item.isActive}
+                  size="sm"
+                >
+                  <a href={item.path}>
+                    {item.icon}
+                    <span>{item.title}</span>
+                  </a>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        )}
+        {user && (
+          <>
+            <SidebarSeparator className="mx-0" />
+            <div className="px-2 py-1">
+              <NavUser user={user} onLogout={onLogout} />
+            </div>
+          </>
+        )}
+      </SidebarFooter>
+    </Sidebar>
+  )
 }

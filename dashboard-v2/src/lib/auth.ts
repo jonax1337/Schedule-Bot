@@ -1,3 +1,5 @@
+import { BOT_API_URL } from './config'
+
 const TOKEN_KEY = 'auth_token'
 const USER_KEY = 'auth_user'
 
@@ -64,7 +66,6 @@ export async function validateToken(): Promise<boolean> {
   if (!token) return false
 
   try {
-    const { BOT_API_URL } = await import('./config')
     const response = await fetch(`${BOT_API_URL}/api/auth/user`, {
       headers: { Authorization: `Bearer ${token}` },
     })

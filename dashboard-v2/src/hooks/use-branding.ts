@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { BOT_API_URL } from '@/lib/config'
 
 interface Branding {
   teamName: string
@@ -16,7 +17,6 @@ export function useBranding(defaults?: Partial<Branding>) {
   useEffect(() => {
     const fetchBranding = async () => {
       try {
-        const { BOT_API_URL } = await import('@/lib/config')
         const response = await fetch(`${BOT_API_URL}/api/settings`)
         if (response.ok) {
           const data = await response.json()
