@@ -6,6 +6,8 @@ import { ThemeProvider } from '@/components/theme-provider'
 import { TimezoneProvider } from '@/lib/timezone'
 import { BreadcrumbProvider } from '@/lib/breadcrumb-context'
 import { ProtectedRoute } from '@/components/protected-route'
+import { DevModeBanner } from '@/components/dev-mode-banner'
+import { IS_DEV_MODE } from '@/lib/dev-mode'
 import { AdminShell } from '@/components/shells/admin-shell'
 import { UserShell } from '@/components/shells/user-shell'
 import { AdminLoginPage } from '@/pages/admin-login'
@@ -34,6 +36,7 @@ export default function App() {
           <TooltipProvider>
             <BreadcrumbProvider>
               <BrowserRouter>
+                {IS_DEV_MODE && <DevModeBanner />}
                 <Routes>
                   <Route path="/login" element={<LoginPage />} />
                   <Route path="/admin/login" element={<AdminLoginPage />} />

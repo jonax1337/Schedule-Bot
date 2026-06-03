@@ -211,6 +211,12 @@ VITE_BOT_API_URL           # Dashboard client-side API URL (default: http://loca
 2. Start dashboard: `cd dashboard && npm run dev` (:3000)
 3. Login: http://localhost:3000/admin/login
 
+**Dashboard dev-mode (no backend needed):**
+- `cd dashboard && npm run dev:mock` boots the dashboard with `VITE_DEV_MODE=true`.
+- Auth is short-circuited, `window.fetch` is intercepted, and every `/api/...` call returns fixture data from `src/lib/mock/fixtures.ts`.
+- A yellow banner at the top shows current role and a "Switch to admin/user view" button so you can preview both perspectives.
+- Use this to demo or design without running Postgres + the Discord bot.
+
 **Manual Triggers:**
 ```bash
 curl -X POST http://localhost:3001/api/actions/schedule \
