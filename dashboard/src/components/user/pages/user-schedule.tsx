@@ -184,7 +184,7 @@ function DayDetailPanel({
   currentUser?: string
 }) {
   return (
-    <aside className="bg-card lg:sticky lg:top-4 lg:self-start flex max-h-[calc(100svh-8rem)] flex-col overflow-hidden rounded-lg border lg:col-span-1">
+    <aside className="bg-card flex min-h-0 flex-col overflow-hidden rounded-lg border lg:col-span-1">
       <header className="flex flex-col gap-2 p-4">
         <div className="flex items-baseline justify-between gap-2">
           <h3 className="text-base font-semibold leading-tight">{format(date, 'EEE, MMM d')}</h3>
