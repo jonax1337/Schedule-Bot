@@ -13,7 +13,7 @@ import {
   startOfWeek,
   subMonths,
 } from 'date-fns'
-import { ChevronLeft, ChevronRight, X, CheckCircle2, MinusCircle, Loader2, Sparkles } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X, CheckCircle2, MinusCircle, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
@@ -34,7 +34,6 @@ interface ScheduleDay {
   reason: string
   focus: string
   players: PlayerEntry[]
-  simulated?: boolean
 }
 
 const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -167,13 +166,7 @@ export function UserSchedule() {
                     </Badge>
                   )}
                   {schedule && total > 0 && (
-                    <div
-                      className={cn(
-                        'mt-auto flex shrink-0 items-center gap-1 text-[11px] tabular-nums',
-                        schedule.simulated ? 'text-muted-foreground/60 italic' : 'text-muted-foreground',
-                      )}
-                    >
-                      {schedule.simulated && <Sparkles className="h-2.5 w-2.5" />}
+                    <div className="text-muted-foreground mt-auto shrink-0 text-[11px] tabular-nums">
                       {available}/{total} available
                     </div>
                   )}
@@ -205,23 +198,13 @@ function DayDetailPanel({
       <header className="flex flex-col gap-2 p-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h3 className="text-base font-semibold leading-tight">{format(date, 'EEEE, MMMM d')}</h3>
-          {schedule?.reason ? (
+          {schedule?.reason && (
             <Badge variant="secondary" className={cn('shrink-0 text-xs', getReasonBadgeClasses(schedule.reason))}>
               {schedule.reason}
             </Badge>
-          ) : schedule?.simulated ? (
-            <Badge variant="outline" className="text-muted-foreground shrink-0 gap-1 text-xs">
-              <Sparkles className="h-3 w-3" />
-              Forecast
-            </Badge>
-          ) : null}
+          )}
         </div>
         {schedule?.focus && <p className="text-muted-foreground text-sm leading-snug">{schedule.focus}</p>}
-        {schedule?.simulated && (
-          <p className="text-muted-foreground text-xs leading-snug">
-            Predicted from each player's recurring availability — not yet posted by the bot.
-          </p>
-        )}
       </header>
 
       {!schedule || schedule.players.length === 0 ? (
