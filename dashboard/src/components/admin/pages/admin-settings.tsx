@@ -2,9 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { SectionCard } from "@/components/ui/section-card";
-import { Field, FieldLabel, FieldDescription } from "@/components/ui/field";
+import { Field, FieldContent, FieldLabel, FieldDescription } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -223,13 +222,13 @@ export function Settings() {
             </FieldDescription>
           </Field>
 
-          <div className="flex items-center justify-between space-x-2 pt-2">
-            <div className="space-y-0.5 flex-1">
-              <Label htmlFor="allowDiscordAuth">Allow Discord Authentication</Label>
-              <p className="text-sm text-muted-foreground">
+          <Field orientation="horizontal" className="pt-2">
+            <FieldContent>
+              <FieldLabel htmlFor="allowDiscordAuth">Allow Discord Authentication</FieldLabel>
+              <FieldDescription>
                 Let users with Discord mappings sign in via Discord OAuth
-              </p>
-            </div>
+              </FieldDescription>
+            </FieldContent>
             <Switch
               id="allowDiscordAuth"
               checked={settings.discord.allowDiscordAuth}
@@ -241,7 +240,7 @@ export function Settings() {
               }
               className={microInteractions.smooth}
             />
-          </div>
+          </Field>
       </SectionCard>
 
       <SectionCard
@@ -299,13 +298,13 @@ export function Settings() {
             </FieldDescription>
           </Field>
 
-          <div className="flex items-center justify-between space-x-2">
-            <div className="space-y-0.5">
-              <Label htmlFor="duplicateReminder">Duplicate Reminder</Label>
-              <p className="text-sm text-muted-foreground">
+          <Field orientation="horizontal">
+            <FieldContent>
+              <FieldLabel htmlFor="duplicateReminder">Duplicate Reminder</FieldLabel>
+              <FieldDescription>
                 Send a second reminder to players who still haven&apos;t set their availability
-              </p>
-            </div>
+              </FieldDescription>
+            </FieldContent>
             <Switch
               id="duplicateReminder"
               checked={settings.scheduling.duplicateReminderEnabled}
@@ -320,7 +319,7 @@ export function Settings() {
               }
               className={microInteractions.smooth}
             />
-          </div>
+          </Field>
 
           {settings.scheduling.duplicateReminderEnabled && (
             <Field className="pl-4 border-l-2 border-muted">
@@ -371,13 +370,13 @@ export function Settings() {
             </FieldDescription>
           </Field>
 
-          <div className="flex items-center justify-between space-x-2">
-            <div className="space-y-0.5">
-              <Label htmlFor="trainingPoll">Training Start Poll</Label>
-              <p className="text-sm text-muted-foreground">
+          <Field orientation="horizontal">
+            <FieldContent>
+              <FieldLabel htmlFor="trainingPoll">Training Start Poll</FieldLabel>
+              <FieldDescription>
                 Automatically create polls asking when to start training
-              </p>
-            </div>
+              </FieldDescription>
+            </FieldContent>
             <Switch
               id="trainingPoll"
               checked={settings.scheduling.trainingStartPollEnabled}
@@ -392,7 +391,7 @@ export function Settings() {
               }
               className={microInteractions.smooth}
             />
-          </div>
+          </Field>
 
           {settings.scheduling.trainingStartPollEnabled && (
             <Field className="pl-4 border-l-2 border-muted">
@@ -420,13 +419,13 @@ export function Settings() {
             </Field>
           )}
 
-          <div className="flex items-center justify-between space-x-2">
-            <div className="space-y-0.5">
-              <Label htmlFor="cleanChannel">Clean Channel Before Post</Label>
-              <p className="text-sm text-muted-foreground">
+          <Field orientation="horizontal">
+            <FieldContent>
+              <FieldLabel htmlFor="cleanChannel">Clean Channel Before Post</FieldLabel>
+              <FieldDescription>
                 Delete all messages in the channel before posting the daily schedule (keeps pinned messages)
-              </p>
-            </div>
+              </FieldDescription>
+            </FieldContent>
             <Switch
               id="cleanChannel"
               checked={settings.scheduling.cleanChannelBeforePost}
@@ -441,15 +440,15 @@ export function Settings() {
               }
               className={microInteractions.smooth}
             />
-          </div>
+          </Field>
 
-          <div className="flex items-center justify-between space-x-2">
-            <div className="space-y-0.5">
-              <Label htmlFor="changeNotifications">Change Notifications</Label>
-              <p className="text-sm text-muted-foreground">
+          <Field orientation="horizontal">
+            <FieldContent>
+              <FieldLabel htmlFor="changeNotifications">Change Notifications</FieldLabel>
+              <FieldDescription>
                 Send notifications when roster improvements are detected (e.g. additional players become available)
-              </p>
-            </div>
+              </FieldDescription>
+            </FieldContent>
             <Switch
               id="changeNotifications"
               checked={settings.scheduling.changeNotificationsEnabled}
@@ -464,15 +463,15 @@ export function Settings() {
               }
               className={microInteractions.smooth}
             />
-          </div>
+          </Field>
 
-          <div className="flex items-center justify-between space-x-2">
-            <div className="space-y-0.5">
-              <Label htmlFor="weeklyPing">Weekly Planning Reminder</Label>
-              <p className="text-sm text-muted-foreground">
+          <Field orientation="horizontal">
+            <FieldContent>
+              <FieldLabel htmlFor="weeklyPing">Weekly Planning Reminder</FieldLabel>
+              <FieldDescription>
                 Send a personal DM with day-buttons on the selected weekdays so each player can plan their week. Sundays target the upcoming week, other days target the current week. The pinned weekly overview in the channel is maintained regardless of this toggle. On weekly-ping days the daily reminder is skipped so players don&apos;t receive duplicate DMs.
-              </p>
-            </div>
+              </FieldDescription>
+            </FieldContent>
             <Switch
               id="weeklyPing"
               checked={settings.scheduling.weeklyPingEnabled}
@@ -487,7 +486,7 @@ export function Settings() {
               }
               className={microInteractions.smooth}
             />
-          </div>
+          </Field>
 
           {settings.scheduling.weeklyPingEnabled && (
             <div className="space-y-4 pl-4 border-l-2 border-muted">

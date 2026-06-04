@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SectionCard } from '@/components/ui/section-card';
-import { Field, FieldLabel } from '@/components/ui/field';
+import { Field, FieldContent, FieldLabel, FieldDescription } from '@/components/ui/field';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -761,19 +761,19 @@ export function UserMappings() {
               </FieldLabel>
               <TimezonePicker value={editTimezone} onChange={setEditTimezone} className="w-full" />
             </Field>
-            <div className="flex items-center justify-between rounded-lg border p-3">
-              <div className="space-y-0.5">
-                <Label htmlFor="edit-is-admin" className="text-sm font-medium">Admin Access</Label>
-                <p className="text-xs text-muted-foreground">
+            <Field orientation="horizontal" className="rounded-lg border p-3">
+              <FieldContent>
+                <FieldLabel htmlFor="edit-is-admin">Admin Access</FieldLabel>
+                <FieldDescription>
                   Allow this user to access the Admin Dashboard
-                </p>
-              </div>
+                </FieldDescription>
+              </FieldContent>
               <Switch
                 id="edit-is-admin"
                 checked={editIsAdmin}
                 onCheckedChange={setEditIsAdmin}
               />
-            </div>
+            </Field>
           </div>
           <DialogFooter className="animate-fadeIn stagger-4">
             <Button
