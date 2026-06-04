@@ -97,6 +97,7 @@ export function UserShell({ children }: { children: ReactNode }) {
   return (
     <AppShell
       brand={{
+        subtitle: 'Team Portal',
         homeUrl: '/?tab=schedule',
       }}
       navGroups={navGroups}
