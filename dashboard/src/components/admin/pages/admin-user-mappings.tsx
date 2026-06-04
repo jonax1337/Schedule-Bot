@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { SectionCard } from '@/components/ui/section-card';
+import { Field, FieldLabel } from '@/components/ui/field';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -511,17 +512,13 @@ export function UserMappings() {
 
   return (
     <div className="space-y-6">
-      <Card className="animate-slideUpScale">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <UserPlus className="w-5 h-5" />
-            Add User Mapping
-          </CardTitle>
-          <CardDescription>
-            Link Discord users to the schedule roster
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <SectionCard
+        className="animate-slideUpScale"
+        title="Add User Mapping"
+        description="Link Discord users to the schedule roster"
+        icon={UserPlus}
+        contentClassName="space-y-4"
+      >
           <Tabs value={inputMode} onValueChange={(value) => setInputMode(value as 'search' | 'manual')} className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="search" className="flex items-center gap-2">
@@ -581,8 +578,8 @@ export function UserMappings() {
             </TabsContent>
 
             <TabsContent value="manual" className="space-y-4 mt-4">
-              <div className="space-y-2">
-                <Label htmlFor="manualUserId">Discord User ID</Label>
+              <Field>
+                <FieldLabel htmlFor="manualUserId">Discord User ID</FieldLabel>
                 <Input
                   id="manualUserId"
                   value={manualUserId}
@@ -590,9 +587,9 @@ export function UserMappings() {
                   placeholder="e.g., 123456789012345678"
                   className={microInteractions.focusRing}
                 />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="manualUsername">Discord Username</Label>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="manualUsername">Discord Username</FieldLabel>
                 <Input
                   id="manualUsername"
                   value={manualUsername}
@@ -600,12 +597,12 @@ export function UserMappings() {
                   placeholder="e.g., username"
                   className={microInteractions.focusRing}
                 />
-              </div>
+              </Field>
             </TabsContent>
           </Tabs>
 
-          <div className="space-y-2">
-            <Label htmlFor="displayName">Display Name</Label>
+          <Field>
+            <FieldLabel htmlFor="displayName">Display Name</FieldLabel>
             <Input
               id="displayName"
               value={displayName}
@@ -613,10 +610,10 @@ export function UserMappings() {
               placeholder="e.g., Alpha, Beta, Coach Delta"
               className={microInteractions.focusRing}
             />
-          </div>
+          </Field>
 
-          <div className="space-y-2">
-            <Label htmlFor="role">Role</Label>
+          <Field>
+            <FieldLabel htmlFor="role">Role</FieldLabel>
             <Select value={role} onValueChange={(value: RoleType) => setRole(value)}>
               <SelectTrigger id="role" className="w-full">
                 <SelectValue />
@@ -627,15 +624,15 @@ export function UserMappings() {
                 <SelectItem value="coach">Coach</SelectItem>
               </SelectContent>
             </Select>
-          </div>
+          </Field>
 
-          <div className="space-y-2">
-            <Label className="flex items-center gap-1.5">
+          <Field>
+            <FieldLabel className="flex items-center gap-1.5">
               Timezone
               <span className="text-xs text-muted-foreground">(optional)</span>
-            </Label>
+            </FieldLabel>
             <TimezonePicker value={timezone} onChange={setTimezone} className="w-full" />
-          </div>
+          </Field>
 
           <Button onClick={addMapping} disabled={saving} className={cn("w-full", microInteractions.activePress)}>
             {saving ? (
@@ -650,20 +647,14 @@ export function UserMappings() {
               </>
             )}
           </Button>
-        </CardContent>
-      </Card>
+      </SectionCard>
 
-      <Card className="animate-slideUpScale stagger-1">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="w-5 h-5" />
-            Current Roster ({mappings.length})
-          </CardTitle>
-          <CardDescription>
-            Drag and drop to reorder players within each role group
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+      <SectionCard
+        className="animate-slideUpScale stagger-1"
+        title={`Current Roster (${mappings.length})`}
+        description="Drag and drop to reorder players within each role group"
+        icon={Users}
+      >
           {loading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -693,8 +684,7 @@ export function UserMappings() {
               </div>
             </DndContext>
           )}
-        </CardContent>
-      </Card>
+      </SectionCard>
 
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog
@@ -721,8 +711,8 @@ export function UserMappings() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4 animate-fadeIn stagger-3">
-            <div className="space-y-2">
-              <Label htmlFor="edit-discord-id">Discord User ID</Label>
+            <Field>
+              <FieldLabel htmlFor="edit-discord-id">Discord User ID</FieldLabel>
               <Input
                 id="edit-discord-id"
                 value={editDiscordId}
@@ -730,9 +720,9 @@ export function UserMappings() {
                 placeholder="e.g., 123456789012345678"
                 className={microInteractions.focusRing}
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-username">Discord Username</Label>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="edit-username">Discord Username</FieldLabel>
               <Input
                 id="edit-username"
                 value={editUsername}
@@ -740,9 +730,9 @@ export function UserMappings() {
                 placeholder="e.g., username"
                 className={microInteractions.focusRing}
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-display-name">Display Name</Label>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="edit-display-name">Display Name</FieldLabel>
               <Input
                 id="edit-display-name"
                 value={editDisplayName}
@@ -750,9 +740,9 @@ export function UserMappings() {
                 placeholder="e.g., Alpha, Beta, Coach Delta"
                 className={microInteractions.focusRing}
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-role">Role</Label>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="edit-role">Role</FieldLabel>
               <Select value={editRole} onValueChange={(value: RoleType) => setEditRole(value)}>
                 <SelectTrigger id="edit-role" className="w-full">
                   <SelectValue />
@@ -763,14 +753,14 @@ export function UserMappings() {
                   <SelectItem value="coach">Coach</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-            <div className="space-y-2">
-              <Label className="flex items-center gap-1.5">
+            </Field>
+            <Field>
+              <FieldLabel className="flex items-center gap-1.5">
                 Timezone
                 <span className="text-xs text-muted-foreground">(optional)</span>
-              </Label>
+              </FieldLabel>
               <TimezonePicker value={editTimezone} onChange={setEditTimezone} className="w-full" />
-            </div>
+            </Field>
             <div className="flex items-center justify-between rounded-lg border p-3">
               <div className="space-y-0.5">
                 <Label htmlFor="edit-is-admin" className="text-sm font-medium">Admin Access</Label>

@@ -1,7 +1,7 @@
 
 
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { SectionCard } from "@/components/ui/section-card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -92,46 +92,39 @@ export function Logs() {
   };
 
   return (
-    <Card className="animate-fadeIn">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center">
-              <Terminal className="mr-2 h-5 w-5" />
-              Bot Logs
-            </CardTitle>
-            <CardDescription>
-              Real-time bot activity and error logs
-            </CardDescription>
+    <SectionCard
+      className="animate-fadeIn"
+      title="Bot Logs"
+      icon={Terminal}
+      description="Real-time bot activity and error logs"
+      action={
+        <div className="flex items-center gap-4">
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="auto-refresh"
+              checked={autoRefresh}
+              onCheckedChange={setAutoRefresh}
+            />
+            <Label htmlFor="auto-refresh" className="text-sm cursor-pointer">
+              Auto-refresh
+            </Label>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="auto-refresh"
-                checked={autoRefresh}
-                onCheckedChange={setAutoRefresh}
-              />
-              <Label htmlFor="auto-refresh" className="text-sm cursor-pointer">
-                Auto-refresh
-              </Label>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => loadLogs()}
-              disabled={loading}
-              className={cn(microInteractions.activePress, microInteractions.smooth)}
-            >
-              {loading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4" />
-              )}
-            </Button>
-          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => loadLogs()}
+            disabled={loading}
+            className={cn(microInteractions.activePress, microInteractions.smooth)}
+          >
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
+          </Button>
         </div>
-      </CardHeader>
-      <CardContent>
+      }
+    >
         <div className="flex gap-4 mb-4">
           <div className="flex-1">
             <Label htmlFor="filter" className="text-sm">Filter by Level</Label>
@@ -216,7 +209,6 @@ export function Logs() {
             </div>
           )}
         </ScrollArea>
-      </CardContent>
-    </Card>
+    </SectionCard>
   );
 }

@@ -1,7 +1,8 @@
 
 
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { SectionCard } from "@/components/ui/section-card";
+import { Field, FieldLabel, FieldDescription } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -157,19 +158,15 @@ export function Actions() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className={stagger(0, 'fast', 'slideUpScale')}>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <Calendar className="mr-2 h-5 w-5" />
-              Post Schedule
-            </CardTitle>
-            <CardDescription>
-              Manually post the schedule for a specific date
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="scheduleDate">Date (Optional)</Label>
+        <SectionCard
+          className={stagger(0, 'fast', 'slideUpScale')}
+          icon={Calendar}
+          title="Post Schedule"
+          description="Manually post the schedule for a specific date"
+          contentClassName="space-y-4"
+        >
+            <Field>
+              <FieldLabel htmlFor="scheduleDate">Date (Optional)</FieldLabel>
               <Input
                 id="scheduleDate"
                 type="date"
@@ -178,10 +175,10 @@ export function Actions() {
                 placeholder="Leave empty for today"
                 className={microInteractions.focusRing}
               />
-              <p className="text-sm text-muted-foreground">
+              <FieldDescription>
                 Leave empty to post today's schedule
-              </p>
-            </div>
+              </FieldDescription>
+            </Field>
             <Button
               onClick={postSchedule}
               disabled={loading === 'schedule'}
@@ -199,22 +196,17 @@ export function Actions() {
                 </>
               )}
             </Button>
-          </CardContent>
-        </Card>
+        </SectionCard>
 
-        <Card className={stagger(1, 'fast', 'slideUpScale')}>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <Bell className="mr-2 h-5 w-5" />
-              Send Reminders
-            </CardTitle>
-            <CardDescription>
-              Send reminders to users who haven't set their availability
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="reminderDate">Date (Optional)</Label>
+        <SectionCard
+          className={stagger(1, 'fast', 'slideUpScale')}
+          icon={Bell}
+          title="Send Reminders"
+          description="Send reminders to users who haven't set their availability"
+          contentClassName="space-y-4"
+        >
+            <Field>
+              <FieldLabel htmlFor="reminderDate">Date (Optional)</FieldLabel>
               <Input
                 id="reminderDate"
                 type="date"
@@ -223,10 +215,10 @@ export function Actions() {
                 placeholder="Leave empty for today"
                 className={microInteractions.focusRing}
               />
-              <p className="text-sm text-muted-foreground">
+              <FieldDescription>
                 Leave empty to send reminders for today
-              </p>
-            </div>
+              </FieldDescription>
+            </Field>
             <Button
               onClick={sendReminders}
               disabled={loading === 'remind'}
@@ -244,23 +236,18 @@ export function Actions() {
                 </>
               )}
             </Button>
-          </CardContent>
-        </Card>
+        </SectionCard>
       </div>
 
-      <Card className={stagger(2, 'fast', 'slideUpScale')}>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Timer className="mr-2 h-5 w-5" />
-            Training Start Poll
-          </CardTitle>
-          <CardDescription>
-            Create a training start time poll based on today's availability
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="trainingPollDate">Date (Optional)</Label>
+      <SectionCard
+        className={stagger(2, 'fast', 'slideUpScale')}
+        icon={Timer}
+        title="Training Start Poll"
+        description="Create a training start time poll based on today's availability"
+        contentClassName="space-y-4"
+      >
+          <Field>
+            <FieldLabel htmlFor="trainingPollDate">Date (Optional)</FieldLabel>
             <Input
               id="trainingPollDate"
               type="date"
@@ -269,10 +256,10 @@ export function Actions() {
               placeholder="Leave empty for today"
               className={microInteractions.focusRing}
             />
-            <p className="text-sm text-muted-foreground">
+            <FieldDescription>
               Leave empty for today. Requires enough players available.
-            </p>
-          </div>
+            </FieldDescription>
+          </Field>
           <Button
             onClick={sendTrainingPoll}
             disabled={loading === 'training-poll'}
@@ -290,22 +277,17 @@ export function Actions() {
               </>
             )}
           </Button>
-        </CardContent>
-      </Card>
+      </SectionCard>
 
-      <Card className={stagger(3, 'fast', 'slideUpScale')}>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Vote className="mr-2 h-5 w-5" />
-            Create Poll
-          </CardTitle>
-          <CardDescription>
-            Create a quick poll for the team
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="pollQuestion">Question</Label>
+      <SectionCard
+        className={stagger(3, 'fast', 'slideUpScale')}
+        icon={Vote}
+        title="Create Poll"
+        description="Create a quick poll for the team"
+        contentClassName="space-y-4"
+      >
+          <Field>
+            <FieldLabel htmlFor="pollQuestion">Question</FieldLabel>
             <Input
               id="pollQuestion"
               value={pollQuestion}
@@ -313,10 +295,10 @@ export function Actions() {
               placeholder="What should we practice today?"
               className={microInteractions.focusRing}
             />
-          </div>
+          </Field>
 
-          <div className="space-y-2">
-            <Label htmlFor="pollOptions">Options (comma-separated)</Label>
+          <Field>
+            <FieldLabel htmlFor="pollOptions">Options (comma-separated)</FieldLabel>
             <Textarea
               id="pollOptions"
               value={pollOptions}
@@ -325,13 +307,13 @@ export function Actions() {
               rows={3}
               className={microInteractions.focusRing}
             />
-            <p className="text-sm text-muted-foreground">
+            <FieldDescription>
               Separate options with commas (max 10 options)
-            </p>
-          </div>
+            </FieldDescription>
+          </Field>
 
-          <div className="space-y-2">
-            <Label htmlFor="pollDuration">Duration (minutes)</Label>
+          <Field>
+            <FieldLabel htmlFor="pollDuration">Duration (minutes)</FieldLabel>
             <Input
               id="pollDuration"
               type="number"
@@ -341,10 +323,10 @@ export function Actions() {
               onChange={(e) => setPollDuration(e.target.value)}
               className="w-full"
             />
-            <p className="text-sm text-muted-foreground">
+            <FieldDescription>
               How long the poll should remain open (1–10080 minutes)
-            </p>
-          </div>
+            </FieldDescription>
+          </Field>
 
           <Button
             onClick={createPoll}
@@ -363,22 +345,17 @@ export function Actions() {
               </>
             )}
           </Button>
-        </CardContent>
-      </Card>
+      </SectionCard>
 
-      <Card className={stagger(4, 'fast', 'slideUpScale')}>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <MessageSquare className="mr-2 h-5 w-5" />
-            Send Notification
-          </CardTitle>
-          <CardDescription>
-            Send a notification to team members
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="notifyType">Type</Label>
+      <SectionCard
+        className={stagger(4, 'fast', 'slideUpScale')}
+        icon={MessageSquare}
+        title="Send Notification"
+        description="Send a notification to team members"
+        contentClassName="space-y-4"
+      >
+          <Field>
+            <FieldLabel htmlFor="notifyType">Type</FieldLabel>
             <Select value={notifyType} onValueChange={setNotifyType}>
               <SelectTrigger id="notifyType" className="w-full">
                 <SelectValue />
@@ -390,10 +367,10 @@ export function Actions() {
                 <SelectItem value="error">❌ Error</SelectItem>
               </SelectContent>
             </Select>
-          </div>
+          </Field>
 
-          <div className="space-y-2">
-            <Label htmlFor="notifyTarget">Target</Label>
+          <Field>
+            <FieldLabel htmlFor="notifyTarget">Target</FieldLabel>
             <Select value={notifyTarget} onValueChange={setNotifyTarget}>
               <SelectTrigger id="notifyTarget" className="w-full">
                 <SelectValue />
@@ -405,10 +382,10 @@ export function Actions() {
                 <SelectItem value="coach">Coaches Only</SelectItem>
               </SelectContent>
             </Select>
-          </div>
+          </Field>
 
-          <div className="space-y-2">
-            <Label htmlFor="notifyUser">Specific User (Optional)</Label>
+          <Field>
+            <FieldLabel htmlFor="notifyUser">Specific User (Optional)</FieldLabel>
             <Popover open={userOpen} onOpenChange={setUserOpen}>
               <PopoverTrigger asChild>
                 <Button
@@ -474,13 +451,13 @@ export function Actions() {
                 </Command>
               </PopoverContent>
             </Popover>
-            <p className="text-sm text-muted-foreground">
+            <FieldDescription>
               If set, only this user will receive the notification
-            </p>
-          </div>
+            </FieldDescription>
+          </Field>
 
-          <div className="space-y-2">
-            <Label htmlFor="notifyTitle">Title</Label>
+          <Field>
+            <FieldLabel htmlFor="notifyTitle">Title</FieldLabel>
             <Input
               id="notifyTitle"
               value={notifyTitle}
@@ -489,10 +466,10 @@ export function Actions() {
               maxLength={100}
               className={microInteractions.focusRing}
             />
-          </div>
+          </Field>
 
-          <div className="space-y-2">
-            <Label htmlFor="notifyMessage">Message</Label>
+          <Field>
+            <FieldLabel htmlFor="notifyMessage">Message</FieldLabel>
             <Textarea
               id="notifyMessage"
               value={notifyMessage}
@@ -502,10 +479,10 @@ export function Actions() {
               maxLength={1000}
               className={microInteractions.focusRing}
             />
-            <p className="text-sm text-muted-foreground">
+            <FieldDescription>
               {notifyMessage.length}/1000 characters
-            </p>
-          </div>
+            </FieldDescription>
+          </Field>
 
           <Button
             onClick={sendNotification}
@@ -524,23 +501,18 @@ export function Actions() {
               </>
             )}
           </Button>
-        </CardContent>
-      </Card>
+      </SectionCard>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className={stagger(5, 'fast', 'slideUpScale')}>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <MessageSquare className="mr-2 h-5 w-5" />
-              Pin Message
-            </CardTitle>
-            <CardDescription>
-              Send a message to the schedule channel and pin it (e.g., Dashboard URLs)
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="pinMessage">Message</Label>
+        <SectionCard
+          className={stagger(5, 'fast', 'slideUpScale')}
+          icon={MessageSquare}
+          title="Pin Message"
+          description="Send a message to the schedule channel and pin it (e.g., Dashboard URLs)"
+          contentClassName="space-y-4"
+        >
+            <Field>
+              <FieldLabel htmlFor="pinMessage">Message</FieldLabel>
               <Textarea
                 id="pinMessage"
                 value={pinMessage}
@@ -550,10 +522,10 @@ export function Actions() {
                 maxLength={2000}
                 className={microInteractions.focusRing}
               />
-              <p className="text-sm text-muted-foreground">
+              <FieldDescription>
                 {pinMessage.length}/2000 characters
-              </p>
-            </div>
+              </FieldDescription>
+            </Field>
             <Button
               onClick={sendPinMessage}
               disabled={loading === 'pin'}
@@ -571,20 +543,15 @@ export function Actions() {
                 </>
               )}
             </Button>
-          </CardContent>
-        </Card>
+        </SectionCard>
 
-        <Card className={stagger(6, 'fast', 'slideUpScale')}>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <Trash2 className="mr-2 h-5 w-5" />
-              Clear Channel
-            </CardTitle>
-            <CardDescription>
-              Delete all messages in the schedule channel (keeps pinned messages)
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <SectionCard
+          className={stagger(6, 'fast', 'slideUpScale')}
+          icon={Trash2}
+          title="Clear Channel"
+          description="Delete all messages in the schedule channel (keeps pinned messages)"
+          contentClassName="space-y-4"
+        >
             <div className="flex items-center space-x-2">
               <Switch
                 id="includePinned"
@@ -633,8 +600,7 @@ export function Actions() {
             <p className="text-sm text-muted-foreground">
               ⚠️ This will permanently delete all {includePinned ? 'messages (including pinned)' : 'non-pinned messages'}
             </p>
-          </CardContent>
-        </Card>
+        </SectionCard>
       </div>
     </div>
   );

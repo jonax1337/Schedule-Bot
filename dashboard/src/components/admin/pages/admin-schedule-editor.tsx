@@ -1,7 +1,7 @@
 
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { SectionCard } from '@/components/ui/section-card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -237,33 +237,27 @@ export function ScheduleEditor() {
   };
 
   return (
-    <Card className="animate-fadeIn">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="w-5 h-5" />
-              Schedule Editor
-            </CardTitle>
-            <CardDescription>
-              {currentPage === 0
-                ? 'Edit player availability for the next 14 days'
-                : `Viewing historical data (${currentPage * 14} - ${(currentPage + 1) * 14} days from now)`
-              }
-            </CardDescription>
-          </div>
-          <Button
-            onClick={() => loadData(currentPage)}
-            variant="outline"
-            size="sm"
-            className={cn(microInteractions.hoverScale, microInteractions.smooth)}
-          >
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Refresh
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent>
+    <SectionCard
+      className="animate-fadeIn"
+      title="Schedule Editor"
+      icon={Calendar}
+      description={
+        currentPage === 0
+          ? 'Edit player availability for the next 14 days'
+          : `Viewing historical data (${currentPage * 14} - ${(currentPage + 1) * 14} days from now)`
+      }
+      action={
+        <Button
+          onClick={() => loadData(currentPage)}
+          variant="outline"
+          size="sm"
+          className={cn(microInteractions.hoverScale, microInteractions.smooth)}
+        >
+          <RefreshCw className="w-4 h-4 mr-2" />
+          Refresh
+        </Button>
+      }
+    >
         <div className="rounded-md border overflow-x-auto">
           <Table>
             <TableHeader>
@@ -486,7 +480,6 @@ export function ScheduleEditor() {
             </div>
           </DialogContent>
         </Dialog>
-      </CardContent>
-    </Card>
+    </SectionCard>
   );
 }

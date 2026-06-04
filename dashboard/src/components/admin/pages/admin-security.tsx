@@ -1,10 +1,11 @@
 
 
 import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SectionCard } from "@/components/ui/section-card";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Loader2, Key, Copy, Check, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { stagger, microInteractions } from "@/lib/animations";
@@ -106,19 +107,15 @@ export function Security() {
 
   return (
     <div className="space-y-6">
-      <Card className={stagger(0, 'fast', 'slideUpScale')}>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Key className="h-5 w-5" />
-            Admin Password Hash Generator
-          </CardTitle>
-          <CardDescription>
-            Generate a new bcrypt hash for the admin password. This hash should be added to your .env file as ADMIN_PASSWORD_HASH.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="newPassword">New Password</Label>
+      <SectionCard
+        className={stagger(0, 'fast', 'slideUpScale')}
+        title="Admin Password Hash Generator"
+        description="Generate a new bcrypt hash for the admin password. This hash should be added to your .env file as ADMIN_PASSWORD_HASH."
+        icon={Key}
+        contentClassName="space-y-4"
+      >
+          <Field>
+            <FieldLabel htmlFor="newPassword">New Password</FieldLabel>
             <div className="relative">
               <Input
                 id="newPassword"
@@ -142,10 +139,10 @@ export function Security() {
                 )}
               </Button>
             </div>
-          </div>
+          </Field>
 
-          <div className="space-y-2">
-            <Label htmlFor="confirmPassword">Confirm Password</Label>
+          <Field>
+            <FieldLabel htmlFor="confirmPassword">Confirm Password</FieldLabel>
             <div className="relative">
               <Input
                 id="confirmPassword"
@@ -169,7 +166,7 @@ export function Security() {
                 )}
               </Button>
             </div>
-          </div>
+          </Field>
 
           <Button
             onClick={handleGenerateHash}
@@ -217,20 +214,15 @@ export function Security() {
               </code>
             </div>
           )}
-        </CardContent>
-      </Card>
+      </SectionCard>
 
-      <Card className={stagger(1, 'fast', 'slideUpScale')}>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Key className="h-5 w-5" />
-            JWT Secret Generator
-          </CardTitle>
-          <CardDescription>
-            Generate a secure random JWT secret for token signing. This secret should be added to your .env file as JWT_SECRET.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <SectionCard
+        className={stagger(1, 'fast', 'slideUpScale')}
+        title="JWT Secret Generator"
+        description="Generate a secure random JWT secret for token signing. This secret should be added to your .env file as JWT_SECRET."
+        icon={Key}
+        contentClassName="space-y-4"
+      >
           <Button
             onClick={handleGenerateJwtSecret}
             disabled={generatingJwt}
@@ -277,8 +269,7 @@ export function Security() {
               </code>
             </div>
           )}
-        </CardContent>
-      </Card>
+      </SectionCard>
     </div>
   );
 }

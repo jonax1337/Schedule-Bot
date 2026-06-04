@@ -1,7 +1,7 @@
 
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { SectionCard } from '@/components/ui/section-card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -186,28 +186,26 @@ export function UserAbsences() {
 
   return (
     <div className="space-y-4">
-      <Card className="animate-fadeIn">
-        <CardHeader className="relative">
-          <CardTitle className="flex items-center gap-2">
-            <PlaneTakeoff className="w-5 h-5" />
-            Absences
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            {activeAbsences.length > 0
-              ? `${activeAbsences.length} active/upcoming absence${activeAbsences.length !== 1 ? 's' : ''}`
-              : 'No active absences. Plan vacations or days off here.'}
-          </p>
+      <SectionCard
+        className="animate-fadeIn"
+        title="Absences"
+        icon={PlaneTakeoff}
+        description={
+          activeAbsences.length > 0
+            ? `${activeAbsences.length} active/upcoming absence${activeAbsences.length !== 1 ? 's' : ''}`
+            : 'No active absences. Plan vacations or days off here.'
+        }
+        action={
           <Button
             size="sm"
             onClick={openNewAbsenceDialog}
-            className={cn("absolute right-6 top-6", microInteractions.activePress)}
+            className={cn(microInteractions.activePress)}
           >
             <Plus className="w-4 h-4 mr-1" />
             New Absence
           </Button>
-        </CardHeader>
-        <CardContent>
-
+        }
+      >
           {absences.length > 0 ? (
             <Table>
               <TableHeader>
@@ -315,8 +313,7 @@ export function UserAbsences() {
               description="Add an absence to automatically mark yourself as unavailable"
             />
           )}
-        </CardContent>
-      </Card>
+      </SectionCard>
 
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog
