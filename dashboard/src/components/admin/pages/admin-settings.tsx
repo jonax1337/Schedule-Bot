@@ -1,7 +1,8 @@
 
 
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { SectionCard } from "@/components/ui/section-card";
+import { Field, FieldLabel, FieldDescription } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -135,19 +136,17 @@ export function Settings() {
 
   return (
     <div className="space-y-6">
-      <Card className={stagger(0, 'slow', 'slideUpScale')}>
-        <CardHeader>
-          <CardTitle>Discord Configuration</CardTitle>
-          <CardDescription>
-            Configure Discord channel and role settings
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="channelId">
+      <SectionCard
+        className={stagger(0, 'slow', 'slideUpScale')}
+        title="Discord Configuration"
+        description="Configure Discord channel and role settings"
+        contentClassName="space-y-4"
+      >
+          <Field>
+            <FieldLabel htmlFor="channelId">
               <Hash className="inline h-4 w-4 mr-1" />
               Channel
-            </Label>
+            </FieldLabel>
             {loadingDiscord ? (
               <div className={cn("flex items-center h-10 px-3 border rounded-md", loadingStates.skeleton)}>
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -175,16 +174,16 @@ export function Settings() {
                 </SelectContent>
               </Select>
             )}
-            <p className="text-sm text-muted-foreground">
+            <FieldDescription>
               The Discord channel where schedule posts will be sent
-            </p>
-          </div>
+            </FieldDescription>
+          </Field>
 
-          <div className="space-y-2">
-            <Label htmlFor="pingRoleId">
+          <Field>
+            <FieldLabel htmlFor="pingRoleId">
               <AtSign className="inline h-4 w-4 mr-1" />
               Ping Role (Optional)
-            </Label>
+            </FieldLabel>
             {loadingDiscord ? (
               <div className={cn("flex items-center h-10 px-3 border rounded-md", loadingStates.skeleton)}>
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -219,10 +218,10 @@ export function Settings() {
                 </SelectContent>
               </Select>
             )}
-            <p className="text-sm text-muted-foreground">
+            <FieldDescription>
               Role to mention in schedule posts (leave empty for no ping)
-            </p>
-          </div>
+            </FieldDescription>
+          </Field>
 
           <div className="flex items-center justify-between space-x-2 pt-2">
             <div className="space-y-0.5 flex-1">
@@ -243,19 +242,16 @@ export function Settings() {
               className={microInteractions.smooth}
             />
           </div>
-        </CardContent>
-      </Card>
+      </SectionCard>
 
-      <Card className={stagger(1, 'slow', 'slideUpScale')}>
-        <CardHeader>
-          <CardTitle>Scheduling Configuration</CardTitle>
-          <CardDescription>
-            Configure automated posting and reminder times
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="dailyPostTime">Daily Post Time</Label>
+      <SectionCard
+        className={stagger(1, 'slow', 'slideUpScale')}
+        title="Scheduling Configuration"
+        description="Configure automated posting and reminder times"
+        contentClassName="space-y-4"
+      >
+          <Field>
+            <FieldLabel htmlFor="dailyPostTime">Daily Post Time</FieldLabel>
             <Input
               id="dailyPostTime"
               type="time"
@@ -268,13 +264,13 @@ export function Settings() {
               }
               className={microInteractions.focusRing}
             />
-            <p className="text-sm text-muted-foreground">
+            <FieldDescription>
               Time when the daily schedule post is sent (24-hour format)
-            </p>
-          </div>
+            </FieldDescription>
+          </Field>
 
-          <div className="space-y-2">
-            <Label htmlFor="reminderHours">Reminder Hours Before Post</Label>
+          <Field>
+            <FieldLabel htmlFor="reminderHours">Reminder Hours Before Post</FieldLabel>
             <Select
               value={settings.scheduling.reminderHoursBefore.toString()}
               onValueChange={(value) =>
@@ -298,10 +294,10 @@ export function Settings() {
                 <SelectItem value="6">6 hours before</SelectItem>
               </SelectContent>
             </Select>
-            <p className="text-sm text-muted-foreground">
+            <FieldDescription>
               How many hours before the daily post to send reminders
-            </p>
-          </div>
+            </FieldDescription>
+          </Field>
 
           <div className="flex items-center justify-between space-x-2">
             <div className="space-y-0.5">
@@ -327,8 +323,8 @@ export function Settings() {
           </div>
 
           {settings.scheduling.duplicateReminderEnabled && (
-            <div className="space-y-2 pl-4 border-l-2 border-muted">
-              <Label htmlFor="duplicateReminderHours">Second Reminder Hours Before Post</Label>
+            <Field className="pl-4 border-l-2 border-muted">
+              <FieldLabel htmlFor="duplicateReminderHours">Second Reminder Hours Before Post</FieldLabel>
               <Select
                 value={settings.scheduling.duplicateReminderHoursBefore.toString()}
                 onValueChange={(value) =>
@@ -352,14 +348,14 @@ export function Settings() {
                   <SelectItem value="6">6 hours before</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-sm text-muted-foreground">
+              <FieldDescription>
                 How many hours before the daily post to send the second reminder (should be less than the first reminder)
-              </p>
-            </div>
+              </FieldDescription>
+            </Field>
           )}
 
-          <div className="space-y-2">
-            <Label htmlFor="timezone">Timezone</Label>
+          <Field>
+            <FieldLabel htmlFor="timezone">Timezone</FieldLabel>
             <TimezonePicker
               value={settings.scheduling.timezone}
               onChange={(tz) =>
@@ -370,10 +366,10 @@ export function Settings() {
               }
               className="w-full"
             />
-            <p className="text-sm text-muted-foreground">
+            <FieldDescription>
               Timezone for all scheduled tasks
-            </p>
-          </div>
+            </FieldDescription>
+          </Field>
 
           <div className="flex items-center justify-between space-x-2">
             <div className="space-y-0.5">
@@ -399,8 +395,8 @@ export function Settings() {
           </div>
 
           {settings.scheduling.trainingStartPollEnabled && (
-            <div className="space-y-2 pl-4 border-l-2 border-muted">
-              <Label htmlFor="pollDuration">Poll Duration (minutes)</Label>
+            <Field className="pl-4 border-l-2 border-muted">
+              <FieldLabel htmlFor="pollDuration">Poll Duration (minutes)</FieldLabel>
               <Input
                 id="pollDuration"
                 type="number"
@@ -418,10 +414,10 @@ export function Settings() {
                 }
                 className={cn("w-full", microInteractions.focusRing)}
               />
-              <p className="text-sm text-muted-foreground">
+              <FieldDescription>
                 How long the training start poll should remain open (1–10080 minutes)
-              </p>
-            </div>
+              </FieldDescription>
+            </Field>
           )}
 
           <div className="flex items-center justify-between space-x-2">
@@ -495,8 +491,8 @@ export function Settings() {
 
           {settings.scheduling.weeklyPingEnabled && (
             <div className="space-y-4 pl-4 border-l-2 border-muted">
-              <div className="space-y-2">
-                <Label htmlFor="weeklyPingTime">Weekly Ping Time</Label>
+              <Field>
+                <FieldLabel htmlFor="weeklyPingTime">Weekly Ping Time</FieldLabel>
                 <Input
                   id="weeklyPingTime"
                   type="time"
@@ -509,13 +505,13 @@ export function Settings() {
                   }
                   className={microInteractions.focusRing}
                 />
-                <p className="text-sm text-muted-foreground">
+                <FieldDescription>
                   Time of day when the planning DM is sent (24-hour format)
-                </p>
-              </div>
+                </FieldDescription>
+              </Field>
 
-              <div className="space-y-2">
-                <Label>Ping Days</Label>
+              <Field>
+                <FieldLabel>Ping Days</FieldLabel>
                 <div className="flex flex-wrap gap-2">
                   {([
                     { idx: 1, label: 'Mon' },
@@ -548,26 +544,23 @@ export function Settings() {
                     );
                   })}
                 </div>
-                <p className="text-sm text-muted-foreground">
+                <FieldDescription>
                   Days the planning DM is sent. Select none to disable the DM entirely.
-                </p>
-              </div>
+                </FieldDescription>
+              </Field>
             </div>
           )}
-        </CardContent>
-      </Card>
+      </SectionCard>
 
-      <Card className={stagger(2, 'slow', 'slideUpScale')}>
-        <CardHeader>
-          <CardTitle>Branding</CardTitle>
-          <CardDescription>
-            Customize your team's identity and visual appearance
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <SectionCard
+        className={stagger(2, 'slow', 'slideUpScale')}
+        title="Branding"
+        description="Customize your team's identity and visual appearance"
+        contentClassName="space-y-4"
+      >
           {/* Team Name Field */}
-          <div className="space-y-2">
-            <Label htmlFor="teamName">Team Name</Label>
+          <Field>
+            <FieldLabel htmlFor="teamName">Team Name</FieldLabel>
             <Input
               id="teamName"
               type="text"
@@ -582,14 +575,14 @@ export function Settings() {
               placeholder="Valorant Bot"
               className={microInteractions.focusRing}
             />
-            <p className="text-sm text-muted-foreground">
+            <FieldDescription>
               Your team's name displayed throughout the application
-            </p>
-          </div>
+            </FieldDescription>
+          </Field>
 
           {/* Tagline Field */}
-          <div className="space-y-2">
-            <Label htmlFor="tagline">Tagline / Slogan</Label>
+          <Field>
+            <FieldLabel htmlFor="tagline">Tagline / Slogan</FieldLabel>
             <Input
               id="tagline"
               type="text"
@@ -604,14 +597,14 @@ export function Settings() {
               placeholder="Schedule Manager"
               className={microInteractions.focusRing}
             />
-            <p className="text-sm text-muted-foreground">
+            <FieldDescription>
               Subtitle displayed below team name (e.g., "Building champions together")
-            </p>
-          </div>
+            </FieldDescription>
+          </Field>
 
           {/* Logo URL Field */}
-          <div className="space-y-2">
-            <Label htmlFor="logoUrl">Team Logo URL</Label>
+          <Field>
+            <FieldLabel htmlFor="logoUrl">Team Logo URL</FieldLabel>
             <Input
               id="logoUrl"
               type="url"
@@ -625,9 +618,9 @@ export function Settings() {
               placeholder="https://i.imgur.com/yourlogo.png"
               className={microInteractions.focusRing}
             />
-            <p className="text-sm text-muted-foreground">
+            <FieldDescription>
               External image URL for your team logo (displayed in sidebar header)
-            </p>
+            </FieldDescription>
             {/* Logo Preview */}
             {settings.branding?.logoUrl && (
               <div className="flex items-center gap-2 p-2 border rounded-md">
@@ -643,20 +636,17 @@ export function Settings() {
                 <span className="text-xs text-muted-foreground">Logo preview</span>
               </div>
             )}
-          </div>
-        </CardContent>
-      </Card>
+          </Field>
+      </SectionCard>
 
-      <Card className={stagger(3, 'slow', 'slideUpScale')}>
-        <CardHeader>
-          <CardTitle>Stratbook</CardTitle>
-          <CardDescription>
-            Configure who can create and edit strategies
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="editPermission">Edit Permission</Label>
+      <SectionCard
+        className={stagger(3, 'slow', 'slideUpScale')}
+        title="Stratbook"
+        description="Configure who can create and edit strategies"
+        contentClassName="space-y-4"
+      >
+          <Field>
+            <FieldLabel htmlFor="editPermission">Edit Permission</FieldLabel>
             <Select
               value={settings.stratbook?.editPermission || 'admin'}
               onValueChange={(value) =>
@@ -674,12 +664,11 @@ export function Settings() {
                 <SelectItem value="all">All Users</SelectItem>
               </SelectContent>
             </Select>
-            <p className="text-sm text-muted-foreground">
+            <FieldDescription>
               Controls who can create, edit, and delete strategies in the Stratbook
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+            </FieldDescription>
+          </Field>
+      </SectionCard>
 
       <div className="flex justify-end">
         <Button
