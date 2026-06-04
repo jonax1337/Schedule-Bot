@@ -21,7 +21,6 @@ import {
 } from '@/components/ui/sidebar'
 import type { NavGroupConfig } from '@/components/app-sidebar'
 import type { NavUserInfo } from '@/components/nav-user'
-import { useBranding } from '@/hooks/use-branding'
 import { useSidebarUserInfo } from '@/hooks/use-sidebar'
 import { getUser, logout } from '@/lib/auth'
 
@@ -43,7 +42,6 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const [searchParams] = useSearchParams()
   const tab = searchParams.get('tab') || 'dashboard'
 
-  const branding = useBranding({ tagline: 'Bot Configuration' })
   const authUser = getUser()
   const userName = authUser?.username ?? null
   const { userRole, avatarUrl } = useSidebarUserInfo(userName)
@@ -91,10 +89,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
   return (
     <AppShell
       brand={{
-        name: 'Admin Panel',
-        subtitle: branding.tagline,
-        logoUrl: branding.logoUrl,
-        fallbackIcon: <Shield className="size-4" />,
+        subtitle: 'Admin Panel',
         homeUrl: '/admin?tab=dashboard',
       }}
       navGroups={navGroups}

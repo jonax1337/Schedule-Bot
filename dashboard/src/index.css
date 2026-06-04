@@ -3,6 +3,15 @@
 @import "@fontsource-variable/inter";
 @plugin "@tailwindcss/typography";
 
+/* Self-hosted Orbitron (brand wordmark) — no external CDN call */
+@font-face {
+  font-family: 'Orbitron';
+  src: url('/fonts/orbitron.woff2') format('woff2');
+  font-weight: 400 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 /* ------------------------------------------------------------------

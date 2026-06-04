@@ -1,8 +1,8 @@
 # Overview
 
-## What is Schedule-Bot?
+## What is Synqed?
 
-Schedule-Bot is a single Node.js process that gives a Valorant E-Sports team three
+Synqed is a single Node.js process that gives a Valorant E-Sports team three
 tightly-integrated tools:
 
 1. **A Discord bot** — slash commands, buttons, polls and automatic posts inside the
@@ -88,7 +88,7 @@ tightly-integrated tools:
 ## Project layout
 
 ```
-schedule-bot/
+synqed/
 ├── src/                      # Backend (bot + API)
 │   ├── index.ts              # Entry point
 │   ├── api/                  # Express server & routes

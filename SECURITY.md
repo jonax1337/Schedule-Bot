@@ -2,11 +2,11 @@
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability in Schedule-Bot, please report it responsibly.
+If you discover a security vulnerability in Synqed, please report it responsibly.
 
 **Do NOT open a public GitHub issue for security vulnerabilities.**
 
-Instead, please report security issues by emailing the maintainers directly or using [GitHub's private vulnerability reporting](https://github.com/jonax1337/Schedule-Bot/security/advisories/new).
+Instead, please report security issues by emailing the maintainers directly or using [GitHub's private vulnerability reporting](https://github.com/jonax1337/Synqed/security/advisories/new).
 
 ### What to include
 
@@ -23,7 +23,7 @@ Instead, please report security issues by emailing the maintainers directly or u
 
 ## Security Measures
 
-Schedule-Bot implements the following security measures:
+Synqed implements the following security measures:
 
 - **Helmet.js** for HTTP security headers (CSP, HSTS, X-Frame-Options)
 - **CORS** with configurable whitelist

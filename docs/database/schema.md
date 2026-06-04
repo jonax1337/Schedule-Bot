@@ -1,6 +1,6 @@
 # Database Schema
 
-Schedule-Bot persists everything in **PostgreSQL** through **Prisma 7**. The full schema
+Synqed persists everything in **PostgreSQL** through **Prisma 7**. The full schema
 lives in `prisma/schema.prisma`.
 
 ## Entity map

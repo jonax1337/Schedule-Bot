@@ -17,7 +17,7 @@ export function UserHome() {
       stratbook: 'Stratbook',
       statistics: 'Statistics',
     }
-    document.title = `${titles[currentTab] || 'Team Calendar'} - Valorant Schedule Bot`
+    document.title = `${titles[currentTab] || 'Team Calendar'} - Synqed`
   }, [currentTab])
 
   return (

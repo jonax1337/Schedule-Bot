@@ -2,7 +2,7 @@
 
 ## System overview
 
-Schedule-Bot follows a layered architecture with clear separation between presentation,
+Synqed follows a layered architecture with clear separation between presentation,
 API, business logic and persistence.
 
 ```

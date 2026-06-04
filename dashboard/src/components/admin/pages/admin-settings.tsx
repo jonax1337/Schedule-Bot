@@ -553,8 +553,8 @@ export function Settings() {
 
       <SectionCard
         className={stagger(2, 'slow', 'slideUpScale')}
-        title="Branding"
-        description="Customize your team's identity and visual appearance"
+        title="Team"
+        description="Your team's name, shown in match and VOD views"
         contentClassName="space-y-4"
       >
           {/* Team Name Field */}
@@ -571,70 +571,12 @@ export function Settings() {
                   branding: { ...settings.branding, teamName: e.target.value },
                 })
               }
-              placeholder="Valorant Bot"
+              placeholder="Our Team"
               className={microInteractions.focusRing}
             />
             <FieldDescription>
-              Your team's name displayed throughout the application
+              Displayed in match results and VOD reviews (e.g. "{settings.branding?.teamName || 'Our Team'} vs Opponent")
             </FieldDescription>
-          </Field>
-
-          {/* Tagline Field */}
-          <Field>
-            <FieldLabel htmlFor="tagline">Tagline / Slogan</FieldLabel>
-            <Input
-              id="tagline"
-              type="text"
-              maxLength={100}
-              value={settings.branding?.tagline || ''}
-              onChange={(e) =>
-                setSettings({
-                  ...settings,
-                  branding: { ...settings.branding, tagline: e.target.value },
-                })
-              }
-              placeholder="Schedule Manager"
-              className={microInteractions.focusRing}
-            />
-            <FieldDescription>
-              Subtitle displayed below team name (e.g., "Building champions together")
-            </FieldDescription>
-          </Field>
-
-          {/* Logo URL Field */}
-          <Field>
-            <FieldLabel htmlFor="logoUrl">Team Logo URL</FieldLabel>
-            <Input
-              id="logoUrl"
-              type="url"
-              value={settings.branding?.logoUrl || ''}
-              onChange={(e) =>
-                setSettings({
-                  ...settings,
-                  branding: { ...settings.branding, logoUrl: e.target.value },
-                })
-              }
-              placeholder="https://i.imgur.com/yourlogo.png"
-              className={microInteractions.focusRing}
-            />
-            <FieldDescription>
-              External image URL for your team logo (displayed in sidebar header)
-            </FieldDescription>
-            {/* Logo Preview */}
-            {settings.branding?.logoUrl && (
-              <div className="flex items-center gap-2 p-2 border rounded-md">
-                <img
-                  src={settings.branding.logoUrl}
-                  alt="Logo preview"
-                  className="w-8 h-8 object-contain rounded"
-                  onError={(e) => {
-                    e.currentTarget.src = '';
-                    e.currentTarget.alt = 'Invalid image URL';
-                  }}
-                />
-                <span className="text-xs text-muted-foreground">Logo preview</span>
-              </div>
-            )}
           </Field>
       </SectionCard>
 

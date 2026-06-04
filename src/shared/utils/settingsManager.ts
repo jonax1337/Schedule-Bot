@@ -30,8 +30,6 @@ function flattenSettings(settings: Settings): Record<string, string | number | b
     'scheduling.weeklyPingTime': settings.scheduling.weeklyPingTime,
     'scheduling.weeklyPingDays': settings.scheduling.weeklyPingDays.join(','),
     'branding.teamName': settings.branding.teamName,
-    'branding.tagline': settings.branding.tagline || DEFAULT_SETTINGS.branding.tagline!,
-    'branding.logoUrl': settings.branding.logoUrl || '',
     'stratbook.editPermission': settings.stratbook.editPermission,
   };
 }
@@ -60,8 +58,6 @@ export interface Settings {
   };
   branding: {
     teamName: string;
-    tagline?: string;
-    logoUrl?: string;
   };
   stratbook: {
     editPermission: 'admin' | 'all';
@@ -91,9 +87,7 @@ const DEFAULT_SETTINGS: Settings = {
     weeklyPingDays: [0, 1],
   },
   branding: {
-    teamName: 'Valorant Bot',
-    tagline: 'Schedule Manager',
-    logoUrl: '',
+    teamName: 'Our Team',
   },
   stratbook: {
     editPermission: 'admin',
@@ -177,8 +171,6 @@ export async function loadSettingsAsync(): Promise<Settings> {
       },
       branding: {
         teamName: settingsMap['branding.teamName'] || DEFAULT_SETTINGS.branding.teamName,
-        tagline: settingsMap['branding.tagline'] || DEFAULT_SETTINGS.branding.tagline,
-        logoUrl: settingsMap['branding.logoUrl'] || DEFAULT_SETTINGS.branding.logoUrl,
       },
       stratbook: {
         editPermission: (settingsMap['stratbook.editPermission'] === 'all' ? 'all' : 'admin') as 'admin' | 'all',

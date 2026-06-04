@@ -217,8 +217,6 @@ describe('settingsSchema', () => {
     },
     branding: {
       teamName: 'My Team',
-      tagline: '',
-      logoUrl: '',
     },
     stratbook: {
       editPermission: 'admin',

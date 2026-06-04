@@ -2,7 +2,7 @@
 
 ## Overview
 
-Schedule-Bot uses a multi-tier authentication system:
+Synqed uses a multi-tier authentication system:
 
 | Method | Credentials | Used for |
 |--------|-------------|----------|

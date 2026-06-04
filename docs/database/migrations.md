@@ -2,7 +2,7 @@
 
 ## Prisma Migrations
 
-Schedule-Bot uses **Prisma Migrate** for database migrations.
+Synqed uses **Prisma Migrate** for database migrations.
 
 ## Commands
 

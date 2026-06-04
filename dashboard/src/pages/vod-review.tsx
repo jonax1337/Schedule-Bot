@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { getAuthHeaders } from '@/lib/auth';
 import { BOT_API_URL } from '@/lib/config';
 import { getYouTubeVideoId } from '@/lib/vod-utils';
-import { useBranding } from '@/hooks/use-branding';
+import { useTeamName } from '@/hooks/use-branding';
 import { useVodReview } from '@/components/shared/use-vod-review';
 import { VodCommentPanel } from '@/components/shared/vod-comment-panel';
 
@@ -35,7 +35,7 @@ export default function VodRoomPage() {
   const user = vod.user;
   const [scrim, setScrim] = useState<ScrimData | null>(null);
   const [scrimLoading, setScrimLoading] = useState(true);
-  const { teamName } = useBranding();
+  const teamName = useTeamName();
 
   // Auth guard: redirect to login if not authenticated
   useEffect(() => {

@@ -1,6 +1,6 @@
 # Scheduling System
 
-Scheduling is the heart of Schedule-Bot. It tracks one row per day, snapshots player
+Scheduling is the heart of Synqed. It tracks one row per day, snapshots player
 availability into that row, and surfaces the team's status across Discord and the
 dashboard.
 

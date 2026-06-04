@@ -1,6 +1,6 @@
-# Contributing to Schedule-Bot
+# Contributing to Synqed
 
-Thank you for your interest in contributing to Schedule-Bot! This guide will help you get started.
+Thank you for your interest in contributing to Synqed! This guide will help you get started.
 
 ## Getting Started
 
@@ -15,8 +15,8 @@ Thank you for your interest in contributing to Schedule-Bot! This guide will hel
 
 1. **Fork and clone** the repository:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/Schedule-Bot.git
-   cd Schedule-Bot
+   git clone https://github.com/YOUR_USERNAME/Synqed.git
+   cd Synqed
    ```
 
 2. **Install dependencies:**
@@ -50,13 +50,13 @@ Thank you for your interest in contributing to Schedule-Bot! This guide will hel
 
 ### Reporting Bugs
 
-- Use the [Bug Report](https://github.com/jonax1337/Schedule-Bot/issues/new?template=bug_report.yml) issue template
+- Use the [Bug Report](https://github.com/jonax1337/Synqed/issues/new?template=bug_report.yml) issue template
 - Include steps to reproduce, expected vs actual behavior
 - Include relevant logs from the dashboard Logs panel or console output
 
 ### Suggesting Features
 
-- Use the [Feature Request](https://github.com/jonax1337/Schedule-Bot/issues/new?template=feature_request.yml) issue template
+- Use the [Feature Request](https://github.com/jonax1337/Synqed/issues/new?template=feature_request.yml) issue template
 - Describe the use case and why it would be useful
 - Check existing issues to avoid duplicates
 
@@ -137,6 +137,6 @@ See [CLAUDE.md](CLAUDE.md) for detailed architecture documentation, including:
 
 ## Need Help?
 
-- Open a [Discussion](https://github.com/jonax1337/Schedule-Bot/discussions) for questions
+- Open a [Discussion](https://github.com/jonax1337/Synqed/discussions) for questions
 - Check the [README](README.md) for setup and usage documentation
 - Review [CLAUDE.md](CLAUDE.md) for architecture details

@@ -6,7 +6,7 @@ import { startApiServer } from './api/server.js';
 import { logger, getErrorMessage } from './shared/utils/logger.js';
 
 async function main(): Promise<void> {
-  logger.info('Valorant Schedule Bot starting');
+  logger.info('Synqed starting');
 
   // Connect to PostgreSQL Database
   try {

@@ -2,7 +2,7 @@
 
 ## Concept
 
-Schedule-Bot supports per-player timezones. All times are stored internally in the **bot timezone** (default: `Europe/Berlin`) and converted on display.
+Synqed supports per-player timezones. All times are stored internally in the **bot timezone** (default: `Europe/Berlin`) and converted on display.
 
 ## Architecture
 

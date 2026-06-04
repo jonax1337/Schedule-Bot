@@ -2,7 +2,7 @@
 
 ## Overview
 
-Schedule-Bot can be deployed to [Railway](https://railway.app). The configuration lives in `railway.toml`.
+Synqed can be deployed to [Railway](https://railway.app). The configuration lives in `railway.toml`.
 
 ## Configuration
 
@@ -50,7 +50,7 @@ Create a separate service for the dashboard:
 2. Root directory: `dashboard`
 3. Set the variables:
    ```ini
-   BOT_API_URL=http://schedule-bot-backend.railway.internal:3001
+   BOT_API_URL=http://synqed-backend.railway.internal:3001
    NEXT_PUBLIC_BOT_API_URL=https://your-backend.railway.app
    ```
 

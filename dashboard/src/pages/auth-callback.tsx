@@ -107,7 +107,7 @@ export function AuthCallbackPage() {
         </div>
 
         <p className="text-muted-foreground text-center text-sm">
-          Connecting your Discord account to schedule-bot.
+          Connecting your Discord account to Synqed.
         </p>
       </div>
     </div>
