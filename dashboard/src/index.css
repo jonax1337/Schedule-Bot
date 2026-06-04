@@ -213,14 +213,6 @@
 
 .skeleton-pulse { animation: appPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite }
 
-/* Tinted card backgrounds for stat cards */
-.card-gradient-blue { background: oklch(0.96 0.005 250) }
-.card-gradient-green { background: oklch(0.96 0.01 155) }
-.card-gradient-purple { background: oklch(0.96 0.015 290) }
-.dark .card-gradient-blue { background: oklch(0.15 0.008 250) }
-.dark .card-gradient-green { background: oklch(0.15 0.012 155) }
-.dark .card-gradient-purple { background: oklch(0.15 0.012 290) }
-
 /* Respect reduced motion */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

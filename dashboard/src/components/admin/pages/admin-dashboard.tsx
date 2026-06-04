@@ -213,7 +213,7 @@ export function AdminDashboard() {
       {/* Team Overview Row */}
       <div className="grid gap-4 md:grid-cols-3">
         {/* Roster Summary */}
-        <Card className={cn("card-gradient-blue", stagger(0, 'slow', 'slideUpScale'))}>
+        <Card className={stagger(0, 'slow', 'slideUpScale')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Team Roster</CardTitle>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -237,7 +237,7 @@ export function AdminDashboard() {
         </Card>
 
         {/* Win Rate */}
-        <Card className={cn("card-gradient-green", stagger(1, 'slow', 'slideUpScale'))}>
+        <Card className={stagger(1, 'slow', 'slideUpScale')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Win Rate</CardTitle>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-500/10 text-green-600 dark:bg-green-500/15 dark:text-green-400">
@@ -271,7 +271,7 @@ export function AdminDashboard() {
         </Card>
 
         {/* Upcoming Schedules */}
-        <Card className={cn("card-gradient-purple", stagger(2, 'slow', 'slideUpScale'))}>
+        <Card className={stagger(2, 'slow', 'slideUpScale')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Upcoming</CardTitle>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-500/10 text-purple-600 dark:bg-purple-500/15 dark:text-purple-400">
