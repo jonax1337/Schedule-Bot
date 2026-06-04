@@ -1,18 +1,23 @@
 import { Router } from 'express';
-import { verifyToken, requireAdmin, AuthRequest } from '../../shared/middleware/auth.js';
+import { verifyToken, requireAdmin, requireOrgMembership, AuthRequest } from '../../shared/middleware/auth.js';
+import type { TenantRequest } from '../../shared/middleware/tenant.js';
 import { validate, settingsSchema } from '../../shared/middleware/validation.js';
 import { strictApiLimiter } from '../../shared/middleware/rateLimiter.js';
 import { reloadConfig } from '../../shared/config/config.js';
-import { saveSettings, loadSettingsAsync } from '../../shared/utils/settingsManager.js';
+import { getSettingsForCurrentOrg, saveSettingsForCurrentOrg } from '../../shared/utils/settingsManager.js';
 import { restartScheduler } from '../../jobs/scheduler.js';
 import { logger, getErrorMessage } from '../../shared/utils/logger.js';
 
 const router = Router();
 
-// Get settings
+// The org the bot/scheduler runtime config singleton reflects (PoC).
+const DEFAULT_ORG_SLUG = process.env.POC_DEFAULT_ORG_SLUG || 'default';
+
+// Get settings (public: the login page reads e.g. allowDiscordAuth). Scoped to
+// the tenant resolved from the subdomain/header.
 router.get('/', async (req, res) => {
   try {
-    const settings = await loadSettingsAsync();
+    const settings = await getSettingsForCurrentOrg();
     res.json(settings);
   } catch (error) {
     logger.error('Failed to load settings', getErrorMessage(error));
@@ -20,16 +25,18 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Update settings
-router.post('/', verifyToken, requireAdmin, strictApiLimiter, validate(settingsSchema), async (req: AuthRequest, res) => {
+// Update settings — per tenant; only a member admin of the org may change them.
+router.post('/', verifyToken, requireOrgMembership, requireAdmin, strictApiLimiter, validate(settingsSchema), async (req: AuthRequest, res) => {
   try {
-    const settings = req.body;
-    
-    await saveSettings(settings);
-    await reloadConfig();
-    restartScheduler();
-    
-    logger.success('Settings updated', `By: ${req.user?.username}`);
+    await saveSettingsForCurrentOrg(req.body);
+
+    // The runtime config singleton + scheduler only track the bot's default org.
+    if ((req as TenantRequest).org?.slug === DEFAULT_ORG_SLUG) {
+      await reloadConfig();
+      restartScheduler();
+    }
+
+    logger.success('Settings updated', `By: ${req.user?.username} (${(req as TenantRequest).org?.slug})`);
     res.json({ success: true, message: 'Settings updated successfully' });
   } catch (error) {
     logger.error('Failed to update settings', getErrorMessage(error));
@@ -37,12 +44,12 @@ router.post('/', verifyToken, requireAdmin, strictApiLimiter, validate(settingsS
   }
 });
 
-// Reload config
-router.post('/reload-config', verifyToken, requireAdmin, strictApiLimiter, async (req: AuthRequest, res) => {
+// Reload config (default/bot org runtime)
+router.post('/reload-config', verifyToken, requireOrgMembership, requireAdmin, strictApiLimiter, async (req: AuthRequest, res) => {
   try {
     await reloadConfig();
     restartScheduler();
-    
+
     logger.success('Config reloaded', `By: ${req.user?.username}`);
     res.json({ success: true, message: 'Configuration reloaded successfully' });
   } catch (error) {

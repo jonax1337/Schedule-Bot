@@ -72,6 +72,7 @@ async function migrate(): Promise<void> {
   const TENANT_TABLES = [
     'scrims', 'vod_comments', 'absences', 'recurring_availabilities',
     'user_mappings', 'strategies', 'strategy_folders', 'strategy_images', 'strategy_files',
+    'settings',
   ];
   console.log('→ Adding organization_id to remaining tenant tables…');
   for (const table of TENANT_TABLES) {
@@ -94,6 +95,10 @@ async function migrate(): Promise<void> {
   await ddl(`ALTER TABLE strategy_folders DROP CONSTRAINT IF EXISTS strategy_folders_parent_id_name_key;`);
   await ddl(`DROP INDEX IF EXISTS strategy_folders_parent_id_name_key;`);
   await ddl(`CREATE UNIQUE INDEX IF NOT EXISTS strategy_folders_organization_id_parent_id_name_key ON strategy_folders(organization_id, parent_id, name);`);
+  // settings.key : global → per-org
+  await ddl(`ALTER TABLE settings DROP CONSTRAINT IF EXISTS settings_key_key;`);
+  await ddl(`DROP INDEX IF EXISTS settings_key_key;`);
+  await ddl(`CREATE UNIQUE INDEX IF NOT EXISTS settings_organization_id_key_key ON settings(organization_id, key);`);
 
   console.log('✓ Migration done.');
 }

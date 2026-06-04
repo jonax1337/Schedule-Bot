@@ -53,10 +53,11 @@ const allowedOrigins = [
 ].filter(Boolean) as string[];
 
 // Multi-tenant: each team is served from its own subdomain. Allow any
-// <slug>.localhost:3000 (dev) and <slug>.synqed.org (prod) origin.
+// <slug>.synqed.org (prod); the *.localhost dev pattern is enabled only outside
+// production so it can never widen the prod allowlist.
 const allowedOriginPatterns = [
-  /^http:\/\/[a-z0-9-]+\.localhost:3000$/,
   /^https:\/\/[a-z0-9-]+\.synqed\.org$/,
+  ...(process.env.NODE_ENV !== 'production' ? [/^http:\/\/[a-z0-9-]+\.localhost:3000$/] : []),
 ];
 
 app.use(cors({

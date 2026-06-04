@@ -8,6 +8,7 @@
  */
 import { prisma } from '../src/repositories/database.repository.js';
 import { runWithOrg, requireOrgId } from '../src/shared/tenancy/orgContext.js';
+import { getSettingsForCurrentOrg, saveSettingsForCurrentOrg } from '../src/shared/utils/settingsManager.js';
 import { formatDateToDDMMYYYY } from '../src/shared/utils/dateFormatter.js';
 
 const DEFAULT_ORG = 'org_default';
@@ -76,7 +77,21 @@ async function main(): Promise<void> {
   console.log(`user_mappings  default=${umDefault}  g2=${umG2}`);
   assert(umDefault > 0 && umG2 === 0, 'user_mappings scoped per org (default has roster, g2 empty)');
 
-  // 5. Fail-closed: a tenant query with NO org context must throw
+  // 5. settings are now per-org too.
+  const setTeamName = (org: string, name: string) =>
+    runWithOrg(org, async () => {
+      const s = await getSettingsForCurrentOrg();
+      s.branding.teamName = name;
+      await saveSettingsForCurrentOrg(s);
+    });
+  await setTeamName(DEFAULT_ORG, 'WGW Gold');
+  await setTeamName(G2_ORG, 'G2 Esports');
+  const defName = await runWithOrg(DEFAULT_ORG, async () => (await getSettingsForCurrentOrg()).branding.teamName);
+  const g2Name = await runWithOrg(G2_ORG, async () => (await getSettingsForCurrentOrg()).branding.teamName);
+  console.log(`settings.teamName  default="${defName}"  g2="${g2Name}"`);
+  assert(defName === 'WGW Gold' && g2Name === 'G2 Esports', 'settings (teamName) are isolated per org');
+
+  // 6. Fail-closed: a tenant query with NO org context must throw
   let threw = false;
   try {
     await prisma.schedule.findMany({});

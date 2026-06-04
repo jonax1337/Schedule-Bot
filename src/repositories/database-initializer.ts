@@ -116,14 +116,12 @@ async function initializeDefaultSettings(): Promise<void> {
 
   for (const [key, value] of Object.entries(DEFAULT_SETTINGS)) {
     try {
-      await prisma.setting.upsert({
-        where: { key },
-        update: {},
-        create: {
-          key,
-          value: String(value),
-        },
-      });
+      // Setting is tenant-scoped (composite [org, key]); find-then-write, stamping
+      // the org from the active context (startup runs in the default org).
+      const existing = await prisma.setting.findFirst({ where: { key } });
+      if (!existing) {
+        await prisma.setting.create({ data: { key, value: String(value), organizationId: requireOrgId() } });
+      }
     } catch (error) {
       logger.error(`Failed to create setting: ${key}`, getErrorMessage(error));
     }

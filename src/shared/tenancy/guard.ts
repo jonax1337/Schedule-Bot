@@ -8,14 +8,15 @@
 
 /**
  * Models whose rows belong to exactly one organization.
- * NOTE: `Setting` is intentionally NOT here yet — it's global until the config
- * singleton is refactored to be per-org (own phase). `Account`/`Membership`
- * are platform-level (control plane), never tenant-scoped.
+ * `Account`/`Membership` are platform-level (control plane), never tenant-scoped.
+ * The global `config` runtime singleton still reflects the default (bot) org;
+ * the settings API reads/writes per-org via settingsManager.
  */
 export const TENANT_MODELS = new Set<string>([
   'Schedule', 'SchedulePlayer',
   'Scrim', 'VodComment', 'Absence', 'RecurringAvailability', 'UserMapping',
   'StrategyFolder', 'Strategy', 'StrategyImage', 'StrategyFile',
+  'Setting',
 ]);
 
 // Operations that filter rows via a `where` clause we constrain to the org.

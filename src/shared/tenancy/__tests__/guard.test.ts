@@ -5,9 +5,9 @@ const ORG = 'org_a';
 
 describe('tenant guard — applyTenantScope', () => {
   it('leaves non-tenant models untouched (even with no org context)', () => {
-    // Setting stays global; Account/Membership are platform-level (control plane).
-    const args = { where: { key: 'x' } };
-    expect(applyTenantScope('Setting', 'findMany', args, undefined)).toBe(args);
+    // Account/Membership are platform-level (control plane), never tenant-scoped.
+    const args = { where: { accountId: 'x' } };
+    expect(applyTenantScope('Membership', 'findMany', args, undefined)).toBe(args);
     expect(applyTenantScope('Account', 'create', { data: { discordId: '1' } }, undefined))
       .toEqual({ data: { discordId: '1' } });
   });
@@ -81,7 +81,9 @@ describe('tenant guard — applyTenantScope', () => {
   it('isTenantModel identifies tenant models', () => {
     expect(isTenantModel('Schedule')).toBe(true);
     expect(isTenantModel('SchedulePlayer')).toBe(true);
-    expect(isTenantModel('Setting')).toBe(false);
+    expect(isTenantModel('Setting')).toBe(true);
+    expect(isTenantModel('Account')).toBe(false);
+    expect(isTenantModel('Membership')).toBe(false);
     expect(isTenantModel(undefined)).toBe(false);
   });
 });

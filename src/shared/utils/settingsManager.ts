@@ -1,4 +1,5 @@
 import { prisma } from '../../repositories/database.repository.js';
+import { requireOrgId } from '../tenancy/orgContext.js';
 import { logger, getErrorMessage } from './logger.js';
 
 function parseWeeklyPingDays(raw: string | undefined): number[] {
@@ -110,72 +111,91 @@ export function loadSettings(): Settings {
   return cachedSettings;
 }
 
+/** Build a Settings object from flat key→value records. */
+function parseSettingsMap(settingsMap: Record<string, string>): Settings {
+  return {
+    discord: {
+      channelId: settingsMap['discord.channelId'] || DEFAULT_SETTINGS.discord.channelId,
+      pingRoleId: settingsMap['discord.pingRoleId'] || DEFAULT_SETTINGS.discord.pingRoleId,
+      allowDiscordAuth: settingsMap['discord.allowDiscordAuth'] === 'true',
+      pinnedWeekMessageId: settingsMap['discord.pinnedWeekMessageId'] || null,
+      pinnedWeekStartDate: settingsMap['discord.pinnedWeekStartDate'] || null,
+    },
+    scheduling: {
+      dailyPostTime: settingsMap['scheduling.dailyPostTime'] || DEFAULT_SETTINGS.scheduling.dailyPostTime,
+      reminderHoursBefore: parseInt(settingsMap['scheduling.reminderHoursBefore']) || DEFAULT_SETTINGS.scheduling.reminderHoursBefore,
+      duplicateReminderEnabled: settingsMap['scheduling.duplicateReminderEnabled'] === 'true',
+      duplicateReminderHoursBefore: parseInt(settingsMap['scheduling.duplicateReminderHoursBefore']) || DEFAULT_SETTINGS.scheduling.duplicateReminderHoursBefore,
+      trainingStartPollEnabled: settingsMap['scheduling.trainingStartPollEnabled'] === 'true',
+      pollDurationMinutes: parseInt(settingsMap['scheduling.pollDurationMinutes']) || DEFAULT_SETTINGS.scheduling.pollDurationMinutes,
+      timezone: settingsMap['scheduling.timezone'] || DEFAULT_SETTINGS.scheduling.timezone,
+      cleanChannelBeforePost: settingsMap['scheduling.cleanChannelBeforePost'] === 'true',
+      changeNotificationsEnabled: settingsMap['scheduling.changeNotificationsEnabled'] !== 'false',
+      weeklyPingEnabled: settingsMap['scheduling.weeklyPingEnabled'] !== 'false',
+      weeklyPingTime: settingsMap['scheduling.weeklyPingTime'] || DEFAULT_SETTINGS.scheduling.weeklyPingTime,
+      weeklyPingDays: parseWeeklyPingDays(settingsMap['scheduling.weeklyPingDays']),
+    },
+    branding: {
+      teamName: settingsMap['branding.teamName'] || DEFAULT_SETTINGS.branding.teamName,
+    },
+    stratbook: {
+      editPermission: (settingsMap['stratbook.editPermission'] === 'all' ? 'all' : 'admin') as 'admin' | 'all',
+    },
+  };
+}
+
+// Setting is a tenant model: scoped + stamped from the active org context.
+// upsert isn't supported on tenant models (composite [org, key]) → find-then-write.
+async function writeSetting(key: string, value: string): Promise<void> {
+  const existing = await prisma.setting.findFirst({ where: { key } });
+  if (existing) {
+    await prisma.setting.update({ where: { id: existing.id }, data: { value } });
+  } else {
+    await prisma.setting.create({ data: { key, value, organizationId: requireOrgId() } });
+  }
+}
+
+async function writeAllSettings(settings: Settings): Promise<void> {
+  for (const [key, value] of Object.entries(flattenSettings(settings))) {
+    await writeSetting(key, String(value));
+  }
+}
+
+async function readSettingsMap(): Promise<Record<string, string>> {
+  const records = await prisma.setting.findMany();
+  const map: Record<string, string> = {};
+  for (const r of records) map[r.key] = r.value;
+  return map;
+}
+
 /**
- * Load settings from PostgreSQL (async, used during startup and reload)
+ * Settings for the org in the CURRENT context (request/bot) — per-org, no global
+ * cache. Returns defaults if the org has none yet.
+ */
+export async function getSettingsForCurrentOrg(): Promise<Settings> {
+  const map = await readSettingsMap();
+  return Object.keys(map).length === 0 ? { ...DEFAULT_SETTINGS } : parseSettingsMap(map);
+}
+
+/** Persist settings for the org in the CURRENT context — per-org, no global cache. */
+export async function saveSettingsForCurrentOrg(settings: Settings): Promise<void> {
+  await writeAllSettings(settings);
+}
+
+/**
+ * Load settings for the DEFAULT (bot) org into the global cache. Used at startup
+ * / reloadConfig — must run inside the default org context.
  */
 export async function loadSettingsAsync(): Promise<Settings> {
   try {
-    // Settings from PostgreSQL Settings table
-    const settingsRecords = await prisma.setting.findMany();
-
-    if (settingsRecords.length === 0) {
+    const map = await readSettingsMap();
+    if (Object.keys(map).length === 0) {
       logger.info('No settings found in PostgreSQL, creating defaults');
-      const defaultSettings = {
-        discord: DEFAULT_SETTINGS.discord,
-        scheduling: DEFAULT_SETTINGS.scheduling,
-        branding: DEFAULT_SETTINGS.branding,
-        stratbook: DEFAULT_SETTINGS.stratbook,
-      };
-
-      // Save default settings to PostgreSQL
-      for (const [key, value] of Object.entries(flattenSettings(defaultSettings))) {
-        await prisma.setting.upsert({
-          where: { key },
-          create: { key, value: String(value) },
-          update: { value: String(value) },
-        });
-      }
-      logger.success('Default settings created in PostgreSQL');
-
-      cachedSettings = { ...defaultSettings };
+      await writeAllSettings(DEFAULT_SETTINGS);
+      cachedSettings = { ...DEFAULT_SETTINGS };
       return cachedSettings;
     }
-
-    // Parse settings from flat key-value pairs
-    const settingsMap: Record<string, string> = {};
-    for (const record of settingsRecords) {
-      settingsMap[record.key] = record.value;
-    }
-
-    cachedSettings = {
-      discord: {
-        channelId: settingsMap['discord.channelId'] || DEFAULT_SETTINGS.discord.channelId,
-        pingRoleId: settingsMap['discord.pingRoleId'] || DEFAULT_SETTINGS.discord.pingRoleId,
-        allowDiscordAuth: settingsMap['discord.allowDiscordAuth'] === 'true',
-        pinnedWeekMessageId: settingsMap['discord.pinnedWeekMessageId'] || null,
-        pinnedWeekStartDate: settingsMap['discord.pinnedWeekStartDate'] || null,
-      },
-      scheduling: {
-        dailyPostTime: settingsMap['scheduling.dailyPostTime'] || DEFAULT_SETTINGS.scheduling.dailyPostTime,
-        reminderHoursBefore: parseInt(settingsMap['scheduling.reminderHoursBefore']) || DEFAULT_SETTINGS.scheduling.reminderHoursBefore,
-        duplicateReminderEnabled: settingsMap['scheduling.duplicateReminderEnabled'] === 'true',
-        duplicateReminderHoursBefore: parseInt(settingsMap['scheduling.duplicateReminderHoursBefore']) || DEFAULT_SETTINGS.scheduling.duplicateReminderHoursBefore,
-        trainingStartPollEnabled: settingsMap['scheduling.trainingStartPollEnabled'] === 'true',
-        pollDurationMinutes: parseInt(settingsMap['scheduling.pollDurationMinutes']) || DEFAULT_SETTINGS.scheduling.pollDurationMinutes,
-        timezone: settingsMap['scheduling.timezone'] || DEFAULT_SETTINGS.scheduling.timezone,
-        cleanChannelBeforePost: settingsMap['scheduling.cleanChannelBeforePost'] === 'true',
-        changeNotificationsEnabled: settingsMap['scheduling.changeNotificationsEnabled'] !== 'false',
-        weeklyPingEnabled: settingsMap['scheduling.weeklyPingEnabled'] !== 'false',
-        weeklyPingTime: settingsMap['scheduling.weeklyPingTime'] || DEFAULT_SETTINGS.scheduling.weeklyPingTime,
-        weeklyPingDays: parseWeeklyPingDays(settingsMap['scheduling.weeklyPingDays']),
-      },
-      branding: {
-        teamName: settingsMap['branding.teamName'] || DEFAULT_SETTINGS.branding.teamName,
-      },
-      stratbook: {
-        editPermission: (settingsMap['stratbook.editPermission'] === 'all' ? 'all' : 'admin') as 'admin' | 'all',
-      },
-    };
+    cachedSettings = parseSettingsMap(map);
     return cachedSettings;
   } catch (error) {
     logger.error('Error loading settings', getErrorMessage(error));
@@ -185,20 +205,12 @@ export async function loadSettingsAsync(): Promise<Settings> {
 }
 
 /**
- * Save settings to PostgreSQL
+ * Save settings for the DEFAULT (bot) org and refresh the global cache.
+ * (Per-org dashboard writes use saveSettingsForCurrentOrg instead.)
  */
 export async function saveSettings(settings: Settings): Promise<void> {
   try {
-    // Save settings to PostgreSQL
-    const flatSettings = flattenSettings(settings);
-    for (const [key, value] of Object.entries(flatSettings)) {
-      await prisma.setting.upsert({
-        where: { key },
-        create: { key, value: String(value) },
-        update: { value: String(value) },
-      });
-    }
-
+    await writeAllSettings(settings);
     cachedSettings = { ...settings };
     logger.success('Settings saved');
   } catch (error) {

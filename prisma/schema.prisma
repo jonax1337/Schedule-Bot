@@ -195,12 +195,15 @@ model RecurringAvailability {
 }
 
 model Setting {
-  id        Int      @id @default(autoincrement())
-  key       String   @unique
-  value     String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             Int      @id @default(autoincrement())
+  organizationId String   @map("organization_id")
+  key            String
+  value          String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
+  @@unique([organizationId, key])
+  @@index([organizationId])
   @@map("settings")
 }
 
