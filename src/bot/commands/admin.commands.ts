@@ -1,6 +1,6 @@
 import { ChatInputCommandInteraction, MessageFlags } from 'discord.js';
 import { sendRemindersToUsersWithoutEntry } from '../interactions/reminder.js';
-import { createInfoModal } from '../interactions/interactive.js';
+import { createInfoModal } from '../interactions/info-interactions.js';
 import { logger, getErrorMessage } from '../../shared/utils/logger.js';
 
 /**

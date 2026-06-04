@@ -1,6 +1,7 @@
 import { ChatInputCommandInteraction, MessageFlags } from 'discord.js';
 import { updateUserMapping } from '../../repositories/user-mapping.repository.js';
-import { createDateSelectMenu, sendWeekOverview, sendMySchedule } from '../interactions/interactive.js';
+import { createDateSelectMenu } from '../interactions/schedule-interactions.js';
+import { sendWeekOverview, sendMySchedule } from '../interactions/info-interactions.js';
 import { isValidTimezone, getTimezoneAbbreviation } from '../../shared/utils/timezoneConverter.js';
 import { config } from '../../shared/config/config.js';
 import { logger, getErrorMessage } from '../../shared/utils/logger.js';

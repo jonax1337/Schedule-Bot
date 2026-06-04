@@ -1,7 +1,7 @@
 import { ChatInputCommandInteraction, MessageFlags, EmbedBuilder } from 'discord.js';
 import { getAnalyzedSchedule } from '../../shared/utils/scheduleDetails.js';
 import { buildScheduleEmbed, COLORS } from '../embeds/embed.js';
-import { createDateNavigationButtons } from '../interactions/interactive.js';
+import { createDateNavigationButtons } from '../interactions/schedule-interactions.js';
 import { postScheduleToChannel } from '../utils/schedule-poster.js';
 import { formatDateToDDMMYYYY, getTodayFormatted } from '../../shared/utils/dateFormatter.js';
 import { logger, getErrorMessage } from '../../shared/utils/logger.js';

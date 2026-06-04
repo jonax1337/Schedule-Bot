@@ -5,11 +5,13 @@ import {
   handleDateNavigation,
   handleAvailabilityButton,
   handleDateSelect,
-  handleInfoModal,
   handleTimeModal,
+} from '../interactions/schedule-interactions.js';
+import { handleInfoModal } from '../interactions/info-interactions.js';
+import {
   handleTimezoneButton,
   handleTimezoneSelect,
-} from '../interactions/interactive.js';
+} from '../interactions/timezone-interactions.js';
 
 /**
  * Handle all interaction events (commands, buttons, modals, etc.)
