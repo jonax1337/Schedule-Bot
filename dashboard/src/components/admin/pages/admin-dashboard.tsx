@@ -303,49 +303,42 @@ export function AdminDashboard() {
               icon: BarChart3,
               title: 'Statistics',
               description: 'Charts & analytics',
-              accent: 'group-hover:text-blue-500',
             },
             {
               href: '/admin?tab=users',
               icon: Users,
               title: 'Manage Users',
               description: 'Add or edit team members',
-              accent: 'group-hover:text-violet-500',
             },
             {
               href: '/admin?tab=schedule',
               icon: Calendar,
               title: 'Edit Schedule',
               description: 'Update schedule reasons',
-              accent: 'group-hover:text-cyan-500',
             },
             {
               href: '/admin?tab=matches',
               icon: Trophy,
               title: 'View Scrims',
               description: 'Match history & stats',
-              accent: 'group-hover:text-amber-500',
             },
             {
               href: '/admin?tab=actions',
               icon: Zap,
               title: 'Bot Actions',
               description: 'Trigger manual actions',
-              accent: 'group-hover:text-emerald-500',
             },
             {
               href: '/admin?tab=settings',
               icon: Settings,
               title: 'Settings',
               description: 'Configure bot settings',
-              accent: 'group-hover:text-slate-500',
             },
             {
               href: '/admin?tab=logs',
               icon: Terminal,
               title: 'View Logs',
               description: 'System activity logs',
-              accent: 'group-hover:text-orange-500',
             },
           ].map((action, index) => {
             const Icon = action.icon;
@@ -360,7 +353,7 @@ export function AdminDashboard() {
                 )}
               >
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/8 text-primary transition-colors duration-200">
-                  <Icon className={cn("h-4 w-4 transition-colors duration-200", action.accent)} />
+                  <Icon className="h-4 w-4" />
                 </div>
                 <div className="min-w-0">
                   <div className="font-medium text-sm">{action.title}</div>
