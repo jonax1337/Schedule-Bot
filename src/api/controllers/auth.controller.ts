@@ -167,22 +167,17 @@ export async function handleDiscordCallback(req: Request, res: Response) {
     const discordId = discordUser.id;
     const discordUsername = discordUser.username;
 
-    // Check if user has mapping
-    const mapping = await getUserMapping(discordId);
-    if (!mapping) {
-      logger.warn('Discord OAuth: unmapped user', `${discordUsername} (${discordId})`);
-      return res.status(403).json({
-        error: 'No user mapping found',
-        message: 'Your Discord account is not linked to a schedule user. Please contact an admin.',
-      });
-    }
+    // Always ensure a control-plane account exists for this Discord identity.
+    const { upsertAccountByDiscordId } = await import('../../repositories/organization.repository.js');
+    const accountId = await upsertAccountByDiscordId(discordId, discordUsername);
 
-    // Generate JWT token - grant admin role if user is marked as admin
+    // A team member (has a mapping in the active org) keeps their dashboard role;
+    // a brand-new customer (no mapping) signs in to the control plane to create a team.
+    const mapping = await getUserMapping(discordId);
     const { generateToken } = await import('../../shared/middleware/auth.js');
-    const { getAccountIdByDiscordId } = await import('../../repositories/organization.repository.js');
-    const jwtRole = mapping.isAdmin ? 'admin' : 'user';
-    const accountId = (await getAccountIdByDiscordId(discordId)) ?? undefined;
-    const token = generateToken(mapping.displayName, jwtRole, accountId);
+    const jwtRole = mapping?.isAdmin ? 'admin' : 'user';
+    const username = mapping?.displayName ?? discordUsername;
+    const token = generateToken(username, jwtRole, accountId);
 
     // Build Discord avatar URL
     const avatarUrl = discordUser.avatar
@@ -194,7 +189,7 @@ export async function handleDiscordCallback(req: Request, res: Response) {
       token,
       user: {
         id: discordUser.id,
-        username: mapping.displayName,
+        username,
         role: jwtRole,
         discordId,
         discordUsername,

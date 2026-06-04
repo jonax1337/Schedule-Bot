@@ -28,6 +28,49 @@ export async function getOrganizationByGuildId(guildId: string): Promise<Organiz
 /** PoC: the control-plane owner account (admin login). Seeded by setup script. */
 export const OWNER_ACCOUNT_ID = 'acc_owner';
 
+const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{1,30}[a-z0-9])$/;
+const RESERVED_SLUGS = new Set([
+  'www', 'app', 'api', 'admin', 'mail', 'synqed', 'control', 'dashboard',
+  'static', 'assets', 'default', 'support', 'help', 'status',
+]);
+
+/** Create/find a control-plane account by Discord id; returns its id. */
+export async function upsertAccountByDiscordId(discordId: string, displayName: string): Promise<string> {
+  const acc = await prisma.account.upsert({
+    where: { discordId },
+    update: { displayName },
+    create: { discordId, displayName },
+  });
+  return acc.id;
+}
+
+export class SlugError extends Error {}
+
+/** Validate a desired subdomain slug, throwing SlugError with a user-facing reason. */
+export function normalizeSlug(raw: string): string {
+  const slug = (raw || '').trim().toLowerCase();
+  if (!SLUG_RE.test(slug)) {
+    throw new SlugError('Slug must be 3–32 chars, lowercase letters/numbers/hyphens, no leading/trailing hyphen.');
+  }
+  if (RESERVED_SLUGS.has(slug)) throw new SlugError(`"${slug}" is reserved.`);
+  return slug;
+}
+
+/** Create a new org and make the account its OWNER. Throws SlugError if the slug is invalid/taken. */
+export async function createOrganizationWithOwner(
+  accountId: string,
+  rawSlug: string,
+  name: string,
+): Promise<OrganizationData> {
+  const slug = normalizeSlug(rawSlug);
+  if (await prisma.organization.findUnique({ where: { slug } })) {
+    throw new SlugError(`"${slug}" is already taken.`);
+  }
+  const org = await prisma.organization.create({ data: { slug, name: name.trim() || slug } });
+  await prisma.membership.create({ data: { accountId, organizationId: org.id, role: 'OWNER' } });
+  return org;
+}
+
 /** Account id for a Discord user, or null. Links player/OAuth login to an account. */
 export async function getAccountIdByDiscordId(discordId: string): Promise<string | null> {
   const acc = await prisma.account.findUnique({ where: { discordId }, select: { id: true } });

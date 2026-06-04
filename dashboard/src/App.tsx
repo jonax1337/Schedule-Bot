@@ -14,6 +14,7 @@ import { UserShell } from '@/components/shells/user-shell'
 import { AdminLoginPage } from '@/pages/admin-login'
 import { LoginPage } from '@/pages/login'
 import { AuthCallbackPage } from '@/pages/auth-callback'
+import { ControlPage } from '@/pages/control'
 import { AdminHome } from '@/pages/admin-home'
 import { UserHome } from '@/pages/user-home'
 import VodReviewPage from '@/pages/vod-review'
@@ -39,6 +40,7 @@ export default function App() {
               <BrowserRouter>
                 {IS_DEV_MODE && <DevModeBanner />}
                 <Routes>
+                  <Route path="/control" element={<ControlPage />} />
                   <Route path="/login" element={<LoginPage />} />
                   <Route path="/admin/login" element={<AdminLoginPage />} />
                   <Route path="/auth/callback" element={<AuthCallbackPage />} />
