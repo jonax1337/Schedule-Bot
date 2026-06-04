@@ -54,7 +54,7 @@ Reihenfolge = empfohlene Abarbeitung. Aufwand als grobe T-Shirt-Größe.
 | 3 | **Onboarding / Control-Plane** (`synqed.org`: Sign-up, „Add to Discord", Team+Subdomain anlegen) | L | mittel | 🟡 `/control`-Seite da (Login + Team anlegen + Teams-Liste). **Offen:** „Add to Discord"-Invite-Button + guild_id-Callback |
 | 4 | **Bot multi-guild** + `channelId → Org` (inkl. Main/Academy) + Scheduler als per-Org-Tick | L | mittel | Discord-Seite multi-tenant |
 | 5 | **`settings` pro Org** (Config-Singleton → `getOrgConfig(orgId)` + Cache) | M | mittel | jedes Team eigene Post-Zeit/Branding/etc. |
-| 6 | **optionalAuth-Reads absichern** + actions/admin-Routes mit Membership-Check | S | niedrig | Rest-Lücken aus Phase „alle Tabellen" |
+| 6 | **optionalAuth-Reads absichern** + actions/admin-Routes mit Membership-Check + **Cross-Subdomain-Login härten** | S–M | niedrig | Rest-Lücken aus „alle Tabellen". Der Login-Handoff nutzt aktuell ein URL-Fragment (gehärtet: nur ohne bestehende Session, Identität vom Backend) — **Prod-korrekt** ist ein server-vermittelter Einmal-Code bzw. httpOnly-Cookie auf `.synqed.org` |
 | 7 | **Railway-DB migrieren + deployen** (echte Daten in Org „default" backfillen) | M | **hoch** | das Echte scharf schalten — sorgfältig + Backup |
 | 8 | **Billing** (Stripe, Pläne, Limits) | L | — | erst wenn verkauft wird |
 

@@ -66,11 +66,8 @@ export async function logout(): Promise<void> {
 export function withAuthHandoff(url: string): string {
   const token = getAuthToken()
   if (!token) return url
-  const user = getUser()
-  const frag =
-    `access_token=${encodeURIComponent(token)}` +
-    (user ? `&u=${encodeURIComponent(btoa(JSON.stringify(user)))}` : '')
-  return `${url}#${frag}`
+  // Only the token travels — never a client-supplied user blob (untrusted).
+  return `${url}#access_token=${encodeURIComponent(token)}`
 }
 
 export function consumeAuthHandoff(): void {
@@ -78,16 +75,22 @@ export function consumeAuthHandoff(): void {
   const params = new URLSearchParams(window.location.hash.slice(1))
   const token = params.get('access_token')
   if (!token) return
-  setAuthToken(token)
-  const u = params.get('u')
-  if (u) {
-    try {
-      setUser(JSON.parse(atob(decodeURIComponent(u))))
-    } catch {
-      /* ignore malformed user */
-    }
-  }
+
+  // Strip the fragment immediately so the token never lingers in URL/history.
   history.replaceState(null, '', window.location.pathname + window.location.search)
+
+  // Never silently re-bind an already-authenticated session (login-CSRF guard).
+  if (getAuthToken()) return
+
+  setAuthToken(token)
+  // Don't trust any client-supplied identity — derive it from the backend.
+  void fetch(`${BOT_API_URL}/api/auth/user`, { headers: { Authorization: `Bearer ${token}` } })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((d) => {
+      if (d?.username) setUser({ username: d.username, role: d.role })
+      else removeAuthToken()
+    })
+    .catch(() => {})
 }
 
 /**
