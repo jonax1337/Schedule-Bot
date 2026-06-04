@@ -1,7 +1,5 @@
 <div align="center">
-  <img src="assets/logo.png" alt="Synqed logo" width="100" />
-
-  <h1>Synqed</h1>
+  <img src="assets/banner.png" alt="Synqed" width="640" />
 
   <p>
     <strong>A comprehensive Discord bot + web dashboard for E-Sports team scheduling</strong>
