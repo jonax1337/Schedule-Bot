@@ -103,7 +103,8 @@ model SchedulePlayer {
 
 model UserMapping {
   id              Int      @id @default(autoincrement())
-  discordId       String   @unique @map("discord_id")
+  organizationId  String   @map("organization_id")
+  discordId       String   @map("discord_id")
   discordUsername String   @map("discord_username")
   displayName     String   @map("display_name")
   role            UserRole
@@ -113,6 +114,8 @@ model UserMapping {
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
+  @@unique([organizationId, discordId])
+  @@index([organizationId])
   @@index([discordId])
   @@index([role, sortOrder])
   @@map("user_mappings")
@@ -120,6 +123,7 @@ model UserMapping {
 
 model Scrim {
   id          String       @id
+  organizationId String    @map("organization_id")
   date        String
   opponent    String
   result      ScrimResult
@@ -136,12 +140,14 @@ model Scrim {
   updatedAt   DateTime     @updatedAt @map("updated_at")
   comments    VodComment[]
 
+  @@index([organizationId])
   @@index([date])
   @@map("scrims")
 }
 
 model VodComment {
   id        Int      @id @default(autoincrement())
+  organizationId String @map("organization_id")
   scrimId   String   @map("scrim_id")
   userName  String   @map("user_name")
   timestamp Int
@@ -150,12 +156,14 @@ model VodComment {
   updatedAt DateTime @updatedAt @map("updated_at")
   scrim     Scrim    @relation(fields: [scrimId], references: [id], onDelete: Cascade)
 
+  @@index([organizationId])
   @@index([scrimId, timestamp])
   @@map("vod_comments")
 }
 
 model Absence {
   id        Int      @id @default(autoincrement())
+  organizationId String @map("organization_id")
   userId    String   @map("user_id")
   startDate String   @map("start_date")
   endDate   String   @map("end_date")
@@ -163,6 +171,7 @@ model Absence {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  @@index([organizationId])
   @@index([userId])
   @@index([startDate, endDate])
   @@map("absences")
@@ -170,6 +179,7 @@ model Absence {
 
 model RecurringAvailability {
   id           Int      @id @default(autoincrement())
+  organizationId String @map("organization_id")
   userId       String   @map("user_id")
   dayOfWeek    Int      @map("day_of_week") // 0=Sunday, 1=Monday...6=Saturday
   availability String   // "HH:MM-HH:MM" or "x"
@@ -177,7 +187,8 @@ model RecurringAvailability {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  @@unique([userId, dayOfWeek])
+  @@unique([organizationId, userId, dayOfWeek])
+  @@index([organizationId])
   @@index([userId])
   @@index([dayOfWeek])
   @@map("recurring_availabilities")
@@ -201,6 +212,7 @@ enum UserRole {
 
 model StrategyFolder {
   id         Int              @id @default(autoincrement())
+  organizationId String        @map("organization_id")
   name       String
   parentId   Int?             @map("parent_id")
   color      String?
@@ -212,12 +224,14 @@ model StrategyFolder {
   children   StrategyFolder[] @relation("FolderTree")
   strategies Strategy[]
 
-  @@unique([parentId, name])
+  @@unique([organizationId, parentId, name])
+  @@index([organizationId])
   @@map("strategy_folders")
 }
 
 model Strategy {
   id         Int              @id @default(autoincrement())
+  organizationId String        @map("organization_id")
   title      String
   map        String?
   side       String?
@@ -233,6 +247,7 @@ model Strategy {
   images     StrategyImage[]
   files      StrategyFile[]
 
+  @@index([organizationId])
   @@index([map])
   @@index([side])
   @@index([folderId])
@@ -241,6 +256,7 @@ model Strategy {
 
 model StrategyImage {
   id           Int       @id @default(autoincrement())
+  organizationId String   @map("organization_id")
   strategyId   Int?      @map("strategy_id")
   filename     String    @unique
   originalName String    @map("original_name")
@@ -250,12 +266,14 @@ model StrategyImage {
 
   strategy     Strategy? @relation(fields: [strategyId], references: [id], onDelete: Cascade)
 
+  @@index([organizationId])
   @@index([strategyId])
   @@map("strategy_images")
 }
 
 model StrategyFile {
   id           Int      @id @default(autoincrement())
+  organizationId String  @map("organization_id")
   strategyId   Int      @map("strategy_id")
   filename     String   @unique
   originalName String   @map("original_name")
@@ -265,6 +283,7 @@ model StrategyFile {
 
   strategy     Strategy @relation(fields: [strategyId], references: [id], onDelete: Cascade)
 
+  @@index([organizationId])
   @@index([strategyId])
   @@map("strategy_files")
 }

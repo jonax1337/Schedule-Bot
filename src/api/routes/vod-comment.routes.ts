@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { verifyToken, AuthRequest } from '../../shared/middleware/auth.js';
+import { verifyToken, requireOrgMembership,AuthRequest } from '../../shared/middleware/auth.js';
 import { validate, createVodCommentSchema, updateVodCommentSchema } from '../../shared/middleware/validation.js';
 import {
   getCommentsByScrimId,
@@ -32,7 +32,7 @@ router.get('/scrim/:scrimId', async (req, res) => {
 });
 
 // Create a comment
-router.post('/', verifyToken, validate(createVodCommentSchema), async (req: AuthRequest, res) => {
+router.post('/', verifyToken, requireOrgMembership,validate(createVodCommentSchema), async (req: AuthRequest, res) => {
   try {
     const { scrimId, timestamp, content } = req.body;
     const userName = req.user!.username;
@@ -46,7 +46,7 @@ router.post('/', verifyToken, validate(createVodCommentSchema), async (req: Auth
 });
 
 // Update a comment (owner or admin)
-router.put('/:id', verifyToken, validate(updateVodCommentSchema), async (req: AuthRequest, res) => {
+router.put('/:id', verifyToken, requireOrgMembership,validate(updateVodCommentSchema), async (req: AuthRequest, res) => {
   try {
     const id = parseInt(req.params.id as string);
     const userName = req.user!.username;
@@ -68,7 +68,7 @@ router.put('/:id', verifyToken, validate(updateVodCommentSchema), async (req: Au
 });
 
 // Delete a comment (owner or admin)
-router.delete('/:id', verifyToken, async (req: AuthRequest, res) => {
+router.delete('/:id', verifyToken, requireOrgMembership,async (req: AuthRequest, res) => {
   try {
     const id = parseInt(req.params.id as string);
     const userName = req.user!.username;

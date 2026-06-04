@@ -6,8 +6,17 @@
  * client extension (database.repository.ts) is a thin wrapper that calls this.
  */
 
-/** Models whose rows belong to exactly one organization. */
-export const TENANT_MODELS = new Set<string>(['Schedule', 'SchedulePlayer']);
+/**
+ * Models whose rows belong to exactly one organization.
+ * NOTE: `Setting` is intentionally NOT here yet — it's global until the config
+ * singleton is refactored to be per-org (own phase). `Account`/`Membership`
+ * are platform-level (control plane), never tenant-scoped.
+ */
+export const TENANT_MODELS = new Set<string>([
+  'Schedule', 'SchedulePlayer',
+  'Scrim', 'VodComment', 'Absence', 'RecurringAvailability', 'UserMapping',
+  'StrategyFolder', 'Strategy', 'StrategyImage', 'StrategyFile',
+]);
 
 // Operations that filter rows via a `where` clause we constrain to the org.
 // update/delete by id are included so the guard is AUTHORITATIVE: injecting

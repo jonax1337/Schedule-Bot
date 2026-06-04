@@ -1,4 +1,5 @@
 import { prisma } from './database.repository.js';
+import { requireOrgId } from '../shared/tenancy/orgContext.js';
 import type { ScrimEntry, ScrimStats } from '../shared/types/types.js';
 import { logger, getErrorMessage } from '../shared/utils/logger.js';
 
@@ -35,7 +36,7 @@ export async function getAllScrims(): Promise<ScrimEntry[]> {
 }
 
 export async function getScrimById(id: string): Promise<ScrimEntry | null> {
-  const scrim = await prisma.scrim.findUnique({
+  const scrim = await prisma.scrim.findFirst({
     where: { id },
   });
 
@@ -50,6 +51,7 @@ export async function addScrim(scrim: Omit<ScrimEntry, 'id' | 'createdAt' | 'upd
   const newScrim = await prisma.scrim.create({
     data: {
       id: generateScrimId(),
+      organizationId: requireOrgId(),
       date: scrim.date,
       opponent: scrim.opponent,
       result: resultEnum,

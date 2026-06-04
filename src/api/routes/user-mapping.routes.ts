@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { verifyToken, requireAdmin, optionalAuth, AuthRequest } from '../../shared/middleware/auth.js';
+import { verifyToken, requireOrgMembership,requireAdmin, optionalAuth, AuthRequest } from '../../shared/middleware/auth.js';
 import { validate, addUserMappingSchema, updateUserMappingSchema, reorderUserMappingsSchema } from '../../shared/middleware/validation.js';
 import { getUserMappings, addUserMapping, updateUserMapping, removeUserMapping, reorderUserMappingsBatch } from '../../repositories/user-mapping.repository.js';
 import { syncUserMappingsToSchedules } from '../../repositories/schedule.repository.js';
@@ -52,7 +52,7 @@ router.get('/', optionalAuth, async (req: AuthRequest, res) => {
 });
 
 // Add user mapping
-router.post('/', verifyToken, requireAdmin, validate(addUserMappingSchema), async (req: AuthRequest, res) => {
+router.post('/', verifyToken, requireOrgMembership,requireAdmin, validate(addUserMappingSchema), async (req: AuthRequest, res) => {
   try {
     const mapping = req.body;
 
@@ -68,7 +68,7 @@ router.post('/', verifyToken, requireAdmin, validate(addUserMappingSchema), asyn
 });
 
 // Reorder user mappings (drag-and-drop)
-router.put('/reorder', verifyToken, requireAdmin, validate(reorderUserMappingsSchema), async (req: AuthRequest, res) => {
+router.put('/reorder', verifyToken, requireOrgMembership,requireAdmin, validate(reorderUserMappingsSchema), async (req: AuthRequest, res) => {
   try {
     const { orderings } = req.body;
 
@@ -84,7 +84,7 @@ router.put('/reorder', verifyToken, requireAdmin, validate(reorderUserMappingsSc
 });
 
 // Update user mapping
-router.put('/:discordId', verifyToken, requireAdmin, validate(updateUserMappingSchema), async (req: AuthRequest, res) => {
+router.put('/:discordId', verifyToken, requireOrgMembership,requireAdmin, validate(updateUserMappingSchema), async (req: AuthRequest, res) => {
   try {
     const oldDiscordId = req.params.discordId as string;
     const { discordId, discordUsername, displayName, role, sortOrder, timezone, isAdmin } = req.body;
@@ -110,7 +110,7 @@ router.put('/:discordId', verifyToken, requireAdmin, validate(updateUserMappingS
 });
 
 // Delete user mapping
-router.delete('/:discordId', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
+router.delete('/:discordId', verifyToken, requireOrgMembership,requireAdmin, async (req: AuthRequest, res) => {
   try {
     const discordId = req.params.discordId as string;
 

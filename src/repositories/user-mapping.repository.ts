@@ -1,4 +1,5 @@
 import { prisma } from './database.repository.js';
+import { requireOrgId } from '../shared/tenancy/orgContext.js';
 
 export interface UserMapping {
   discordId: string;
@@ -72,7 +73,7 @@ async function reorderMappings(): Promise<void> {
     }
     
     if (mapping.sortOrder !== newSortOrder) {
-      await prisma.userMapping.update({
+      await prisma.userMapping.updateMany({
         where: { discordId: mapping.discordId },
         data: { sortOrder: newSortOrder },
       });
@@ -86,6 +87,7 @@ export async function addUserMapping(mapping: Omit<UserMapping, 'sortOrder'>): P
   
   await prisma.userMapping.create({
     data: {
+      organizationId: requireOrgId(),
       discordId: mapping.discordId,
       discordUsername: mapping.discordUsername,
       displayName: mapping.displayName,
@@ -100,7 +102,7 @@ export async function addUserMapping(mapping: Omit<UserMapping, 'sortOrder'>): P
 }
 
 export async function getUserMapping(discordId: string): Promise<UserMapping | null> {
-  const mapping = await prisma.userMapping.findUnique({
+  const mapping = await prisma.userMapping.findFirst({
     where: { discordId },
   });
 
@@ -127,11 +129,11 @@ export async function updateUserMapping(discordId: string, updates: Partial<User
   if (updates.timezone !== undefined) data.timezone = updates.timezone;
   if (updates.isAdmin !== undefined) data.isAdmin = updates.isAdmin;
 
-  await prisma.userMapping.update({
+  await prisma.userMapping.updateMany({
     where: { discordId },
     data,
   });
-  
+
   // If role changed, reorder all mappings
   if (updates.role) {
     await reorderMappings();
@@ -144,7 +146,7 @@ export async function reorderUserMappingsBatch(
   // Update each mapping's sortOrder in a transaction
   await prisma.$transaction(
     orderings.map(({ discordId, sortOrder }) =>
-      prisma.userMapping.update({
+      prisma.userMapping.updateMany({
         where: { discordId },
         data: { sortOrder },
       })
@@ -154,13 +156,14 @@ export async function reorderUserMappingsBatch(
 
 export async function removeUserMapping(discordId: string): Promise<boolean> {
   try {
-    await prisma.userMapping.delete({
+    const result = await prisma.userMapping.deleteMany({
       where: { discordId },
     });
-    
+    if (result.count === 0) return false;
+
     // Reorder remaining mappings
     await reorderMappings();
-    
+
     return true;
   } catch (error) {
     return false;

@@ -4,7 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
-import { verifyToken, optionalAuth, AuthRequest } from '../../shared/middleware/auth.js';
+import { verifyToken, requireOrgMembership,optionalAuth, AuthRequest } from '../../shared/middleware/auth.js';
 import { validate } from '../../shared/middleware/validation.js';
 import {
   findAllStrategies,
@@ -122,7 +122,7 @@ router.get('/uploads/:filename', (req, res) => {
 });
 
 // Upload image (auth required)
-router.post('/upload', verifyToken, (req: AuthRequest, res) => {
+router.post('/upload', verifyToken, requireOrgMembership,(req: AuthRequest, res) => {
   upload.single('image')(req, res, async (err) => {
     if (err instanceof multer.MulterError) {
       if (err.code === 'LIMIT_FILE_SIZE') {
@@ -215,7 +215,7 @@ router.get('/folders/:id/path', optionalAuth, async (req: AuthRequest, res) => {
 });
 
 // Create folder
-router.post('/folders', verifyToken, requireEditPermission, async (req: AuthRequest, res) => {
+router.post('/folders', verifyToken, requireOrgMembership,requireEditPermission, async (req: AuthRequest, res) => {
   try {
     const { name, parentId } = req.body;
     if (!name || typeof name !== 'string' || !name.trim()) {
@@ -233,7 +233,7 @@ router.post('/folders', verifyToken, requireEditPermission, async (req: AuthRequ
 });
 
 // Rename folder
-router.put('/folders/:id', verifyToken, requireEditPermission, async (req: AuthRequest, res) => {
+router.put('/folders/:id', verifyToken, requireOrgMembership,requireEditPermission, async (req: AuthRequest, res) => {
   try {
     const id = parseInt(req.params.id as string, 10);
     if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
@@ -253,7 +253,7 @@ router.put('/folders/:id', verifyToken, requireEditPermission, async (req: AuthR
 });
 
 // Update folder color
-router.put('/folders/:id/color', verifyToken, requireEditPermission, async (req: AuthRequest, res) => {
+router.put('/folders/:id/color', verifyToken, requireOrgMembership,requireEditPermission, async (req: AuthRequest, res) => {
   try {
     const id = parseInt(req.params.id as string, 10);
     if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
@@ -270,7 +270,7 @@ router.put('/folders/:id/color', verifyToken, requireEditPermission, async (req:
 });
 
 // Delete folder (must be empty)
-router.delete('/folders/:id', verifyToken, requireEditPermission, async (req: AuthRequest, res) => {
+router.delete('/folders/:id', verifyToken, requireOrgMembership,requireEditPermission, async (req: AuthRequest, res) => {
   try {
     const id = parseInt(req.params.id as string, 10);
     if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
@@ -283,7 +283,7 @@ router.delete('/folders/:id', verifyToken, requireEditPermission, async (req: Au
 });
 
 // Duplicate strategy
-router.post('/duplicate/:id', verifyToken, requireEditPermission, async (req: AuthRequest, res) => {
+router.post('/duplicate/:id', verifyToken, requireOrgMembership,requireEditPermission, async (req: AuthRequest, res) => {
   try {
     const id = parseInt(req.params.id as string, 10);
     if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
@@ -296,7 +296,7 @@ router.post('/duplicate/:id', verifyToken, requireEditPermission, async (req: Au
 });
 
 // Duplicate folder
-router.post('/folders/:id/duplicate', verifyToken, requireEditPermission, async (req: AuthRequest, res) => {
+router.post('/folders/:id/duplicate', verifyToken, requireOrgMembership,requireEditPermission, async (req: AuthRequest, res) => {
   try {
     const id = parseInt(req.params.id as string, 10);
     if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
@@ -312,7 +312,7 @@ router.post('/folders/:id/duplicate', verifyToken, requireEditPermission, async 
 });
 
 // Move strategy to folder
-router.put('/move/:id', verifyToken, requireEditPermission, async (req: AuthRequest, res) => {
+router.put('/move/:id', verifyToken, requireOrgMembership,requireEditPermission, async (req: AuthRequest, res) => {
   try {
     const id = parseInt(req.params.id as string, 10);
     if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
@@ -347,7 +347,7 @@ router.get('/:id', optionalAuth, async (req: AuthRequest, res) => {
 });
 
 // Create strategy (auth required, permission check)
-router.post('/', verifyToken, requireEditPermission, validate(createStrategySchema), async (req: AuthRequest, res) => {
+router.post('/', verifyToken, requireOrgMembership,requireEditPermission, validate(createStrategySchema), async (req: AuthRequest, res) => {
   try {
     const strategy = await createStrategy({
       ...req.body,
@@ -369,7 +369,7 @@ router.post('/', verifyToken, requireEditPermission, validate(createStrategySche
 });
 
 // Update strategy (auth required, permission check)
-router.put('/:id', verifyToken, requireEditPermission, validate(updateStrategySchema), async (req: AuthRequest, res) => {
+router.put('/:id', verifyToken, requireOrgMembership,requireEditPermission, validate(updateStrategySchema), async (req: AuthRequest, res) => {
   try {
     const id = parseInt(req.params.id as string, 10);
     if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
@@ -389,7 +389,7 @@ router.put('/:id', verifyToken, requireEditPermission, validate(updateStrategySc
 });
 
 // Delete strategy (auth required, permission check)
-router.delete('/:id', verifyToken, requireEditPermission, async (req: AuthRequest, res) => {
+router.delete('/:id', verifyToken, requireOrgMembership,requireEditPermission, async (req: AuthRequest, res) => {
   try {
     const id = parseInt(req.params.id as string, 10);
     if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
@@ -446,7 +446,7 @@ router.get('/files/:filename', (req, res) => {
 });
 
 // Upload PDF to strategy (auth required)
-router.post('/:id/files', verifyToken, (req: AuthRequest, res) => {
+router.post('/:id/files', verifyToken, requireOrgMembership,(req: AuthRequest, res) => {
   pdfUpload.single('file')(req, res, async (err) => {
     if (err instanceof multer.MulterError) {
       if (err.code === 'LIMIT_FILE_SIZE') {
@@ -496,7 +496,7 @@ router.post('/:id/files', verifyToken, (req: AuthRequest, res) => {
 });
 
 // Delete PDF file (auth required)
-router.delete('/files/:fileId', verifyToken, requireEditPermission, async (req: AuthRequest, res) => {
+router.delete('/files/:fileId', verifyToken, requireOrgMembership,requireEditPermission, async (req: AuthRequest, res) => {
   try {
     const fileId = parseInt(req.params.fileId as string, 10);
     if (isNaN(fileId)) return res.status(400).json({ error: 'Invalid file ID' });

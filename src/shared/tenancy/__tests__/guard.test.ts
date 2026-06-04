@@ -5,10 +5,18 @@ const ORG = 'org_a';
 
 describe('tenant guard — applyTenantScope', () => {
   it('leaves non-tenant models untouched (even with no org context)', () => {
+    // Setting stays global; Account/Membership are platform-level (control plane).
     const args = { where: { key: 'x' } };
     expect(applyTenantScope('Setting', 'findMany', args, undefined)).toBe(args);
-    expect(applyTenantScope('UserMapping', 'create', { data: { discordId: '1' } }, undefined))
+    expect(applyTenantScope('Account', 'create', { data: { discordId: '1' } }, undefined))
       .toEqual({ data: { discordId: '1' } });
+  });
+
+  it('treats the newly-scoped feature models as tenant models', () => {
+    for (const model of ['Scrim', 'Absence', 'UserMapping', 'Strategy', 'RecurringAvailability']) {
+      expect(isTenantModel(model)).toBe(true);
+      expect(() => applyTenantScope(model, 'findMany', {}, undefined)).toThrow(/no organization context/i);
+    }
   });
 
   it('fail-closed: throws on a tenant model with no org context', () => {

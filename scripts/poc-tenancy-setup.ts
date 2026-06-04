@@ -68,6 +68,33 @@ async function migrate(): Promise<void> {
   await ddl(`CREATE INDEX IF NOT EXISTS schedules_organization_id_date_idx ON schedules(organization_id, date);`);
   await ddl(`CREATE INDEX IF NOT EXISTS schedule_players_organization_id_idx ON schedule_players(organization_id);`);
 
+  // --- Phase 2: scope the remaining tenant tables ---
+  const TENANT_TABLES = [
+    'scrims', 'vod_comments', 'absences', 'recurring_availabilities',
+    'user_mappings', 'strategies', 'strategy_folders', 'strategy_images', 'strategy_files',
+  ];
+  console.log('→ Adding organization_id to remaining tenant tables…');
+  for (const table of TENANT_TABLES) {
+    await ddl(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS organization_id TEXT;`);
+    await ddl(`UPDATE ${table} SET organization_id = '${DEFAULT_ORG.id}' WHERE organization_id IS NULL;`);
+    await ddl(`ALTER TABLE ${table} ALTER COLUMN organization_id SET NOT NULL;`);
+    await ddl(`CREATE INDEX IF NOT EXISTS ${table}_organization_id_idx ON ${table}(organization_id);`);
+  }
+
+  console.log('→ Swapping global uniques for per-org uniques…');
+  // user_mappings.discord_id : global → per-org
+  await ddl(`ALTER TABLE user_mappings DROP CONSTRAINT IF EXISTS user_mappings_discord_id_key;`);
+  await ddl(`DROP INDEX IF EXISTS user_mappings_discord_id_key;`);
+  await ddl(`CREATE UNIQUE INDEX IF NOT EXISTS user_mappings_organization_id_discord_id_key ON user_mappings(organization_id, discord_id);`);
+  // recurring_availabilities (user_id, day_of_week) → (+org)
+  await ddl(`ALTER TABLE recurring_availabilities DROP CONSTRAINT IF EXISTS recurring_availabilities_user_id_day_of_week_key;`);
+  await ddl(`DROP INDEX IF EXISTS recurring_availabilities_user_id_day_of_week_key;`);
+  await ddl(`CREATE UNIQUE INDEX IF NOT EXISTS recurring_availabilities_organization_id_user_id_day_of_week_key ON recurring_availabilities(organization_id, user_id, day_of_week);`);
+  // strategy_folders (parent_id, name) → (+org)
+  await ddl(`ALTER TABLE strategy_folders DROP CONSTRAINT IF EXISTS strategy_folders_parent_id_name_key;`);
+  await ddl(`DROP INDEX IF EXISTS strategy_folders_parent_id_name_key;`);
+  await ddl(`CREATE UNIQUE INDEX IF NOT EXISTS strategy_folders_organization_id_parent_id_name_key ON strategy_folders(organization_id, parent_id, name);`);
+
   console.log('✓ Migration done.');
 }
 
@@ -84,21 +111,32 @@ const WGW_MAPPINGS = [
 
 async function seedUserMappings(): Promise<void> {
   console.log('→ Seeding user_mappings (WGW roster)…');
-  for (let i = 0; i < WGW_MAPPINGS.length; i++) {
-    const m = WGW_MAPPINGS[i];
-    await prisma.userMapping.upsert({
-      where: { discordId: m.discordId },
-      update: { displayName: m.displayName, role: m.role, sortOrder: i, isAdmin: m.isAdmin },
-      create: {
-        discordId: m.discordId,
-        discordUsername: m.displayName.toLowerCase(),
-        displayName: m.displayName,
-        role: m.role,
-        sortOrder: i,
-        isAdmin: m.isAdmin,
-      },
-    });
-  }
+  // user_mappings is now a tenant model → run inside the default org context
+  // (guard scopes/stamps) and find-then-write (discordId no longer global-unique).
+  await runWithOrg(DEFAULT_ORG.id, async () => {
+    for (let i = 0; i < WGW_MAPPINGS.length; i++) {
+      const m = WGW_MAPPINGS[i];
+      const existing = await prisma.userMapping.findFirst({ where: { discordId: m.discordId } });
+      if (existing) {
+        await prisma.userMapping.update({
+          where: { id: existing.id },
+          data: { displayName: m.displayName, role: m.role, sortOrder: i, isAdmin: m.isAdmin },
+        });
+      } else {
+        await prisma.userMapping.create({
+          data: {
+            organizationId: requireOrgId(),
+            discordId: m.discordId,
+            discordUsername: m.displayName.toLowerCase(),
+            displayName: m.displayName,
+            role: m.role,
+            sortOrder: i,
+            isAdmin: m.isAdmin,
+          },
+        });
+      }
+    }
+  });
   console.log('✓ user_mappings seeded (5 players).');
 }
 

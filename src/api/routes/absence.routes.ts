@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { verifyToken, AuthRequest, resolveCurrentUser, resolveTargetUser } from '../../shared/middleware/auth.js';
+import { verifyToken, requireOrgMembership,AuthRequest, resolveCurrentUser, resolveTargetUser } from '../../shared/middleware/auth.js';
 import { sanitizeString, validate, absenceCreateSchema, absenceUpdateSchema, isValidDateFormat } from '../../shared/middleware/validation.js';
 import {
   getAbsencesForUser,
@@ -16,7 +16,7 @@ import { logger, getErrorMessage } from '../../shared/utils/logger.js';
 const router = Router();
 
 // Get absences for the logged-in user
-router.get('/my', verifyToken, resolveCurrentUser, async (req: AuthRequest, res) => {
+router.get('/my', verifyToken, requireOrgMembership,resolveCurrentUser, async (req: AuthRequest, res) => {
   try {
     if (!req.resolvedUser) {
       // Admin account without user mapping - return empty absences
@@ -32,7 +32,7 @@ router.get('/my', verifyToken, resolveCurrentUser, async (req: AuthRequest, res)
 });
 
 // Get all absences (admin only) or absences for a specific user
-router.get('/', verifyToken, resolveCurrentUser, async (req: AuthRequest, res) => {
+router.get('/', verifyToken, requireOrgMembership,resolveCurrentUser, async (req: AuthRequest, res) => {
   try {
     const userId = req.query.userId as string;
     const isAdmin = req.user?.role === 'admin';
@@ -65,7 +65,7 @@ router.get('/', verifyToken, resolveCurrentUser, async (req: AuthRequest, res) =
 });
 
 // Get absent user IDs for specific dates (batch)
-router.get('/by-dates', verifyToken, async (req: AuthRequest, res) => {
+router.get('/by-dates', verifyToken, requireOrgMembership,async (req: AuthRequest, res) => {
   try {
     const datesParam = req.query.dates as string;
     if (!datesParam) {
@@ -94,7 +94,7 @@ router.get('/by-dates', verifyToken, async (req: AuthRequest, res) => {
 });
 
 // Create an absence
-router.post('/', verifyToken, validate(absenceCreateSchema), resolveTargetUser, async (req: AuthRequest, res) => {
+router.post('/', verifyToken, requireOrgMembership,validate(absenceCreateSchema), resolveTargetUser, async (req: AuthRequest, res) => {
   try {
     const { startDate, endDate, reason } = req.body;
     const targetUserId = req.targetUserId!;
@@ -114,7 +114,7 @@ router.post('/', verifyToken, validate(absenceCreateSchema), resolveTargetUser, 
 });
 
 // Update an absence
-router.put('/:id', verifyToken, validate(absenceUpdateSchema), resolveTargetUser, async (req: AuthRequest, res) => {
+router.put('/:id', verifyToken, requireOrgMembership,validate(absenceUpdateSchema), resolveTargetUser, async (req: AuthRequest, res) => {
   try {
     const id = parseInt(req.params.id as string);
     if (isNaN(id)) {
@@ -157,7 +157,7 @@ router.put('/:id', verifyToken, validate(absenceUpdateSchema), resolveTargetUser
 });
 
 // Delete an absence
-router.delete('/:id', verifyToken, resolveTargetUser, async (req: AuthRequest, res) => {
+router.delete('/:id', verifyToken, requireOrgMembership,resolveTargetUser, async (req: AuthRequest, res) => {
   try {
     const id = parseInt(req.params.id as string);
     if (isNaN(id)) {

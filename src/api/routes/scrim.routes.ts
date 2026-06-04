@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { verifyToken, requireAdmin, optionalAuth, AuthRequest } from '../../shared/middleware/auth.js';
+import { verifyToken, requireOrgMembership,requireAdmin, optionalAuth, AuthRequest } from '../../shared/middleware/auth.js';
 import { validate, addScrimSchema, updateScrimSchema, isValidDateFormat } from '../../shared/middleware/validation.js';
 import { getAllScrims, addScrim, updateScrim, deleteScrim, getScrimById, getScrimStats, getScrimsByDateRange } from '../../repositories/scrim.repository.js';
 import { logger, getErrorMessage } from '../../shared/utils/logger.js';
@@ -64,7 +64,7 @@ router.get('/:id', optionalAuth, async (req: AuthRequest, res) => {
 });
 
 // Add scrim (admin only)
-router.post('/', verifyToken, requireAdmin, validate(addScrimSchema), async (req: AuthRequest, res) => {
+router.post('/', verifyToken, requireOrgMembership,requireAdmin, validate(addScrimSchema), async (req: AuthRequest, res) => {
   try {
     const scrimData = req.body;
     const scrim = await addScrim(scrimData);
@@ -78,7 +78,7 @@ router.post('/', verifyToken, requireAdmin, validate(addScrimSchema), async (req
 });
 
 // Update scrim (admin only)
-router.put('/:id', verifyToken, requireAdmin, validate(updateScrimSchema), async (req: AuthRequest, res) => {
+router.put('/:id', verifyToken, requireOrgMembership,requireAdmin, validate(updateScrimSchema), async (req: AuthRequest, res) => {
   try {
     const id = req.params.id as string;
     const updates = req.body;
@@ -98,7 +98,7 @@ router.put('/:id', verifyToken, requireAdmin, validate(updateScrimSchema), async
 });
 
 // Delete scrim (admin only)
-router.delete('/:id', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
+router.delete('/:id', verifyToken, requireOrgMembership,requireAdmin, async (req: AuthRequest, res) => {
   try {
     const id = req.params.id as string;
     const success = await deleteScrim(id);

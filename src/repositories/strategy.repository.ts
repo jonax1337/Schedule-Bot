@@ -1,4 +1,5 @@
 import { prisma } from './database.repository.js';
+import { requireOrgId } from '../shared/tenancy/orgContext.js';
 import { logger, getErrorMessage } from '../shared/utils/logger.js';
 
 export interface FolderItem {
@@ -111,7 +112,7 @@ export async function findAllStrategies(filter?: { map?: string; side?: string; 
 }
 
 export async function findStrategyById(id: number): Promise<StrategyDetail | null> {
-  const strategy = await prisma.strategy.findUnique({
+  const strategy = await prisma.strategy.findFirst({
     where: { id },
     include: { files: { orderBy: { createdAt: 'asc' } } },
   });
@@ -131,6 +132,7 @@ export async function findStrategyById(id: number): Promise<StrategyDetail | nul
 export async function createStrategy(data: CreateStrategyData): Promise<StrategyDetail> {
   const strategy = await prisma.strategy.create({
     data: {
+      organizationId: requireOrgId(),
       title: data.title,
       map: data.map || null,
       side: data.side || null,
@@ -189,7 +191,7 @@ export async function createStrategyImage(data: {
   mimeType: string;
   size: number;
 }) {
-  return prisma.strategyImage.create({ data });
+  return prisma.strategyImage.create({ data: { ...data, organizationId: requireOrgId() } });
 }
 
 export async function linkOrphanImages(filenames: string[], strategyId: number) {
@@ -208,7 +210,7 @@ export async function createStrategyFile(data: {
   mimeType: string;
   size: number;
 }): Promise<StrategyFileItem> {
-  const file = await prisma.strategyFile.create({ data });
+  const file = await prisma.strategyFile.create({ data: { ...data, organizationId: requireOrgId() } });
   return {
     id: file.id,
     filename: file.filename,
@@ -220,7 +222,7 @@ export async function createStrategyFile(data: {
 }
 
 export async function getStrategyFile(id: number) {
-  return prisma.strategyFile.findUnique({ where: { id } });
+  return prisma.strategyFile.findFirst({ where: { id } });
 }
 
 export async function deleteStrategyFile(id: number): Promise<string | null> {
@@ -278,12 +280,12 @@ export async function findAllFolders(): Promise<FolderItem[]> {
 }
 
 export async function findFolderById(id: number) {
-  return prisma.strategyFolder.findUnique({ where: { id } });
+  return prisma.strategyFolder.findFirst({ where: { id } });
 }
 
 export async function createFolder(name: string, parentId: number | null): Promise<FolderItem> {
   const folder = await prisma.strategyFolder.create({
-    data: { name, parentId },
+    data: { name, parentId, organizationId: requireOrgId() },
   });
   logger.success('Folder created', `"${name}"`);
   return {
@@ -334,10 +336,11 @@ export async function deleteFolder(id: number): Promise<boolean> {
 }
 
 export async function duplicateStrategy(id: number, folderId?: number | null): Promise<StrategyDetail | null> {
-  const original = await prisma.strategy.findUnique({ where: { id } });
+  const original = await prisma.strategy.findFirst({ where: { id } });
   if (!original) return null;
   const copy = await prisma.strategy.create({
     data: {
+      organizationId: requireOrgId(),
       title: `${original.title} (Copy)`,
       map: original.map,
       side: original.side,
@@ -354,10 +357,11 @@ export async function duplicateStrategy(id: number, folderId?: number | null): P
 }
 
 export async function duplicateFolder(id: number, parentId?: number | null): Promise<FolderItem | null> {
-  const original = await prisma.strategyFolder.findUnique({ where: { id } });
+  const original = await prisma.strategyFolder.findFirst({ where: { id } });
   if (!original) return null;
   const copy = await prisma.strategyFolder.create({
     data: {
+      organizationId: requireOrgId(),
       name: `${original.name} (Copy)`,
       parentId: parentId !== undefined ? parentId : original.parentId,
     },
@@ -390,7 +394,7 @@ export async function getFolderPath(folderId: number): Promise<FolderItem[]> {
   const breadcrumbs: FolderItem[] = [];
   let currentId: number | null = folderId;
   while (currentId !== null) {
-    const found: { id: number; name: string; parentId: number | null; color: string | null; sortOrder: number; createdAt: Date; updatedAt: Date } | null = await prisma.strategyFolder.findUnique({ where: { id: currentId } });
+    const found: { id: number; name: string; parentId: number | null; color: string | null; sortOrder: number; createdAt: Date; updatedAt: Date } | null = await prisma.strategyFolder.findFirst({ where: { id: currentId } });
     if (!found) break;
     breadcrumbs.unshift({
       id: found.id,

@@ -70,7 +70,13 @@ async function main(): Promise<void> {
   assert(!def.players.some((p) => p.startsWith('g2-')), 'default org cannot see g2 players');
   assert(g2.players.every((p) => p.startsWith('g2-')), 'g2 org sees only its own players');
 
-  // 4. Fail-closed: a tenant query with NO org context must throw
+  // 4. New tenant tables also scope: user_mappings is now per-org.
+  const umDefault = await runWithOrg(DEFAULT_ORG, async () => { return await prisma.userMapping.count(); });
+  const umG2 = await runWithOrg(G2_ORG, async () => { return await prisma.userMapping.count(); });
+  console.log(`user_mappings  default=${umDefault}  g2=${umG2}`);
+  assert(umDefault > 0 && umG2 === 0, 'user_mappings scoped per org (default has roster, g2 empty)');
+
+  // 5. Fail-closed: a tenant query with NO org context must throw
   let threw = false;
   try {
     await prisma.schedule.findMany({});

@@ -1,4 +1,5 @@
 import { prisma } from './database.repository.js';
+import { requireOrgId } from '../shared/tenancy/orgContext.js';
 import type { VodComment } from '../shared/types/types.js';
 
 function mapComment(c: { id: number; scrimId: string; userName: string; timestamp: number; content: string; createdAt: Date; updatedAt: Date }): VodComment {
@@ -22,13 +23,13 @@ export async function getCommentsByScrimId(scrimId: string): Promise<VodComment[
 }
 
 export async function getCommentById(id: number): Promise<VodComment | null> {
-  const comment = await prisma.vodComment.findUnique({ where: { id } });
+  const comment = await prisma.vodComment.findFirst({ where: { id } });
   return comment ? mapComment(comment) : null;
 }
 
 export async function createComment(scrimId: string, userName: string, timestamp: number, content: string): Promise<VodComment> {
   const comment = await prisma.vodComment.create({
-    data: { scrimId, userName, timestamp, content },
+    data: { scrimId, userName, timestamp, content, organizationId: requireOrgId() },
   });
   return mapComment(comment);
 }

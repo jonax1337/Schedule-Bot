@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { verifyToken, AuthRequest, resolveCurrentUser, resolveTargetUser } from '../../shared/middleware/auth.js';
+import { verifyToken, requireOrgMembership,AuthRequest, resolveCurrentUser, resolveTargetUser } from '../../shared/middleware/auth.js';
 import { validate, recurringAvailabilitySchema, recurringAvailabilityBulkSchema } from '../../shared/middleware/validation.js';
 import {
   getRecurringForUser,
@@ -28,7 +28,7 @@ function syncRecurringInBackground(userId: string): void {
  * GET /api/recurring-availability/my
  * Get the logged-in user's recurring schedule
  */
-router.get('/my', verifyToken, resolveCurrentUser, async (req: AuthRequest, res) => {
+router.get('/my', verifyToken, requireOrgMembership,resolveCurrentUser, async (req: AuthRequest, res) => {
   try {
     if (!req.resolvedUser) {
       // Admin account without user mapping - return empty
@@ -47,7 +47,7 @@ router.get('/my', verifyToken, resolveCurrentUser, async (req: AuthRequest, res)
  * GET /api/recurring-availability?userId=ID
  * Get recurring schedule for a specific user (auth required)
  */
-router.get('/', verifyToken, resolveCurrentUser, async (req: AuthRequest, res) => {
+router.get('/', verifyToken, requireOrgMembership,resolveCurrentUser, async (req: AuthRequest, res) => {
   try {
     const userId = req.query.userId as string;
     const isAdmin = req.user?.role === 'admin';
@@ -80,7 +80,7 @@ router.get('/', verifyToken, resolveCurrentUser, async (req: AuthRequest, res) =
  * Set recurring availability for a specific day
  * Body: { dayOfWeek: number, availability: string, userId?: string }
  */
-router.post('/', verifyToken, validate(recurringAvailabilitySchema), resolveTargetUser, async (req: AuthRequest, res) => {
+router.post('/', verifyToken, requireOrgMembership,validate(recurringAvailabilitySchema), resolveTargetUser, async (req: AuthRequest, res) => {
   try {
     const { dayOfWeek, availability } = req.body;
     const targetUserId = req.targetUserId!;
@@ -105,7 +105,7 @@ router.post('/', verifyToken, validate(recurringAvailabilitySchema), resolveTarg
  * Set recurring availability for multiple days at once
  * Body: { days: number[], availability: string, userId?: string }
  */
-router.post('/bulk', verifyToken, validate(recurringAvailabilityBulkSchema), resolveTargetUser, async (req: AuthRequest, res) => {
+router.post('/bulk', verifyToken, requireOrgMembership,validate(recurringAvailabilityBulkSchema), resolveTargetUser, async (req: AuthRequest, res) => {
   try {
     const { days, availability } = req.body;
     const targetUserId = req.targetUserId!;
@@ -136,7 +136,7 @@ router.post('/bulk', verifyToken, validate(recurringAvailabilityBulkSchema), res
  * DELETE /api/recurring-availability/:dayOfWeek
  * Remove recurring availability for a specific day
  */
-router.delete('/:dayOfWeek', verifyToken, resolveTargetUser, async (req: AuthRequest, res) => {
+router.delete('/:dayOfWeek', verifyToken, requireOrgMembership,resolveTargetUser, async (req: AuthRequest, res) => {
   try {
     const dayOfWeek = parseInt(req.params.dayOfWeek as string);
     const targetUserId = req.targetUserId!;
@@ -168,7 +168,7 @@ router.delete('/:dayOfWeek', verifyToken, resolveTargetUser, async (req: AuthReq
  * DELETE /api/recurring-availability
  * Remove all recurring availabilities for the user
  */
-router.delete('/', verifyToken, resolveTargetUser, async (req: AuthRequest, res) => {
+router.delete('/', verifyToken, requireOrgMembership,resolveTargetUser, async (req: AuthRequest, res) => {
   try {
     const targetUserId = req.targetUserId!;
     const count = await removeAllRecurringForUser(targetUserId);

@@ -1,4 +1,5 @@
 import { prisma } from './database.repository.js';
+import { requireOrgId } from '../shared/tenancy/orgContext.js';
 import { parseDDMMYYYY } from '../shared/utils/dateFormatter.js';
 
 export interface AbsenceData {
@@ -71,6 +72,7 @@ export async function createAbsence(
 ): Promise<AbsenceData> {
   const absence = await prisma.absence.create({
     data: {
+      organizationId: requireOrgId(),
       userId,
       startDate,
       endDate,
@@ -132,7 +134,7 @@ export async function deleteAbsence(id: number): Promise<boolean> {
  * Get an absence by ID
  */
 export async function getAbsenceById(id: number): Promise<AbsenceData | null> {
-  const absence = await prisma.absence.findUnique({ where: { id } });
+  const absence = await prisma.absence.findFirst({ where: { id } });
   if (!absence) return null;
 
   return {

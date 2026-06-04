@@ -1,4 +1,5 @@
 import { prisma } from './database.repository.js';
+import { requireOrgId } from '../shared/tenancy/orgContext.js';
 import { logger } from '../shared/utils/logger.js';
 
 const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -53,8 +54,8 @@ export async function getRecurringForUserAndDay(
   userId: string,
   dayOfWeek: number
 ): Promise<RecurringAvailabilityData | null> {
-  const record = await prisma.recurringAvailability.findUnique({
-    where: { userId_dayOfWeek: { userId, dayOfWeek } },
+  const record = await prisma.recurringAvailability.findFirst({
+    where: { userId, dayOfWeek },
   });
 
   if (!record) return null;
@@ -77,19 +78,16 @@ export async function setRecurring(
   dayOfWeek: number,
   availability: string
 ): Promise<RecurringAvailabilityData> {
-  const record = await prisma.recurringAvailability.upsert({
-    where: { userId_dayOfWeek: { userId, dayOfWeek } },
-    create: {
-      userId,
-      dayOfWeek,
-      availability,
-      active: true,
-    },
-    update: {
-      availability,
-      active: true,
-    },
-  });
+  // find-then-write: guard can't scope upsert on the composite [org, userId, day] unique
+  const existing = await prisma.recurringAvailability.findFirst({ where: { userId, dayOfWeek } });
+  const record = existing
+    ? await prisma.recurringAvailability.update({
+        where: { id: existing.id },
+        data: { availability, active: true },
+      })
+    : await prisma.recurringAvailability.create({
+        data: { organizationId: requireOrgId(), userId, dayOfWeek, availability, active: true },
+      });
 
   logger.info('Recurring availability set', `${userId} → ${WEEKDAY_NAMES[dayOfWeek]}: ${availability}`);
 
@@ -107,9 +105,10 @@ export async function setRecurring(
  */
 export async function removeRecurring(userId: string, dayOfWeek: number): Promise<boolean> {
   try {
-    await prisma.recurringAvailability.delete({
-      where: { userId_dayOfWeek: { userId, dayOfWeek } },
+    const result = await prisma.recurringAvailability.deleteMany({
+      where: { userId, dayOfWeek },
     });
+    if (result.count === 0) return false;
     logger.info('Recurring availability removed', `${userId} → ${WEEKDAY_NAMES[dayOfWeek]}`);
     return true;
   } catch {
@@ -132,8 +131,8 @@ export async function removeAllRecurringForUser(userId: string): Promise<number>
  * Toggle active state for a recurring entry
  */
 export async function toggleRecurringActive(userId: string, dayOfWeek: number): Promise<RecurringAvailabilityData | null> {
-  const existing = await prisma.recurringAvailability.findUnique({
-    where: { userId_dayOfWeek: { userId, dayOfWeek } },
+  const existing = await prisma.recurringAvailability.findFirst({
+    where: { userId, dayOfWeek },
   });
 
   if (!existing) return null;
