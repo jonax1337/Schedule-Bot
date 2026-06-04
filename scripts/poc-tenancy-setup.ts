@@ -71,6 +71,37 @@ async function migrate(): Promise<void> {
   console.log('✓ Migration done.');
 }
 
+// Global roster (PoC: user_mappings isn't tenant-scoped yet). Matches the
+// default org's wgw-* players so startup's roster-sync keeps/populates them
+// instead of pruning them. Also drives the dashboard player picker.
+const WGW_MAPPINGS = [
+  { discordId: 'wgw-1', displayName: 'Jonas', role: 'MAIN' as const, isAdmin: true },
+  { discordId: 'wgw-2', displayName: 'Leon', role: 'MAIN' as const, isAdmin: false },
+  { discordId: 'wgw-3', displayName: 'Max', role: 'MAIN' as const, isAdmin: false },
+  { discordId: 'wgw-4', displayName: 'Tim', role: 'MAIN' as const, isAdmin: false },
+  { discordId: 'wgw-5', displayName: 'Paul', role: 'SUB' as const, isAdmin: false },
+];
+
+async function seedUserMappings(): Promise<void> {
+  console.log('→ Seeding user_mappings (WGW roster)…');
+  for (let i = 0; i < WGW_MAPPINGS.length; i++) {
+    const m = WGW_MAPPINGS[i];
+    await prisma.userMapping.upsert({
+      where: { discordId: m.discordId },
+      update: { displayName: m.displayName, role: m.role, sortOrder: i, isAdmin: m.isAdmin },
+      create: {
+        discordId: m.discordId,
+        discordUsername: m.displayName.toLowerCase(),
+        displayName: m.displayName,
+        role: m.role,
+        sortOrder: i,
+        isAdmin: m.isAdmin,
+      },
+    });
+  }
+  console.log('✓ user_mappings seeded (5 players).');
+}
+
 const G2_ROSTER = [
   { userId: 'g2-1', displayName: 'hyped', role: 'MAIN' as const },
   { userId: 'g2-2', displayName: 'Sayf', role: 'MAIN' as const },
@@ -124,6 +155,7 @@ async function seedG2(): Promise<void> {
 
 async function main(): Promise<void> {
   await migrate();
+  await seedUserMappings();
   await seedG2();
   console.log('\n✅ PoC tenancy setup complete. Tenants: "default" (your data) + "g2" (seeded).');
   await prisma.$disconnect();

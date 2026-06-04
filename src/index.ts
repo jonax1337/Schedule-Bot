@@ -68,6 +68,13 @@ async function main(): Promise<void> {
   // Start API server early so healthchecks pass while bot connects
   startApiServer();
 
+  // Local PoC: run API-only (no Discord login, no scheduler) so the dashboard
+  // can be developed against the local DB without touching the real guild.
+  if (process.env.DISABLE_BOT === '1') {
+    logger.warn('Bot disabled', 'DISABLE_BOT=1 — API only (no Discord, no scheduler)');
+    return;
+  }
+
   logger.info('Starting Discord bot');
   await startBot();
 
