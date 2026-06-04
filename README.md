@@ -32,17 +32,28 @@
 
 ## Tech Stack
 
+<p><strong>Backend</strong></p>
 <p>
   <img src="https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
   <img src="https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white" alt="Node.js" />
-  <img src="https://img.shields.io/badge/Discord.js-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord.js" />
-  <img src="https://img.shields.io/badge/Express-000000?style=for-the-badge&logo=express&logoColor=white" alt="Express" />
-  <img src="https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white" alt="Next.js" />
-  <img src="https://img.shields.io/badge/React_19-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React" />
+  <img src="https://img.shields.io/badge/discord.js_14-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="discord.js" />
+  <img src="https://img.shields.io/badge/Express_5-000000?style=for-the-badge&logo=express&logoColor=white" alt="Express" />
+  <img src="https://img.shields.io/badge/Prisma_7-2D3748?style=for-the-badge&logo=prisma&logoColor=white" alt="Prisma" />
   <img src="https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL" />
-  <img src="https://img.shields.io/badge/Prisma-2D3748?style=for-the-badge&logo=prisma&logoColor=white" alt="Prisma" />
-  <img src="https://img.shields.io/badge/TailwindCSS_4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white" alt="TailwindCSS" />
+  <img src="https://img.shields.io/badge/JWT-000000?style=for-the-badge&logo=jsonwebtokens&logoColor=white" alt="JWT" />
+  <img src="https://img.shields.io/badge/Vitest-6E9F18?style=for-the-badge&logo=vitest&logoColor=white" alt="Vitest" />
+</p>
+
+<p><strong>Dashboard</strong></p>
+<p>
+  <img src="https://img.shields.io/badge/React_19-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React 19" />
+  <img src="https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite" />
+  <img src="https://img.shields.io/badge/React_Router_7-CA4245?style=for-the-badge&logo=reactrouter&logoColor=white" alt="React Router 7" />
+  <img src="https://img.shields.io/badge/TailwindCSS_4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white" alt="TailwindCSS 4" />
   <img src="https://img.shields.io/badge/Radix_UI-161618?style=for-the-badge&logo=radixui&logoColor=white" alt="Radix UI" />
+  <img src="https://img.shields.io/badge/shadcn%2Fui-000000?style=for-the-badge&logo=shadcnui&logoColor=white" alt="shadcn/ui" />
+  <img src="https://img.shields.io/badge/TanStack_Query-FF4154?style=for-the-badge&logo=reactquery&logoColor=white" alt="TanStack Query" />
+  <img src="https://img.shields.io/badge/TipTap-000000?style=for-the-badge&logo=tiptap&logoColor=white" alt="TipTap" />
 </p>
 
 ---
@@ -188,8 +199,8 @@ NEXT_PUBLIC_BOT_API_URL=http://localhost:3001
                   ┌───────────────┼───────────────┐
                   ▼               ▼               ▼
          ┌────────────┐  ┌────────────┐  ┌────────────┐
-         │ PostgreSQL │  │  Next.js   │  │  Discord   │
-         │ (Prisma)   │  │  Dashboard │  │  OAuth     │
+         │ PostgreSQL │  │  Vite SPA  │  │  Discord   │
+         │ (Prisma 7) │  │  Dashboard │  │  OAuth     │
          │            │  │  :3000     │  │ (optional) │
          └────────────┘  └────────────┘  └────────────┘
 ```
@@ -204,19 +215,19 @@ synqed/
 │   ├── bot/                  # Discord bot (commands, events, interactions)
 │   ├── jobs/                 # node-cron scheduler
 │   ├── repositories/         # Prisma data access layer
-│   ├── services/             # Business logic
 │   └── shared/               # Config, middleware, utils
-├── dashboard/                # Next.js frontend
-│   ├── app/                  # App Router pages
-│   ├── components/           # React components
-│   │   ├── admin/            # Admin panel
-│   │   ├── user/             # User portal
-│   │   ├── shared/           # Shared components
-│   │   └── ui/               # Radix UI primitives
-│   ├── hooks/                # Custom React hooks
-│   └── lib/                  # Utilities, API client, auth
+├── dashboard/                # Vite + React SPA
+│   ├── index.html            # Vite entry HTML
+│   ├── vite.config.ts        # Vite + Tailwind plugin + path alias
+│   └── src/
+│       ├── main.tsx          # App bootstrap
+│       ├── App.tsx           # Providers + React Router routes
+│       ├── pages/            # Route components
+│       ├── components/       # admin/ · user/ · shared/ · shells/ · ui/ (shadcn)
+│       ├── hooks/            # Custom React hooks
+│       └── lib/              # Utilities, API client, auth
 ├── prisma/                   # Database schema + migrations
-└── assets/                   # Logo, banner images
+└── assets/                   # Logo, banner, brand assets
 ```
 
 ---
@@ -441,8 +452,9 @@ This project is licensed under the [MIT License](LICENSE).
 ## Acknowledgments
 
 - [discord.js](https://discord.js.org/) - Discord API library
-- [Next.js](https://nextjs.org/) - React framework
-- [Shadcn UI](https://ui.shadcn.com/) - UI components
+- [Vite](https://vite.dev/) - Frontend build tool & dev server
+- [React Router](https://reactrouter.com/) - SPA routing
+- [shadcn/ui](https://ui.shadcn.com/) + [Radix UI](https://www.radix-ui.com/) - UI components
 - [Prisma](https://www.prisma.io/) - Database ORM
 - [TailwindCSS](https://tailwindcss.com/) - CSS framework
 
