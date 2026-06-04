@@ -109,8 +109,8 @@ app.use((err: any, _req: any, res: any, _next: any) => {
 });
 
 // Export startApiServer function
-export function startApiServer(): void {
-  app.listen(PORT, () => {
+export function startApiServer() {
+  return app.listen(PORT, () => {
     logger.success('API Server started', `Listening on port ${PORT}`);
   });
 }
