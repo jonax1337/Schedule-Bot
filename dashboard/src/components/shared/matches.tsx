@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
+import { MatchTypeBadge } from './match-type-badge';
+import { ResultBadge } from './result-badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Loader2, Plus, Edit, Trash2, TrendingUp, Trophy, Target, X, LayoutGrid, Table as TableIcon, Video, ArrowUpDown, ArrowUp, ArrowDown, ExternalLink } from "lucide-react";
@@ -238,60 +239,6 @@ export function Matches() {
       setEditingScrim(null);
       resetForm();
     }
-  };
-
-  const getResultBadge = (result: string, onDark = false) => {
-    switch (result) {
-      case 'win':
-        return <Badge variant="default" className={onDark ? "bg-green-600 text-white" : "bg-green-500"}>Win</Badge>;
-      case 'loss':
-        return <Badge variant="destructive" className={onDark ? "bg-red-600 text-white" : undefined}>Loss</Badge>;
-      case 'draw':
-        return <Badge variant="secondary" className={onDark ? "bg-white/20 text-white" : undefined}>Draw</Badge>;
-      default:
-        return null;
-    }
-  };
-
-  const getMatchTypeBadge = (matchType: string, onDark = false) => {
-    const getClassName = () => {
-      if (onDark) {
-        switch (matchType) {
-          case 'Premier': return 'bg-amber-950/80 text-amber-300';
-          case 'Scrim': return 'bg-blue-950/80 text-blue-300';
-          case 'Tournament': return 'bg-yellow-950/80 text-yellow-300';
-          case 'Custom': return 'bg-gray-800/80 text-gray-300';
-          default: return 'bg-gray-800/80 text-gray-300';
-        }
-      }
-      switch (matchType) {
-        case 'Premier':
-          return 'bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300';
-        case 'Scrim':
-          return 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300';
-        case 'Tournament':
-          return 'bg-yellow-100 dark:bg-yellow-950 text-yellow-700 dark:text-yellow-300';
-        case 'Custom':
-          return 'bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300';
-        default:
-          return 'bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300';
-      }
-    };
-
-    return (
-      <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${getClassName()}`}>
-        {matchType === 'Premier' && (
-          <img
-            src="/assets/Premier_logo.png"
-            alt="Premier"
-            width={12}
-            height={12}
-            className="mr-1"
-          />
-        )}
-        {matchType}
-      </span>
-    );
   };
 
   // Filter and sort scrims - memoized for performance
@@ -772,7 +719,7 @@ export function Matches() {
                       <TableCell className="font-medium">{scrim.date}</TableCell>
                       <TableCell>
                         {scrim.matchType && (
-                          getMatchTypeBadge(scrim.matchType)
+                          <MatchTypeBadge type={scrim.matchType} />
                         )}
                       </TableCell>
                       <TableCell>{scrim.opponent}</TableCell>
@@ -781,7 +728,7 @@ export function Matches() {
                         {scrim.scoreUs}:{scrim.scoreThem}
                       </TableCell>
                       <TableCell className="text-center">
-                        {getResultBadge(scrim.result)}
+                        {scrim.result && <ResultBadge result={scrim.result} />}
                       </TableCell>
                       <TableCell>
                         {scrim.ourAgents?.length > 0 && (
@@ -914,9 +861,9 @@ export function Matches() {
                     <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-white/20 relative z-10">
                       <div className="flex items-center gap-2">
                         {scrim.matchType && (
-                          getMatchTypeBadge(scrim.matchType, true)
+                          <MatchTypeBadge type={scrim.matchType} onDark />
                         )}
-                        {getResultBadge(scrim.result, true)}
+                        {scrim.result && <ResultBadge result={scrim.result} onDark />}
                       </div>
                       <div className="flex gap-1">
                         <Button

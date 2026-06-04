@@ -6,7 +6,8 @@ import YouTube, { type YouTubeEvent } from 'react-youtube';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Badge } from '@/components/ui/badge';
+import { MatchTypeBadge } from '@/components/shared/match-type-badge';
+import { ResultBadge } from '@/components/shared/result-badge';
 import { Loader2, MessageSquare, Edit, Trash2, Send, Clock, X, Check, Filter, Hash, User, AtSign, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { getUser, getAuthHeaders } from '@/lib/auth';
@@ -354,37 +355,6 @@ export default function VodRoomPage() {
     );
   }
 
-  const getResultBadge = (result: string) => {
-    switch (result) {
-      case 'win':
-        return <Badge variant="default" className="bg-green-500">Win</Badge>;
-      case 'loss':
-        return <Badge variant="destructive">Loss</Badge>;
-      case 'draw':
-        return <Badge variant="secondary">Draw</Badge>;
-      default:
-        return null;
-    }
-  };
-
-  const getMatchTypeBadge = (matchType: string) => {
-    const classMap: Record<string, string> = {
-      'Premier': 'bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300',
-      'Scrim': 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300',
-      'Tournament': 'bg-yellow-100 dark:bg-yellow-950 text-yellow-700 dark:text-yellow-300',
-      'Custom': 'bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300',
-    };
-    const cls = classMap[matchType] || classMap['Custom'];
-    return (
-      <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${cls}`}>
-        {matchType === 'Premier' && (
-          <img src="/assets/Premier_logo.png" alt="Premier" width={12} height={12} className="mr-1" />
-        )}
-        {matchType}
-      </span>
-    );
-  };
-
   return (
     <div className="flex flex-col h-screen bg-background">
       {/* Top bar */}
@@ -399,7 +369,7 @@ export default function VodRoomPage() {
             <span className="text-sm text-muted-foreground shrink-0">{scrim.date}</span>
 
             {/* Match type badge */}
-            {scrim.matchType && getMatchTypeBadge(scrim.matchType)}
+            {scrim.matchType && <MatchTypeBadge type={scrim.matchType} />}
 
             {/* Opponent */}
             <span className="font-semibold truncate">{teamName} vs {scrim.opponent}</span>
@@ -417,7 +387,7 @@ export default function VodRoomPage() {
             </span>
 
             {/* Result badge */}
-            {getResultBadge(scrim.result)}
+            {scrim.result && <ResultBadge result={scrim.result} />}
             
           </div>
         </div>
