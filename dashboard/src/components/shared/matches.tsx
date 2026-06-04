@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MatchTypeBadge } from './match-type-badge';
 import { ResultBadge } from './result-badge';
+import { AgentGroup } from './agent-group';
+import { StatCard } from '@/components/ui/stat-card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Loader2, Plus, Edit, Trash2, TrendingUp, Trophy, Target, X, LayoutGrid, Table as TableIcon, Video, ArrowUpDown, ArrowUp, ArrowDown, ExternalLink } from "lucide-react";
@@ -285,48 +287,27 @@ export function Matches() {
       {/* Stats Cards */}
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className={stagger(0, 'fast', 'slideUpScale')}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Overall Record</CardTitle>
-              <Trophy className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {stats.wins}-{stats.losses}-{stats.draws}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {stats.totalScrims} total games
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className={stagger(1, 'fast', 'slideUpScale')}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Win Rate</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.winRate.toFixed(1)}%</div>
-              <p className="text-xs text-muted-foreground">
-                {stats.wins} wins out of {stats.totalScrims} games
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className={stagger(2, 'fast', 'slideUpScale')}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Maps Played</CardTitle>
-              <Target className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {Object.keys(stats.mapStats).length}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Different maps
-              </p>
-            </CardContent>
-          </Card>
+          <StatCard
+            className={stagger(0, 'fast', 'slideUpScale')}
+            label="Overall Record"
+            icon={Trophy}
+            value={`${stats.wins}-${stats.losses}-${stats.draws}`}
+            subtitle={`${stats.totalScrims} total games`}
+          />
+          <StatCard
+            className={stagger(1, 'fast', 'slideUpScale')}
+            label="Win Rate"
+            icon={TrendingUp}
+            value={`${stats.winRate.toFixed(1)}%`}
+            subtitle={`${stats.wins} wins out of ${stats.totalScrims} games`}
+          />
+          <StatCard
+            className={stagger(2, 'fast', 'slideUpScale')}
+            label="Maps Played"
+            icon={Target}
+            value={Object.keys(stats.mapStats).length}
+            subtitle="Different maps"
+          />
         </div>
       )}
 
@@ -731,34 +712,10 @@ export function Matches() {
                         {scrim.result && <ResultBadge result={scrim.result} />}
                       </TableCell>
                       <TableCell>
-                        {scrim.ourAgents?.length > 0 && (
-                          <div className="flex gap-1">
-                            {[...scrim.ourAgents].sort().map((agent, idx) => (
-                              <img
-                                key={`our-${idx}`}
-                                src={`/assets/agents/${agent}_icon.webp`}
-                                alt={agent}
-                                className="w-6 h-6 rounded border border-primary/50"
-                                title={agent}
-                              />
-                            ))}
-                          </div>
-                        )}
+                        <AgentGroup agents={scrim.ourAgents} keyPrefix="our" iconClassName="border border-primary/50" />
                       </TableCell>
                       <TableCell>
-                        {scrim.theirAgents?.length > 0 && (
-                          <div className="flex gap-1">
-                            {[...scrim.theirAgents].sort().map((agent, idx) => (
-                              <img
-                                key={`their-${idx}`}
-                                src={`/assets/agents/${agent}_icon.webp`}
-                                alt={agent}
-                                className="w-6 h-6 rounded border border-destructive/50"
-                                title={agent}
-                              />
-                            ))}
-                          </div>
-                        )}
+                        <AgentGroup agents={scrim.theirAgents} keyPrefix="their" iconClassName="border border-destructive/50" />
                       </TableCell>
                       <TableCell className="text-center">
                         {(() => { const id = scrim.vodUrl ? getYouTubeVideoId(scrim.vodUrl) : null; return id ? (
@@ -892,19 +849,12 @@ export function Matches() {
                         {/* Our Team - Left Side */}
                         <div className="flex-1 flex flex-col items-center">
                           <span className="text-base sm:text-lg font-semibold text-white drop-shadow-md">{teamName}</span>
-                          {scrim.ourAgents?.length > 0 && (
-                            <div className="flex gap-1 sm:gap-1.5 justify-center flex-wrap mt-1">
-                              {[...scrim.ourAgents].sort().map((agent, idx) => (
-                                <img
-                                  key={`our-${idx}`}
-                                  src={`/assets/agents/${agent}_icon.webp`}
-                                  alt={agent}
-                                  className="w-6 h-6 sm:w-7 sm:h-7 rounded border-2 border-white/50"
-                                  title={agent}
-                                />
-                              ))}
-                            </div>
-                          )}
+                          <AgentGroup
+                            agents={scrim.ourAgents}
+                            keyPrefix="our"
+                            className="sm:gap-1.5 justify-center flex-wrap mt-1"
+                            iconClassName="sm:w-7 sm:h-7 border-2 border-white/50"
+                          />
                         </div>
 
                         {/* Score - Center */}
@@ -921,19 +871,12 @@ export function Matches() {
                         {/* Opponent Team - Right Side */}
                         <div className="flex-1 flex flex-col items-center">
                           <span className="text-base sm:text-lg font-semibold text-white drop-shadow-md">{scrim.opponent}</span>
-                          {scrim.theirAgents?.length > 0 && (
-                            <div className="flex gap-1 sm:gap-1.5 justify-center flex-wrap mt-1">
-                              {[...scrim.theirAgents].sort().map((agent, idx) => (
-                                <img
-                                  key={`their-${idx}`}
-                                  src={`/assets/agents/${agent}_icon.webp`}
-                                  alt={agent}
-                                  className="w-6 h-6 sm:w-7 sm:h-7 rounded border-2 border-destructive/60"
-                                  title={agent}
-                                />
-                              ))}
-                            </div>
-                          )}
+                          <AgentGroup
+                            agents={scrim.theirAgents}
+                            keyPrefix="their"
+                            className="sm:gap-1.5 justify-center flex-wrap mt-1"
+                            iconClassName="sm:w-7 sm:h-7 border-2 border-destructive/60"
+                          />
                         </div>
                       </div>
 
