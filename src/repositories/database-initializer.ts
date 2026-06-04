@@ -1,4 +1,5 @@
 import { prisma } from './database.repository.js';
+import { requireOrgId } from '../shared/tenancy/orgContext.js';
 import { logger, getErrorMessage } from '../shared/utils/logger.js';
 import { formatDateToDDMMYYYY } from '../shared/utils/dateFormatter.js';
 import { exec } from 'child_process';
@@ -155,11 +156,10 @@ async function initializeScheduleEntries(): Promise<void> {
 
   try {
     for (const entry of entries) {
-      await prisma.schedule.upsert({
-        where: { date: entry.date },
-        update: {},
-        create: entry,
-      });
+      const existing = await prisma.schedule.findFirst({ where: { date: entry.date } });
+      if (!existing) {
+        await prisma.schedule.create({ data: { ...entry, organizationId: requireOrgId() } });
+      }
     }
     logger.success('Schedule entries created', `${entries.length} entries`);
   } catch (error) {

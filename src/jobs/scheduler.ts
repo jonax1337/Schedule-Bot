@@ -4,8 +4,19 @@ import { postScheduleToChannel, client } from '../bot/client.js';
 import { sendRemindersToUsersWithoutEntry } from '../bot/interactions/reminder.js';
 import { refreshWeeklyOverview } from '../bot/utils/weekly-overview.js';
 import { addMissingDays } from '../repositories/schedule.repository.js';
+import { getDefaultOrgId } from '../repositories/organization.repository.js';
+import { runWithOrg } from '../shared/tenancy/orgContext.js';
 import { getCurrentWeekMonday, getNextWeekMonday } from '../bot/utils/week-utils.js';
 import { logger, getErrorMessage } from '../shared/utils/logger.js';
+
+/**
+ * PoC: cron fires outside any HTTP request, so it has no tenant context.
+ * Run each job in the default org's context. (Later: loop over all orgs.)
+ */
+async function inDefaultOrg(fn: () => Promise<void>): Promise<void> {
+  const orgId = await getDefaultOrgId();
+  await runWithOrg(orgId, fn);
+}
 
 let scheduledTask: cron.ScheduledTask | null = null;
 let reminderTask: cron.ScheduledTask | null = null;
@@ -64,13 +75,15 @@ export function startScheduler(): void {
   scheduledTask = cron.schedule(
     cronExpression,
     async () => {
-      logger.info('Running scheduled post');
-      try {
-        await postScheduleToChannel();
-        logger.success('Scheduled post completed');
-      } catch (error) {
-        logger.error('Scheduled post failed', getErrorMessage(error));
-      }
+      await inDefaultOrg(async () => {
+        logger.info('Running scheduled post');
+        try {
+          await postScheduleToChannel();
+          logger.success('Scheduled post completed');
+        } catch (error) {
+          logger.error('Scheduled post failed', getErrorMessage(error));
+        }
+      });
     },
     {
       timezone,
@@ -86,17 +99,19 @@ export function startScheduler(): void {
   reminderTask = cron.schedule(
     reminderCronExpression,
     async () => {
-      if (isWeeklyPingDay(timezone)) {
-        logger.info('Daily reminder skipped', 'Today is a weekly planning day');
-        return;
-      }
-      logger.info('Running scheduled reminders');
-      try {
-        await sendRemindersToUsersWithoutEntry(client);
-        logger.success('Reminders sent');
-      } catch (error) {
-        logger.error('Scheduled reminders failed', getErrorMessage(error));
-      }
+      await inDefaultOrg(async () => {
+        if (isWeeklyPingDay(timezone)) {
+          logger.info('Daily reminder skipped', 'Today is a weekly planning day');
+          return;
+        }
+        logger.info('Running scheduled reminders');
+        try {
+          await sendRemindersToUsersWithoutEntry(client);
+          logger.success('Reminders sent');
+        } catch (error) {
+          logger.error('Scheduled reminders failed', getErrorMessage(error));
+        }
+      });
     },
     {
       timezone,
@@ -113,17 +128,19 @@ export function startScheduler(): void {
     duplicateReminderTask = cron.schedule(
       dupReminderCronExpression,
       async () => {
-        if (isWeeklyPingDay(timezone)) {
-          logger.info('Duplicate reminder skipped', 'Today is a weekly planning day');
-          return;
-        }
-        logger.info('Running duplicate reminders');
-        try {
-          await sendRemindersToUsersWithoutEntry(client);
-          logger.success('Duplicate reminders sent');
-        } catch (error) {
-          logger.error('Duplicate reminders failed', getErrorMessage(error));
-        }
+        await inDefaultOrg(async () => {
+          if (isWeeklyPingDay(timezone)) {
+            logger.info('Duplicate reminder skipped', 'Today is a weekly planning day');
+            return;
+          }
+          logger.info('Running duplicate reminders');
+          try {
+            await sendRemindersToUsersWithoutEntry(client);
+            logger.success('Duplicate reminders sent');
+          } catch (error) {
+            logger.error('Duplicate reminders failed', getErrorMessage(error));
+          }
+        });
       },
       {
         timezone,
@@ -143,18 +160,20 @@ export function startScheduler(): void {
     weeklyPingTask = cron.schedule(
       weeklyCron,
       async () => {
-        const dayOfWeek = new Date().toLocaleString('en-US', { weekday: 'long', timeZone: timezone });
-        const targetWeek: 'current' | 'next' = dayOfWeek === 'Sunday' ? 'next' : 'current';
-        const weekMonday = targetWeek === 'next' ? getNextWeekMonday() : getCurrentWeekMonday();
-        logger.info('Running weekly planning reminder', `${targetWeek} week (${weekMonday})`);
-        try {
-          await addMissingDays();
-          await refreshWeeklyOverview(client);
-          await sendRemindersToUsersWithoutEntry(client, { weekMonday, variant: 'weekly-planning' });
-          logger.success('Weekly planning reminder completed', `${targetWeek} week ${weekMonday}`);
-        } catch (error) {
-          logger.error('Weekly planning reminder failed', getErrorMessage(error));
-        }
+        await inDefaultOrg(async () => {
+          const dayOfWeek = new Date().toLocaleString('en-US', { weekday: 'long', timeZone: timezone });
+          const targetWeek: 'current' | 'next' = dayOfWeek === 'Sunday' ? 'next' : 'current';
+          const weekMonday = targetWeek === 'next' ? getNextWeekMonday() : getCurrentWeekMonday();
+          logger.info('Running weekly planning reminder', `${targetWeek} week (${weekMonday})`);
+          try {
+            await addMissingDays();
+            await refreshWeeklyOverview(client);
+            await sendRemindersToUsersWithoutEntry(client, { weekMonday, variant: 'weekly-planning' });
+            logger.success('Weekly planning reminder completed', `${targetWeek} week ${weekMonday}`);
+          } catch (error) {
+            logger.error('Weekly planning reminder failed', getErrorMessage(error));
+          }
+        });
       },
       { timezone },
     );

@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import { apiLimiter } from '../shared/middleware/rateLimiter.js';
+import { resolveTenant } from '../shared/middleware/tenant.js';
 import { logger, getErrorMessage } from '../shared/utils/logger.js';
 import apiRoutes from './routes/index.js';
 
@@ -68,7 +69,7 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant'],
   exposedHeaders: ['Content-Type', 'Authorization'],
   preflightContinue: false,
   optionsSuccessStatus: 204
@@ -87,6 +88,9 @@ app.use((req, res, next) => {
 
 // Security: Rate limiting for all API routes
 app.use('/api', apiLimiter);
+
+// Multi-tenancy: resolve the tenant and run each request inside its org context
+app.use('/api', resolveTenant);
 
 // Mount all API routes
 app.use('/api', apiRoutes);

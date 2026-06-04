@@ -1,4 +1,5 @@
 import { prisma } from './database.repository.js';
+import { requireOrgId } from '../shared/tenancy/orgContext.js';
 import { getUserMappings } from './user-mapping.repository.js';
 import { getAllActiveRecurring } from './recurring-availability.repository.js';
 import { getAbsentUserIdsForDates } from './absence.repository.js';
@@ -107,7 +108,7 @@ export async function getScheduleRange(from: string, to: string): Promise<Schedu
 }
 
 export async function getScheduleForDate(date: string): Promise<ScheduleData | null> {
-  const schedule = await prisma.schedule.findUnique({
+  const schedule = await prisma.schedule.findFirst({
     where: { date },
     include: {
       players: {
@@ -207,18 +208,13 @@ export function getSchedulingWindowDates(days: number = SCHEDULE_SEEDING_DAYS): 
  * Create or update schedule for a date
  */
 export async function upsertSchedule(date: string, reason: string = '', focus: string = ''): Promise<void> {
-  await prisma.schedule.upsert({
-    where: { date },
-    create: {
-      date,
-      reason,
-      focus,
-    },
-    update: {
-      reason,
-      focus,
-    },
-  });
+  // find-then-write: the guard can't scope upsert on the composite [org, date] unique
+  const existing = await prisma.schedule.findFirst({ where: { date } });
+  if (existing) {
+    await prisma.schedule.update({ where: { id: existing.id }, data: { reason, focus } });
+  } else {
+    await prisma.schedule.create({ data: { date, reason, focus, organizationId: requireOrgId() } });
+  }
 }
 
 /**
@@ -257,7 +253,7 @@ export async function updatePlayerAvailability(
         return false;
       }
 
-      const schedule = await prisma.schedule.findUnique({ where: { date } });
+      const schedule = await prisma.schedule.findFirst({ where: { date } });
       if (!schedule) return false;
 
       await prisma.schedulePlayer.create({
@@ -268,6 +264,7 @@ export async function updatePlayerAvailability(
           role: mapping.role.toUpperCase() as 'MAIN' | 'SUB' | 'COACH',
           availability,
           sortOrder: mapping.sortOrder,
+          organizationId: requireOrgId(),
         },
       });
     }
@@ -303,7 +300,7 @@ export async function addMissingDays(): Promise<void> {
     const dayOfWeek = dateObj.getDay(); // 0=Sunday...6=Saturday
 
     // Ensure schedule exists
-    let schedule = await prisma.schedule.findUnique({
+    let schedule = await prisma.schedule.findFirst({
       where: { date },
       include: { players: true },
     });
@@ -314,6 +311,7 @@ export async function addMissingDays(): Promise<void> {
           date,
           reason: '',
           focus: '',
+          organizationId: requireOrgId(),
         },
         include: { players: true },
       });
@@ -335,6 +333,7 @@ export async function addMissingDays(): Promise<void> {
             role: mapping.role.toUpperCase() as 'MAIN' | 'SUB' | 'COACH',
             availability: recurringAvailability,
             sortOrder: mapping.sortOrder,
+            organizationId: requireOrgId(),
           },
         });
       }
@@ -390,6 +389,7 @@ export async function syncUserMappingsToSchedules(): Promise<void> {
             role: targetRole,
             availability: '',
             sortOrder: mapping.sortOrder,
+            organizationId: requireOrgId(),
           },
         });
         added++;
@@ -451,7 +451,7 @@ export async function applyRecurringToEmptySchedules(userId?: string): Promise<n
     const dateObj = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
     const dayOfWeek = dateObj.getDay();
 
-    const schedule = await prisma.schedule.findUnique({
+    const schedule = await prisma.schedule.findFirst({
       where: { date },
       include: { players: true },
     });
@@ -497,7 +497,7 @@ export async function clearRecurringFromSchedules(
     const dateObj = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
     if (dateObj.getDay() !== dayOfWeek) continue;
 
-    const schedule = await prisma.schedule.findUnique({
+    const schedule = await prisma.schedule.findFirst({
       where: { date },
       include: { players: true },
     });
@@ -555,18 +555,12 @@ export async function updateScheduleReason(
   focus: string = ''
 ): Promise<boolean> {
   try {
-    await prisma.schedule.upsert({
-      where: { date },
-      create: {
-        date,
-        reason,
-        focus,
-      },
-      update: {
-        reason,
-        focus,
-      },
-    });
+    const existing = await prisma.schedule.findFirst({ where: { date } });
+    if (existing) {
+      await prisma.schedule.update({ where: { id: existing.id }, data: { reason, focus } });
+    } else {
+      await prisma.schedule.create({ data: { date, reason, focus, organizationId: requireOrgId() } });
+    }
     return true;
   } catch (error) {
     logger.error('Error updating schedule reason', getErrorMessage(error));

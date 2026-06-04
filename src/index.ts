@@ -1,6 +1,8 @@
 import { startBot, client } from './bot/client.js';
 import { startScheduler, stopScheduler, getNextScheduledTime } from './jobs/scheduler.js';
 import { connectDatabase, disconnectDatabase } from './repositories/database.repository.js';
+import { getDefaultOrgId } from './repositories/organization.repository.js';
+import { runWithOrg } from './shared/tenancy/orgContext.js';
 import { config, reloadConfig } from './shared/config/config.js';
 import { startApiServer } from './api/server.js';
 import { logger, getErrorMessage } from './shared/utils/logger.js';
@@ -16,38 +18,52 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  // Initialize database if empty
+  // Multi-tenancy (PoC): the bot/scheduler/startup operate on the default org.
+  // Everything below that touches tenant data runs inside its context so the
+  // Prisma guard can scope queries. (Later: per-org loop / guildId resolution.)
+  let defaultOrgId: string;
   try {
-    const { initializeDatabaseIfEmpty } = await import('./repositories/database-initializer.js');
-    await initializeDatabaseIfEmpty();
+    defaultOrgId = await getDefaultOrgId();
   } catch (error) {
-    logger.error('Database initialization failed', getErrorMessage(error));
+    logger.error('Default organization missing', getErrorMessage(error));
+    logger.error('Run the PoC setup first', 'npx tsx scripts/poc-tenancy-setup.ts');
+    process.exit(1);
   }
 
-  // Load settings from PostgreSQL
-  try {
-    await reloadConfig();
-    logger.success('Settings loaded', `Post time: ${config.scheduling.dailyPostTime}, Timezone: ${config.scheduling.timezone}`);
-  } catch (error) {
-    logger.error('Settings load failed', getErrorMessage(error));
-  }
+  await runWithOrg(defaultOrgId, async () => {
+    // Initialize database if empty
+    try {
+      const { initializeDatabaseIfEmpty } = await import('./repositories/database-initializer.js');
+      await initializeDatabaseIfEmpty();
+    } catch (error) {
+      logger.error('Database initialization failed', getErrorMessage(error));
+    }
 
-  // Materialize the seeding window and reconcile the roster.
-  // syncUserMappingsToSchedules backfills missing players into existing
-  // (past + future) schedules so historical counts reflect the current
-  // team, and prunes departed players from future schedules only.
-  try {
-    const {
-      addMissingDays,
-      applyRecurringToEmptySchedules,
-      syncUserMappingsToSchedules,
-    } = await import('./repositories/schedule.repository.js');
-    await addMissingDays();
-    await syncUserMappingsToSchedules();
-    await applyRecurringToEmptySchedules();
-  } catch (error) {
-    logger.error('Schedule verification failed', getErrorMessage(error));
-  }
+    // Load settings from PostgreSQL
+    try {
+      await reloadConfig();
+      logger.success('Settings loaded', `Post time: ${config.scheduling.dailyPostTime}, Timezone: ${config.scheduling.timezone}`);
+    } catch (error) {
+      logger.error('Settings load failed', getErrorMessage(error));
+    }
+
+    // Materialize the seeding window and reconcile the roster.
+    // syncUserMappingsToSchedules backfills missing players into existing
+    // (past + future) schedules so historical counts reflect the current
+    // team, and prunes departed players from future schedules only.
+    try {
+      const {
+        addMissingDays,
+        applyRecurringToEmptySchedules,
+        syncUserMappingsToSchedules,
+      } = await import('./repositories/schedule.repository.js');
+      await addMissingDays();
+      await syncUserMappingsToSchedules();
+      await applyRecurringToEmptySchedules();
+    } catch (error) {
+      logger.error('Schedule verification failed', getErrorMessage(error));
+    }
+  });
 
   // Start API server early so healthchecks pass while bot connects
   startApiServer();
@@ -57,24 +73,26 @@ async function main(): Promise<void> {
 
   // Wait for bot to be ready before starting scheduler
   client.once('clientReady', async () => {
-    logger.success('Discord bot ready', `Logged in as ${client.user?.tag}`);
+    await runWithOrg(defaultOrgId, async () => {
+      logger.success('Discord bot ready', `Logged in as ${client.user?.tag}`);
 
-    startScheduler();
+      startScheduler();
 
-    const nextRun = getNextScheduledTime();
-    if (nextRun) {
-      logger.info('Next scheduled post', nextRun.toLocaleString('de-DE'));
-    }
+      const nextRun = getNextScheduledTime();
+      if (nextRun) {
+        logger.info('Next scheduled post', nextRun.toLocaleString('de-DE'));
+      }
 
-    // Refresh the pinned weekly overview so it reflects the current week
-    try {
-      const { refreshWeeklyOverview } = await import('./bot/utils/weekly-overview.js');
-      await refreshWeeklyOverview(client);
-    } catch (error) {
-      logger.error('Initial weekly overview refresh failed', getErrorMessage(error));
-    }
+      // Refresh the pinned weekly overview so it reflects the current week
+      try {
+        const { refreshWeeklyOverview } = await import('./bot/utils/weekly-overview.js');
+        await refreshWeeklyOverview(client);
+      } catch (error) {
+        logger.error('Initial weekly overview refresh failed', getErrorMessage(error));
+      }
 
-    logger.success('Startup complete');
+      logger.success('Startup complete');
+    });
   });
 }
 

@@ -1,5 +1,11 @@
 import { getAuthHeaders, removeAuthToken } from './auth'
+import { getTenantHeader } from './tenant'
 import { BOT_API_URL, API_MAX_RETRIES, API_RETRY_BASE_DELAY, API_TIMEOUT } from './config'
+
+/** Auth headers + the current tenant slug, sent on every request. */
+function requestHeaders(): Record<string, string> {
+  return { ...getAuthHeaders(), ...getTenantHeader() }
+}
 
 export class ApiError extends Error {
   status: number
@@ -75,7 +81,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
 export async function apiGet<T>(endpoint: string): Promise<T> {
   const response = await fetchWithRetry(`${BOT_API_URL}${endpoint}`, {
     method: 'GET',
-    headers: getAuthHeaders(),
+    headers: requestHeaders(),
     cache: 'no-store',
   })
   return handleResponse<T>(response)
@@ -84,7 +90,7 @@ export async function apiGet<T>(endpoint: string): Promise<T> {
 export async function apiPost<T>(endpoint: string, data?: unknown): Promise<T> {
   const response = await fetchWithRetry(`${BOT_API_URL}${endpoint}`, {
     method: 'POST',
-    headers: getAuthHeaders(),
+    headers: requestHeaders(),
     body: data ? JSON.stringify(data) : undefined,
     cache: 'no-store',
   })
@@ -94,7 +100,7 @@ export async function apiPost<T>(endpoint: string, data?: unknown): Promise<T> {
 export async function apiPut<T>(endpoint: string, data?: unknown): Promise<T> {
   const response = await fetchWithRetry(`${BOT_API_URL}${endpoint}`, {
     method: 'PUT',
-    headers: getAuthHeaders(),
+    headers: requestHeaders(),
     body: data ? JSON.stringify(data) : undefined,
     cache: 'no-store',
   })
@@ -104,7 +110,7 @@ export async function apiPut<T>(endpoint: string, data?: unknown): Promise<T> {
 export async function apiDelete<T>(endpoint: string): Promise<T> {
   const response = await fetchWithRetry(`${BOT_API_URL}${endpoint}`, {
     method: 'DELETE',
-    headers: getAuthHeaders(),
+    headers: requestHeaders(),
     cache: 'no-store',
   })
   return handleResponse<T>(response)

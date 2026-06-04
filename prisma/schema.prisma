@@ -7,33 +7,57 @@ datasource db {
   provider = "postgresql"
 }
 
-model Schedule {
-  id        Int              @id @default(autoincrement())
-  date      String           @unique
-  reason    String           @default("")
-  focus     String           @default("")
-  createdAt DateTime         @default(now()) @map("created_at")
-  updatedAt DateTime         @updatedAt @map("updated_at")
-  players   SchedulePlayer[]
+/// Tenant root. One Organization == one team == one Discord guild == one subdomain.
+model Organization {
+  id               String           @id @default(cuid())
+  slug             String           @unique // → subdomain (g2, wgw-gold)
+  name             String
+  discordGuildId   String?          @unique @map("discord_guild_id") // null until bot invited
+  discordChannelId String?          @map("discord_channel_id")
+  plan             String           @default("free")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
 
-  @@index([date])
+  schedules        Schedule[]
+  schedulePlayers  SchedulePlayer[]
+
+  @@map("organizations")
+}
+
+model Schedule {
+  id             Int              @id @default(autoincrement())
+  organizationId String           @map("organization_id")
+  date           String
+  reason         String           @default("")
+  focus          String           @default("")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+  players        SchedulePlayer[]
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // date is unique per org, not globally
+  @@unique([organizationId, date])
+  @@index([organizationId, date])
   @@map("schedules")
 }
 
 model SchedulePlayer {
-  id           Int      @id @default(autoincrement())
-  scheduleId   Int      @map("schedule_id")
-  userId       String   @map("user_id")
-  displayName  String   @map("display_name")
-  role         UserRole
-  availability String   @default("")
-  sortOrder    Int      @default(0) @map("sort_order")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
-  schedule     Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  id             Int          @id @default(autoincrement())
+  organizationId String       @map("organization_id")
+  scheduleId     Int          @map("schedule_id")
+  userId         String       @map("user_id")
+  displayName    String       @map("display_name")
+  role           UserRole
+  availability   String       @default("")
+  sortOrder      Int          @default(0) @map("sort_order")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  schedule       Schedule     @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([scheduleId])
   @@index([userId])
+  @@index([organizationId])
   @@map("schedule_players")
 }
 

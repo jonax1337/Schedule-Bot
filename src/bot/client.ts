@@ -2,7 +2,19 @@ import { Client, GatewayIntentBits, Partials } from 'discord.js';
 import { config } from '../shared/config/config.js';
 import { handleReady } from './events/ready.event.js';
 import { handleInteraction } from './events/interaction.event.js';
+import { getDefaultOrgId } from '../repositories/organization.repository.js';
+import { runWithOrg } from '../shared/tenancy/orgContext.js';
 import { logger, getErrorMessage } from '../shared/utils/logger.js';
+
+/**
+ * PoC: Discord events fire outside any HTTP request, so they carry no tenant
+ * context. Run each handler in the default org's context so the Prisma guard
+ * can scope queries. (Later: resolve org from interaction.guildId.)
+ */
+async function inDefaultOrg(fn: () => Promise<void>): Promise<void> {
+  const orgId = await getDefaultOrgId();
+  await runWithOrg(orgId, fn);
+}
 
 /**
  * Discord Bot Client
@@ -20,11 +32,11 @@ export const client = new Client({
  * Register event handlers
  */
 client.once('ready', async () => {
-  await handleReady(client);
+  await inDefaultOrg(() => handleReady(client));
 });
 
 client.on('interactionCreate', async (interaction) => {
-  await handleInteraction(interaction);
+  await inDefaultOrg(() => handleInteraction(interaction));
 });
 
 // Reaction handlers for polls (quick polls + training start polls)
@@ -35,10 +47,12 @@ client.on('messageReactionAdd', async (reaction, user) => {
     try { await reaction.fetch(); } catch { return; }
   }
   try {
-    const { handlePollReaction } = await import('./interactions/polls.js');
-    const { handleTrainingPollReaction } = await import('./interactions/trainingStartPoll.js');
-    await handlePollReaction(reaction as any, user as any, true);
-    await handleTrainingPollReaction(reaction as any, user as any, true);
+    await inDefaultOrg(async () => {
+      const { handlePollReaction } = await import('./interactions/polls.js');
+      const { handleTrainingPollReaction } = await import('./interactions/trainingStartPoll.js');
+      await handlePollReaction(reaction as any, user as any, true);
+      await handleTrainingPollReaction(reaction as any, user as any, true);
+    });
   } catch (error) {
     logger.error('Error handling reaction add', getErrorMessage(error));
   }
@@ -53,10 +67,12 @@ client.on('messageReactionRemove', async (reaction, user) => {
     try { await reaction.fetch(); } catch { /* Continue with partial data */ }
   }
   try {
-    const { handlePollReaction } = await import('./interactions/polls.js');
-    const { handleTrainingPollReaction } = await import('./interactions/trainingStartPoll.js');
-    await handlePollReaction(reaction as any, user as any, false);
-    await handleTrainingPollReaction(reaction as any, user as any, false);
+    await inDefaultOrg(async () => {
+      const { handlePollReaction } = await import('./interactions/polls.js');
+      const { handleTrainingPollReaction } = await import('./interactions/trainingStartPoll.js');
+      await handlePollReaction(reaction as any, user as any, false);
+      await handleTrainingPollReaction(reaction as any, user as any, false);
+    });
   } catch (error) {
     logger.error('Error handling reaction remove', getErrorMessage(error));
   }

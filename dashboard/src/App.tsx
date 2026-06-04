@@ -7,6 +7,7 @@ import { TimezoneProvider } from '@/lib/timezone'
 import { BreadcrumbProvider } from '@/lib/breadcrumb-context'
 import { ProtectedRoute } from '@/components/protected-route'
 import { DevModeBanner } from '@/components/dev-mode-banner'
+import { PocTenantSwitcher } from '@/components/poc-tenant-switcher'
 import { IS_DEV_MODE } from '@/lib/dev-mode'
 import { AdminShell } from '@/components/shells/admin-shell'
 import { UserShell } from '@/components/shells/user-shell'
@@ -74,6 +75,7 @@ export default function App() {
                   <Route path="*" element={<Placeholder title="404 — Not Found" />} />
                 </Routes>
               </BrowserRouter>
+              <PocTenantSwitcher />
               <Toaster />
             </BreadcrumbProvider>
           </TooltipProvider>
