@@ -49,7 +49,7 @@ Reihenfolge = empfohlene Abarbeitung. Aufwand als grobe T-Shirt-Größe.
 
 | # | Schritt | Aufwand | Risiko | Warum / Notiz |
 |---|---|---|---|---|
-| 1 | **Subdomain-Routing** (Wildcard-DNS + TLS via Cloudflare; Tenant aus Host statt Header) | M | mittel | macht aus dem PoC echtes Multi-Tenant; Header-Pfad fliegt raus |
+| 1 | **Subdomain-Routing** (Wildcard-DNS + TLS via Cloudflare; Tenant aus Host statt Header) | M | mittel | ✅ Code: Tenant aus Subdomain (`team.localhost:3000` lokal), Switcher/„Open" navigieren zur Subdomain + Cross-Origin-Login-Handoff, CORS für `*.localhost`/`*.synqed.org`. **Offen für Prod:** Wildcard-DNS + TLS in Cloudflare/Railway |
 | 2 | **Discord-OAuth-Login** als Hauptweg, admin-Passwort + JWT-Gefummel raus | M | mittel | 🟡 OAuth-Callback legt jetzt Account an & weist neue Kunden nicht mehr ab; Dev-Login (`/control`) lokal testbar. **Offen:** echte CLIENT_ID/SECRET setzen, admin-Passwort als Notnagel behalten |
 | 3 | **Onboarding / Control-Plane** (`synqed.org`: Sign-up, „Add to Discord", Team+Subdomain anlegen) | L | mittel | 🟡 `/control`-Seite da (Login + Team anlegen + Teams-Liste). **Offen:** „Add to Discord"-Invite-Button + guild_id-Callback |
 | 4 | **Bot multi-guild** + `channelId → Org` (inkl. Main/Academy) + Scheduler als per-Org-Tick | L | mittel | Discord-Seite multi-tenant |
