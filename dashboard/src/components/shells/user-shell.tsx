@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 import {
-  Calendar,
   CalendarCheck,
   Trophy,
   Home,
@@ -19,7 +18,6 @@ import {
 } from '@/components/ui/sidebar'
 import type { NavGroupConfig } from '@/components/app-sidebar'
 import type { NavUserInfo } from '@/components/nav-user'
-import { useBranding } from '@/hooks/use-branding'
 import { useSidebarUserInfo } from '@/hooks/use-sidebar'
 import { getAuthHeaders, getUser, logout } from '@/lib/auth'
 import { BOT_API_URL } from '@/lib/config'
@@ -39,7 +37,6 @@ export function UserShell({ children }: { children: ReactNode }) {
   const [searchParams] = useSearchParams()
   const tab = searchParams.get('tab') || 'schedule'
 
-  const branding = useBranding()
   const authUser = getUser()
   const userName = authUser?.username ?? localStorage.getItem('selectedUser')
   const { userRole, avatarUrl } = useSidebarUserInfo(userName)
@@ -100,10 +97,6 @@ export function UserShell({ children }: { children: ReactNode }) {
   return (
     <AppShell
       brand={{
-        name: branding.teamName,
-        subtitle: branding.tagline,
-        logoUrl: branding.logoUrl,
-        fallbackIcon: <Calendar className="size-4" />,
         homeUrl: '/?tab=schedule',
       }}
       navGroups={navGroups}

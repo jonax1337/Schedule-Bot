@@ -7,7 +7,7 @@ import {
 } from '@/components/ui/sidebar'
 import { NavMain, type NavItem } from '@/components/nav-main'
 import { NavUser, type NavUserInfo } from '@/components/nav-user'
-import { TeamBrand } from '@/components/team-brand'
+import { SynqedBrand } from '@/components/synqed-brand'
 
 export interface NavGroupConfig {
   label: string
@@ -16,10 +16,7 @@ export interface NavGroupConfig {
 
 export interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   brand: {
-    name: string
     subtitle?: string
-    logoUrl?: string
-    fallbackIcon: React.ReactNode
     homeUrl?: string
   }
   navGroups: NavGroupConfig[]
@@ -34,13 +31,7 @@ export function AppSidebar({ brand, navGroups, footerExtra, user, onLogout, ...p
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <TeamBrand
-          name={brand.name}
-          subtitle={brand.subtitle}
-          logoUrl={brand.logoUrl}
-          fallbackIcon={brand.fallbackIcon}
-          homeUrl={brand.homeUrl}
-        />
+        <SynqedBrand subtitle={brand.subtitle} homeUrl={brand.homeUrl} />
       </SidebarHeader>
       <SidebarContent>
         {navGroups.map((group) => (
