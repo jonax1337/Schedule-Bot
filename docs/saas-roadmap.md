@@ -61,6 +61,18 @@ Reihenfolge = empfohlene Abarbeitung. Aufwand als grobe T-Shirt-Größe.
 **Für ein internes Tool** (ein paar befreundete Teams, kein Verkauf) reichen
 praktisch **#1, #5, #7** + manuelles Team-Anlegen — #2/#3/#8 kann man sich sparen.
 
+### ✅ Gewählter Scope: SaaS-MVP („funktionieren, nicht vergolden")
+Self-Service-SaaS, aber schlicht. **Drin:** #1–#7. **Vorerst raus / minimal:**
+- **#8 Billing** komplett später (Kunden anfangs manuell freischalten).
+- #2 Login: Discord-OAuth als Hauptweg, aber **admin-Passwort bleibt als
+  Notnagel** (kein OAuth-Edge-Case-Polish).
+- #3 Onboarding: **eine schlichte Seite** (Discord-Login → Team+Slug anlegen →
+  „Add to Discord"). Kein Marketing, keine Multi-Step-Wizards.
+- #6 minimal halten (nur die offensichtlichen Lücken schließen).
+
+MVP-Reihenfolge: **#1 → #2 → #3 → #4 → #5 → #6 → #7**. Jeder Schritt einzeln
+lauffähig/testbar; nach #1+#2 fühlt es sich schon „echt" an.
+
 ---
 
 ## 4. Offene Produkt-Entscheidungen (deine)
