@@ -1,22 +1,17 @@
-
-
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
-import YouTube, { type YouTubeEvent } from 'react-youtube';
+import YouTube from 'react-youtube';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { MatchTypeBadge } from '@/components/shared/match-type-badge';
 import { ResultBadge } from '@/components/shared/result-badge';
-import { Loader2, MessageSquare, Edit, Trash2, Send, Clock, X, Check, Filter, Hash, User, AtSign, ArrowLeft } from 'lucide-react';
+import { Loader2, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
-import { getUser, getAuthHeaders } from '@/lib/auth';
+import { getAuthHeaders } from '@/lib/auth';
 import { BOT_API_URL } from '@/lib/config';
-import { formatTimestamp, extractTags, getTagColor, getYouTubeVideoId } from '@/lib/vod-utils';
-import { CommentText } from '@/components/shared/vod-comment-text';
-import { MentionInput, type MentionUser } from '@/components/shared/vod-mention-input';
+import { getYouTubeVideoId } from '@/lib/vod-utils';
 import { useBranding } from '@/hooks/use-branding';
-import type { VodComment } from '@/lib/types';
+import { useVodReview } from '@/components/shared/use-vod-review';
+import { VodCommentPanel } from '@/components/shared/vod-comment-panel';
 
 interface ScrimData {
   id: string;
@@ -36,33 +31,10 @@ export default function VodRoomPage() {
   const navigate = useNavigate();
   const scrimId = params.scrimId as string;
 
+  const vod = useVodReview(scrimId);
+  const user = vod.user;
   const [scrim, setScrim] = useState<ScrimData | null>(null);
-  const [comments, setComments] = useState<VodComment[]>([]);
-  const [loading, setLoading] = useState(true);
   const [scrimLoading, setScrimLoading] = useState(true);
-  const [newComment, setNewComment] = useState('');
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editContent, setEditContent] = useState('');
-  const [editTimestamp, setEditTimestamp] = useState<number | null>(null);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [highlightedId, setHighlightedId] = useState<number | null>(null);
-  const [isPaused, setIsPaused] = useState(false);
-  const [mentionUsers, setMentionUsers] = useState<MentionUser[]>([]);
-  const [filterUser, setFilterUser] = useState<string | null>(null);
-  const [filterTags, setFilterTags] = useState<string[]>([]);
-  const [filterMentioned, setFilterMentioned] = useState<string[]>([]);
-  const [filterOpen, setFilterOpen] = useState(false);
-  const playerRef = useRef<ReturnType<YouTubeEvent['target']['getInternalPlayer']> | null>(null);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const commentRefsMap = useRef<Map<number, HTMLDivElement>>(new Map());
-  const lastHighlightedId = useRef<number>(-1);
-  const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const scrollViewportRef = useRef<HTMLDivElement>(null);
-  const newCommentRef = useRef<HTMLTextAreaElement>(null);
-  const editRef = useRef<HTMLTextAreaElement>(null);
-  const userScrolledRef = useRef(false);
-  const programmaticScrollRef = useRef(false);
-  const user = getUser();
   const { teamName } = useBranding();
 
   // Auth guard: redirect to login if not authenticated
@@ -71,42 +43,6 @@ export default function VodRoomPage() {
       navigate(`/login?redirect=${encodeURIComponent(window.location.pathname)}`);
     }
   }, [user, navigate]);
-
-  const allUsers = useMemo(() => [...new Set(comments.map(c => c.userName))].sort(), [comments]);
-  const allTags = useMemo(() => {
-    const tags = new Set<string>();
-    comments.forEach(c => extractTags(c.content).forEach(t => tags.add(t)));
-    return [...tags].sort();
-  }, [comments]);
-  const allMentionedUsers = useMemo(() => {
-    const users = new Set<string>();
-    comments.forEach(c => {
-      const matches = c.content.match(/<@([^>]+)>/g);
-      if (matches) matches.forEach(m => users.add(m.slice(2, -1)));
-    });
-    return [...users].sort();
-  }, [comments]);
-
-  const filteredComments = useMemo(() => {
-    let result = comments;
-    if (filterUser) result = result.filter(c => c.userName === filterUser);
-    if (filterTags.length > 0) {
-      result = result.filter(c => {
-        const tags = extractTags(c.content);
-        return filterTags.some(t => tags.includes(t));
-      });
-    }
-    if (filterMentioned.length > 0) {
-      if (filterMentioned.includes('__all__')) {
-        result = result.filter(c => /<@[^>]+>/.test(c.content));
-      } else {
-        result = result.filter(c => filterMentioned.some(u => c.content.includes(`<@${u}>`)));
-      }
-    }
-    return result;
-  }, [comments, filterUser, filterTags, filterMentioned]);
-
-  const hasActiveFilter = filterUser !== null || filterTags.length > 0 || filterMentioned.length > 0;
 
   // Fetch scrim data
   useEffect(() => {
@@ -131,199 +67,6 @@ export default function VodRoomPage() {
       document.title = `VOD – ${teamName} vs ${scrim.opponent} (${scrim.map || 'N/A'}) – ${scrim.date}`;
     }
   }, [scrim, teamName]);
-
-  // Fetch mention users
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch(`${BOT_API_URL}/api/user-mappings`, { headers: getAuthHeaders() });
-        const data = await res.json();
-        if (data.success && Array.isArray(data.mappings)) {
-          setMentionUsers(
-            data.mappings
-              .map((u: { displayName?: string; avatarUrl?: string | null }) => ({
-                name: u.displayName || '',
-                avatarUrl: u.avatarUrl ?? null,
-              }))
-              .filter((u: { name: string }) => u.name)
-          );
-        }
-      } catch { /* ignore */ }
-    })();
-  }, []);
-
-  const fetchComments = useCallback(async () => {
-    try {
-      const res = await fetch(`${BOT_API_URL}/api/vod-comments/scrim/${scrimId}`, { headers: getAuthHeaders() });
-      const data = await res.json();
-      if (data.success) setComments(data.comments);
-    } catch {
-      toast.error('Failed to load comments');
-    } finally {
-      setLoading(false);
-    }
-  }, [scrimId]);
-
-  useEffect(() => {
-    fetchComments();
-  }, [fetchComments]);
-
-  // Detect user scroll
-  useEffect(() => {
-    const viewport = scrollViewportRef.current;
-    if (!viewport) return;
-    const handleScroll = () => {
-      if (programmaticScrollRef.current) return;
-      userScrolledRef.current = true;
-    };
-    viewport.addEventListener('scroll', handleScroll);
-    return () => viewport.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-      if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current);
-    };
-  }, []);
-
-  // Auto-scroll and highlight
-  useEffect(() => {
-    if (filteredComments.length === 0) return;
-    const matchingComment = [...filteredComments]
-      .reverse()
-      .find(c => currentTime >= c.timestamp && currentTime <= c.timestamp + 5);
-    if (!matchingComment) {
-      lastHighlightedId.current = -1;
-      return;
-    }
-    if (matchingComment.id !== lastHighlightedId.current) {
-      lastHighlightedId.current = matchingComment.id;
-      setHighlightedId(matchingComment.id);
-      if (!userScrolledRef.current) {
-        const el = commentRefsMap.current.get(matchingComment.id);
-        const viewport = scrollViewportRef.current;
-        if (el && viewport) {
-          const elTop = el.offsetTop;
-          const elHeight = el.offsetHeight;
-          const viewportHeight = viewport.clientHeight;
-          const targetScrollTop = elTop - viewportHeight / 2 + elHeight / 2;
-          if (targetScrollTop > viewport.scrollTop) {
-            programmaticScrollRef.current = true;
-            viewport.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
-            setTimeout(() => { programmaticScrollRef.current = false; }, 500);
-          }
-        }
-      }
-      if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current);
-      if (!isPaused) {
-        const id = matchingComment.id;
-        highlightTimeoutRef.current = setTimeout(() => {
-          setHighlightedId(prev => prev === id ? null : prev);
-        }, 3000);
-      }
-    }
-  }, [currentTime, filteredComments, isPaused]);
-
-  useEffect(() => {
-    if (!isPaused && highlightedId !== null) {
-      const id = highlightedId;
-      if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current);
-      highlightTimeoutRef.current = setTimeout(() => {
-        setHighlightedId(prev => prev === id ? null : prev);
-      }, 3000);
-    }
-  }, [isPaused]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const onPlayerReady = (event: YouTubeEvent) => {
-    playerRef.current = event.target;
-    intervalRef.current = setInterval(() => {
-      if (playerRef.current) {
-        try {
-          setCurrentTime(Math.floor(playerRef.current.getCurrentTime()));
-        } catch { /* player may not be ready */ }
-      }
-    }, 1000);
-  };
-
-  const onPlayerStateChange = (event: YouTubeEvent) => {
-    setIsPaused(event.data === 2);
-  };
-
-  const seekTo = (timestamp: number) => {
-    if (playerRef.current) {
-      playerRef.current.seekTo(timestamp, true);
-      userScrolledRef.current = false;
-    }
-  };
-
-  const handleAddComment = async () => {
-    if (!newComment.trim() || !user) return;
-    try {
-      const res = await fetch(`${BOT_API_URL}/api/vod-comments`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ scrimId, timestamp: currentTime, content: newComment.trim() }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setNewComment('');
-        fetchComments();
-      } else {
-        toast.error(data.error || 'Failed to add comment');
-      }
-    } catch {
-      toast.error('Failed to add comment');
-    }
-  };
-
-  const handleUpdateComment = async (id: number) => {
-    if (!editContent.trim()) return;
-    try {
-      const body: { content: string; timestamp?: number } = { content: editContent.trim() };
-      if (editTimestamp !== null) body.timestamp = editTimestamp;
-      const res = await fetch(`${BOT_API_URL}/api/vod-comments/${id}`, {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(body),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setEditingId(null);
-        setEditContent('');
-        setEditTimestamp(null);
-        fetchComments();
-      } else {
-        toast.error(data.error || 'Failed to update comment');
-      }
-    } catch {
-      toast.error('Failed to update comment');
-    }
-  };
-
-  const handleDeleteComment = async (id: number) => {
-    try {
-      const res = await fetch(`${BOT_API_URL}/api/vod-comments/${id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(),
-      });
-      const data = await res.json();
-      if (data.success) fetchComments();
-      else toast.error(data.error || 'Failed to delete comment');
-    } catch {
-      toast.error('Failed to delete comment');
-    }
-  };
-
-  const startEditing = (comment: VodComment) => {
-    setEditingId(comment.id);
-    setEditContent(comment.content);
-    setEditTimestamp(null);
-  };
-
-  const handleTagClick = (tag: string) => {
-    setFilterTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]);
-  };
 
   const videoId = scrim?.vodUrl ? getYouTubeVideoId(scrim.vodUrl) : null;
 
@@ -388,7 +131,6 @@ export default function VodRoomPage() {
 
             {/* Result badge */}
             {scrim.result && <ResultBadge result={scrim.result} />}
-            
           </div>
         </div>
       </div>
@@ -401,8 +143,8 @@ export default function VodRoomPage() {
             <YouTube
               videoId={videoId}
               opts={{ playerVars: { autoplay: 0 }, width: '100%', height: '100%' }}
-              onReady={onPlayerReady}
-              onStateChange={onPlayerStateChange}
+              onReady={vod.onPlayerReady}
+              onStateChange={vod.onPlayerStateChange}
               className="w-full h-full"
               iframeClassName="w-full h-full"
             />
@@ -410,272 +152,7 @@ export default function VodRoomPage() {
         </div>
 
         {/* Chat panel */}
-        <div className="w-96 xl:w-[28rem] flex flex-col border-l bg-card shrink-0">
-          {/* Header with filter */}
-          <div className="flex items-center justify-between px-4 py-3 border-b shrink-0">
-            <div className="flex items-center gap-2">
-              <MessageSquare className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Comments ({filteredComments.length}{hasActiveFilter ? `/${comments.length}` : ''})</span>
-            </div>
-            {(allUsers.length > 1 || allTags.length > 0 || allMentionedUsers.length > 0) && (
-              <Popover open={filterOpen} onOpenChange={setFilterOpen}>
-                <PopoverTrigger asChild>
-                  <Button variant="ghost" size="icon" className={`h-7 w-7 ${hasActiveFilter ? 'text-primary' : ''}`}>
-                    <Filter className="h-3.5 w-3.5" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-56 p-2" align="end" side="bottom" sideOffset={4}>
-                  <div className="space-y-3">
-                    {allUsers.length > 1 && (
-                      <div className="space-y-1.5">
-                        <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground px-1">
-                          <User className="h-3 w-3" />
-                          <span>Author</span>
-                        </div>
-                        <div className="flex flex-wrap gap-1">
-                          {allUsers.map(u => (
-                            <button
-                              key={u}
-                              onClick={() => setFilterUser(prev => prev === u ? null : u)}
-                              className={`px-2 py-0.5 rounded text-xs font-medium transition-colors cursor-pointer ${
-                                filterUser === u ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-accent'
-                              }`}
-                            >
-                              {u}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {allMentionedUsers.length > 0 && (
-                      <div className="space-y-1.5">
-                        <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground px-1">
-                          <AtSign className="h-3 w-3" />
-                          <span>Mentioned</span>
-                        </div>
-                        <div className="flex flex-wrap gap-1">
-                          <button
-                            onClick={() => setFilterMentioned(prev => prev.includes('__all__') ? prev.filter(x => x !== '__all__') : ['__all__'])}
-                            className={`px-2 py-0.5 rounded text-xs font-medium transition-colors cursor-pointer ${
-                              filterMentioned.includes('__all__') ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-accent'
-                            }`}
-                          >
-                            All
-                          </button>
-                          {allMentionedUsers.map(u => (
-                            <button
-                              key={u}
-                              onClick={() => setFilterMentioned(prev => {
-                                const without = prev.filter(x => x !== '__all__');
-                                return without.includes(u) ? without.filter(x => x !== u) : [...without, u];
-                              })}
-                              className={`px-2 py-0.5 rounded text-xs font-medium transition-colors cursor-pointer ${
-                                filterMentioned.includes(u) ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-accent'
-                              }`}
-                            >
-                              {u}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {allTags.length > 0 && (
-                      <div className="space-y-1.5">
-                        <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground px-1">
-                          <Hash className="h-3 w-3" />
-                          <span>Tags</span>
-                        </div>
-                        <div className="flex flex-wrap gap-1">
-                          {allTags.map(tag => (
-                            <button
-                              key={tag}
-                              onClick={() => handleTagClick(tag)}
-                              className={`px-2 py-0.5 rounded text-xs font-medium transition-colors cursor-pointer ${
-                                filterTags.includes(tag) ? 'bg-primary text-primary-foreground' : `${getTagColor(tag)} hover:opacity-80`
-                              }`}
-                            >
-                              {tag}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {hasActiveFilter && (
-                      <button
-                        onClick={() => { setFilterUser(null); setFilterTags([]); setFilterMentioned([]); }}
-                        className="w-full text-xs text-muted-foreground hover:text-foreground py-1 cursor-pointer"
-                      >
-                        Clear filters
-                      </button>
-                    )}
-                  </div>
-                </PopoverContent>
-              </Popover>
-            )}
-          </div>
-
-          {/* Active filter badges */}
-          {hasActiveFilter && (
-            <div className="flex items-center gap-1.5 px-4 py-2 border-b shrink-0 flex-wrap">
-              {filterUser && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
-                  <User className="h-3 w-3" />
-                  {filterUser}
-                  <button onClick={() => setFilterUser(null)} className="hover:text-primary/70 cursor-pointer"><X className="h-3 w-3" /></button>
-                </span>
-              )}
-              {filterMentioned.map(m => (
-                <span key={m} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-500/15 text-blue-600 dark:text-blue-400">
-                  <AtSign className="h-3 w-3" />
-                  {m === '__all__' ? 'All Mentions' : m}
-                  <button onClick={() => setFilterMentioned(prev => prev.filter(x => x !== m))} className="hover:opacity-70 cursor-pointer"><X className="h-3 w-3" /></button>
-                </span>
-              ))}
-              {filterTags.map(tag => (
-                <span key={tag} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${getTagColor(tag)}`}>
-                  {tag}
-                  <button onClick={() => setFilterTags(prev => prev.filter(t => t !== tag))} className="hover:opacity-70 cursor-pointer"><X className="h-3 w-3" /></button>
-                </span>
-              ))}
-            </div>
-          )}
-
-          <div ref={scrollViewportRef} className="flex-1 min-h-0 overflow-auto">
-            <div className="p-3 space-y-2">
-              {loading ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                </div>
-              ) : filteredComments.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground text-sm">
-                  {hasActiveFilter ? 'No matching comments' : 'No comments yet'}
-                </div>
-              ) : (
-                filteredComments.map((comment) => (
-                  <div
-                    key={comment.id}
-                    ref={(el) => {
-                      if (el) commentRefsMap.current.set(comment.id, el);
-                      else commentRefsMap.current.delete(comment.id);
-                    }}
-                    onClick={(e) => {
-                      if (editingId === comment.id) return;
-                      if ((e.target as HTMLElement).closest('button')) return;
-                      if ((e.target as HTMLElement).closest('textarea')) return;
-                      seekTo(comment.timestamp);
-                    }}
-                    className={`rounded-md border p-2.5 transition-all duration-500 min-w-0 [overflow-wrap:anywhere] ${
-                      editingId === comment.id ? '' : 'cursor-pointer'
-                    } ${
-                      highlightedId === comment.id
-                        ? 'border-primary/60 bg-primary/10 ring-1 ring-primary/30'
-                        : 'hover:bg-accent/50'
-                    }`}
-                  >
-                    {editingId === comment.id ? (
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => setEditTimestamp(currentTime)}
-                            className="flex items-center gap-1 text-xs font-mono text-primary hover:underline cursor-pointer"
-                            title="Click to set timestamp to current video time"
-                          >
-                            <Clock className="h-3 w-3" />
-                            {formatTimestamp(editTimestamp ?? comment.timestamp)}
-                          </button>
-                          {editTimestamp !== null && editTimestamp !== comment.timestamp && (
-                            <span className="text-[10px] text-muted-foreground">
-                              (was {formatTimestamp(comment.timestamp)})
-                            </span>
-                          )}
-                        </div>
-                        <MentionInput
-                          textareaRef={editRef}
-                          value={editContent}
-                          onChange={setEditContent}
-                          onSubmit={() => handleUpdateComment(comment.id)}
-                          mentionUsers={mentionUsers}
-                          autoFocus
-                          onEscape={() => { setEditingId(null); setEditContent(''); setEditTimestamp(null); }}
-                        />
-                        <div className="flex gap-1.5">
-                          <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => handleUpdateComment(comment.id)}>
-                            <Check className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => { setEditingId(null); setEditContent(''); setEditTimestamp(null); }}>
-                            <X className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="flex items-center justify-between gap-2 mb-1">
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={(e) => { e.stopPropagation(); seekTo(comment.timestamp); }}
-                              className="flex items-center gap-1 text-xs font-mono text-primary hover:underline cursor-pointer"
-                            >
-                              <Clock className="h-3 w-3" />
-                              {formatTimestamp(comment.timestamp)}
-                            </button>
-                            <span className="text-xs text-muted-foreground">{comment.userName}</span>
-                          </div>
-                          {user && (user.username === comment.userName || user.role === 'admin') && (
-                            <div className="flex gap-0.5">
-                              {user.username === comment.userName && (
-                                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => startEditing(comment)}>
-                                  <Edit className="h-3 w-3" />
-                                </Button>
-                              )}
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-6 w-6 text-destructive hover:text-destructive"
-                                onClick={() => handleDeleteComment(comment.id)}
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          )}
-                        </div>
-                        <CommentText text={comment.content} onTagClick={handleTagClick} />
-                      </>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          {/* Add Comment */}
-          {user && (
-            <div className="border-t p-3 space-y-2 shrink-0">
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Clock className="h-3 w-3" />
-                <span>{formatTimestamp(currentTime)}</span>
-              </div>
-              <div className="flex gap-2">
-                <MentionInput
-                  textareaRef={newCommentRef}
-                  placeholder="Comment... (@ mention, # tag)"
-                  value={newComment}
-                  onChange={setNewComment}
-                  onSubmit={handleAddComment}
-                  mentionUsers={mentionUsers}
-                  className="flex-1 min-w-0"
-                />
-                <Button
-                  size="icon"
-                  className="h-8 w-8 shrink-0"
-                  onClick={handleAddComment}
-                  disabled={!newComment.trim()}
-                >
-                  <Send className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
+        <VodCommentPanel vod={vod} className="w-96 xl:w-[28rem] border-l" />
       </div>
     </div>
   );
