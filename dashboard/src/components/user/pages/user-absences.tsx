@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Loader2, Plus, Trash2, PlaneTakeoff } from 'lucide-react';
 import { PageSpinner } from '@/components/ui/page-spinner';
+import { EmptyState } from '@/components/ui/empty-state';
 import { toast } from 'sonner';
 import { stagger, microInteractions } from '@/lib/animations';
 import { cn } from '@/lib/utils';
@@ -308,11 +309,11 @@ export function UserAbsences() {
               </TableBody>
             </Table>
           ) : (
-            <div className="py-12 text-center">
-              <PlaneTakeoff className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">No absences registered</p>
-              <p className="text-xs text-muted-foreground mt-1">Add an absence to automatically mark yourself as unavailable</p>
-            </div>
+            <EmptyState
+              icon={PlaneTakeoff}
+              title="No absences registered"
+              description="Add an absence to automatically mark yourself as unavailable"
+            />
           )}
         </CardContent>
       </Card>
