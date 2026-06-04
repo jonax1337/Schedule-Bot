@@ -57,7 +57,19 @@ async function main(): Promise<void> {
   assert(g2onlyG2.status === 200 && g2onlyG2.ids.length > 0, 'g2-only account CAN read its own org (g2)');
   assert(g2onlyDefault.status === 403, 'g2-only account is DENIED the default org (spoofed X-Tenant rejected)');
 
-  console.log(`\n${process.exitCode ? '❌ HTTP TEST FAILED' : '✅ ISOLATION + MEMBERSHIP ENFORCEMENT PROVEN'}`);
+  // Org switcher data source: /api/platform/orgs returns only the account's orgs
+  const orgSlugs = async (token: string): Promise<string[]> => {
+    const res = await fetch(`${BASE}/api/platform/orgs`, { headers: { Authorization: `Bearer ${token}`, 'X-Tenant': 'default' } });
+    const body = (await res.json()) as { organizations: { slug: string }[] };
+    return (body.organizations ?? []).map((o) => o.slug).sort();
+  };
+  const ownerOrgs = await orgSlugs(owner);
+  const g2onlyOrgs = await orgSlugs(g2only);
+  console.log(`\n/api/platform/orgs  owner=[${ownerOrgs}]  g2only=[${g2onlyOrgs}]`);
+  assert(ownerOrgs.join() === 'default,g2', 'owner switcher lists both orgs');
+  assert(g2onlyOrgs.join() === 'g2', 'g2-only switcher lists only g2');
+
+  console.log(`\n${process.exitCode ? '❌ HTTP TEST FAILED' : '✅ ISOLATION + MEMBERSHIP + SWITCHER PROVEN'}`);
   // Clean teardown: close the server + pool and let the loop drain (no
   // process.exit — that races libuv handle close on Windows).
   await new Promise<void>((resolve) => server.close(() => resolve()));
