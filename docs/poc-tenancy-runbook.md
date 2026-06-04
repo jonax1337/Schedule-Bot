@@ -35,14 +35,15 @@ cd dashboard && npm run dev       # dashboard :3000
 Open http://localhost:3000, log in, use the **floating tenant switcher**
 (bottom-right) to flip `default` ↔ `g2`. The schedule data changes per tenant.
 
-## 4. Prove isolation (no browser needed)
-With the env vars set and the app running:
+## 4. Prove isolation (no browser, no Discord needed)
+Two scripts assert isolation against the real DB. Set the env vars from step 1
+(plus a dummy `DISCORD_TOKEN`/`DISCORD_GUILD_ID`/`ADMIN_USERNAME` and a `PORT`
+that's free — the API port may be taken):
 ```bash
-# default org schedules
-curl -s 'http://localhost:3001/api/schedule/next14' -H 'X-Tenant: default' -H "Authorization: Bearer <JWT>"
-# g2 org schedules — disjoint data
-curl -s 'http://localhost:3001/api/schedule/next14' -H 'X-Tenant: g2'      -H "Authorization: Bearer <JWT>"
+npx tsx scripts/poc-tenancy-validate.ts   # data layer: default vs g2 disjoint + fail-closed
+PORT=3055 npx tsx scripts/poc-http-test.ts # boots the real Express API, proves X-Tenant isolation over HTTP
 ```
+Both print `✅ … PROVEN`. Verified locally on PostgreSQL 16.
 
 ## What's already proven (no DB)
 `npm test` runs `src/shared/tenancy/__tests__/guard.test.ts` (12 tests): the guard
