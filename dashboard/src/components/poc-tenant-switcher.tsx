@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { getTenantSlug, setTenantSlug, getTenantHeader } from '@/lib/tenant'
-import { getAuthToken } from '@/lib/auth'
+import { getTenantSlug, getTenantHeader, subdomainUrl } from '@/lib/tenant'
+import { getAuthToken, withAuthHandoff } from '@/lib/auth'
 import { BOT_API_URL } from '@/lib/config'
 
 interface Org {
@@ -47,8 +47,8 @@ export function PocTenantSwitcher() {
 
   function change(slug: string) {
     if (slug === current) return
-    setTenantSlug(slug)
-    window.location.reload()
+    // Navigate to the team's own subdomain, carrying the login across origins.
+    window.location.href = withAuthHandoff(subdomainUrl(slug, window.location.pathname))
   }
 
   // Hidden until we know the account's orgs (signed out, or none).

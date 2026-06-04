@@ -58,6 +58,39 @@ export async function logout(): Promise<void> {
 }
 
 /**
+ * Cross-subdomain auth handoff. localStorage is per-origin, so when we navigate
+ * from the apex/control plane to a team subdomain we carry the token (+ user) in
+ * the URL fragment. `withAuthHandoff` appends it; `consumeAuthHandoff` reads and
+ * strips it on load. (MVP: fragment never hits the server; fine over https.)
+ */
+export function withAuthHandoff(url: string): string {
+  const token = getAuthToken()
+  if (!token) return url
+  const user = getUser()
+  const frag =
+    `access_token=${encodeURIComponent(token)}` +
+    (user ? `&u=${encodeURIComponent(btoa(JSON.stringify(user)))}` : '')
+  return `${url}#${frag}`
+}
+
+export function consumeAuthHandoff(): void {
+  if (typeof window === 'undefined' || !window.location.hash) return
+  const params = new URLSearchParams(window.location.hash.slice(1))
+  const token = params.get('access_token')
+  if (!token) return
+  setAuthToken(token)
+  const u = params.get('u')
+  if (u) {
+    try {
+      setUser(JSON.parse(atob(decodeURIComponent(u))))
+    } catch {
+      /* ignore malformed user */
+    }
+  }
+  history.replaceState(null, '', window.location.pathname + window.location.search)
+}
+
+/**
  * Validates the current JWT token by making a test request to the server.
  * If the token is invalid (401/403), it will be automatically removed.
  */

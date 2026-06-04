@@ -5,8 +5,8 @@ import { Label } from '@/components/ui/label'
 import { Loader2, Plus, ArrowRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { BOT_API_URL } from '@/lib/config'
-import { getAuthToken, setAuthToken, setUser, removeAuthToken } from '@/lib/auth'
-import { setTenantSlug } from '@/lib/tenant'
+import { getAuthToken, setAuthToken, setUser, removeAuthToken, withAuthHandoff } from '@/lib/auth'
+import { subdomainUrl } from '@/lib/tenant'
 
 interface Org {
   slug: string
@@ -96,9 +96,8 @@ export function ControlPage() {
   }
 
   function openTeam(s: string) {
-    // Until subdomain routing lands, switch tenant locally and enter the dashboard.
-    setTenantSlug(s)
-    window.location.href = '/'
+    // Open the team on its own subdomain, carrying the login across origins.
+    window.location.href = withAuthHandoff(subdomainUrl(s, '/'))
   }
 
   function signOut() {

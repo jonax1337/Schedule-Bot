@@ -19,6 +19,9 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: 3000,
+      // Serve every team on its own subdomain locally: g2.localhost:3000, etc.
+      // Browsers resolve *.localhost to 127.0.0.1 automatically.
+      allowedHosts: ['localhost', '.localhost'],
     },
     define: {
       __BOT_API_URL__: JSON.stringify(botApiUrl),

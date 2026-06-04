@@ -52,6 +52,13 @@ const allowedOrigins = [
   process.env.DASHBOARD_URL,
 ].filter(Boolean) as string[];
 
+// Multi-tenant: each team is served from its own subdomain. Allow any
+// <slug>.localhost:3000 (dev) and <slug>.synqed.org (prod) origin.
+const allowedOriginPatterns = [
+  /^http:\/\/[a-z0-9-]+\.localhost:3000$/,
+  /^https:\/\/[a-z0-9-]+\.synqed\.org$/,
+];
+
 app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin only for server-to-server communication
@@ -60,7 +67,7 @@ app.use(cors({
       return callback(null, true);
     }
 
-    if (allowedOrigins.includes(origin)) {
+    if (allowedOrigins.includes(origin) || allowedOriginPatterns.some((re) => re.test(origin))) {
       callback(null, true);
     } else {
       logger.warn('CORS blocked', `Origin: ${origin}`);

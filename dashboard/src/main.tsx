@@ -3,6 +3,10 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 import { IS_DEV_MODE } from '@/lib/dev-mode'
+import { consumeAuthHandoff } from '@/lib/auth'
+
+// Cross-subdomain login handoff (token in URL fragment) — before first render.
+consumeAuthHandoff()
 
 if (IS_DEV_MODE) {
   // Intercept fetch synchronously so the very first API call is mocked.
