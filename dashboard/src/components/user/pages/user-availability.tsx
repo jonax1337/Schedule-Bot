@@ -9,6 +9,7 @@ import { useTimezone } from '@/lib/timezone';
 import { parseDDMMYYYY, formatDateToDDMMYYYY } from '@/lib/date-utils';
 import { useUserDiscordId } from '@/hooks/use-user-discord-id';
 import { AvailabilityGrid, type AvailabilityEntry, type TimeWindow } from './availability-grid';
+import { parseWindows } from '@/lib/availability-utils';
 
 interface AbsenceData {
   id: number;
@@ -203,18 +204,4 @@ export function UserAvailability() {
       </Card>
     </div>
   );
-}
-
-function parseWindows(availability: string, convertRangeToLocal: (s: string) => string): TimeWindow[] {
-  if (!availability || availability === 'x' || availability === 'X') return [];
-  if (!availability.includes('-')) return [];
-  const local = convertRangeToLocal(availability);
-  const out: TimeWindow[] = [];
-  for (const seg of local.split(',')) {
-    const parts = seg.trim().split('-');
-    if (parts.length === 2 && parts[0] && parts[1]) {
-      out.push({ from: parts[0].trim(), to: parts[1].trim() });
-    }
-  }
-  return out;
 }

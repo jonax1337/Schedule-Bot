@@ -3,93 +3,23 @@ import { Button } from '@/components/ui/button';
 import { Check, Loader2, PlaneTakeoff, RefreshCw, Trash2, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getWeekdayName } from '@/lib/date-utils';
+import {
+  VISIBLE_START_SLOT,
+  VISIBLE_SLOTS,
+  slotToTime,
+  windowsToSlots,
+  slotsToWindows,
+  type TimeWindow,
+  type AvailabilityEntry,
+} from '@/lib/availability-utils';
 
-export const SLOT_COUNT = 48;
-const SLOT_MINUTES = 30;
-const VISIBLE_START_SLOT = 20; // 10:00
-const VISIBLE_END_SLOT = SLOT_COUNT; // 24:00 (exclusive — last shown slot is 23:30)
-const VISIBLE_SLOTS = VISIBLE_END_SLOT - VISIBLE_START_SLOT;
-
-export interface TimeWindow {
-  from: string;
-  to: string;
-}
-
-export interface AvailabilityEntry {
-  // Stable identifier passed back to callbacks. For dated views this is the
-  // DD.MM.YYYY string; for weekly views (recurring) it's a synthetic key.
-  date: string;
-  value: string;
-  windows: TimeWindow[];
-  isSaving?: boolean;
-  justSaved?: boolean;
-  isRecurring?: boolean;
-  isAbsent?: boolean;
-  // Optional overrides for the column header. If omitted, the grid parses
-  // `date` as DD.MM.YYYY and renders weekday + day.month.
-  headerPrimary?: string;
-  headerSecondary?: string;
-}
+export type { TimeWindow, AvailabilityEntry } from '@/lib/availability-utils';
 
 interface Props {
   entries: AvailabilityEntry[];
   onSaveSlots: (date: string, windows: TimeWindow[]) => void;
   onSetUnavailable: (date: string) => void;
   onClear: (date: string) => void;
-}
-
-export function slotToTime(slot: number): string {
-  if (slot >= SLOT_COUNT) return '23:59';
-  const h = Math.floor(slot / 2);
-  const m = (slot % 2) * 30;
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-}
-
-function timeToSlotFloor(time: string): number {
-  const [h, m] = time.split(':').map(Number);
-  if (Number.isNaN(h) || Number.isNaN(m)) return 0;
-  return h * 2 + (m >= 30 ? 1 : 0);
-}
-
-function timeToSlotCeil(time: string): number {
-  const [h, m] = time.split(':').map(Number);
-  if (Number.isNaN(h) || Number.isNaN(m)) return 0;
-  if (h === 23 && m === 59) return SLOT_COUNT;
-  return Math.ceil((h * 60 + m) / SLOT_MINUTES);
-}
-
-export function windowsToSlots(windows: TimeWindow[]): Set<number> {
-  const set = new Set<number>();
-  for (const w of windows) {
-    if (!w.from || !w.to) continue;
-    const start = timeToSlotFloor(w.from);
-    const end = timeToSlotCeil(w.to);
-    for (let i = start; i < end && i < SLOT_COUNT; i++) set.add(i);
-  }
-  return set;
-}
-
-export function slotsToWindows(slots: Set<number>): TimeWindow[] {
-  const sorted = Array.from(slots).sort((a, b) => a - b);
-  const windows: TimeWindow[] = [];
-  let runStart = -1;
-  let runEnd = -1;
-  for (const s of sorted) {
-    if (runStart < 0) {
-      runStart = s;
-      runEnd = s;
-    } else if (s === runEnd + 1) {
-      runEnd = s;
-    } else {
-      windows.push({ from: slotToTime(runStart), to: slotToTime(runEnd + 1) });
-      runStart = s;
-      runEnd = s;
-    }
-  }
-  if (runStart >= 0) {
-    windows.push({ from: slotToTime(runStart), to: slotToTime(runEnd + 1) });
-  }
-  return windows;
 }
 
 interface DragState {
