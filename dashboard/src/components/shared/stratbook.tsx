@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router';
 import { BookOpen, Copy, ExternalLink, FileText, Folder, FolderOpen, FolderPlus, FolderInput, Loader2, Palette, Pencil, Plus, Search, Swords, Shield, Trash2, X } from 'lucide-react';
 import { PageSpinner } from '@/components/ui/page-spinner';
+import { EmptyState } from '@/components/ui/empty-state';
 import { useBreadcrumbSub } from '@/lib/breadcrumb-context';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -788,14 +789,12 @@ export function Stratbook() {
                 <ContextMenuTrigger asChild>
                   <div>
                 {filteredStrats.length === 0 && folders.length === 0 ? (
-                  <div className="py-12 text-center">
-                    <BookOpen className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground">
-                      {hasActiveFilters
-                        ? 'No strats found with selected filters. Try adjusting filters.'
-                        : 'No strategies yet. Create your first one!'}
-                    </p>
-                  </div>
+                  <EmptyState
+                    icon={BookOpen}
+                    title={hasActiveFilters
+                      ? 'No strats found with selected filters. Try adjusting filters.'
+                      : 'No strategies yet. Create your first one!'}
+                  />
                 ) : (
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {/* Folder cards */}
