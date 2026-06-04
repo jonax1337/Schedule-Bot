@@ -1,6 +1,6 @@
 # Configuration
 
-Schedule-Bot reads two kinds of configuration:
+Synqed reads two kinds of configuration:
 
 1. **Environment variables** — set at process start, required for secrets and bootstrap
 2. **Runtime settings** — stored in the `settings` table, editable through the dashboard
@@ -83,7 +83,7 @@ See [Scheduler & Cron Jobs](/bot/scheduler) for how these knobs combine.
 
 | Key | Description | Default |
 | --- | --- | --- |
-| `branding.teamName` | Team name shown in the dashboard | `Valorant Bot` |
+| `branding.teamName` | Team name shown in the dashboard | `Synqed` |
 | `branding.tagline` | Tagline under the team name | `Schedule Manager` |
 | `branding.logoUrl` | External image URL for the sidebar logo | — |
 

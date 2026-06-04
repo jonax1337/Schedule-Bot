@@ -1,23 +1,23 @@
 <div align="center">
-  <img src="assets/logo.png" alt="Schedule Bot logo" width="100" />
+  <img src="assets/logo.png" alt="Synqed logo" width="100" />
 
-  <h1>Valorant Schedule Bot</h1>
+  <h1>Synqed</h1>
 
   <p>
     <strong>A comprehensive Discord bot + web dashboard for E-Sports team scheduling</strong>
   </p>
 
   <p>
-    <a href="https://jonax1337.github.io/Schedule-Bot/">
+    <a href="https://jonax1337.github.io/Synqed/">
       <img src="https://img.shields.io/badge/📖_Documentation-Visit_Docs-blue?style=for-the-badge" alt="Documentation" />
     </a>
   </p>
 
   <p>
-    <a href="https://jonax1337.github.io/Schedule-Bot/guide/getting-started">Quick Start</a> &bull;
-    <a href="https://jonax1337.github.io/Schedule-Bot/api/overview">API Reference</a> &bull;
-    <a href="https://jonax1337.github.io/Schedule-Bot/bot/commands">Commands</a> &bull;
-    <a href="https://jonax1337.github.io/Schedule-Bot/deployment/docker">Deployment</a>
+    <a href="https://jonax1337.github.io/Synqed/guide/getting-started">Quick Start</a> &bull;
+    <a href="https://jonax1337.github.io/Synqed/api/overview">API Reference</a> &bull;
+    <a href="https://jonax1337.github.io/Synqed/bot/commands">Commands</a> &bull;
+    <a href="https://jonax1337.github.io/Synqed/deployment/docker">Deployment</a>
   </p>
 
   <br />
@@ -48,7 +48,7 @@
 
 ## About
 
-**Valorant Schedule Bot** is a full-stack scheduling solution designed for E-Sports teams. It combines Discord's familiar interface with a powerful web dashboard to manage player availability, coordinate training sessions, track scrims, and plan strategies.
+**Synqed** is a full-stack scheduling solution designed for E-Sports teams. It combines Discord's familiar interface with a powerful web dashboard to manage player availability, coordinate training sessions, track scrims, and plan strategies.
 
 ### Why This Bot?
 
@@ -112,8 +112,8 @@
 
 ```bash
 # Clone the repository
-git clone https://github.com/jonax1337/schedule-bot.git
-cd schedule-bot
+git clone https://github.com/jonax1337/Synqed.git
+cd Synqed
 
 # Install backend dependencies
 npm install
@@ -196,7 +196,7 @@ NEXT_PUBLIC_BOT_API_URL=http://localhost:3001
 ### Project Structure
 
 ```
-schedule-bot/
+synqed/
 ├── src/                      # Backend TypeScript
 │   ├── index.ts              # Entry point
 │   ├── api/                  # Express server + routes
@@ -302,8 +302,8 @@ Deploys Backend + Frontend + PostgreSQL automatically.
 ### Docker Compose
 
 ```bash
-git clone https://github.com/jonax1337/schedule-bot.git
-cd schedule-bot
+git clone https://github.com/jonax1337/Synqed.git
+cd Synqed
 cp .env.example .env
 # Edit .env with your values
 docker compose up -d
@@ -450,8 +450,8 @@ This project is licensed under the [MIT License](LICENSE).
 <div align="center">
   <p>Made with ❤️ for E-Sports teams</p>
   <p>
-    <a href="https://github.com/jonax1337/schedule-bot/stargazers">
-      <img src="https://img.shields.io/github/stars/jonax1337/schedule-bot?style=social" alt="Stars" />
+    <a href="https://github.com/jonax1337/Synqed/stargazers">
+      <img src="https://img.shields.io/github/stars/jonax1337/Synqed?style=social" alt="Stars" />
     </a>
   </p>
 </div>

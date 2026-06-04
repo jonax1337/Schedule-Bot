@@ -39,7 +39,7 @@ render branding and feature toggles even for signed-out viewers.
     "weeklyPingDays": [0, 1]
   },
   "branding": {
-    "teamName": "Valorant Bot",
+    "teamName": "Synqed",
     "tagline": "Schedule Manager",
     "logoUrl": ""
   },

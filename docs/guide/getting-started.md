@@ -12,8 +12,8 @@
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/jonax1337/Schedule-Bot.git
-cd Schedule-Bot
+git clone https://github.com/jonax1337/Synqed.git
+cd Synqed
 ```
 
 ### 2. Install dependencies

@@ -75,7 +75,7 @@ dashboard/                   # Vite SPA (no Next.js)
     ├── App.tsx              # Providers + <BrowserRouter> + <Routes>
     ├── pages/               # Route components (admin-home, user-home, login, vod-review, ...)
     ├── components/
-    │   ├── shells/          # AdminShell, UserShell (wrap AppShell w/ schedule-bot nav)
+    │   ├── shells/          # AdminShell, UserShell (wrap AppShell w/ synqed nav)
     │   ├── admin/pages/     # 7 admin tab components (Dashboard, Settings, ...)
     │   ├── user/pages/      # 4 user tab components (Schedule, Availability, ...)
     │   ├── shared/          # Matches, Statistics, Stratbook, VOD review

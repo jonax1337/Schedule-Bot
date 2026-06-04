@@ -1,21 +1,21 @@
-# Render Blueprint – one-click deploy for Schedule-Bot
+# Render Blueprint – one-click deploy for Synqed
 # https://render.com/docs/blueprint-spec
 
 databases:
-  - name: schedule-bot-db
+  - name: synqed-db
     databaseName: schedule_bot
     user: schedule_bot_user
 
 services:
   # Backend: Discord Bot + Express API
   - type: web
-    name: schedule-bot-backend
+    name: synqed-backend
     runtime: docker
     dockerfilePath: ./Dockerfile
     envVars:
       - key: DATABASE_URL
         fromDatabase:
-          name: schedule-bot-db
+          name: synqed-db
           property: connectionString
       - key: DISCORD_TOKEN
         sync: false
@@ -40,7 +40,7 @@ services:
 
   # Dashboard: Next.js frontend
   - type: web
-    name: schedule-bot-dashboard
+    name: synqed-dashboard
     runtime: docker
     dockerfilePath: ./dashboard/Dockerfile
     dockerContext: ./dashboard

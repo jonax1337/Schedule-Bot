@@ -9,7 +9,7 @@ interface Branding {
 
 export function useBranding(defaults?: Partial<Branding>) {
   const [branding, setBranding] = useState<Branding>({
-    teamName: defaults?.teamName ?? 'Valorant Bot',
+    teamName: defaults?.teamName ?? 'Synqed',
     tagline: defaults?.tagline ?? 'Schedule Manager',
     logoUrl: defaults?.logoUrl ?? '',
   })
@@ -22,7 +22,7 @@ export function useBranding(defaults?: Partial<Branding>) {
           const data = await response.json()
           if (data?.branding) {
             setBranding({
-              teamName: data.branding.teamName || defaults?.teamName || 'Valorant Bot',
+              teamName: data.branding.teamName || defaults?.teamName || 'Synqed',
               tagline: data.branding.tagline || defaults?.tagline || 'Schedule Manager',
               logoUrl: data.branding.logoUrl || '',
             })

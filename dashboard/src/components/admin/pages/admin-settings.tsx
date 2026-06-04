@@ -571,7 +571,7 @@ export function Settings() {
                   branding: { ...settings.branding, teamName: e.target.value },
                 })
               }
-              placeholder="Valorant Bot"
+              placeholder="Synqed"
               className={microInteractions.focusRing}
             />
             <FieldDescription>

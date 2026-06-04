@@ -1,16 +1,16 @@
 import { defineConfig } from 'vitepress'
 
 export default defineConfig({
-  title: 'Schedule-Bot',
+  title: 'Synqed',
   description: 'Discord bot & web dashboard for E-sports team scheduling',
   lang: 'en-US',
-  base: '/Schedule-Bot/',
+  base: '/Synqed/',
 
   // localhost URLs in dev/setup docs are illustrative, not real links
   ignoreDeadLinks: 'localhostLinks',
 
   head: [
-    ['link', { rel: 'icon', type: 'image/png', href: '/Schedule-Bot/logo.png' }],
+    ['link', { rel: 'icon', type: 'image/png', href: '/Synqed/logo.png' }],
   ],
 
   themeConfig: {
@@ -26,7 +26,7 @@ export default defineConfig({
       {
         text: 'Links',
         items: [
-          { text: 'GitHub', link: 'https://github.com/jonax1337/Schedule-Bot' },
+          { text: 'GitHub', link: 'https://github.com/jonax1337/Synqed' },
         ]
       }
     ],
@@ -121,7 +121,7 @@ export default defineConfig({
     },
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/jonax1337/Schedule-Bot' }
+      { icon: 'github', link: 'https://github.com/jonax1337/Synqed' }
     ],
 
     search: {
@@ -139,7 +139,7 @@ export default defineConfig({
     },
 
     editLink: {
-      pattern: 'https://github.com/jonax1337/Schedule-Bot/edit/main/docs/:path',
+      pattern: 'https://github.com/jonax1337/Synqed/edit/main/docs/:path',
       text: 'Edit this page on GitHub'
     },
 

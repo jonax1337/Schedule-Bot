@@ -91,7 +91,7 @@ const DEFAULT_SETTINGS: Settings = {
     weeklyPingDays: [0, 1],
   },
   branding: {
-    teamName: 'Valorant Bot',
+    teamName: 'Synqed',
     tagline: 'Schedule Manager',
     logoUrl: '',
   },

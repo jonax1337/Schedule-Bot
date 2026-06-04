@@ -1,6 +1,6 @@
 # Availability
 
-Availability is the single most important data point in Schedule-Bot. Every player keeps
+Availability is the single most important data point in Synqed. Every player keeps
 their own record per day; the bot derives all other state — daily status, training polls,
 reminders — from those values.
 

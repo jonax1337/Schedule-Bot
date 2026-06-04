@@ -208,7 +208,7 @@ export const mockBotStatus = {
   uptime: 12345,
   guildName: 'DEV Team Phoenix',
   guildId: 'dev-guild',
-  user: { username: 'schedule-bot', id: 'dev-bot' },
+  user: { username: 'synqed', id: 'dev-bot' },
 }
 
 export const mockVodComments = [

@@ -25,7 +25,7 @@ const DEFAULT_SETTINGS = {
   'scheduling.weeklyPingEnabled': true,
   'scheduling.weeklyPingTime': '12:00',
   'scheduling.weeklyPingDays': '0,1',
-  'branding.teamName': 'Valorant Bot',
+  'branding.teamName': 'Synqed',
   'branding.tagline': 'Schedule Manager',
   'branding.logoUrl': '',
 };

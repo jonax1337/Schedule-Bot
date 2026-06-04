@@ -2,7 +2,7 @@
 
 ## Overview
 
-Schedule-Bot can be deployed to [Render](https://render.com). The configuration lives in `render.yaml` (Blueprint).
+Synqed can be deployed to [Render](https://render.com). The configuration lives in `render.yaml` (Blueprint).
 
 ## Blueprint
 
@@ -12,7 +12,7 @@ Schedule-Bot can be deployed to [Render](https://render.com). The configuration 
 
 ```yaml
 databases:
-  - name: schedule-bot-db
+  - name: synqed-db
     databaseName: schedule_bot
     user: schedule_bot_user
     plan: free
@@ -23,13 +23,13 @@ databases:
 ```yaml
 services:
   - type: web
-    name: schedule-bot-backend
+    name: synqed-backend
     runtime: docker
     dockerfilePath: ./Dockerfile
     envVars:
       - key: DATABASE_URL
         fromDatabase:
-          name: schedule-bot-db
+          name: synqed-db
           property: connectionString
       - key: JWT_SECRET
         generateValue: true
@@ -41,7 +41,7 @@ services:
 
 ```yaml
   - type: web
-    name: schedule-bot-dashboard
+    name: synqed-dashboard
     runtime: docker
     dockerfilePath: ./dashboard/Dockerfile
     dockerContext: ./dashboard

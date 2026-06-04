@@ -2,12 +2,12 @@
 layout: home
 
 hero:
-  name: Schedule-Bot
+  name: Synqed
   text: E-Sports Team Management
   tagline: Discord bot & web dashboard for serious Valorant team scheduling.
   image:
     src: /logo.png
-    alt: Schedule-Bot Logo
+    alt: Synqed Logo
   actions:
     - theme: brand
       text: Get Started
@@ -17,7 +17,7 @@ hero:
       link: /api/overview
     - theme: alt
       text: GitHub
-      link: https://github.com/jonax1337/Schedule-Bot
+      link: https://github.com/jonax1337/Synqed
 
 features:
   - icon: 🤖
@@ -42,7 +42,7 @@ features:
 
 ## At a glance
 
-Schedule-Bot is an all-in-one management tool for E-sports teams. It bundles a Discord
+Synqed is an all-in-one management tool for E-sports teams. It bundles a Discord
 bot, a REST API, and a Next.js dashboard into a single Node.js process.
 
 ### Three components

@@ -356,7 +356,7 @@ const routes: MockRoute[] = [
   {
     method: 'GET',
     match: '/api/bot-status',
-    handler: () => ok({ ready: true, uptime: 12345, guildName: getMockState().settings.branding.teamName, guildId: 'demo', user: { username: 'schedule-bot', id: 'demo' } }),
+    handler: () => ok({ ready: true, uptime: 12345, guildName: getMockState().settings.branding.teamName, guildId: 'demo', user: { username: 'synqed', id: 'demo' } }),
   },
   { method: 'GET', match: '/api/discord/channels', handler: () => ok({ channels: [{ id: '1', name: 'general', type: 0 }, { id: '2', name: 'scrim-talk', type: 0 }] }) },
   { method: 'GET', match: '/api/discord/roles', handler: () => ok({ roles: [{ id: '10', name: '@everyone' }, { id: '11', name: 'Player' }] }) },
