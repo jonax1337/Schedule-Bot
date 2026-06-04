@@ -37,8 +37,6 @@ export const mockSettings = {
   },
   branding: {
     teamName: 'DEV Team Phoenix',
-    tagline: 'Dev-mode preview',
-    logoUrl: '',
   },
   stratbook: {
     editPermission: 'admin',

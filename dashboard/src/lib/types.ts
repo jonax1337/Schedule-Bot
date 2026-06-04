@@ -22,8 +22,6 @@ export interface Settings {
   }
   branding: {
     teamName: string
-    tagline?: string
-    logoUrl?: string
   }
   stratbook: {
     editPermission: 'admin' | 'all'

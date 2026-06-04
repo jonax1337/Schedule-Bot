@@ -1,40 +1,28 @@
 import { useState, useEffect } from 'react'
 import { BOT_API_URL } from '@/lib/config'
 
-interface Branding {
-  teamName: string
-  tagline: string
-  logoUrl: string
-}
-
-export function useBranding(defaults?: Partial<Branding>) {
-  const [branding, setBranding] = useState<Branding>({
-    teamName: defaults?.teamName ?? 'Synqed',
-    tagline: defaults?.tagline ?? 'Schedule Manager',
-    logoUrl: defaults?.logoUrl ?? '',
-  })
+/**
+ * The team's display name, used as content in match/VOD views
+ * (e.g. "Phoenix vs Sentinels"). This is NOT app branding — the app
+ * identity (Synqed) is fixed.
+ */
+export function useTeamName(fallback = 'Our Team') {
+  const [teamName, setTeamName] = useState(fallback)
 
   useEffect(() => {
-    const fetchBranding = async () => {
+    const fetchTeamName = async () => {
       try {
         const response = await fetch(`${BOT_API_URL}/api/settings`)
         if (response.ok) {
           const data = await response.json()
-          if (data?.branding) {
-            setBranding({
-              teamName: data.branding.teamName || defaults?.teamName || 'Synqed',
-              tagline: data.branding.tagline || defaults?.tagline || 'Schedule Manager',
-              logoUrl: data.branding.logoUrl || '',
-            })
-          }
+          if (data?.branding?.teamName) setTeamName(data.branding.teamName)
         }
       } catch (error) {
-        console.error('Failed to fetch branding:', error)
+        console.error('Failed to fetch team name:', error)
       }
     }
+    fetchTeamName()
+  }, [])
 
-    fetchBranding()
-  }, [defaults?.teamName, defaults?.tagline, defaults?.logoUrl])
-
-  return branding
+  return teamName
 }
