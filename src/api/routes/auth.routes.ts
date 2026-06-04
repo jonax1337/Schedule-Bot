@@ -3,6 +3,7 @@ import { loginLimiter } from '../../shared/middleware/rateLimiter.js';
 import { verifyPassword } from '../../shared/middleware/passwordManager.js';
 import { generateToken } from '../../shared/middleware/auth.js';
 import { getUserMappings } from '../../repositories/user-mapping.repository.js';
+import { getAccountIdByDiscordId, OWNER_ACCOUNT_ID } from '../../repositories/organization.repository.js';
 import { config } from '../../shared/config/config.js';
 import { logger, getErrorMessage } from '../../shared/utils/logger.js';
 import { initiateDiscordAuth, handleDiscordCallback, getUserFromSession, logout } from '../controllers/auth.controller.js';
@@ -26,7 +27,8 @@ router.post('/admin/login', loginLimiter, async (req, res) => {
     }
     
     if (username === config.admin.username && await verifyPassword(password, storedPasswordHash)) {
-      const token = generateToken(username, 'admin');
+      // Admin logs in as the control-plane owner account (memberships in all orgs).
+      const token = generateToken(username, 'admin', OWNER_ACCOUNT_ID);
       
       logger.success('Admin login successful', `User: ${username}`);
       
@@ -67,8 +69,10 @@ router.post('/user/login', loginLimiter, async (req, res) => {
     }
 
     // Normal user login always gets 'user' role - admin access requires
-    // either admin credentials login or Discord OAuth with isAdmin flag
-    const token = generateToken(username, 'user');
+    // either admin credentials login or Discord OAuth with isAdmin flag.
+    // Bind the token to the player's account so org-membership checks apply.
+    const accountId = await getAccountIdByDiscordId(userMapping.discordId) ?? undefined;
+    const token = generateToken(username, 'user', accountId);
 
     logger.success('User login successful', `User: ${username}`);
     res.json({

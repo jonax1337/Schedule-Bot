@@ -14,14 +14,14 @@ import { generateToken } from '../src/shared/middleware/auth.js';
 const BASE = `http://localhost:${process.env.PORT || 3001}`;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-async function players(tenant: string, token: string): Promise<string[]> {
+async function req(tenant: string, token: string): Promise<{ status: number; ids: string[] }> {
   const res = await fetch(`${BASE}/api/schedule/next14`, {
     headers: { Authorization: `Bearer ${token}`, 'X-Tenant': tenant },
   });
-  if (!res.ok) throw new Error(`${tenant}: HTTP ${res.status}`);
+  if (!res.ok) return { status: res.status, ids: [] };
   const body = (await res.json()) as { schedules: { players: { userId: string }[] }[] };
-  const ids = body.schedules.flatMap((s) => s.players.map((p) => p.userId));
-  return [...new Set(ids)].sort();
+  const ids = [...new Set(body.schedules.flatMap((s) => s.players.map((p) => p.userId)))].sort();
+  return { status: res.status, ids };
 }
 
 function assert(cond: boolean, msg: string): void {
@@ -34,20 +34,30 @@ async function main(): Promise<void> {
   const server = startApiServer();
   await sleep(800);
 
-  const token = generateToken('admin', 'admin');
-  const def = await players('default', token);
-  const g2 = await players('g2', token);
+  // Owner account is a member of both orgs; g2-only account only of g2.
+  const owner = generateToken('admin', 'admin', 'acc_owner');
+  const g2only = generateToken('g2user', 'user', 'acc_g2only');
+
+  const ownerDefault = await req('default', owner);
+  const ownerG2 = await req('g2', owner);
+  const g2onlyG2 = await req('g2', g2only);
+  const g2onlyDefault = await req('default', g2only); // must be denied
 
   console.log(`\nHTTP /api/schedule/next14`);
-  console.log(`  X-Tenant: default -> [${def}]`);
-  console.log(`  X-Tenant: g2      -> [${g2}]\n`);
+  console.log(`  owner   X-Tenant=default -> ${ownerDefault.status} [${ownerDefault.ids}]`);
+  console.log(`  owner   X-Tenant=g2      -> ${ownerG2.status} [${ownerG2.ids}]`);
+  console.log(`  g2only  X-Tenant=g2      -> ${g2onlyG2.status} [${g2onlyG2.ids}]`);
+  console.log(`  g2only  X-Tenant=default -> ${g2onlyDefault.status} (expect 403)\n`);
 
-  assert(def.length > 0 && g2.length > 0, 'both tenants return data over HTTP');
-  assert(def.filter((p) => g2.includes(p)).length === 0, 'HTTP responses are disjoint per tenant');
-  assert(def.every((p) => p.startsWith('wgw-')), 'default returns only WGW players');
-  assert(g2.every((p) => p.startsWith('g2-')), 'g2 returns only G2 players');
+  // Tenant isolation
+  assert(ownerDefault.ids.every((p) => p.startsWith('wgw-')) && ownerDefault.ids.length > 0, 'default returns only WGW players');
+  assert(ownerG2.ids.every((p) => p.startsWith('g2-')) && ownerG2.ids.length > 0, 'g2 returns only G2 players');
+  assert(ownerDefault.ids.filter((p) => ownerG2.ids.includes(p)).length === 0, 'tenant responses are disjoint');
+  // Membership enforcement (IDOR closed)
+  assert(g2onlyG2.status === 200 && g2onlyG2.ids.length > 0, 'g2-only account CAN read its own org (g2)');
+  assert(g2onlyDefault.status === 403, 'g2-only account is DENIED the default org (spoofed X-Tenant rejected)');
 
-  console.log(`\n${process.exitCode ? '❌ HTTP TEST FAILED' : '✅ HTTP ISOLATION PROVEN'}`);
+  console.log(`\n${process.exitCode ? '❌ HTTP TEST FAILED' : '✅ ISOLATION + MEMBERSHIP ENFORCEMENT PROVEN'}`);
   // Clean teardown: close the server + pool and let the loop drain (no
   // process.exit — that races libuv handle close on Windows).
   await new Promise<void>((resolve) => server.close(() => resolve()));

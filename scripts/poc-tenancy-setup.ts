@@ -102,6 +102,47 @@ async function seedUserMappings(): Promise<void> {
   console.log('✓ user_mappings seeded (5 players).');
 }
 
+async function upsertMembership(accountId: string, organizationId: string, role: 'OWNER' | 'ADMIN' | 'MEMBER'): Promise<void> {
+  await prisma.membership.upsert({
+    where: { accountId_organizationId: { accountId, organizationId } },
+    update: { role },
+    create: { accountId, organizationId, role },
+  });
+}
+
+async function seedAccountsAndMemberships(): Promise<void> {
+  console.log('→ Seeding accounts + memberships…');
+  // Owner = admin login. Member of BOTH orgs → demonstrates one account / many teams.
+  await prisma.account.upsert({
+    where: { id: 'acc_owner' },
+    update: { displayName: 'Owner' },
+    create: { id: 'acc_owner', displayName: 'Owner', email: 'owner@synqed.local' },
+  });
+  await upsertMembership('acc_owner', DEFAULT_ORG.id, 'OWNER');
+  await upsertMembership('acc_owner', G2_ORG.id, 'OWNER');
+
+  // One account per WGW player, member of the default org only.
+  for (const m of WGW_MAPPINGS) {
+    const id = `acc_${m.discordId}`;
+    await prisma.account.upsert({
+      where: { id },
+      update: { displayName: m.displayName },
+      create: { id, discordId: m.discordId, displayName: m.displayName },
+    });
+    await upsertMembership(id, DEFAULT_ORG.id, m.isAdmin ? 'ADMIN' : 'MEMBER');
+  }
+
+  // A g2-only account → used to prove a token for g2 cannot read the default org.
+  await prisma.account.upsert({
+    where: { id: 'acc_g2only' },
+    update: { displayName: 'G2 Member' },
+    create: { id: 'acc_g2only', displayName: 'G2 Member', email: 'member@g2.local' },
+  });
+  await upsertMembership('acc_g2only', G2_ORG.id, 'MEMBER');
+
+  console.log('✓ accounts + memberships seeded (owner→both, players→default, g2only→g2).');
+}
+
 const G2_ROSTER = [
   { userId: 'g2-1', displayName: 'hyped', role: 'MAIN' as const },
   { userId: 'g2-2', displayName: 'Sayf', role: 'MAIN' as const },
@@ -156,6 +197,7 @@ async function seedG2(): Promise<void> {
 async function main(): Promise<void> {
   await migrate();
   await seedUserMappings();
+  await seedAccountsAndMemberships();
   await seedG2();
   console.log('\n✅ PoC tenancy setup complete. Tenants: "default" (your data) + "g2" (seeded).');
   await prisma.$disconnect();

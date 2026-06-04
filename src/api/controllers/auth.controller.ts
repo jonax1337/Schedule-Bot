@@ -179,8 +179,10 @@ export async function handleDiscordCallback(req: Request, res: Response) {
 
     // Generate JWT token - grant admin role if user is marked as admin
     const { generateToken } = await import('../../shared/middleware/auth.js');
+    const { getAccountIdByDiscordId } = await import('../../repositories/organization.repository.js');
     const jwtRole = mapping.isAdmin ? 'admin' : 'user';
-    const token = generateToken(mapping.displayName, jwtRole);
+    const accountId = (await getAccountIdByDiscordId(discordId)) ?? undefined;
+    const token = generateToken(mapping.displayName, jwtRole, accountId);
 
     // Build Discord avatar URL
     const avatarUrl = discordUser.avatar

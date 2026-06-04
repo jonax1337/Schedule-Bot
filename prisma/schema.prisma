@@ -7,12 +7,13 @@ datasource db {
   provider = "postgresql"
 }
 
-/// Tenant root. One Organization == one team == one Discord guild == one subdomain.
+/// Tenant root. One Organization == one team == one subdomain.
+/// (A guild can host several orgs — Main + Academy — see plan §10c.)
 model Organization {
   id               String           @id @default(cuid())
   slug             String           @unique // → subdomain (g2, wgw-gold)
   name             String
-  discordGuildId   String?          @unique @map("discord_guild_id") // null until bot invited
+  discordGuildId   String?          @map("discord_guild_id") // not unique: a guild may host several teams
   discordChannelId String?          @map("discord_channel_id")
   plan             String           @default("free")
   createdAt        DateTime         @default(now()) @map("created_at")
@@ -20,8 +21,47 @@ model Organization {
 
   schedules        Schedule[]
   schedulePlayers  SchedulePlayer[]
+  memberships      Membership[]
 
   @@map("organizations")
+}
+
+/// A person (control-plane identity). One account → many orgs via Membership.
+model Account {
+  id          String       @id @default(cuid())
+  email       String?      @unique
+  discordId   String?      @unique @map("discord_id")
+  displayName String       @map("display_name")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  memberships Membership[]
+
+  @@map("accounts")
+}
+
+enum OrgRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+/// Which orgs an account may access, and with what role. The authority for
+/// tenant access control (closes the spoofable-header IDOR).
+model Membership {
+  id             String       @id @default(cuid())
+  accountId      String       @map("account_id")
+  organizationId String       @map("organization_id")
+  role           OrgRole      @default(MEMBER)
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  account        Account      @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, organizationId])
+  @@index([accountId])
+  @@index([organizationId])
+  @@map("memberships")
 }
 
 model Schedule {

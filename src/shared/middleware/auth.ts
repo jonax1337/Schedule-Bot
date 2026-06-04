@@ -23,6 +23,8 @@ export interface AuthRequest extends Request {
   user?: {
     username: string;
     role: 'admin' | 'user';
+    /** Control-plane account id; drives org-membership checks. */
+    accountId?: string;
   };
   /** The user mapping for the currently logged-in user (set by resolveCurrentUser) */
   resolvedUser?: ResolvedUserMapping;
@@ -30,14 +32,14 @@ export interface AuthRequest extends Request {
   targetUserId?: string;
 }
 
-export function generateToken(username: string, role: 'admin' | 'user' = 'admin'): string {
-  return jwt.sign({ username, role }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN, algorithm: JWT_ALGORITHM });
+export function generateToken(username: string, role: 'admin' | 'user' = 'admin', accountId?: string): string {
+  return jwt.sign({ username, role, accountId }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN, algorithm: JWT_ALGORITHM });
 }
 
-export function verifyTokenSync(token: string): { username: string; role: 'admin' | 'user' } | null {
+export function verifyTokenSync(token: string): { username: string; role: 'admin' | 'user'; accountId?: string } | null {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET, { algorithms: [JWT_ALGORITHM] }) as { username: string; role: string };
-    return decoded as { username: string; role: 'admin' | 'user' };
+    const decoded = jwt.verify(token, JWT_SECRET, { algorithms: [JWT_ALGORITHM] }) as { username: string; role: string; accountId?: string };
+    return decoded as { username: string; role: 'admin' | 'user'; accountId?: string };
   } catch (error) {
     return null;
   }
@@ -54,8 +56,8 @@ export function verifyToken(req: AuthRequest, res: Response, next: NextFunction)
   const token = authHeader.substring(7);
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET, { algorithms: [JWT_ALGORITHM] }) as { username: string; role: string };
-    req.user = decoded as { username: string; role: 'admin' | 'user' };
+    const decoded = jwt.verify(token, JWT_SECRET, { algorithms: [JWT_ALGORITHM] }) as { username: string; role: string; accountId?: string };
+    req.user = decoded as { username: string; role: 'admin' | 'user'; accountId?: string };
     next();
   } catch (error) {
     if (error instanceof jwt.TokenExpiredError) {
@@ -87,13 +89,46 @@ export function optionalAuth(req: AuthRequest, res: Response, next: NextFunction
   const token = authHeader.substring(7);
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET, { algorithms: [JWT_ALGORITHM] }) as { username: string; role: string };
-    req.user = decoded as { username: string; role: 'admin' | 'user' };
+    const decoded = jwt.verify(token, JWT_SECRET, { algorithms: [JWT_ALGORITHM] }) as { username: string; role: string; accountId?: string };
+    req.user = decoded as { username: string; role: 'admin' | 'user'; accountId?: string };
   } catch (error) {
     // Token invalid, but continue without user
   }
 
   next();
+}
+
+/**
+ * Require that the authenticated account has a membership in the resolved org.
+ * This is the authority for cross-tenant access control — it closes the
+ * spoofable-X-Tenant IDOR (a token for org A cannot read org B's data).
+ * Must run after `verifyToken` and the tenant middleware (which sets req.org).
+ */
+export async function requireOrgMembership(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  const org = (req as AuthRequest & { org?: { id: string } }).org;
+  const accountId = req.user?.accountId;
+
+  if (!org) {
+    res.status(500).json({ error: 'Tenant not resolved' });
+    return;
+  }
+  if (!accountId) {
+    res.status(403).json({ error: 'Token is not bound to an account' });
+    return;
+  }
+
+  try {
+    const { getMembershipRole } = await import('../../repositories/organization.repository.js');
+    const role = await getMembershipRole(accountId, org.id);
+    if (!role) {
+      res.status(403).json({ error: 'No access to this organization' });
+      return;
+    }
+    next();
+  } catch (error) {
+    logger.error('Membership check failed', getErrorMessage(error));
+    res.status(500).json({ error: 'Membership check failed' });
+  }
 }
 
 /**

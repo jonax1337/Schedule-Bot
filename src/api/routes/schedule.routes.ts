@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { verifyToken, requireAdmin, AuthRequest, resolveCurrentUser, requireOwnershipOrAdmin } from '../../shared/middleware/auth.js';
+import { verifyToken, requireAdmin, requireOrgMembership, AuthRequest, resolveCurrentUser, requireOwnershipOrAdmin } from '../../shared/middleware/auth.js';
 import { sanitizeString } from '../../shared/middleware/validation.js';
 import { updatePlayerAvailability } from '../../repositories/schedule.repository.js';
 import { getScheduleDetails, getScheduleDetailsBatch } from '../../shared/utils/scheduleDetails.js';
@@ -12,7 +12,7 @@ import type { ScheduleStatus } from '../../shared/types/types.js';
 const router = Router();
 
 // Get next 14 days schedule
-router.get('/next14', verifyToken, async (req: AuthRequest, res) => {
+router.get('/next14', verifyToken, requireOrgMembership, async (req: AuthRequest, res) => {
   try {
     const { getNext14DaysSchedule } = await import('../../repositories/schedule.repository.js');
     const schedules = await getNext14DaysSchedule();
@@ -24,7 +24,7 @@ router.get('/next14', verifyToken, async (req: AuthRequest, res) => {
 });
 
 // Get schedules in a date range (real data + future simulation from recurring)
-router.get('/range', verifyToken, async (req: AuthRequest, res) => {
+router.get('/range', verifyToken, requireOrgMembership, async (req: AuthRequest, res) => {
   try {
     const from = (req.query.from as string)?.trim();
     const to = (req.query.to as string)?.trim();
@@ -49,7 +49,7 @@ router.get('/range', verifyToken, async (req: AuthRequest, res) => {
 });
 
 // Get schedules with pagination
-router.get('/paginated', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
+router.get('/paginated', verifyToken, requireOrgMembership, requireAdmin, async (req: AuthRequest, res) => {
   try {
     const { getSchedulesPaginated } = await import('../../repositories/schedule.repository.js');
     const offset = parseInt(req.query.offset as string) || 0;
@@ -62,7 +62,7 @@ router.get('/paginated', verifyToken, requireAdmin, async (req: AuthRequest, res
 });
 
 // Update schedule reason and focus
-router.post('/update-reason', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
+router.post('/update-reason', verifyToken, requireOrgMembership, requireAdmin, async (req: AuthRequest, res) => {
   try {
     const { date, reason, focus } = req.body;
 
@@ -108,7 +108,7 @@ router.post('/update-reason', verifyToken, requireAdmin, async (req: AuthRequest
 });
 
 // Update player availability
-router.post('/update-availability', verifyToken, resolveCurrentUser, requireOwnershipOrAdmin(req => req.body?.userId), async (req: AuthRequest, res) => {
+router.post('/update-availability', verifyToken, requireOrgMembership, resolveCurrentUser, requireOwnershipOrAdmin(req => req.body?.userId), async (req: AuthRequest, res) => {
   try {
     const { date, userId, availability } = req.body;
 

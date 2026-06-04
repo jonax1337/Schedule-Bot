@@ -21,7 +21,40 @@ export async function getOrganizationBySlug(slug: string): Promise<OrganizationD
 }
 
 export async function getOrganizationByGuildId(guildId: string): Promise<OrganizationData | null> {
-  return prisma.organization.findUnique({ where: { discordGuildId: guildId } });
+  // guildId is no longer unique (a guild may host several teams), so findFirst.
+  return prisma.organization.findFirst({ where: { discordGuildId: guildId } });
+}
+
+/** PoC: the control-plane owner account (admin login). Seeded by setup script. */
+export const OWNER_ACCOUNT_ID = 'acc_owner';
+
+/** Account id for a Discord user, or null. Links player/OAuth login to an account. */
+export async function getAccountIdByDiscordId(discordId: string): Promise<string | null> {
+  const acc = await prisma.account.findUnique({ where: { discordId }, select: { id: true } });
+  return acc?.id ?? null;
+}
+
+export type OrgRoleValue = 'OWNER' | 'ADMIN' | 'MEMBER';
+
+/** The account's role in an org, or null if it has no membership there. */
+export async function getMembershipRole(accountId: string, organizationId: string): Promise<OrgRoleValue | null> {
+  const m = await prisma.membership.findUnique({
+    where: { accountId_organizationId: { accountId, organizationId } },
+    select: { role: true },
+  });
+  return (m?.role as OrgRoleValue) ?? null;
+}
+
+/** Orgs the account may access (for the org switcher). */
+export async function getAccountOrganizations(
+  accountId: string,
+): Promise<Array<{ slug: string; name: string; role: OrgRoleValue }>> {
+  const memberships = await prisma.membership.findMany({
+    where: { accountId },
+    include: { organization: { select: { slug: true, name: true } } },
+    orderBy: { organization: { name: 'asc' } },
+  });
+  return memberships.map((m) => ({ slug: m.organization.slug, name: m.organization.name, role: m.role as OrgRoleValue }));
 }
 
 /**
