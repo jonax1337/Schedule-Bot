@@ -1,5 +1,8 @@
 <div align="center">
-  <img src="assets/banner.png" alt="Synqed" width="640" />
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/synqed-wordmark-dark.png" />
+    <img src="assets/synqed-wordmark-light.png" alt="Synqed" width="420" />
+  </picture>
 
   <p>
     <strong>A comprehensive Discord bot + web dashboard for E-Sports team scheduling</strong>
