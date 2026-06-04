@@ -420,6 +420,44 @@ zwischen `default` und `g2` (lokal ohne echte Subdomains).
 
 ---
 
+## 10c. Mehrere Teams auf EINER Guild (Main + Academy)
+
+Das kippt die Annahme „1 Guild = 1 Org". Ein Verein (z.B. WGW) hat **eine**
+Discord-Guild, aber **mehrere Teams** (Main, Academy) mit getrennten Rostern,
+Channels, Schedules — und eigenen Subdomains.
+
+**Lösung: zwei Ebenen.**
+```
+Account / Verein  (besitzt die Guild, Billing)   1 ──── N   Team (= Tenant)
+   discordGuildId  (unique)                                   slug/subdomain
+                                                              discordChannelId
+                                                              roster, schedules
+```
+- **Organization (= Team) bleibt der Tenant** für alle Schedule-Daten — exakt wie
+  im PoC. Main und Academy sind einfach **zwei Orgs** unter demselben Account.
+- `discordGuildId` wandert auf den **Account** und ist dort unique. Auf der
+  Org/Team-Ebene ist die Guild **nicht** unique (mehrere Teams teilen sie).
+
+**Tenant-Auflösung pro Kanal (statt pro Guild):**
+- **Dashboard/API:** unverändert — jedes Team hat seine eigene Subdomain
+  (`wgw-main.synqed.org`, `wgw-academy.synqed.org`). Die Guild ist hier irrelevant.
+- **Bot:** löst Interactions über den **Channel** auf, nicht die Guild.
+  `interaction.channelId` ist immer gesetzt. Mapping `channelId → Team`.
+  - Team-Channels (#main-schedule, #academy-schedule) → eindeutiges Team.
+  - Command außerhalb eines Team-Channels: Fallback über die **Team-
+    Mitgliedschaft** des Users; ist er in mehreren (z.B. Coach) → Auswahl/Default.
+
+**Onboarding:** Bot **einmal** pro Guild einladen (Account). Dann pro Team:
+Subdomain + Channel wählen → fertig. Academy = „weiteres Team hinzufügen".
+
+**Auswirkung auf den PoC:** Die Dashboard-Seite kann das **schon heute**
+(subdomain-basiert, Guild egal) — `g2` und ein hypothetisches `g2-academy` wären
+einfach zwei Orgs. Nur der **Bot** braucht später Channel-statt-Guild-Auflösung;
+dafür: `discordGuildId @unique` von der Org runter auf einen Account heben und ein
+`channelId → org`-Mapping einführen (eigene Phase, nicht im PoC).
+
+---
+
 ## 11. Offene Detail-Entscheidungen (für später)
 
 - **Datei-Storage** (`strategy_images/files`): heute vermutlich lokales FS auf
