@@ -68,10 +68,7 @@ export function OrgSwitcher() {
         {team.logoUrl ? <AvatarImage src={team.logoUrl} alt={team.name} /> : null}
         <AvatarFallback className="bg-primary text-primary-foreground rounded-md">{initial}</AvatarFallback>
       </Avatar>
-      <div className="grid flex-1 text-left text-sm leading-tight">
-        <span className="truncate font-semibold">{team.name}</span>
-        <span className="text-muted-foreground truncate text-xs">{current}</span>
-      </div>
+      <span className="flex-1 truncate text-left text-sm font-semibold">{team.name}</span>
       {canSwitch && <ChevronsUpDown className="ml-auto size-4" />}
     </SidebarMenuButton>
   )

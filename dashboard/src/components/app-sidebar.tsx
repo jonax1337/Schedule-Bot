@@ -32,8 +32,8 @@ export function AppSidebar({ brand, navGroups, footerExtra, user, onLogout, ...p
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <OrgSwitcher />
         <SynqedBrand subtitle={brand.subtitle} homeUrl={brand.homeUrl} />
+        <OrgSwitcher />
       </SidebarHeader>
       <SidebarContent>
         {navGroups.map((group) => (
