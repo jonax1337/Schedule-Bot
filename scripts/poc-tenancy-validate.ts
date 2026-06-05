@@ -71,11 +71,14 @@ async function main(): Promise<void> {
   assert(!def.players.some((p) => p.startsWith('g2-')), 'default org cannot see g2 players');
   assert(g2.players.every((p) => p.startsWith('g2-')), 'g2 org sees only its own players');
 
-  // 4. New tenant tables also scope: user_mappings is now per-org.
-  const umDefault = await runWithOrg(DEFAULT_ORG, async () => { return await prisma.userMapping.count(); });
-  const umG2 = await runWithOrg(G2_ORG, async () => { return await prisma.userMapping.count(); });
-  console.log(`user_mappings  default=${umDefault}  g2=${umG2}`);
-  assert(umDefault > 0 && umG2 === 0, 'user_mappings scoped per org (default has roster, g2 empty)');
+  // 4. New tenant tables also scope: each org has its own user_mappings roster.
+  const roster = (org: string) =>
+    runWithOrg(org, async () => (await prisma.userMapping.findMany()).map((m) => m.displayName).sort());
+  const umDefault = await roster(DEFAULT_ORG);
+  const umG2 = await roster(G2_ORG);
+  console.log(`user_mappings  default=[${umDefault}]  g2=[${umG2}]`);
+  const rosterOverlap = umDefault.filter((n) => umG2.includes(n));
+  assert(umDefault.length > 0 && umG2.length > 0 && rosterOverlap.length === 0, 'user_mappings rosters are per-org & disjoint');
 
   // 5. settings are now per-org too.
   const setTeamName = (org: string, name: string) =>

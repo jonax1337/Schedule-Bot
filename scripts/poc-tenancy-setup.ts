@@ -114,18 +114,20 @@ const WGW_MAPPINGS = [
   { discordId: 'wgw-5', displayName: 'Paul', role: 'SUB' as const, isAdmin: false },
 ];
 
-async function seedUserMappings(): Promise<void> {
-  console.log('→ Seeding user_mappings (WGW roster)…');
-  // user_mappings is now a tenant model → run inside the default org context
-  // (guard scopes/stamps) and find-then-write (discordId no longer global-unique).
-  await runWithOrg(DEFAULT_ORG.id, async () => {
-    for (let i = 0; i < WGW_MAPPINGS.length; i++) {
-      const m = WGW_MAPPINGS[i];
+// user_mappings is a tenant model → seed inside the org's context (guard
+// scopes/stamps) with find-then-write (discordId no longer global-unique).
+async function seedRoster(
+  orgId: string,
+  roster: Array<{ discordId: string; displayName: string; role: 'MAIN' | 'SUB' | 'COACH'; isAdmin?: boolean }>,
+): Promise<void> {
+  await runWithOrg(orgId, async () => {
+    for (let i = 0; i < roster.length; i++) {
+      const m = roster[i];
       const existing = await prisma.userMapping.findFirst({ where: { discordId: m.discordId } });
       if (existing) {
         await prisma.userMapping.update({
           where: { id: existing.id },
-          data: { displayName: m.displayName, role: m.role, sortOrder: i, isAdmin: m.isAdmin },
+          data: { displayName: m.displayName, role: m.role, sortOrder: i, isAdmin: !!m.isAdmin },
         });
       } else {
         await prisma.userMapping.create({
@@ -136,13 +138,19 @@ async function seedUserMappings(): Promise<void> {
             displayName: m.displayName,
             role: m.role,
             sortOrder: i,
-            isAdmin: m.isAdmin,
+            isAdmin: !!m.isAdmin,
           },
         });
       }
     }
   });
-  console.log('✓ user_mappings seeded (5 players).');
+}
+
+async function seedUserMappings(): Promise<void> {
+  console.log('→ Seeding user_mappings (default + g2 rosters)…');
+  await seedRoster(DEFAULT_ORG.id, WGW_MAPPINGS);
+  await seedRoster(G2_ORG.id, G2_ROSTER.map((p) => ({ discordId: p.userId, displayName: p.displayName, role: p.role })));
+  console.log('✓ user_mappings seeded (default + g2).');
 }
 
 async function upsertMembership(accountId: string, organizationId: string, role: 'OWNER' | 'ADMIN' | 'MEMBER'): Promise<void> {
