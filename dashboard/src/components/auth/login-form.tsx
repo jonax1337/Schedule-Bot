@@ -8,7 +8,7 @@ import { Loader2, UserCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { AuthDivider } from '@/components/auth-divider'
 import { FullWidthDivider } from '@/components/full-width-divider'
-import { setAuthToken, setUser } from '@/lib/auth'
+import { setAuthToken, setUser, getAuthHeaders } from '@/lib/auth'
 import { BOT_API_URL } from '@/lib/config'
 
 interface LoginFormProps {
@@ -28,7 +28,7 @@ export function LoginForm({ redirectTo }: LoginFormProps) {
   useEffect(() => {
     ;(async () => {
       try {
-        const settingsRes = await fetch(`${BOT_API_URL}/api/settings`)
+        const settingsRes = await fetch(`${BOT_API_URL}/api/settings`, { headers: getAuthHeaders() })
         if (settingsRes.ok) {
           const data = await settingsRes.json()
           setAllowDiscord(!!data?.discord?.allowDiscordAuth)
@@ -40,7 +40,7 @@ export function LoginForm({ redirectTo }: LoginFormProps) {
       }
 
       try {
-        const res = await fetch(`${BOT_API_URL}/api/user-mappings`)
+        const res = await fetch(`${BOT_API_URL}/api/user-mappings`, { headers: getAuthHeaders() })
         if (res.ok) {
           const data = await res.json()
           setUsers(
@@ -65,7 +65,7 @@ export function LoginForm({ redirectTo }: LoginFormProps) {
     try {
       const response = await fetch(`${BOT_API_URL}/api/user/login`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ username: selectedUser }),
       })
       if (response.ok) {

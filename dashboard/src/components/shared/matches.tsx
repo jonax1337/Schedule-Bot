@@ -73,7 +73,7 @@ export function Matches() {
   useEffect(() => {
     const fetchTeamName = async () => {
       try {
-        const response = await fetch(`${BOT_API_URL}/api/settings`)
+        const response = await fetch(`${BOT_API_URL}/api/settings`, { headers: getAuthHeaders() })
         if (response.ok) {
           const data = await response.json()
           if (data?.branding?.teamName) {
@@ -90,7 +90,7 @@ export function Matches() {
 
   const fetchScrims = async () => {
     try {
-      const response = await fetch(`${BOT_API_URL}/api/scrims`);
+      const response = await fetch(`${BOT_API_URL}/api/scrims`, { headers: getAuthHeaders() });
       const data = await response.json();
       if (data.success) {
         // Sort by date (newest first)
@@ -109,7 +109,7 @@ export function Matches() {
 
   const fetchStats = async () => {
     try {
-      const response = await fetch(`${BOT_API_URL}/api/scrims/stats/summary`);
+      const response = await fetch(`${BOT_API_URL}/api/scrims/stats/summary`, { headers: getAuthHeaders() });
       const data = await response.json();
       if (data.success) {
         setStats(data.stats);

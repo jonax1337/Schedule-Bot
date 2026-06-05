@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { Loader2, CheckCircle2, XCircle } from 'lucide-react'
 import { FullWidthDivider } from '@/components/full-width-divider'
-import { setAuthToken, setUser } from '@/lib/auth'
+import { setAuthToken, setUser, getAuthHeaders } from '@/lib/auth'
 import { BOT_API_URL } from '@/lib/config'
 
 export function AuthCallbackPage() {
@@ -30,7 +30,7 @@ export function AuthCallbackPage() {
       }
 
       try {
-        const response = await fetch(`${BOT_API_URL}/api/auth/discord/callback?code=${code}&state=${state}`)
+        const response = await fetch(`${BOT_API_URL}/api/auth/discord/callback?code=${code}&state=${state}`, { headers: getAuthHeaders() })
         if (!response.ok) {
           const errorData = await response.json()
           setStatus('error')

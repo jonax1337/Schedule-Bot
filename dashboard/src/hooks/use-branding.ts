@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { BOT_API_URL } from '@/lib/config'
+import { getAuthHeaders } from '@/lib/auth'
 
 /**
  * The team's display name, used as content in match/VOD views
@@ -12,7 +13,7 @@ export function useTeamName(fallback = 'Our Team') {
   useEffect(() => {
     const fetchTeamName = async () => {
       try {
-        const response = await fetch(`${BOT_API_URL}/api/settings`)
+        const response = await fetch(`${BOT_API_URL}/api/settings`, { headers: getAuthHeaders() })
         if (response.ok) {
           const data = await response.json()
           if (data?.branding?.teamName) setTeamName(data.branding.teamName)

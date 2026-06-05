@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useMemo, useCallback, type ReactNode } from 'react'
 import { BOT_API_URL } from './config'
+import { getAuthHeaders } from './auth'
 
 const STORAGE_KEY = 'user_timezone'
 const DEFAULT_BOT_TIMEZONE = 'Europe/Berlin'
@@ -106,7 +107,7 @@ export function TimezoneProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const fetchBotTimezone = () => {
-      fetch(`${BOT_API_URL}/api/settings`)
+      fetch(`${BOT_API_URL}/api/settings`, { headers: getAuthHeaders() })
         .then((res) => res.json())
         .then((data) => {
           const tz = data?.scheduling?.timezone

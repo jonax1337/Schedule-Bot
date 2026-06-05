@@ -41,7 +41,7 @@ export function Settings() {
   const loadSettings = async () => {
     try {
       const { BOT_API_URL } = await import('@/lib/config');
-      const response = await fetch(`${BOT_API_URL}/api/settings`);
+      const response = await fetch(`${BOT_API_URL}/api/settings`, { headers: getAuthHeaders() });
       const data = await response.json();
 
       // Validate settings structure (admin is now optional, comes from .env)

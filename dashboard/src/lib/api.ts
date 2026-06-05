@@ -1,10 +1,9 @@
 import { getAuthHeaders, removeAuthToken } from './auth'
-import { getTenantHeader } from './tenant'
 import { BOT_API_URL, API_MAX_RETRIES, API_RETRY_BASE_DELAY, API_TIMEOUT } from './config'
 
-/** Auth headers + the current tenant slug, sent on every request. */
+/** Auth + tenant headers (getAuthHeaders already includes X-Tenant). */
 function requestHeaders(): Record<string, string> {
-  return { ...getAuthHeaders(), ...getTenantHeader() }
+  return getAuthHeaders()
 }
 
 export class ApiError extends Error {

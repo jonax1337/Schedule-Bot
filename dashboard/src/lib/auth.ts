@@ -1,4 +1,5 @@
 import { BOT_API_URL } from './config'
+import { getTenantHeader } from './tenant'
 
 const TOKEN_KEY = 'auth_token'
 const USER_KEY = 'auth_user'
@@ -42,14 +43,16 @@ export function isAuthenticated(): boolean {
 }
 
 export function getAuthHeaders(): Record<string, string> {
-  const token = getAuthToken()
-  if (token) {
-    return {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    }
+  // X-Tenant is included here so EVERY caller (raw fetch + apiGet/apiPost) is
+  // tenant-scoped. Omitting it makes the backend fall back to the default org —
+  // the cause of admin pages leaking one team's data into another.
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...getTenantHeader(),
   }
-  return { 'Content-Type': 'application/json' }
+  const token = getAuthToken()
+  if (token) headers.Authorization = `Bearer ${token}`
+  return headers
 }
 
 export async function logout(): Promise<void> {
