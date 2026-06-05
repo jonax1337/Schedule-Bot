@@ -2,12 +2,20 @@ import { Router } from 'express';
 import { verifyToken, generateToken, AuthRequest } from '../../shared/middleware/auth.js';
 import {
   getAccountOrganizations,
+  getOrganizationBySlug,
+  getMembershipRole,
+  bindGuild,
   upsertAccountByDiscordId,
   createOrganizationWithOwner,
   SlugError,
 } from '../../repositories/organization.repository.js';
+import { buildBotInviteUrl, verifyBotInviteState } from '../../shared/utils/botInvite.js';
 import { loginLimiter } from '../../shared/middleware/rateLimiter.js';
 import { logger, getErrorMessage } from '../../shared/utils/logger.js';
+
+const BOT_CALLBACK_URL =
+  (process.env.BOT_API_PUBLIC_URL || 'http://localhost:3001') + '/api/platform/discord/bot-callback';
+const DASHBOARD_URL = process.env.DASHBOARD_URL || 'http://localhost:3000';
 
 /**
  * Control-plane routes (account-scoped, NOT tenant-scoped): the SaaS layer where
@@ -67,6 +75,46 @@ router.post('/organizations', verifyToken, async (req: AuthRequest, res) => {
     }
     logger.error('Failed to create organization', getErrorMessage(error));
     res.status(500).json({ error: 'Failed to create organization' });
+  }
+});
+
+/** Build the "Add to Discord" invite URL for a team the account owns/administers. */
+router.get('/organizations/:slug/invite', verifyToken, async (req: AuthRequest, res) => {
+  const accountId = req.user?.accountId;
+  if (!accountId) return res.status(403).json({ error: 'Token is not bound to an account' });
+  try {
+    const org = await getOrganizationBySlug(String(req.params.slug));
+    if (!org) return res.status(404).json({ error: 'Unknown team' });
+    const role = await getMembershipRole(accountId, org.id);
+    if (role !== 'OWNER' && role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Only an owner/admin can connect Discord' });
+    }
+    const url = buildBotInviteUrl(org.id, BOT_CALLBACK_URL);
+    if (!url) return res.status(400).json({ error: 'Discord app not configured (DISCORD_CLIENT_ID missing)' });
+    res.json({ success: true, url });
+  } catch (error) {
+    logger.error('Failed to build bot invite', getErrorMessage(error));
+    res.status(500).json({ error: 'Failed to build invite' });
+  }
+});
+
+/** Discord redirects here after the bot is added — bind the guild to the org. */
+router.get('/discord/bot-callback', async (req, res) => {
+  const state = req.query.state as string | undefined;
+  const guildId = req.query.guild_id as string | undefined;
+  const orgId = state ? verifyBotInviteState(state) : null;
+  if (!orgId) {
+    return res.redirect(`${DASHBOARD_URL}/control?bot=error`);
+  }
+  try {
+    if (guildId) {
+      await bindGuild(orgId, guildId);
+      logger.success('Guild bound to org', `${guildId} → ${orgId}`);
+    }
+    res.redirect(`${DASHBOARD_URL}/control?bot=connected`);
+  } catch (error) {
+    logger.error('Bot callback failed', getErrorMessage(error));
+    res.redirect(`${DASHBOARD_URL}/control?bot=error`);
   }
 });
 

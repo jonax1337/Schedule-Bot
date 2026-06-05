@@ -40,6 +40,13 @@ export function ControlPage() {
     if (token) loadOrgs(token)
   }, [token])
 
+  useEffect(() => {
+    const bot = new URLSearchParams(window.location.search).get('bot')
+    if (bot === 'connected') toast.success('Discord connected to your team')
+    else if (bot === 'error') toast.error('Discord connection failed — please try again')
+    if (bot) window.history.replaceState(null, '', window.location.pathname)
+  }, [])
+
   async function devLogin(e: FormEvent) {
     e.preventDefault()
     setBusy(true)
@@ -100,6 +107,20 @@ export function ControlPage() {
     window.location.href = withAuthHandoff(subdomainUrl(s, '/'))
   }
 
+  async function connectDiscord(s: string) {
+    if (!token) return
+    try {
+      const res = await fetch(`${BOT_API_URL}/api/platform/organizations/${s}/invite`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Could not start Discord connect')
+      window.location.href = data.url
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not connect Discord')
+    }
+  }
+
   function signOut() {
     removeAuthToken()
     setToken(null)
@@ -147,9 +168,14 @@ export function ControlPage() {
                       <span className="font-medium">{o.name}</span>{' '}
                       <span className="text-muted-foreground text-xs">{o.slug} · {o.role.toLowerCase()}</span>
                     </span>
-                    <Button size="sm" variant="ghost" onClick={() => openTeam(o.slug)}>
-                      Open <ArrowRight className="size-4" />
-                    </Button>
+                    <span className="flex items-center gap-1">
+                      <Button size="sm" variant="outline" onClick={() => connectDiscord(o.slug)}>
+                        Connect Discord
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => openTeam(o.slug)}>
+                        Open <ArrowRight className="size-4" />
+                      </Button>
+                    </span>
                   </li>
                 ))}
               </ul>

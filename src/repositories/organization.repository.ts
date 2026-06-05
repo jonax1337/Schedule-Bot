@@ -71,6 +71,11 @@ export async function createOrganizationWithOwner(
   return org;
 }
 
+/** Bind a Discord guild to an org (set when the bot is invited). */
+export async function bindGuild(organizationId: string, guildId: string): Promise<void> {
+  await prisma.organization.update({ where: { id: organizationId }, data: { discordGuildId: guildId } });
+}
+
 /** Account id for a Discord user, or null. Links player/OAuth login to an account. */
 export async function getAccountIdByDiscordId(discordId: string): Promise<string | null> {
   const acc = await prisma.account.findUnique({ where: { discordId }, select: { id: true } });
