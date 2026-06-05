@@ -21,16 +21,18 @@ async function main(): Promise<void> {
   // Multi-tenancy (PoC): the bot/scheduler/startup operate on the default org.
   // Everything below that touches tenant data runs inside its context so the
   // Prisma guard can scope queries. (Later: per-org loop / guildId resolution.)
-  let defaultOrgId: string;
+  // A fresh SaaS database has no organizations yet — the first team is created
+  // through the control plane. Boot the API regardless so that flow works; only
+  // run the org-scoped startup (settings load, schedule seeding) when a default
+  // org actually exists. The scheduler iterates all orgs, so zero orgs is a no-op.
+  let defaultOrgId: string | null = null;
   try {
     defaultOrgId = await getDefaultOrgId();
-  } catch (error) {
-    logger.error('Default organization missing', getErrorMessage(error));
-    logger.error('Run the PoC setup first', 'npx tsx scripts/poc-tenancy-setup.ts');
-    process.exit(1);
+  } catch {
+    logger.warn('No default organization yet', 'Booting control-plane only — create the first team via the control plane.');
   }
 
-  await runWithOrg(defaultOrgId, async () => {
+  if (defaultOrgId) await runWithOrg(defaultOrgId, async () => {
     // Initialize database if empty
     try {
       const { initializeDatabaseIfEmpty } = await import('./repositories/database-initializer.js');
@@ -80,26 +82,29 @@ async function main(): Promise<void> {
 
   // Wait for bot to be ready before starting scheduler
   client.once('clientReady', async () => {
-    await runWithOrg(defaultOrgId, async () => {
-      logger.success('Discord bot ready', `Logged in as ${client.user?.tag}`);
+    logger.success('Discord bot ready', `Logged in as ${client.user?.tag}`);
 
-      startScheduler();
+    startScheduler();
 
-      const nextRun = getNextScheduledTime();
-      if (nextRun) {
-        logger.info('Next scheduled post', nextRun.toLocaleString('de-DE'));
-      }
+    const nextRun = getNextScheduledTime();
+    if (nextRun) {
+      logger.info('Next scheduled post', nextRun.toLocaleString('de-DE'));
+    }
 
-      // Refresh the pinned weekly overview so it reflects the current week
-      try {
-        const { refreshWeeklyOverview } = await import('./bot/utils/weekly-overview.js');
-        await refreshWeeklyOverview(client);
-      } catch (error) {
-        logger.error('Initial weekly overview refresh failed', getErrorMessage(error));
-      }
+    // The pinned weekly overview is per-org; only the default org (if any) has
+    // one to refresh at boot. Fresh SaaS instances skip this until a team exists.
+    if (defaultOrgId) {
+      await runWithOrg(defaultOrgId, async () => {
+        try {
+          const { refreshWeeklyOverview } = await import('./bot/utils/weekly-overview.js');
+          await refreshWeeklyOverview(client);
+        } catch (error) {
+          logger.error('Initial weekly overview refresh failed', getErrorMessage(error));
+        }
+      });
+    }
 
-      logger.success('Startup complete');
-    });
+    logger.success('Startup complete');
   });
 }
 
