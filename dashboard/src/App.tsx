@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Toaster } from '@/components/ui/sonner'
@@ -7,8 +7,8 @@ import { TimezoneProvider } from '@/lib/timezone'
 import { BreadcrumbProvider } from '@/lib/breadcrumb-context'
 import { ProtectedRoute } from '@/components/protected-route'
 import { DevModeBanner } from '@/components/dev-mode-banner'
-import { PocTenantSwitcher } from '@/components/poc-tenant-switcher'
 import { IS_DEV_MODE } from '@/lib/dev-mode'
+import { isApex } from '@/lib/tenant'
 import { AdminShell } from '@/components/shells/admin-shell'
 import { UserShell } from '@/components/shells/user-shell'
 import { AdminLoginPage } from '@/pages/admin-login'
@@ -45,24 +45,34 @@ export default function App() {
                   <Route path="/admin/login" element={<AdminLoginPage />} />
                   <Route path="/auth/callback" element={<AuthCallbackPage />} />
 
+                  {/* Apex (synqed.org) is the SaaS entry → control plane.
+                      Team app lives on the team's subdomain. */}
                   <Route
                     path="/"
                     element={
-                      <ProtectedRoute>
-                        <UserShell>
-                          <UserHome />
-                        </UserShell>
-                      </ProtectedRoute>
+                      isApex() ? (
+                        <Navigate to="/control" replace />
+                      ) : (
+                        <ProtectedRoute>
+                          <UserShell>
+                            <UserHome />
+                          </UserShell>
+                        </ProtectedRoute>
+                      )
                     }
                   />
                   <Route
                     path="/admin"
                     element={
-                      <ProtectedRoute requireAdmin>
-                        <AdminShell>
-                          <AdminHome />
-                        </AdminShell>
-                      </ProtectedRoute>
+                      isApex() ? (
+                        <Navigate to="/control" replace />
+                      ) : (
+                        <ProtectedRoute requireAdmin>
+                          <AdminShell>
+                            <AdminHome />
+                          </AdminShell>
+                        </ProtectedRoute>
+                      )
                     }
                   />
                   <Route
@@ -77,7 +87,6 @@ export default function App() {
                   <Route path="*" element={<Placeholder title="404 — Not Found" />} />
                 </Routes>
               </BrowserRouter>
-              {import.meta.env.DEV && <PocTenantSwitcher />}
               <Toaster />
             </BreadcrumbProvider>
           </TooltipProvider>

@@ -42,6 +42,13 @@ export function getTenantSlug(): string {
   return DEFAULT_SLUG
 }
 
+/** True on the apex host (synqed.org / bare localhost) — no team subdomain.
+ *  The apex is the SaaS entry: the control plane, not a team app. */
+export function isApex(): boolean {
+  if (typeof window === 'undefined') return false
+  return subdomainOf(window.location.hostname) === undefined
+}
+
 export function setTenantSlug(slug: string): void {
   localStorage.setItem(STORAGE_KEY, slug)
 }
