@@ -1,5 +1,5 @@
 import { BOT_API_URL } from './config'
-import { getTenantHeader } from './tenant'
+import { getTenantHeader, subdomainUrl } from './tenant'
 
 const TOKEN_KEY = 'auth_token'
 const USER_KEY = 'auth_user'
@@ -61,39 +61,57 @@ export async function logout(): Promise<void> {
 }
 
 /**
- * Cross-subdomain auth handoff. localStorage is per-origin, so when we navigate
- * from the apex/control plane to a team subdomain we carry the token (+ user) in
- * the URL fragment. `withAuthHandoff` appends it; `consumeAuthHandoff` reads and
- * strips it on load. (MVP: fragment never hits the server; fine over https.)
+ * Cross-subdomain login handoff. localStorage is per-origin, so navigating to a
+ * team subdomain needs the session carried across. We do NOT put the bearer
+ * token in the URL: the source mints a short-lived, single-use, account-bound
+ * code (server-side), the destination redeems it for a fresh token.
+ *
+ * `teamHandoffUrl` builds the destination URL with a `#handoff=<code>` fragment;
+ * `consumeAuthHandoff` redeems it on load. The code is opaque, 30s, single-use
+ * and bound to the minting account, so it leaks nothing and can't fixate a
+ * session (and we never re-bind an already-authenticated tab).
  */
-export function withAuthHandoff(url: string): string {
-  const token = getAuthToken()
-  if (!token) return url
-  // Only the token travels — never a client-supplied user blob (untrusted).
-  return `${url}#access_token=${encodeURIComponent(token)}`
+export async function teamHandoffUrl(slug: string, path = '/'): Promise<string> {
+  const base = subdomainUrl(slug, path)
+  if (!getAuthToken()) return base
+  try {
+    const res = await fetch(`${BOT_API_URL}/api/platform/handoff`, { method: 'POST', headers: getAuthHeaders() })
+    if (res.ok) {
+      const { code } = await res.json()
+      if (code) return `${base}#handoff=${encodeURIComponent(code)}`
+    }
+  } catch {
+    /* fall back to no handoff — user just logs in on the subdomain */
+  }
+  return base
 }
 
-export function consumeAuthHandoff(): void {
+export async function consumeAuthHandoff(): Promise<void> {
   if (typeof window === 'undefined' || !window.location.hash) return
   const params = new URLSearchParams(window.location.hash.slice(1))
-  const token = params.get('access_token')
-  if (!token) return
+  const code = params.get('handoff')
+  if (!code) return
 
-  // Strip the fragment immediately so the token never lingers in URL/history.
+  // Strip the fragment immediately; never re-bind an already-authenticated tab.
   history.replaceState(null, '', window.location.pathname + window.location.search)
-
-  // Never silently re-bind an already-authenticated session (login-CSRF guard).
   if (getAuthToken()) return
 
-  setAuthToken(token)
-  // Don't trust any client-supplied identity — derive it from the backend.
-  void fetch(`${BOT_API_URL}/api/auth/user`, { headers: { Authorization: `Bearer ${token}` } })
-    .then((r) => (r.ok ? r.json() : null))
-    .then((d) => {
-      if (d?.username) setUser({ username: d.username, role: d.role })
-      else removeAuthToken()
+  try {
+    const res = await fetch(`${BOT_API_URL}/api/platform/handoff/redeem`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
     })
-    .catch(() => {})
+    if (res.ok) {
+      const data = await res.json()
+      if (data.token) {
+        setAuthToken(data.token)
+        if (data.user) setUser(data.user)
+      }
+    }
+  } catch {
+    /* ignore — user can sign in normally */
+  }
 }
 
 /**

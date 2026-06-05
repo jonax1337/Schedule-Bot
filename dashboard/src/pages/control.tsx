@@ -5,8 +5,7 @@ import { Label } from '@/components/ui/label'
 import { Loader2, Plus, ArrowRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { BOT_API_URL } from '@/lib/config'
-import { getAuthToken, setAuthToken, setUser, removeAuthToken, withAuthHandoff } from '@/lib/auth'
-import { subdomainUrl } from '@/lib/tenant'
+import { getAuthToken, setAuthToken, setUser, removeAuthToken, teamHandoffUrl } from '@/lib/auth'
 
 interface Org {
   slug: string
@@ -102,9 +101,10 @@ export function ControlPage() {
     }
   }
 
-  function openTeam(s: string) {
-    // Open the team on its own subdomain, carrying the login across origins.
-    window.location.href = withAuthHandoff(subdomainUrl(s, '/'))
+  async function openTeam(s: string) {
+    // Open the team on its own subdomain, carrying the login across origins
+    // via a one-time server-issued handoff code.
+    window.location.href = await teamHandoffUrl(s, '/')
   }
 
   async function connectDiscord(s: string) {
