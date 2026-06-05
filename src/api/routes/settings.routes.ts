@@ -30,9 +30,11 @@ router.post('/', verifyToken, requireOrgMembership, requireAdmin, strictApiLimit
   try {
     await saveSettingsForCurrentOrg(req.body);
 
-    // The runtime config singleton + scheduler only track the bot's default org.
+    // Warm the saved org's runtime config (context = this request's org).
+    await reloadConfig();
+    // The scheduler is still the bot's single (default-org) tick until per-org
+    // scheduling lands; only restart it when the default org changed.
     if ((req as TenantRequest).org?.slug === DEFAULT_ORG_SLUG) {
-      await reloadConfig();
       restartScheduler();
     }
 

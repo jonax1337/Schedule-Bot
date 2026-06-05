@@ -20,6 +20,15 @@ export async function getOrganizationBySlug(slug: string): Promise<OrganizationD
   return prisma.organization.findUnique({ where: { slug } });
 }
 
+export async function getOrganizationById(id: string): Promise<OrganizationData | null> {
+  return prisma.organization.findUnique({ where: { id } });
+}
+
+/** All organizations (for the per-org scheduler tick). */
+export async function getAllOrganizations(): Promise<OrganizationData[]> {
+  return prisma.organization.findMany({ orderBy: { createdAt: 'asc' } });
+}
+
 export async function getOrganizationByGuildId(guildId: string): Promise<OrganizationData | null> {
   // guildId is no longer unique (a guild may host several teams), so findFirst.
   return prisma.organization.findFirst({ where: { discordGuildId: guildId } });

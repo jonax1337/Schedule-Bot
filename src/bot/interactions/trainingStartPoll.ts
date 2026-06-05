@@ -1,6 +1,6 @@
 import { client } from '../client.js';
 import { EmbedBuilder, TextChannel, MessageReaction, User, Message } from 'discord.js';
-import { config } from '../../shared/config/config.js';
+import { config, reloadConfig } from '../../shared/config/config.js';
 import { updateSetting, getSetting } from '../../shared/utils/settingsManager.js';
 import { convertTimeToUnixTimestamp, COLORS } from '../embeds/embed.js';
 import type { ScheduleResult } from '../../shared/types/types.js';
@@ -398,11 +398,9 @@ export async function toggleTrainingStartPoll(): Promise<boolean> {
   const currentState = getSetting('scheduling', 'trainingStartPollEnabled');
   const newState = !currentState;
 
-  // Save to settings.json (persistent)
-  updateSetting('scheduling', 'trainingStartPollEnabled', newState);
-
-  // Update runtime config
-  config.scheduling.trainingStartPollEnabled = newState;
+  // Persist, then refresh the active org's runtime config (config is read-only now).
+  await updateSetting('scheduling', 'trainingStartPollEnabled', newState);
+  await reloadConfig();
 
   return newState;
 }
