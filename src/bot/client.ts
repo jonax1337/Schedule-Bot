@@ -2,23 +2,42 @@ import { Client, GatewayIntentBits, Partials } from 'discord.js';
 import { config } from '../shared/config/config.js';
 import { handleReady } from './events/ready.event.js';
 import { handleInteraction } from './events/interaction.event.js';
-import { getDefaultOrgId, getOrganizationByGuildId } from '../repositories/organization.repository.js';
+import {
+  getDefaultOrgId,
+  getOrganizationByChannelId,
+  getOrganizationsByGuildId,
+} from '../repositories/organization.repository.js';
 import { runWithOrg } from '../shared/tenancy/orgContext.js';
 import { getOrgConfig } from '../shared/config/config.js';
 import { logger, getErrorMessage } from '../shared/utils/logger.js';
 
 /**
- * Resolve the org for a Discord event from its guild and run the handler in that
- * org's context (so the Prisma guard scopes queries and config.* resolves to the
- * right team). Falls back to the default org when the guild isn't bound to one.
+ * Resolve which org a Discord event belongs to. Channel first (a team's posting
+ * channel — lets several teams share one guild, e.g. Main + Academy); else the
+ * guild if it hosts exactly one team; else the default org.
  */
-async function inGuildOrg(guildId: string | null | undefined, fn: () => Promise<void>): Promise<void> {
-  let orgId: string | null = null;
-  if (guildId) {
-    const org = await getOrganizationByGuildId(guildId);
-    orgId = org?.id ?? null;
+async function resolveEventOrgId(guildId: string | null | undefined, channelId: string | null | undefined): Promise<string> {
+  if (channelId) {
+    const byChannel = await getOrganizationByChannelId(channelId);
+    if (byChannel) return byChannel.id;
   }
-  if (!orgId) orgId = await getDefaultOrgId();
+  if (guildId) {
+    const orgs = await getOrganizationsByGuildId(guildId);
+    if (orgs.length === 1) return orgs[0].id;
+  }
+  return getDefaultOrgId();
+}
+
+/**
+ * Run a Discord event handler in its org's context (Prisma guard scoping +
+ * per-org config.*).
+ */
+async function inEventOrg(
+  guildId: string | null | undefined,
+  channelId: string | null | undefined,
+  fn: () => Promise<void>,
+): Promise<void> {
+  const orgId = await resolveEventOrgId(guildId, channelId);
   await getOrgConfig(orgId); // warm runtime config for this org
   await runWithOrg(orgId, fn);
 }
@@ -39,11 +58,11 @@ export const client = new Client({
  * Register event handlers
  */
 client.once('ready', async () => {
-  await inGuildOrg(undefined, () => handleReady(client));
+  await inEventOrg(undefined, undefined, () => handleReady(client));
 });
 
 client.on('interactionCreate', async (interaction) => {
-  await inGuildOrg(interaction.guildId, () => handleInteraction(interaction));
+  await inEventOrg(interaction.guildId, interaction.channelId, () => handleInteraction(interaction));
 });
 
 // Reaction handlers for polls (quick polls + training start polls)
@@ -54,7 +73,7 @@ client.on('messageReactionAdd', async (reaction, user) => {
     try { await reaction.fetch(); } catch { return; }
   }
   try {
-    await inGuildOrg(reaction.message.guildId, async () => {
+    await inEventOrg(reaction.message.guildId, reaction.message.channelId, async () => {
       const { handlePollReaction } = await import('./interactions/polls.js');
       const { handleTrainingPollReaction } = await import('./interactions/trainingStartPoll.js');
       await handlePollReaction(reaction as any, user as any, true);
@@ -74,7 +93,7 @@ client.on('messageReactionRemove', async (reaction, user) => {
     try { await reaction.fetch(); } catch { /* Continue with partial data */ }
   }
   try {
-    await inGuildOrg(reaction.message.guildId, async () => {
+    await inEventOrg(reaction.message.guildId, reaction.message.channelId, async () => {
       const { handlePollReaction } = await import('./interactions/polls.js');
       const { handleTrainingPollReaction } = await import('./interactions/trainingStartPoll.js');
       await handlePollReaction(reaction as any, user as any, false);

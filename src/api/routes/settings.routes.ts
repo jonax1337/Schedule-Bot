@@ -5,6 +5,7 @@ import { validate, settingsSchema } from '../../shared/middleware/validation.js'
 import { strictApiLimiter } from '../../shared/middleware/rateLimiter.js';
 import { reloadConfig } from '../../shared/config/config.js';
 import { getSettingsForCurrentOrg, saveSettingsForCurrentOrg } from '../../shared/utils/settingsManager.js';
+import { setOrgChannel } from '../../repositories/organization.repository.js';
 import { restartScheduler } from '../../jobs/scheduler.js';
 import { logger, getErrorMessage } from '../../shared/utils/logger.js';
 
@@ -29,6 +30,11 @@ router.get('/', async (req, res) => {
 router.post('/', verifyToken, requireOrgMembership, requireAdmin, strictApiLimiter, validate(settingsSchema), async (req: AuthRequest, res) => {
   try {
     await saveSettingsForCurrentOrg(req.body);
+
+    // Mirror the posting channel onto the org so the bot can resolve channel→org
+    // when several teams share one guild (Main/Academy).
+    const tenant = (req as TenantRequest).org;
+    if (tenant) await setOrgChannel(tenant.id, req.body?.discord?.channelId ?? null);
 
     // Warm the saved org's runtime config (context = this request's org).
     await reloadConfig();

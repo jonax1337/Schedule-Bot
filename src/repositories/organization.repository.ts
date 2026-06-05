@@ -34,6 +34,22 @@ export async function getOrganizationByGuildId(guildId: string): Promise<Organiz
   return prisma.organization.findFirst({ where: { discordGuildId: guildId } });
 }
 
+/** All orgs bound to a guild (>1 means Main/Academy-style sharing). */
+export async function getOrganizationsByGuildId(guildId: string): Promise<OrganizationData[]> {
+  return prisma.organization.findMany({ where: { discordGuildId: guildId } });
+}
+
+/** Resolve the org that posts in a given Discord channel (Main vs Academy). */
+export async function getOrganizationByChannelId(channelId: string): Promise<OrganizationData | null> {
+  if (!channelId) return null;
+  return prisma.organization.findFirst({ where: { discordChannelId: channelId } });
+}
+
+/** Mirror a team's posting channel onto the org row so channel→org resolution works. */
+export async function setOrgChannel(organizationId: string, channelId: string | null): Promise<void> {
+  await prisma.organization.update({ where: { id: organizationId }, data: { discordChannelId: channelId || null } });
+}
+
 /** PoC: the control-plane owner account (admin login). Seeded by setup script. */
 export const OWNER_ACCOUNT_ID = 'acc_owner';
 
