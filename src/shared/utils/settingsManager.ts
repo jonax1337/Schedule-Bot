@@ -31,6 +31,7 @@ function flattenSettings(settings: Settings): Record<string, string | number | b
     'scheduling.weeklyPingTime': settings.scheduling.weeklyPingTime,
     'scheduling.weeklyPingDays': settings.scheduling.weeklyPingDays.join(','),
     'branding.teamName': settings.branding.teamName,
+    'branding.logoUrl': settings.branding.logoUrl,
     'stratbook.editPermission': settings.stratbook.editPermission,
   };
 }
@@ -59,6 +60,7 @@ export interface Settings {
   };
   branding: {
     teamName: string;
+    logoUrl: string;
   };
   stratbook: {
     editPermission: 'admin' | 'all';
@@ -89,6 +91,7 @@ const DEFAULT_SETTINGS: Settings = {
   },
   branding: {
     teamName: 'Our Team',
+    logoUrl: '',
   },
   stratbook: {
     editPermission: 'admin',
@@ -137,6 +140,7 @@ function parseSettingsMap(settingsMap: Record<string, string>): Settings {
     },
     branding: {
       teamName: settingsMap['branding.teamName'] || DEFAULT_SETTINGS.branding.teamName,
+      logoUrl: settingsMap['branding.logoUrl'] || DEFAULT_SETTINGS.branding.logoUrl,
     },
     stratbook: {
       editPermission: (settingsMap['stratbook.editPermission'] === 'all' ? 'all' : 'admin') as 'admin' | 'all',

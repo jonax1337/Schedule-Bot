@@ -79,6 +79,7 @@ export const settingsSchema = Joi.object({
   }).required(),
   branding: Joi.object({
     teamName: Joi.string().min(1).max(50).required(),
+    logoUrl: Joi.string().allow('').max(500).optional(),
   }).required(),
   stratbook: Joi.object({
     editPermission: Joi.string().valid('admin', 'all').required(),

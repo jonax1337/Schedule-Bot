@@ -578,6 +578,28 @@ export function Settings() {
               Displayed in match results and VOD reviews (e.g. "{settings.branding?.teamName || 'Our Team'} vs Opponent")
             </FieldDescription>
           </Field>
+
+          {/* Team Logo Field */}
+          <Field>
+            <FieldLabel htmlFor="logoUrl">Team Logo URL</FieldLabel>
+            <Input
+              id="logoUrl"
+              type="url"
+              maxLength={500}
+              value={settings.branding?.logoUrl || ''}
+              onChange={(e) =>
+                setSettings({
+                  ...settings,
+                  branding: { ...settings.branding, logoUrl: e.target.value },
+                })
+              }
+              placeholder="https://…/logo.png"
+              className={microInteractions.focusRing}
+            />
+            <FieldDescription>
+              Shown in the team switcher at the top of the sidebar. Leave empty to use the team's initial.
+            </FieldDescription>
+          </Field>
       </SectionCard>
 
       <SectionCard
