@@ -16,7 +16,7 @@ import { logger, getErrorMessage } from '../shared/utils/logger.js';
  * channel — lets several teams share one guild, e.g. Main + Academy); else the
  * guild if it hosts exactly one team; else the default org.
  */
-async function resolveEventOrgId(guildId: string | null | undefined, channelId: string | null | undefined): Promise<string> {
+async function resolveEventOrgId(guildId: string | null | undefined, channelId: string | null | undefined): Promise<string | null> {
   if (channelId) {
     const byChannel = await getOrganizationByChannelId(channelId);
     if (byChannel) return byChannel.id;
@@ -25,7 +25,11 @@ async function resolveEventOrgId(guildId: string | null | undefined, channelId: 
     const orgs = await getOrganizationsByGuildId(guildId);
     if (orgs.length === 1) return orgs[0].id;
   }
-  return getDefaultOrgId();
+  try {
+    return await getDefaultOrgId();
+  } catch {
+    return null; // fresh SaaS instance: no orgs yet (or guild has no team bound)
+  }
 }
 
 /**
@@ -37,9 +41,21 @@ async function inEventOrg(
   channelId: string | null | undefined,
   fn: () => Promise<void>,
 ): Promise<void> {
-  const orgId = await resolveEventOrgId(guildId, channelId);
-  await getOrgConfig(orgId); // warm runtime config for this org
-  await runWithOrg(orgId, fn);
+  try {
+    const orgId = await resolveEventOrgId(guildId, channelId);
+    if (!orgId) {
+      // No org context available (e.g. the ready event on a fresh instance, or
+      // an event from a guild with no team bound). Run unscoped — tenant reads
+      // inside are already guarded and no-op when there's nothing to act on —
+      // and never let a handler error bubble up and crash the gateway client.
+      await fn();
+      return;
+    }
+    await getOrgConfig(orgId); // warm runtime config for this org
+    await runWithOrg(orgId, fn);
+  } catch (error) {
+    logger.error('Discord event handler failed', getErrorMessage(error));
+  }
 }
 
 /**
@@ -57,6 +73,10 @@ export const client = new Client({
 /**
  * Register event handlers
  */
+// A gateway/client error (websocket hiccup, etc.) must never crash the process —
+// it would take the API + control plane down with it.
+client.on('error', (error) => logger.error('Discord client error', getErrorMessage(error)));
+
 client.once('ready', async () => {
   await inEventOrg(undefined, undefined, () => handleReady(client));
 });
