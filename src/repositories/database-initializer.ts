@@ -166,6 +166,19 @@ async function initializeScheduleEntries(): Promise<void> {
 }
 
 /**
+ * Seed a freshly created organization with default settings and an initial
+ * 14-day schedule window so its dashboard isn't empty on first open.
+ *
+ * Must be called INSIDE the org's context (runWithOrg), since the underlying
+ * writes are tenant-scoped via the Prisma guard. Idempotent: only creates rows
+ * that are missing for the active org.
+ */
+export async function initializeOrganizationDefaults(): Promise<void> {
+  await initializeDefaultSettings();
+  await initializeScheduleEntries();
+}
+
+/**
  * Initialize the database with default data if it's empty
  */
 export async function initializeDatabaseIfEmpty(): Promise<void> {

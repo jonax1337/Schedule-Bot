@@ -10,12 +10,17 @@ export async function registerCommands(client: Client): Promise<void> {
   const rest = new REST({ version: '10' }).setToken(config.discord.token);
 
   try {
-    logger.info('Registering slash commands');
+    // Multi-tenant SaaS: register GLOBAL commands, not guild-scoped ones. Global
+    // commands are available in every guild the bot is in — including servers a
+    // new customer invites it to later — without per-guild registration. (The
+    // old guild-scoped call required a single config.discord.guildId, which is
+    // empty on a multi-tenant instance and would 404.)
+    logger.info('Registering slash commands (global)');
     await rest.put(
-      Routes.applicationGuildCommands(client.user!.id, config.discord.guildId),
+      Routes.applicationCommands(client.user!.id),
       { body: commands }
     );
-    logger.success('Slash commands registered');
+    logger.success('Slash commands registered (global)');
   } catch (error) {
     logger.error('Slash command registration failed', getErrorMessage(error));
   }

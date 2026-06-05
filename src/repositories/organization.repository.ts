@@ -1,4 +1,6 @@
 import { prisma } from './database.repository.js';
+import { runWithOrg } from '../shared/tenancy/orgContext.js';
+import { logger, getErrorMessage } from '../shared/utils/logger.js';
 
 /**
  * Organization (tenant) data access.
@@ -93,6 +95,18 @@ export async function createOrganizationWithOwner(
   }
   const org = await prisma.organization.create({ data: { slug, name: name.trim() || slug } });
   await prisma.membership.create({ data: { accountId, organizationId: org.id, role: 'OWNER' } });
+
+  // Seed the new team so its dashboard isn't empty on first open: default
+  // settings + a 14-day schedule window, written inside the new org's context.
+  // Don't fail team creation if seeding hiccups — the app still works on the
+  // in-memory defaults and the scheduler backfills the window on its next tick.
+  try {
+    const { initializeOrganizationDefaults } = await import('./database-initializer.js');
+    await runWithOrg(org.id, () => initializeOrganizationDefaults());
+  } catch (err) {
+    logger.error('New organization seeding failed', getErrorMessage(err));
+  }
+
   return org;
 }
 
