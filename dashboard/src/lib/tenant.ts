@@ -28,13 +28,18 @@ export function getTenantSlug(): string {
   const sub = subdomainOf(window.location.hostname)
   if (sub) return sub
 
-  // Apex: dev override (?tenant= / stored) or default.
-  const fromQuery = new URLSearchParams(window.location.search).get('tenant')?.trim()
-  if (fromQuery) {
-    localStorage.setItem(STORAGE_KEY, fromQuery)
-    return fromQuery
+  // Apex (no subdomain). The ?tenant=/localStorage override is a DEV-ONLY
+  // convenience for testing without real subdomains; in production the apex is
+  // the control plane, so we never honor a client-chosen tenant there.
+  if (import.meta.env.DEV) {
+    const fromQuery = new URLSearchParams(window.location.search).get('tenant')?.trim()
+    if (fromQuery) {
+      localStorage.setItem(STORAGE_KEY, fromQuery)
+      return fromQuery
+    }
+    return localStorage.getItem(STORAGE_KEY)?.trim() || DEFAULT_SLUG
   }
-  return localStorage.getItem(STORAGE_KEY)?.trim() || DEFAULT_SLUG
+  return DEFAULT_SLUG
 }
 
 export function setTenantSlug(slug: string): void {

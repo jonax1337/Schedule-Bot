@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { verifyToken, requireOrgMembership,requireAdmin, optionalAuth, AuthRequest } from '../../shared/middleware/auth.js';
+import { verifyToken, requireOrgMembership, requireAdmin, AuthRequest } from '../../shared/middleware/auth.js';
 import { validate, addScrimSchema, updateScrimSchema, isValidDateFormat } from '../../shared/middleware/validation.js';
 import { getAllScrims, addScrim, updateScrim, deleteScrim, getScrimById, getScrimStats, getScrimsByDateRange } from '../../repositories/scrim.repository.js';
 import { logger, getErrorMessage } from '../../shared/utils/logger.js';
@@ -7,7 +7,7 @@ import { logger, getErrorMessage } from '../../shared/utils/logger.js';
 const router = Router();
 
 // Get scrim statistics (must be before /:id route)
-router.get('/stats/summary', optionalAuth, async (req: AuthRequest, res) => {
+router.get('/stats/summary', verifyToken, requireOrgMembership, async (req: AuthRequest, res) => {
   try {
     const stats = await getScrimStats();
     res.json({ success: true, stats });
@@ -18,7 +18,7 @@ router.get('/stats/summary', optionalAuth, async (req: AuthRequest, res) => {
 });
 
 // Get scrims by date range (must be before /:id route)
-router.get('/range/:startDate/:endDate', optionalAuth, async (req: AuthRequest, res) => {
+router.get('/range/:startDate/:endDate', verifyToken, requireOrgMembership, async (req: AuthRequest, res) => {
   try {
     const startDate = req.params.startDate as string;
     const endDate = req.params.endDate as string;
@@ -37,7 +37,7 @@ router.get('/range/:startDate/:endDate', optionalAuth, async (req: AuthRequest, 
 });
 
 // Get all scrims
-router.get('/', optionalAuth, async (req, res) => {
+router.get('/', verifyToken, requireOrgMembership, async (req, res) => {
   try {
     const scrims = await getAllScrims();
     res.json({ success: true, scrims });
@@ -48,7 +48,7 @@ router.get('/', optionalAuth, async (req, res) => {
 });
 
 // Get scrim by ID (must be after specific routes)
-router.get('/:id', optionalAuth, async (req: AuthRequest, res) => {
+router.get('/:id', verifyToken, requireOrgMembership, async (req: AuthRequest, res) => {
   try {
     const scrim = await getScrimById(req.params.id as string);
 

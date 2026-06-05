@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { client } from '../../bot/client.js';
-import { optionalAuth, verifyToken, requireAdmin, AuthRequest } from '../../shared/middleware/auth.js';
+import { verifyToken, requireOrgMembership, requireAdmin, AuthRequest } from '../../shared/middleware/auth.js';
 import { isValidDateFormat } from '../../shared/middleware/validation.js';
 import { getScheduleDetails, getScheduleDetailsBatch } from '../../shared/utils/scheduleDetails.js';
 import { logger, getErrorMessage } from '../../shared/utils/logger.js';
@@ -36,7 +36,7 @@ router.use('/vod-comments', vodCommentRoutes);
 router.use('/platform', platformRoutes);
 
 // Schedule details routes (defined directly to avoid path issues)
-router.get('/schedule-details-batch', optionalAuth, async (req: AuthRequest, res) => {
+router.get('/schedule-details-batch', verifyToken, requireOrgMembership, async (req: AuthRequest, res) => {
   try {
     const datesParam = req.query.dates as string;
     if (!datesParam) {
@@ -65,7 +65,7 @@ router.get('/schedule-details-batch', optionalAuth, async (req: AuthRequest, res
   }
 });
 
-router.get('/schedule-details', optionalAuth, async (req: AuthRequest, res) => {
+router.get('/schedule-details', verifyToken, requireOrgMembership, async (req: AuthRequest, res) => {
   try {
     const date = req.query.date as string;
     if (!date) {

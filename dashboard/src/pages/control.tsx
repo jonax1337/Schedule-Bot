@@ -139,13 +139,17 @@ export function ControlPage() {
           <Button type="button" className="w-full" onClick={discordLogin}>
             Continue with Discord
           </Button>
-          <div className="text-muted-foreground text-center text-xs">— or local dev login —</div>
-          <form onSubmit={devLogin} className="flex gap-2">
-            <Input placeholder="Your name" value={devName} onChange={(e) => setDevName(e.target.value)} />
-            <Button type="submit" variant="secondary" disabled={busy}>
-              {busy ? <Loader2 className="size-4 animate-spin" /> : 'Dev login'}
-            </Button>
-          </form>
+          {import.meta.env.DEV && (
+            <>
+              <div className="text-muted-foreground text-center text-xs">— or local dev login —</div>
+              <form onSubmit={devLogin} className="flex gap-2">
+                <Input placeholder="Your name" value={devName} onChange={(e) => setDevName(e.target.value)} />
+                <Button type="submit" variant="secondary" disabled={busy}>
+                  {busy ? <Loader2 className="size-4 animate-spin" /> : 'Dev login'}
+                </Button>
+              </form>
+            </>
+          )}
         </div>
       ) : (
         <div className="space-y-6">

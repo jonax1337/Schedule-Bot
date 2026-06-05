@@ -77,7 +77,7 @@ export default function App() {
                   <Route path="*" element={<Placeholder title="404 — Not Found" />} />
                 </Routes>
               </BrowserRouter>
-              <PocTenantSwitcher />
+              {import.meta.env.DEV && <PocTenantSwitcher />}
               <Toaster />
             </BreadcrumbProvider>
           </TooltipProvider>
