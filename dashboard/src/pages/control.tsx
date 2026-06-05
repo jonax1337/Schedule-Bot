@@ -3,8 +3,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { SynqedMark } from '@/components/synqed-brand'
+import { FullWidthDivider } from '@/components/full-width-divider'
+import { AuthDivider } from '@/components/auth-divider'
 import { Loader2, Plus, ArrowRight, LogOut } from 'lucide-react'
 import { toast } from 'sonner'
 import { BOT_API_URL } from '@/lib/config'
@@ -14,6 +16,16 @@ interface Org {
   slug: string
   name: string
   role: 'OWNER' | 'ADMIN' | 'MEMBER'
+}
+
+const ORBITRON = { fontFamily: "'Orbitron', sans-serif" } as const
+
+function Wordmark({ className = '' }: { className?: string }) {
+  return (
+    <span className={`lowercase font-bold tracking-tight ${className}`} style={ORBITRON}>
+      synqed
+    </span>
+  )
 }
 
 function DiscordIcon(props: React.ComponentProps<'svg'>) {
@@ -136,121 +148,134 @@ export function ControlPage() {
     setOrgs(null)
   }
 
+  // --- Signed out: same centered look as the team-dashboard login ---
+  if (!token) {
+    return (
+      <div className="relative w-full overflow-hidden px-4 md:h-screen">
+        <div className="*:px-6 relative mx-auto flex min-h-screen w-full max-w-sm flex-col justify-center border-x">
+          <div className="flex flex-col space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="bg-primary text-primary-foreground flex size-10 items-center justify-center rounded-md">
+                <SynqedMark className="size-6" />
+              </div>
+              <div className="space-y-0.5">
+                <h1 className="text-xl tracking-wide">
+                  Welcome to <Wordmark />
+                </h1>
+                <p className="text-muted-foreground text-sm">Sign in to manage your teams.</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="relative my-6 flex size-full flex-col gap-4 py-8">
+            <FullWidthDivider position="top" />
+            <Button type="button" className="w-full" onClick={discordLogin}>
+              <DiscordIcon className="size-4" /> Continue with Discord
+            </Button>
+            {import.meta.env.DEV && (
+              <>
+                <AuthDivider>OR DEV LOGIN</AuthDivider>
+                <form onSubmit={devLogin} className="flex gap-2">
+                  <Input placeholder="Your name" value={devName} onChange={(e) => setDevName(e.target.value)} />
+                  <Button type="submit" variant="secondary" disabled={busy}>
+                    {busy ? <Loader2 className="size-4 animate-spin" /> : 'Dev login'}
+                  </Button>
+                </form>
+              </>
+            )}
+            <FullWidthDivider position="bottom" />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // --- Signed in: teams + create ---
   return (
     <div className="bg-background min-h-screen">
       <div className="mx-auto flex min-h-screen w-full max-w-2xl flex-col gap-8 px-4 py-10">
-        {/* Brand header */}
         <header className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <SynqedMark className="text-foreground size-7" />
             <div>
-              <div className="text-lg font-semibold leading-none tracking-tight">Synqed</div>
+              <Wordmark className="text-xl" />
               <div className="text-muted-foreground text-xs">Team scheduling control plane</div>
             </div>
           </div>
-          {token && (
-            <div className="flex items-center gap-3 text-sm">
-              {accountName && <span className="text-muted-foreground">{accountName}</span>}
-              <Button variant="ghost" size="sm" onClick={signOut}>
-                <LogOut className="size-4" /> Sign out
-              </Button>
-            </div>
-          )}
+          <div className="flex items-center gap-3 text-sm">
+            {accountName && <span className="text-muted-foreground">{accountName}</span>}
+            <Button variant="ghost" size="sm" onClick={signOut}>
+              <LogOut className="size-4" /> Sign out
+            </Button>
+          </div>
         </header>
 
-        {!token ? (
-          /* Signed out */
-          <Card className="mt-10">
+        <div className="space-y-6">
+          <Card>
             <CardHeader>
-              <CardTitle>Sign in</CardTitle>
-              <CardDescription>Manage your teams and their schedules.</CardDescription>
+              <CardTitle>Your teams</CardTitle>
+              <CardDescription>Open a team to manage it, or connect its Discord server.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <Button type="button" className="w-full" onClick={discordLogin}>
-                <DiscordIcon className="size-4" /> Continue with Discord
-              </Button>
-              {import.meta.env.DEV && (
-                <>
-                  <div className="text-muted-foreground text-center text-xs">— or local dev login —</div>
-                  <form onSubmit={devLogin} className="flex gap-2">
-                    <Input placeholder="Your name" value={devName} onChange={(e) => setDevName(e.target.value)} />
-                    <Button type="submit" variant="secondary" disabled={busy}>
-                      {busy ? <Loader2 className="size-4 animate-spin" /> : 'Dev login'}
-                    </Button>
-                  </form>
-                </>
+            <CardContent>
+              {orgs === null ? (
+                <div className="flex justify-center py-6">
+                  <Loader2 className="text-muted-foreground size-5 animate-spin" />
+                </div>
+              ) : orgs.length === 0 ? (
+                <p className="text-muted-foreground py-2 text-sm">No teams yet — create your first one below.</p>
+              ) : (
+                <ul className="divide-border divide-y">
+                  {orgs.map((o) => (
+                    <li key={o.slug} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                      <Avatar className="size-9 rounded-md">
+                        <AvatarFallback className="bg-primary text-primary-foreground rounded-md">
+                          {o.name.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate font-medium">{o.name}</div>
+                        <div className="text-muted-foreground text-xs">
+                          {o.slug}.synqed.org · {o.role.toLowerCase()}
+                        </div>
+                      </div>
+                      <Button size="sm" variant="outline" onClick={() => connectDiscord(o.slug)}>
+                        Connect Discord
+                      </Button>
+                      <Button size="sm" onClick={() => openTeam(o.slug)}>
+                        Open <ArrowRight className="size-4" />
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
               )}
             </CardContent>
           </Card>
-        ) : (
-          /* Signed in */
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Your teams</CardTitle>
-                <CardDescription>Open a team to manage it, or connect its Discord server.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {orgs === null ? (
-                  <div className="flex justify-center py-6">
-                    <Loader2 className="text-muted-foreground size-5 animate-spin" />
-                  </div>
-                ) : orgs.length === 0 ? (
-                  <p className="text-muted-foreground py-2 text-sm">No teams yet — create your first one below.</p>
-                ) : (
-                  <ul className="divide-border divide-y">
-                    {orgs.map((o) => (
-                      <li key={o.slug} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                        <Avatar className="size-9 rounded-md">
-                          <AvatarFallback className="bg-primary text-primary-foreground rounded-md">
-                            {o.name.charAt(0).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="min-w-0 flex-1">
-                          <div className="truncate font-medium">{o.name}</div>
-                          <div className="text-muted-foreground text-xs">
-                            {o.slug}.synqed.org · {o.role.toLowerCase()}
-                          </div>
-                        </div>
-                        <Button size="sm" variant="outline" onClick={() => connectDiscord(o.slug)}>
-                          Connect Discord
-                        </Button>
-                        <Button size="sm" onClick={() => openTeam(o.slug)}>
-                          Open <ArrowRight className="size-4" />
-                        </Button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </CardContent>
-            </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Create a team</CardTitle>
-                <CardDescription>Each team gets its own subdomain and Discord connection.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={createTeam} className="space-y-4">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="slug">Subdomain</Label>
-                    <div className="flex items-center gap-1.5">
-                      <Input id="slug" placeholder="my-team" value={slug} onChange={(e) => setSlug(e.target.value)} />
-                      <span className="text-muted-foreground text-sm">.synqed.org</span>
-                    </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Create a team</CardTitle>
+              <CardDescription>Each team gets its own subdomain and Discord connection.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={createTeam} className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="slug">Subdomain</Label>
+                  <div className="flex items-center gap-1.5">
+                    <Input id="slug" placeholder="my-team" value={slug} onChange={(e) => setSlug(e.target.value)} />
+                    <span className="text-muted-foreground text-sm">.synqed.org</span>
                   </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="name">Team name</Label>
-                    <Input id="name" placeholder="My Team" value={teamName} onChange={(e) => setTeamName(e.target.value)} />
-                  </div>
-                  <Button type="submit" disabled={busy || !slug}>
-                    {busy ? <Loader2 className="size-4 animate-spin" /> : <><Plus className="size-4" /> Create team</>}
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="name">Team name</Label>
+                  <Input id="name" placeholder="My Team" value={teamName} onChange={(e) => setTeamName(e.target.value)} />
+                </div>
+                <Button type="submit" disabled={busy || !slug}>
+                  {busy ? <Loader2 className="size-4 animate-spin" /> : <><Plus className="size-4" /> Create team</>}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   )
