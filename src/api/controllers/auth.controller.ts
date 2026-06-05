@@ -1,7 +1,6 @@
 import { Request, Response } from 'express';
 import crypto from 'crypto';
 import { getUserMapping } from '../../repositories/user-mapping.repository.js';
-import { loadSettings } from '../../shared/utils/settingsManager.js';
 import { logger } from '../../shared/utils/logger.js';
 
 interface OAuthState {
@@ -41,16 +40,10 @@ function generateState(): string {
  */
 export async function initiateDiscordAuth(req: Request, res: Response) {
   try {
-    const settings = loadSettings();
-    
-    // Check if Discord Auth is enabled
-    if (!settings.discord.allowDiscordAuth) {
-      return res.status(403).json({ 
-        error: 'Discord authentication is disabled',
-        message: 'Please enable Discord Auth in settings or use traditional login'
-      });
-    }
-
+    // Discord OAuth is the platform's primary sign-in (control plane + teams) and
+    // is initiated on the apex/api host where there is no tenant, so it is gated
+    // only on the OAuth app being configured — not on a per-team toggle, which
+    // isn't resolvable here. A team can still hide the Discord button client-side.
     if (!CLIENT_ID || !CLIENT_SECRET) {
       logger.error('Discord OAuth credentials not configured');
       return res.status(500).json({ 

@@ -6,6 +6,18 @@ import { logger, getErrorMessage } from '../utils/logger.js';
 
 export interface TenantRequest extends Request {
   org?: OrganizationData;
+  isControlPlane?: boolean;
+}
+
+/**
+ * Paths that operate on accounts/orgs (not tenant data) and are served from the
+ * apex (synqed.org / api.synqed.org), so they may legitimately run without a
+ * resolved tenant. Everything else is tenant-scoped and must have an org.
+ * Matched with an optional /api prefix (resolveTenant is mounted under /api).
+ */
+function isControlPlanePath(path: string): boolean {
+  const p = path.replace(/^\/api/, '');
+  return p.startsWith('/platform') || p.startsWith('/auth/') || p === '/admin/login';
 }
 
 // SECURITY: a client-supplied `X-Tenant` / `?tenant=` slug is SPOOFABLE. Honoring
@@ -48,13 +60,18 @@ export async function resolveTenant(req: TenantRequest, res: Response, next: Nex
   const slug = slugFromHost(req) || clientSlug;
 
   // Apex / control plane (synqed.org and api.synqed.org — no team subdomain):
-  // there is no tenant. Run the request unscoped so control-plane and auth
-  // routes (which operate on accounts/orgs, not tenant data) work. Tenant-scoped
-  // team routes are only ever called from a team subdomain, so they still get a
-  // resolved org below; if one is somehow called here the Prisma guard fails
-  // closed (throws) rather than leaking another tenant's data.
+  // there is no tenant. Only explicit control-plane / auth-bootstrap paths may
+  // run unscoped; every other path is tenant-scoped, so reject it fail-closed
+  // rather than letting it execute without an org. (Data isolation is ultimately
+  // enforced by the fail-closed Prisma guard; this is defense in depth so a
+  // tenant route can never even reach the guard without a resolved tenant.)
   if (!slug) {
-    next();
+    if (isControlPlanePath(req.path)) {
+      req.isControlPlane = true;
+      next();
+      return;
+    }
+    res.status(400).json({ error: 'Tenant context required' });
     return;
   }
 
