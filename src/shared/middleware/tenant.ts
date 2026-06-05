@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { runWithOrg } from '../tenancy/orgContext.js';
 import { getOrganizationBySlug, type OrganizationData } from '../../repositories/organization.repository.js';
+import { getOrgConfig } from '../config/config.js';
 import { logger, getErrorMessage } from '../utils/logger.js';
 
 export interface TenantRequest extends Request {
@@ -55,6 +56,9 @@ export async function resolveTenant(req: TenantRequest, res: Response, next: Nex
       return;
     }
     req.org = org;
+    // Warm this org's runtime config so config.* resolves correctly for the
+    // request (e.g. actions posting to the org's channel). Cached after first.
+    await getOrgConfig(org.id);
     runWithOrg(org.id, () => next());
   } catch (error) {
     logger.error('Tenant resolution failed', getErrorMessage(error));

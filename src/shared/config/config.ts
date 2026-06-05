@@ -45,8 +45,15 @@ function activeRuntime(): OrgRuntime {
   return (orgId ? runtimeCache.get(orgId) : undefined) ?? fallbackRuntime();
 }
 
-/** Load + cache an org's runtime config (its settings + the guild it's bound to). */
-export async function getOrgConfig(orgId: string): Promise<OrgRuntime> {
+/**
+ * An org's runtime config (its settings + the guild it's bound to), cached.
+ * Returns the cached value unless `force` is set (used by reloadConfig).
+ */
+export async function getOrgConfig(orgId: string, force = false): Promise<OrgRuntime> {
+  if (!force) {
+    const cached = runtimeCache.get(orgId);
+    if (cached) return cached;
+  }
   const settings = await runWithOrg(orgId, () => getSettingsForCurrentOrg());
   const org = await getOrganizationById(orgId);
   const runtime: OrgRuntime = {

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { verifyToken, requireAdmin, AuthRequest } from '../../shared/middleware/auth.js';
+import { verifyToken, requireOrgMembership,requireAdmin, AuthRequest } from '../../shared/middleware/auth.js';
 import { validate, createPollSchema, notificationSchema } from '../../shared/middleware/validation.js';
 import { postScheduleToChannel, cleanScheduleChannel } from '../../bot/utils/schedule-poster.js';
 import { sendRemindersToUsersWithoutEntry } from '../../bot/interactions/reminder.js';
@@ -27,7 +27,7 @@ function convertToDD_MM_YYYY(dateStr: string | undefined): string {
 }
 
 // Post schedule manually
-router.post('/schedule', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
+router.post('/schedule', verifyToken, requireOrgMembership,requireAdmin, async (req: AuthRequest, res) => {
   try {
     const { date } = req.body;
     const convertedDate = convertToDD_MM_YYYY(date);
@@ -42,7 +42,7 @@ router.post('/schedule', verifyToken, requireAdmin, async (req: AuthRequest, res
 });
 
 // Send reminders manually
-router.post('/remind', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
+router.post('/remind', verifyToken, requireOrgMembership,requireAdmin, async (req: AuthRequest, res) => {
   try {
     await sendRemindersToUsersWithoutEntry(client);
 
@@ -55,7 +55,7 @@ router.post('/remind', verifyToken, requireAdmin, async (req: AuthRequest, res) 
 });
 
 // Create poll
-router.post('/poll', verifyToken, requireAdmin, validate(createPollSchema), async (req: AuthRequest, res) => {
+router.post('/poll', verifyToken, requireOrgMembership,requireAdmin, validate(createPollSchema), async (req: AuthRequest, res) => {
   try {
     const { question, options, duration } = req.body;
 
@@ -70,7 +70,7 @@ router.post('/poll', verifyToken, requireAdmin, validate(createPollSchema), asyn
 });
 
 // Send notification
-router.post('/notify', verifyToken, requireAdmin, validate(notificationSchema), async (req: AuthRequest, res) => {
+router.post('/notify', verifyToken, requireOrgMembership,requireAdmin, validate(notificationSchema), async (req: AuthRequest, res) => {
   try {
     const { type, target, title, message, specificUserId } = req.body;
 
@@ -150,11 +150,11 @@ router.post('/notify', verifyToken, requireAdmin, validate(notificationSchema), 
 });
 
 // Clear channel (delete all messages except pinned)
-router.post('/clear-channel', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
+router.post('/clear-channel', verifyToken, requireOrgMembership,requireAdmin, async (req: AuthRequest, res) => {
   try {
     const { includePinned } = req.body;
-    const { loadSettings } = await import('../../shared/utils/settingsManager.js');
-    const settings = loadSettings();
+    const { getSettingsForCurrentOrg } = await import('../../shared/utils/settingsManager.js');
+    const settings = await getSettingsForCurrentOrg();
 
     const channel = await client.channels.fetch(settings.discord.channelId);
     if (!channel || !(channel instanceof TextChannel)) {
@@ -177,7 +177,7 @@ router.post('/clear-channel', verifyToken, requireAdmin, async (req: AuthRequest
 });
 
 // Send training start poll
-router.post('/training-poll', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
+router.post('/training-poll', verifyToken, requireOrgMembership,requireAdmin, async (req: AuthRequest, res) => {
   try {
     const { date } = req.body;
     const convertedDate = convertToDD_MM_YYYY(date);
@@ -205,7 +205,7 @@ router.post('/training-poll', verifyToken, requireAdmin, async (req: AuthRequest
 });
 
 // Pin message to channel
-router.post('/pin-message', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
+router.post('/pin-message', verifyToken, requireOrgMembership,requireAdmin, async (req: AuthRequest, res) => {
   try {
     const { message } = req.body;
     
@@ -213,8 +213,8 @@ router.post('/pin-message', verifyToken, requireAdmin, async (req: AuthRequest, 
       return res.status(400).json({ error: 'Message is required' });
     }
     
-    const { loadSettings } = await import('../../shared/utils/settingsManager.js');
-    const settings = loadSettings();
+    const { getSettingsForCurrentOrg } = await import('../../shared/utils/settingsManager.js');
+    const settings = await getSettingsForCurrentOrg();
     
     const channel = await client.channels.fetch(settings.discord.channelId);
     if (!channel || !(channel instanceof TextChannel)) {
