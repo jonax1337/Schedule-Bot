@@ -94,6 +94,13 @@ app.use((req, res, next) => {
   next();
 });
 
+// Health check — must answer BEFORE tenant resolution and rate limiting. The
+// platform health probe hits this with no subdomain/tenant and no auth; routing
+// it through resolveTenant would 400 ("Unknown tenant") and fail the deploy.
+app.get('/api/health', (_req, res) => {
+  res.json({ status: 'ok', uptime: process.uptime() });
+});
+
 // Security: Rate limiting for all API routes
 app.use('/api', apiLimiter);
 
