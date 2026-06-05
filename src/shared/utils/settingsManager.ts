@@ -71,7 +71,9 @@ const DEFAULT_SETTINGS: Settings = {
   discord: {
     channelId: '',
     pingRoleId: null,
-    allowDiscordAuth: false,
+    // Discord OAuth is the primary SaaS sign-in (control plane + teams), so it's
+    // on by default; a team can still turn it off explicitly in settings.
+    allowDiscordAuth: true,
     pinnedWeekMessageId: null,
     pinnedWeekStartDate: null,
   },
@@ -120,7 +122,7 @@ function parseSettingsMap(settingsMap: Record<string, string>): Settings {
     discord: {
       channelId: settingsMap['discord.channelId'] || DEFAULT_SETTINGS.discord.channelId,
       pingRoleId: settingsMap['discord.pingRoleId'] || DEFAULT_SETTINGS.discord.pingRoleId,
-      allowDiscordAuth: settingsMap['discord.allowDiscordAuth'] === 'true',
+      allowDiscordAuth: (settingsMap['discord.allowDiscordAuth'] ?? String(DEFAULT_SETTINGS.discord.allowDiscordAuth)) === 'true',
       pinnedWeekMessageId: settingsMap['discord.pinnedWeekMessageId'] || null,
       pinnedWeekStartDate: settingsMap['discord.pinnedWeekStartDate'] || null,
     },

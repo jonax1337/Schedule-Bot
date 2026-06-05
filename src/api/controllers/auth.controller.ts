@@ -173,7 +173,15 @@ export async function handleDiscordCallback(req: Request, res: Response) {
 
     // A team member (has a mapping in the active org) keeps their dashboard role;
     // a brand-new customer (no mapping) signs in to the control plane to create a team.
-    const mapping = await getUserMapping(discordId);
+    // On the control plane (apex) there is no org context, so this tenant-scoped
+    // lookup can't run — that's fine, the control-plane login only needs the
+    // account; per-team roles are enforced per-org via membership checks.
+    let mapping: Awaited<ReturnType<typeof getUserMapping>> | null = null;
+    try {
+      mapping = await getUserMapping(discordId);
+    } catch {
+      mapping = null;
+    }
     const { generateToken } = await import('../../shared/middleware/auth.js');
     const jwtRole = mapping?.isAdmin ? 'admin' : 'user';
     const username = mapping?.displayName ?? discordUsername;

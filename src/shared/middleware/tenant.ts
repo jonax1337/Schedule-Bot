@@ -8,8 +8,6 @@ export interface TenantRequest extends Request {
   org?: OrganizationData;
 }
 
-const DEFAULT_ORG_SLUG = process.env.POC_DEFAULT_ORG_SLUG || 'default';
-
 // SECURITY: a client-supplied `X-Tenant` / `?tenant=` slug is SPOOFABLE. Honoring
 // it alone is a cross-tenant IDOR — any authenticated user could read another
 // org's data by changing the header. It is therefore gated behind an explicit
@@ -47,7 +45,18 @@ export async function resolveTenant(req: TenantRequest, res: Response, next: Nex
     ? (req.headers['x-tenant'] as string | undefined)?.trim() || (req.query.tenant as string | undefined)?.trim()
     : undefined;
 
-  const slug = slugFromHost(req) || clientSlug || DEFAULT_ORG_SLUG;
+  const slug = slugFromHost(req) || clientSlug;
+
+  // Apex / control plane (synqed.org and api.synqed.org — no team subdomain):
+  // there is no tenant. Run the request unscoped so control-plane and auth
+  // routes (which operate on accounts/orgs, not tenant data) work. Tenant-scoped
+  // team routes are only ever called from a team subdomain, so they still get a
+  // resolved org below; if one is somehow called here the Prisma guard fails
+  // closed (throws) rather than leaking another tenant's data.
+  if (!slug) {
+    next();
+    return;
+  }
 
   try {
     const org = await getOrganizationBySlug(slug);
