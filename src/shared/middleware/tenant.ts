@@ -58,36 +58,39 @@ export async function resolveTenant(req: TenantRequest, res: Response, next: Nex
     : undefined;
 
   const slug = slugFromHost(req) || clientSlug;
+  const controlPlane = isControlPlanePath(req.path);
 
-  // Apex / control plane (synqed.org and api.synqed.org — no team subdomain):
-  // there is no tenant. Only explicit control-plane / auth-bootstrap paths may
-  // run unscoped; every other path is tenant-scoped, so reject it fail-closed
-  // rather than letting it execute without an org. (Data isolation is ultimately
-  // enforced by the fail-closed Prisma guard; this is defense in depth so a
-  // tenant route can never even reach the guard without a resolved tenant.)
-  if (!slug) {
-    if (isControlPlanePath(req.path)) {
-      req.isControlPlane = true;
-      next();
+  // Resolve a tenant from the slug, if there is one.
+  let org: OrganizationData | null = null;
+  if (slug) {
+    try {
+      org = await getOrganizationBySlug(slug);
+    } catch (error) {
+      logger.error('Tenant resolution failed', getErrorMessage(error));
+      res.status(500).json({ error: 'Tenant resolution failed' });
       return;
     }
-    res.status(400).json({ error: 'Tenant context required' });
-    return;
   }
 
-  try {
-    const org = await getOrganizationBySlug(slug);
-    if (!org) {
-      res.status(400).json({ error: `Unknown tenant "${slug}"` });
-      return;
-    }
+  if (org) {
     req.org = org;
     // Warm this org's runtime config so config.* resolves correctly for the
     // request (e.g. actions posting to the org's channel). Cached after first.
     await getOrgConfig(org.id);
     runWithOrg(org.id, () => next());
-  } catch (error) {
-    logger.error('Tenant resolution failed', getErrorMessage(error));
-    res.status(500).json({ error: 'Tenant resolution failed' });
+    return;
   }
+
+  // No resolved tenant. Control-plane / auth-bootstrap routes (/platform,
+  // /auth/*, /admin/login) operate on accounts, not tenant data, and are served
+  // from the tenant-less control-plane host (which still sends X-Tenant=default),
+  // so they run unscoped. Every other path is tenant-scoped → fail closed. (The
+  // /auth/user role lookup gets a real org above when called from a team
+  // subdomain, so owner/admin membership still resolves there.)
+  if (controlPlane) {
+    req.isControlPlane = true;
+    next();
+    return;
+  }
+  res.status(400).json({ error: slug ? `Unknown tenant "${slug}"` : 'Tenant context required' });
 }
