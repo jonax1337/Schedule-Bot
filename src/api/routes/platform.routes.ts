@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import crypto from 'crypto';
+import { redeemHandoff } from '../../shared/utils/handoff.js';
 import { verifyToken, generateToken, AuthRequest } from '../../shared/middleware/auth.js';
 import {
   getAccountOrganizations,
@@ -86,27 +86,14 @@ router.post('/organizations', verifyToken, async (req: AuthRequest, res) => {
 // from the control plane) needs the session carried across. Instead of putting
 // the bearer token in the URL, the source mints a short-lived, single-use code
 // bound to its account; the destination redeems it for a fresh token.
-interface HandoffEntry { accountId: string; username: string; role: 'admin' | 'user'; expiresAt: number }
-const handoffCodes = new Map<string, HandoffEntry>();
-const HANDOFF_TTL_MS = 30_000;
-
-/** Mint a one-time handoff code for the authenticated account. */
-router.post('/handoff', verifyToken, loginLimiter, (req: AuthRequest, res) => {
-  const u = req.user;
-  if (!u?.accountId) return res.status(403).json({ error: 'Token is not bound to an account' });
-  const code = crypto.randomBytes(24).toString('hex');
-  handoffCodes.set(code, { accountId: u.accountId, username: u.username, role: u.role, expiresAt: Date.now() + HANDOFF_TTL_MS });
-  res.json({ success: true, code });
-});
-
-/** Redeem a handoff code (single-use) for a fresh token on this origin. */
+/** Redeem a handoff code (single-use) for a fresh token on this origin. A
+ *  csrf-bound code (minted by the OAuth callback) requires the matching csrf. */
 router.post('/handoff/redeem', loginLimiter, (req, res) => {
-  const code = (req.body?.code as string | undefined)?.trim();
-  const entry = code ? handoffCodes.get(code) : undefined;
-  if (entry) handoffCodes.delete(code!); // single-use: consume regardless of validity below
-  if (!entry || entry.expiresAt < Date.now()) {
-    return res.status(400).json({ error: 'Invalid or expired handoff code' });
-  }
+  const entry = redeemHandoff(
+    (req.body?.code as string | undefined)?.trim(),
+    (req.body?.csrf as string | undefined)?.trim(),
+  );
+  if (!entry) return res.status(400).json({ error: 'Invalid or expired handoff code' });
   const token = generateToken(entry.username, entry.role, entry.accountId);
   res.json({ success: true, token, user: { username: entry.username, role: entry.role } });
 });

@@ -70,24 +70,43 @@ export function verifyToken(req: AuthRequest, res: Response, next: NextFunction)
   }
 }
 
+/**
+ * An account's access + admin status for the CURRENT org. Must run inside the
+ * org's context (the tenant middleware's runWithOrg), since the roster lookup is
+ * tenant-scoped. Two ways into a team:
+ *   - access  = org Membership (OWNER/ADMIN/MEMBER) OR being in the team roster
+ *               (user_mapping). A roster player needs no Membership; an owner
+ *               needs no roster entry. (An owner who is ALSO a roster player gets
+ *               both — the higher privilege wins below.)
+ *   - admin   = Membership OWNER/ADMIN OR a roster entry flagged is_admin.
+ */
+export async function resolveOrgRole(accountId: string, orgId: string): Promise<{ access: boolean; admin: boolean }> {
+  const { getMembershipRole, getAccountDiscordId } = await import('../../repositories/organization.repository.js');
+  const { getUserMapping } = await import('../../repositories/user-mapping.repository.js');
+  const membership = await getMembershipRole(accountId, orgId);
+  const discordId = await getAccountDiscordId(accountId);
+  const mapping = discordId ? await getUserMapping(discordId) : null;
+  return {
+    access: !!membership || !!mapping,
+    admin: membership === 'OWNER' || membership === 'ADMIN' || !!mapping?.isAdmin,
+  };
+}
+
 export async function requireAdmin(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   if (req.user?.role === 'admin') {
     return next();
   }
-  // Org owners/admins get admin access on their own team even without the legacy
-  // JWT 'admin' role (which only comes from a user_mappings is_admin entry). The
-  // org is resolved by the tenant middleware; membership is the authority.
+  // An org owner/admin — or a roster player flagged is_admin — gets admin access
+  // on their own team, independent of the legacy JWT role. Org is set by the
+  // tenant middleware.
   const org = (req as AuthRequest & { org?: { id: string } }).org;
   const accountId = req.user?.accountId;
   if (org && accountId) {
     try {
-      const { getMembershipRole } = await import('../../repositories/organization.repository.js');
-      const role = await getMembershipRole(accountId, org.id);
-      if (role === 'OWNER' || role === 'ADMIN') {
-        return next();
-      }
+      const { admin } = await resolveOrgRole(accountId, org.id);
+      if (admin) return next();
     } catch (error) {
-      logger.error('Admin membership check failed', getErrorMessage(error));
+      logger.error('Admin role check failed', getErrorMessage(error));
     }
   }
   res.status(403).json({ error: 'Admin access required' });
@@ -133,16 +152,15 @@ export async function requireOrgMembership(req: AuthRequest, res: Response, next
   }
 
   try {
-    const { getMembershipRole } = await import('../../repositories/organization.repository.js');
-    const role = await getMembershipRole(accountId, org.id);
-    if (!role) {
-      res.status(403).json({ error: 'No access to this organization' });
+    const { access } = await resolveOrgRole(accountId, org.id);
+    if (!access) {
+      res.status(403).json({ error: 'No access to this team' });
       return;
     }
     next();
   } catch (error) {
-    logger.error('Membership check failed', getErrorMessage(error));
-    res.status(500).json({ error: 'Membership check failed' });
+    logger.error('Org access check failed', getErrorMessage(error));
+    res.status(500).json({ error: 'Access check failed' });
   }
 }
 

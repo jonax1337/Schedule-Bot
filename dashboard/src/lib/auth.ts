@@ -1,5 +1,5 @@
 import { BOT_API_URL } from './config'
-import { getTenantHeader, subdomainUrl } from './tenant'
+import { getTenantHeader } from './tenant'
 
 const TOKEN_KEY = 'auth_token'
 const USER_KEY = 'auth_user'
@@ -61,46 +61,46 @@ export async function logout(): Promise<void> {
 }
 
 /**
- * Cross-subdomain login handoff. localStorage is per-origin, so navigating to a
- * team subdomain needs the session carried across. We do NOT put the bearer
- * token in the URL: the source mints a short-lived, single-use, account-bound
- * code (server-side), the destination redeems it for a fresh token.
- *
- * `teamHandoffUrl` builds the destination URL with a `#handoff=<code>` fragment;
- * `consumeAuthHandoff` redeems it on load. The code is opaque, 30s, single-use
- * and bound to the minting account, so it leaks nothing and can't fixate a
- * session (and we never re-bind an already-authenticated tab).
+ * Start Discord OAuth from this context. `returnTo` = where to land after login:
+ * 'control' (control plane) or a team slug (→ its subdomain). A CSRF nonce is
+ * stashed in sessionStorage and re-checked when the handoff lands — binding login
+ * to this browser session (anti login-CSRF). The OAuth itself round-trips through
+ * the neutral api host; the user lands back HERE, in this context.
  */
-export async function teamHandoffUrl(slug: string, path = '/'): Promise<string> {
-  const base = subdomainUrl(slug, path)
-  if (!getAuthToken()) return base
-  try {
-    const res = await fetch(`${BOT_API_URL}/api/platform/handoff`, { method: 'POST', headers: getAuthHeaders() })
-    if (res.ok) {
-      const { code } = await res.json()
-      if (code) return `${base}#handoff=${encodeURIComponent(code)}`
-    }
-  } catch {
-    /* fall back to no handoff — user just logs in on the subdomain */
-  }
-  return base
+export async function startDiscordLogin(returnTo: string): Promise<void> {
+  const csrf = crypto.randomUUID()
+  sessionStorage.setItem('synqed_oauth_csrf', csrf)
+  const res = await fetch(
+    `${BOT_API_URL}/api/auth/discord?return=${encodeURIComponent(returnTo)}&csrf=${encodeURIComponent(csrf)}`,
+  )
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.message || data.error || 'Discord login unavailable')
+  window.location.href = data.url
 }
 
+/**
+ * The OAuth callback (neutral api host) 302-redirects back here with a single-use
+ * `#handoff=<code>`. Redeem it for a token on THIS origin, sending the CSRF nonce
+ * we stashed when starting login. localStorage is per-origin, so this is how the
+ * session lands on the control plane / team subdomain. Never re-binds an
+ * already-authenticated tab.
+ */
 export async function consumeAuthHandoff(): Promise<void> {
   if (typeof window === 'undefined' || !window.location.hash) return
   const params = new URLSearchParams(window.location.hash.slice(1))
   const code = params.get('handoff')
   if (!code) return
 
-  // Strip the fragment immediately; never re-bind an already-authenticated tab.
   history.replaceState(null, '', window.location.pathname + window.location.search)
   if (getAuthToken()) return
 
+  const csrf = sessionStorage.getItem('synqed_oauth_csrf') || ''
+  sessionStorage.removeItem('synqed_oauth_csrf')
   try {
     const res = await fetch(`${BOT_API_URL}/api/platform/handoff/redeem`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code }),
+      body: JSON.stringify({ code, csrf }),
     })
     if (res.ok) {
       const data = await res.json()

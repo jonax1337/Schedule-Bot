@@ -121,6 +121,12 @@ export async function getAccountIdByDiscordId(discordId: string): Promise<string
   return acc?.id ?? null;
 }
 
+/** The Discord id behind an account (for roster lookups), or null. */
+export async function getAccountDiscordId(accountId: string): Promise<string | null> {
+  const acc = await prisma.account.findUnique({ where: { id: accountId }, select: { discordId: true } });
+  return acc?.discordId ?? null;
+}
+
 export type OrgRoleValue = 'OWNER' | 'ADMIN' | 'MEMBER';
 
 /** The account's role in an org, or null if it has no membership there. */

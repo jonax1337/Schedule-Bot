@@ -10,7 +10,8 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from '@/components/ui/sidebar'
 import { BOT_API_URL } from '@/lib/config'
-import { getAuthHeaders, teamHandoffUrl } from '@/lib/auth'
+import { getAuthHeaders } from '@/lib/auth'
+import { subdomainUrl } from '@/lib/tenant'
 import { getTenantSlug } from '@/lib/tenant'
 
 interface Org {
@@ -54,9 +55,11 @@ export function OrgSwitcher() {
     }
   }, [current])
 
-  async function switchTo(slug: string) {
+  function switchTo(slug: string) {
     if (slug === current) return
-    window.location.href = await teamHandoffUrl(slug)
+    // Each team is its own context — navigate there; the user signs in on that
+    // subdomain (separate session).
+    window.location.href = subdomainUrl(slug, '/')
   }
 
   const initial = (team.name || current || '?').charAt(0).toUpperCase()

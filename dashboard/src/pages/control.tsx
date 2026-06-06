@@ -10,7 +10,8 @@ import { AuthDivider } from '@/components/auth-divider'
 import { Loader2, Plus, ArrowRight, LogOut } from 'lucide-react'
 import { toast } from 'sonner'
 import { BOT_API_URL } from '@/lib/config'
-import { getAuthToken, getUser, setAuthToken, setUser, removeAuthToken, teamHandoffUrl } from '@/lib/auth'
+import { getAuthToken, getUser, setAuthToken, setUser, removeAuthToken, startDiscordLogin } from '@/lib/auth'
+import { subdomainUrl } from '@/lib/tenant'
 
 interface Org {
   slug: string
@@ -69,19 +70,6 @@ export function ControlPage() {
     if (bot) window.history.replaceState(null, '', window.location.pathname)
   }, [])
 
-  // Auth lives only here. If someone arrived from a team subdomain (?next=<slug>)
-  // — directly or after a Discord login that round-tripped through the control
-  // plane — hand the session straight back to that team instead of stopping here.
-  useEffect(() => {
-    if (!orgs) return
-    const pending =
-      new URLSearchParams(window.location.search).get('next') || localStorage.getItem('pendingTeamHandoff')
-    if (pending && orgs.some((o) => o.slug === pending)) {
-      localStorage.removeItem('pendingTeamHandoff')
-      openTeam(pending)
-    }
-  }, [orgs])
-
   async function devLogin(e: FormEvent) {
     e.preventDefault()
     setBusy(true)
@@ -106,15 +94,7 @@ export function ControlPage() {
 
   async function discordLogin() {
     try {
-      // Preserve a team handoff target across the OAuth round-trip.
-      const next = new URLSearchParams(window.location.search).get('next')
-      if (next) localStorage.setItem('pendingTeamHandoff', next)
-      const res = await fetch(`${BOT_API_URL}/api/auth/discord`)
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.message || 'Discord login unavailable')
-      // Stash the CSRF nonce; the callback echoes it back to prove same-session.
-      if (data.nonce) sessionStorage.setItem('synqed_oauth_nonce', data.nonce)
-      window.location.href = data.url
+      await startDiscordLogin('control')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Discord login unavailable')
     }
@@ -143,8 +123,9 @@ export function ControlPage() {
     }
   }
 
-  async function openTeam(s: string) {
-    window.location.href = await teamHandoffUrl(s, '/')
+  function openTeam(s: string) {
+    // Open the team in its own context — the user signs in there (separate session).
+    window.location.href = subdomainUrl(s, '/')
   }
 
   async function connectDiscord(s: string) {

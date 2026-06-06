@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import { getUserMapping } from '../../repositories/user-mapping.repository.js';
 import { getCurrentOrgId } from '../../shared/tenancy/orgContext.js';
 import { logger } from '../../shared/utils/logger.js';
+import { mintHandoff } from '../../shared/utils/handoff.js';
 
 interface OAuthSession {
   discordId: string;
@@ -23,39 +24,61 @@ const CLIENT_ID = process.env.DISCORD_CLIENT_ID;
 const CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
 const REDIRECT_URI = process.env.DISCORD_REDIRECT_URI || 'http://localhost:3000/api/auth/callback';
 const JWT_SECRET = process.env.JWT_SECRET as string;
+const DASHBOARD_URL = process.env.DASHBOARD_URL || 'http://localhost:3000';
+
+/** Origin for a login context: a team slug → its subdomain; 'control' → the
+ *  control-plane host. Derived from DASHBOARD_URL, so prod (https://app.synqed.org)
+ *  yields https://<slug>.synqed.org and dev (http://localhost:3000) works too. */
+function contextOrigin(returnTo: string): string {
+  if (!returnTo || returnTo === 'control') return DASHBOARD_URL;
+  const u = new URL(DASHBOARD_URL);
+  const proto = u.protocol.replace(':', '');
+  const port = u.port ? `:${u.port}` : '';
+  const baseHost =
+    u.hostname === 'localhost' || u.hostname.endsWith('.localhost')
+      ? 'localhost'
+      : u.hostname.split('.').slice(-2).join('.');
+  return `${proto}://${returnTo}.${baseHost}${port}`;
+}
+
+/** Where the SPA lands after the OAuth round-trip (control plane, team root on
+ *  success, or the relevant login page on error). */
+function landingUrl(returnTo: string, ok: boolean, suffix: string): string {
+  const origin = contextOrigin(returnTo);
+  const path = !returnTo || returnTo === 'control' ? '/control' : ok ? '/' : '/login';
+  return `${origin}${path}${suffix}`;
+}
 
 export function generateSessionToken(): string {
   return crypto.randomBytes(32).toString('hex');
 }
 
 /**
- * Initiate Discord OAuth flow
+ * Initiate Discord OAuth. Query params:
+ *   - return: where to land after login — a team slug (→ <slug>.synqed.org) or
+ *     'control' (→ control plane). Default 'control'.
+ *   - csrf: a nonce the SPA generated and stashed in sessionStorage; it's signed
+ *     into the state and re-checked when the handoff is redeemed (binds login to
+ *     that browser session → anti login-CSRF).
+ * Gated only on the OAuth app being configured (not on any per-team toggle —
+ * this runs on the tenant-less api host).
  */
 export async function initiateDiscordAuth(req: Request, res: Response) {
   try {
-    // Discord OAuth is the platform's primary sign-in (control plane + teams) and
-    // is initiated on the apex/api host where there is no tenant, so it is gated
-    // only on the OAuth app being configured — not on a per-team toggle, which
-    // isn't resolvable here. A team can still hide the Discord button client-side.
     if (!CLIENT_ID || !CLIENT_SECRET) {
       logger.error('Discord OAuth credentials not configured');
-      return res.status(500).json({ 
-        error: 'OAuth not configured',
-        message: 'Discord OAuth credentials missing in environment'
-      });
+      return res.status(500).json({ error: 'OAuth not configured', message: 'Discord OAuth credentials missing in environment' });
     }
 
-    // Stateless CSRF state: a short-lived signed token instead of an in-memory
-    // store, so it survives redeploys and works across multiple replicas.
-    // Bind the CSRF state to the caller's browser session (cookie-less): a random
-    // nonce is embedded in the signed state AND returned for the SPA to stash in
-    // sessionStorage and echo back on the callback. A forged or cross-victim
-    // callback can't supply the matching nonce → blocks login-CSRF.
-    const nonce = crypto.randomBytes(16).toString('hex');
-    const state = jwt.sign({ kind: 'discord-oauth', nonce }, JWT_SECRET, { expiresIn: '10m' });
+    const returnTo = (req.query.return as string | undefined)?.trim() || 'control';
+    const csrf = (req.query.csrf as string | undefined)?.trim() || '';
 
-    // Build OAuth URL. No prompt=none: a brand-new customer hasn't authorized the
-    // app yet, and prompt=none would error instead of showing the consent screen.
+    // Signed, short-lived state carries the CSRF nonce + return target through the
+    // Discord round-trip. Stateless → survives redeploys / multiple replicas.
+    const state = jwt.sign({ kind: 'discord-oauth', csrf, returnTo }, JWT_SECRET, { expiresIn: '10m' });
+
+    // No prompt=none: a brand-new customer hasn't authorized the app yet, and
+    // prompt=none would error instead of showing the consent screen.
     const params = new URLSearchParams({
       client_id: CLIENT_ID,
       redirect_uri: REDIRECT_URI,
@@ -64,9 +87,7 @@ export async function initiateDiscordAuth(req: Request, res: Response) {
       state,
     });
 
-    const authUrl = `${DISCORD_OAUTH_URL}?${params.toString()}`;
-
-    res.json({ url: authUrl, nonce });
+    res.json({ url: `${DISCORD_OAUTH_URL}?${params.toString()}` });
   } catch (error) {
     logger.error('Error initiating Discord auth:', String(error));
     res.status(500).json({ error: 'Failed to initiate authentication' });
@@ -77,45 +98,33 @@ export async function initiateDiscordAuth(req: Request, res: Response) {
  * Handle Discord OAuth callback
  */
 export async function handleDiscordCallback(req: Request, res: Response) {
+  // Registered Discord redirect (neutral api host). Runs server-side and
+  // 302-redirects back to the context that started login (control plane / team
+  // subdomain) with a single-use handoff code — no tenant-less JSON hop, no CORS.
+  let returnTo = 'control';
   try {
-    // Set CORS headers explicitly for this endpoint
-    const origin = req.headers.origin;
-    const allowedOrigins = [
-      'http://localhost:3000',
-      'http://127.0.0.1:3000',
-      process.env.DASHBOARD_URL,
-    ].filter(Boolean);
-    
-    if (origin && allowedOrigins.includes(origin)) {
-      res.setHeader('Access-Control-Allow-Origin', origin);
-      res.setHeader('Access-Control-Allow-Credentials', 'true');
-    }
-    
     const { code, state } = req.query;
 
-    if (!code || typeof code !== 'string') {
-      logger.warn('Discord callback: missing code');
-      return res.status(400).json({ error: 'Missing authorization code' });
-    }
-
-    if (!state || typeof state !== 'string') {
+    if (typeof state !== 'string' || !state) {
       logger.warn('Discord callback: missing state');
-      return res.status(400).json({ error: 'Missing state parameter' });
+      return res.redirect(landingUrl(returnTo, false, '?error=auth'));
     }
 
-    // Verify the signed state (CSRF) AND that it's bound to this browser session:
-    // the nonce in the signed state must equal the one the SPA echoes back (which
-    // it stashed in sessionStorage when initiating). Stateless — no server store.
+    // Verify the signed state; extract the return target + CSRF nonce.
+    let csrf = '';
     try {
-      const decoded = jwt.verify(state, JWT_SECRET) as { kind?: string; nonce?: string };
-      const nonce = (req.query.nonce as string | undefined) || '';
-      if (decoded.kind !== 'discord-oauth' || !decoded.nonce || decoded.nonce !== nonce) {
-        logger.warn('Discord callback: state/nonce mismatch', `kind=${decoded.kind} stateNonce=${!!decoded.nonce} provided=${!!nonce} match=${decoded.nonce === nonce}`);
-        throw new Error('state/nonce mismatch');
-      }
+      const decoded = jwt.verify(state, JWT_SECRET) as { kind?: string; csrf?: string; returnTo?: string };
+      if (decoded.kind !== 'discord-oauth') throw new Error('wrong kind');
+      returnTo = decoded.returnTo || 'control';
+      csrf = decoded.csrf || '';
     } catch (e) {
       logger.warn('Discord callback: state verify failed', String(e));
-      return res.status(400).json({ error: 'Invalid or expired state' });
+      return res.redirect(landingUrl(returnTo, false, '?error=auth'));
+    }
+
+    if (typeof code !== 'string' || !code) {
+      logger.warn('Discord callback: missing code');
+      return res.redirect(landingUrl(returnTo, false, '?error=auth'));
     }
 
     // Exchange code for access token
@@ -134,9 +143,8 @@ export async function handleDiscordCallback(req: Request, res: Response) {
     });
 
     if (!tokenResponse.ok) {
-      const errorData = await tokenResponse.text();
-      logger.error('Token exchange failed:', errorData);
-      return res.status(500).json({ error: 'Failed to exchange authorization code' });
+      logger.error('Token exchange failed:', await tokenResponse.text());
+      return res.redirect(landingUrl(returnTo, false, '?error=auth'));
     }
 
     const tokenData = await tokenResponse.json();
@@ -150,53 +158,49 @@ export async function handleDiscordCallback(req: Request, res: Response) {
     });
 
     if (!userResponse.ok) {
-      return res.status(500).json({ error: 'Failed to fetch user information' });
+      return res.redirect(landingUrl(returnTo, false, '?error=auth'));
     }
 
     const discordUser = await userResponse.json();
     const discordId = discordUser.id;
     const discordUsername = discordUser.username;
 
-    // Always ensure a control-plane account exists for this Discord identity.
-    const { upsertAccountByDiscordId } = await import('../../repositories/organization.repository.js');
+    // Ensure a control-plane account exists for this Discord identity.
+    const { upsertAccountByDiscordId, getOrganizationBySlug } = await import('../../repositories/organization.repository.js');
     const accountId = await upsertAccountByDiscordId(discordId, discordUsername);
 
-    // A team member (has a mapping in the active org) keeps their dashboard role;
-    // a brand-new customer (no mapping) signs in to the control plane to create a team.
-    // On the control plane (apex) there is no org context, so this tenant-scoped
-    // lookup can't run — that's fine, the control-plane login only needs the
-    // account; per-team roles are enforced per-org via membership checks.
-    let mapping: Awaited<ReturnType<typeof getUserMapping>> | null = null;
-    try {
-      mapping = await getUserMapping(discordId);
-    } catch {
-      mapping = null;
+    // Per-context identity + role:
+    //  - control: any Discord user; identity = their Discord name.
+    //  - team: must be a roster player OR an owner/admin of THAT org; identity =
+    //    their roster display name (so they appear as their player), role = admin
+    //    if owner/admin-membership or a roster is_admin entry.
+    let username = discordUsername;
+    let role: 'admin' | 'user' = 'user';
+    if (returnTo && returnTo !== 'control') {
+      const org = await getOrganizationBySlug(returnTo);
+      if (!org) return res.redirect(landingUrl(returnTo, false, '?error=unknown-team'));
+      const { runWithOrg } = await import('../../shared/tenancy/orgContext.js');
+      const { resolveOrgRole } = await import('../../shared/middleware/auth.js');
+      let access = false;
+      let admin = false;
+      await runWithOrg(org.id, async () => {
+        const r = await resolveOrgRole(accountId, org.id);
+        access = r.access;
+        admin = r.admin;
+        const m = await getUserMapping(discordId);
+        if (m?.displayName) username = m.displayName;
+      });
+      if (!access) return res.redirect(landingUrl(returnTo, false, '?error=no-access'));
+      role = admin ? 'admin' : 'user';
     }
-    const { generateToken } = await import('../../shared/middleware/auth.js');
-    const jwtRole = mapping?.isAdmin ? 'admin' : 'user';
-    const username = mapping?.displayName ?? discordUsername;
-    const token = generateToken(username, jwtRole, accountId);
 
-    // Build Discord avatar URL
-    const avatarUrl = discordUser.avatar
-      ? `https://cdn.discordapp.com/avatars/${discordId}/${discordUser.avatar}.${discordUser.avatar.startsWith('a_') ? 'gif' : 'png'}?size=128`
-      : null;
-
-    res.json({
-      success: true,
-      token,
-      user: {
-        id: discordUser.id,
-        username,
-        role: jwtRole,
-        discordId,
-        discordUsername,
-        avatar: avatarUrl,
-      },
-    });
+    // Deliver the session to the originating context via a single-use, csrf-bound
+    // handoff code (consumed on landing). No bearer token in the URL.
+    const handoff = mintHandoff({ accountId, username, role, csrf });
+    return res.redirect(landingUrl(returnTo, true, `#handoff=${encodeURIComponent(handoff)}`));
   } catch (error) {
     logger.error('Error handling Discord callback:', String(error));
-    res.status(500).json({ error: 'Authentication failed' });
+    res.redirect(landingUrl(returnTo, false, '?error=auth'));
   }
 }
 
@@ -242,9 +246,9 @@ export async function getUserFromSession(req: Request, res: Response) {
         const orgId = getCurrentOrgId();
         if (role !== 'admin' && orgId && decoded.accountId) {
           try {
-            const { getMembershipRole } = await import('../../repositories/organization.repository.js');
-            const mRole = await getMembershipRole(decoded.accountId, orgId);
-            if (mRole === 'OWNER' || mRole === 'ADMIN') role = 'admin';
+            const { resolveOrgRole } = await import('../../shared/middleware/auth.js');
+            const { admin } = await resolveOrgRole(decoded.accountId, orgId);
+            if (admin) role = 'admin';
           } catch { /* fall back to the JWT role */ }
         }
         return res.json({

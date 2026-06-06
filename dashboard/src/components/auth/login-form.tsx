@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Loader2, UserCircle } from 'lucide-react'
+import { toast } from 'sonner'
 import { FullWidthDivider } from '@/components/full-width-divider'
-import { controlPlaneUrl, getTenantSlug } from '@/lib/tenant'
+import { getTenantSlug } from '@/lib/tenant'
+import { startDiscordLogin } from '@/lib/auth'
 
 /**
  * Team-subdomain sign-in. Teams never run their own OAuth — authentication lives
@@ -13,9 +15,16 @@ import { controlPlaneUrl, getTenantSlug } from '@/lib/tenant'
 export function LoginForm() {
   const [redirecting, setRedirecting] = useState(false)
 
-  const handleSignIn = () => {
+  const handleSignIn = async () => {
     setRedirecting(true)
-    window.location.href = controlPlaneUrl(`/control?next=${encodeURIComponent(getTenantSlug())}`)
+    try {
+      // Team login happens in THIS team's context: OAuth round-trips through the
+      // neutral api callback and lands back here (no control-plane detour).
+      await startDiscordLogin(getTenantSlug())
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not start sign-in')
+      setRedirecting(false)
+    }
   }
 
   return (
