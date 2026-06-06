@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { verifyToken, requireAdmin, requireOrgMembership, AuthRequest } from '../../shared/middleware/auth.js';
+import { verifyToken, requireOrgAdmin, requireOrgMembership, AuthRequest } from '../../shared/middleware/auth.js';
 import type { TenantRequest } from '../../shared/middleware/tenant.js';
 import { validate, settingsSchema } from '../../shared/middleware/validation.js';
 import { strictApiLimiter } from '../../shared/middleware/rateLimiter.js';
@@ -27,7 +27,7 @@ router.get('/', async (req, res) => {
 });
 
 // Update settings — per tenant; only a member admin of the org may change them.
-router.post('/', verifyToken, requireOrgMembership, requireAdmin, strictApiLimiter, validate(settingsSchema), async (req: AuthRequest, res) => {
+router.post('/', verifyToken, requireOrgMembership, requireOrgAdmin, strictApiLimiter, validate(settingsSchema), async (req: AuthRequest, res) => {
   try {
     await saveSettingsForCurrentOrg(req.body);
 
@@ -53,7 +53,7 @@ router.post('/', verifyToken, requireOrgMembership, requireAdmin, strictApiLimit
 });
 
 // Reload config (default/bot org runtime)
-router.post('/reload-config', verifyToken, requireOrgMembership, requireAdmin, strictApiLimiter, async (req: AuthRequest, res) => {
+router.post('/reload-config', verifyToken, requireOrgMembership, requireOrgAdmin, strictApiLimiter, async (req: AuthRequest, res) => {
   try {
     await reloadConfig();
     restartScheduler();

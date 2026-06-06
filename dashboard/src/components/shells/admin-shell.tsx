@@ -44,6 +44,9 @@ export function AdminShell({ children }: { children: ReactNode }) {
 
   const authUser = getUser()
   const userName = authUser?.username ?? null
+  // Owner/Admin-only areas (settings, security, logs). A MANAGER gets the
+  // operative tabs (incl. Users/roster) but not these — mirrors requireOrgAdmin.
+  const isOrgAdmin = authUser?.orgRole === 'OWNER' || authUser?.orgRole === 'ADMIN'
   const { userRole, avatarUrl } = useSidebarUserInfo(userName)
 
   const navGroups: NavGroupConfig[] = useMemo(
@@ -72,14 +75,20 @@ export function AdminShell({ children }: { children: ReactNode }) {
       {
         label: 'System',
         items: [
-          { title: 'Settings', url: '/admin?tab=settings', icon: <Settings />, isActive: tab === 'settings' },
+          ...(isOrgAdmin
+            ? [{ title: 'Settings', url: '/admin?tab=settings', icon: <Settings />, isActive: tab === 'settings' }]
+            : []),
           { title: 'Actions', url: '/admin?tab=actions', icon: <Zap />, isActive: tab === 'actions' },
-          { title: 'Security', url: '/admin?tab=security', icon: <Shield />, isActive: tab === 'security' },
-          { title: 'Logs', url: '/admin?tab=logs', icon: <Terminal />, isActive: tab === 'logs' },
+          ...(isOrgAdmin
+            ? [
+                { title: 'Security', url: '/admin?tab=security', icon: <Shield />, isActive: tab === 'security' },
+                { title: 'Logs', url: '/admin?tab=logs', icon: <Terminal />, isActive: tab === 'logs' },
+              ]
+            : []),
         ],
       },
     ],
-    [tab],
+    [tab, isOrgAdmin],
   )
 
   const user: NavUserInfo | undefined = userName

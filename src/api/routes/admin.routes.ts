@@ -1,14 +1,14 @@
 import { Router } from 'express';
 import crypto from 'crypto';
 import type { AuthRequest } from '../../shared/middleware/auth.js';
-import { verifyToken, requireAdmin } from '../../shared/middleware/auth.js';
+import { verifyToken, requireOrgAdmin } from '../../shared/middleware/auth.js';
 import { hashPassword } from '../../shared/middleware/passwordManager.js';
 import { logger, getErrorMessage } from '../../shared/utils/logger.js';
 
 const router = Router();
 
 // Generate password hash
-router.post('/generate-password-hash', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
+router.post('/generate-password-hash', verifyToken, requireOrgAdmin, async (req: AuthRequest, res) => {
   try {
     const { password } = req.body;
     
@@ -31,7 +31,7 @@ router.post('/generate-password-hash', verifyToken, requireAdmin, async (req: Au
 });
 
 // Generate JWT secret
-router.post('/generate-jwt-secret', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
+router.post('/generate-jwt-secret', verifyToken, requireOrgAdmin, async (req: AuthRequest, res) => {
   try {
     // Generate 32 random bytes and convert to hex (64 characters)
     const secret = crypto.randomBytes(32).toString('hex');

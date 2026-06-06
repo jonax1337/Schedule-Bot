@@ -7,6 +7,8 @@ const USER_KEY = 'auth_user'
 export interface User {
   username: string
   role: 'admin' | 'user'
+  /** Precise org tier (OWNER/ADMIN/MANAGER/MEMBER) for fine-grained gating. */
+  orgRole?: string
   avatar?: string
 }
 
@@ -144,8 +146,9 @@ export async function validateToken(): Promise<boolean> {
       // to prevent localStorage manipulation from bypassing role checks
       const data = await response.json()
       const currentUser = getUser()
-      if (currentUser && data.role && currentUser.role !== data.role) {
-        setUser({ ...currentUser, role: data.role })
+      if (currentUser) {
+        const next = { ...currentUser, role: data.role ?? currentUser.role, orgRole: data.orgRole ?? currentUser.orgRole }
+        if (next.role !== currentUser.role || next.orgRole !== currentUser.orgRole) setUser(next)
       }
       return true
     }

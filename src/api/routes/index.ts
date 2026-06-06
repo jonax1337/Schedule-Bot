@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { client } from '../../bot/client.js';
-import { verifyToken, requireOrgMembership, requireAdmin, AuthRequest } from '../../shared/middleware/auth.js';
+import { verifyToken, requireOrgMembership, requireOrgAdmin, AuthRequest } from '../../shared/middleware/auth.js';
 import { isValidDateFormat } from '../../shared/middleware/validation.js';
 import { getScheduleDetails, getScheduleDetailsBatch } from '../../shared/utils/scheduleDetails.js';
 import { logger, getErrorMessage } from '../../shared/utils/logger.js';
@@ -109,7 +109,7 @@ router.get('/bot-status', (req, res) => {
 });
 
 // Get bot logs (protected, admin only)
-router.get('/logs', verifyToken, requireAdmin, (req: AuthRequest, res) => {
+router.get('/logs', verifyToken, requireOrgAdmin, (req: AuthRequest, res) => {
   try {
     const limit = Math.min(Math.max(parseInt(req.query.limit as string) || 100, 1), 1000);
     const level = req.query.level as 'info' | 'warn' | 'error' | 'success' | undefined;

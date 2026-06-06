@@ -198,16 +198,18 @@ export async function handleDiscordCallback(req: Request, res: Response) {
       const { runWithOrg } = await import('../../shared/tenancy/orgContext.js');
       const { resolveOrgRole } = await import('../../shared/middleware/auth.js');
       let access = false;
-      let admin = false;
+      let manage = false;
       await runWithOrg(org.id, async () => {
         const r = await resolveOrgRole(accountId, org.id);
         access = r.access;
-        admin = r.admin;
+        manage = r.manage;
         const m = await getUserMapping(discordId);
         if (m?.displayName) username = m.displayName;
       });
       if (!access) return res.redirect(landingUrl(returnTo, false, '?error=no-access'));
-      role = admin ? 'admin' : 'user';
+      // MANAGER+ get the dashboard's admin area (binary 'admin'); the precise
+      // owner/admin-only gates re-check the role server-side.
+      role = manage ? 'admin' : 'user';
     }
 
     // Deliver the session to the originating context via a single-use, csrf-bound
@@ -258,18 +260,25 @@ export async function getUserFromSession(req: Request, res: Response) {
         // — independent of the legacy user_mappings roster. This is the authority
         // for "am I admin here", since the JWT role is set tenant-agnostically at
         // login on the control plane.
+        // On a team (org context), the effective role is the authority. MANAGER+
+        // get the binary 'admin' (dashboard admin area); orgRole carries the exact
+        // tier (OWNER/ADMIN/MANAGER/MEMBER) so the frontend can gate owner/admin-
+        // only areas (settings, members).
         let role = decoded.role;
+        let orgRole: string | null = null;
         const orgId = getCurrentOrgId();
-        if (role !== 'admin' && orgId && decoded.accountId) {
+        if (orgId && decoded.accountId) {
           try {
             const { resolveOrgRole } = await import('../../shared/middleware/auth.js');
-            const { admin } = await resolveOrgRole(decoded.accountId, orgId);
-            if (admin) role = 'admin';
+            const r = await resolveOrgRole(decoded.accountId, orgId);
+            orgRole = r.role;
+            if (r.manage) role = 'admin';
           } catch { /* fall back to the JWT role */ }
         }
         return res.json({
           username: decoded.username,
           role,
+          orgRole,
           valid: true,
         });
       }

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { verifyToken, requireAdmin, AuthRequest } from '../../shared/middleware/auth.js';
+import { verifyToken, requireOrgAdmin, AuthRequest } from '../../shared/middleware/auth.js';
 import { client } from '../../bot/client.js';
 import { config } from '../../shared/config/config.js';
 import { logger, getErrorMessage } from '../../shared/utils/logger.js';
@@ -13,7 +13,7 @@ let membersCacheTime = 0;
 const MEMBERS_CACHE_TTL = 5 * 60 * 1000;
 
 // Get Discord channels
-router.get('/channels', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
+router.get('/channels', verifyToken, requireOrgAdmin, async (req: AuthRequest, res) => {
   try {
     if (!client.isReady()) {
       return res.status(503).json({ error: 'Bot not ready' });
@@ -38,7 +38,7 @@ router.get('/channels', verifyToken, requireAdmin, async (req: AuthRequest, res)
 });
 
 // Get Discord roles
-router.get('/roles', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
+router.get('/roles', verifyToken, requireOrgAdmin, async (req: AuthRequest, res) => {
   try {
     if (!client.isReady()) {
       return res.status(503).json({ error: 'Bot not ready' });
@@ -64,7 +64,7 @@ router.get('/roles', verifyToken, requireAdmin, async (req: AuthRequest, res) =>
 });
 
 // Get Discord server members
-router.get('/members', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
+router.get('/members', verifyToken, requireOrgAdmin, async (req: AuthRequest, res) => {
   try {
     if (!client.isReady()) {
       return res.status(503).json({ error: 'Bot not ready' });
