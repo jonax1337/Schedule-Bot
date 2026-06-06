@@ -106,7 +106,12 @@ export async function consumeAuthHandoff(): Promise<void> {
       const data = await res.json()
       if (data.token) {
         setAuthToken(data.token)
-        if (data.user) setUser(data.user)
+        if (data.user) {
+          setUser(data.user)
+          // The user pages (Availability/Recurring) resolve the current player by
+          // this localStorage key; without it their hook bounces to /login.
+          if (data.user.username) localStorage.setItem('selectedUser', data.user.username)
+        }
       }
     }
   } catch {
