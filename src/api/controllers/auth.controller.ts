@@ -92,7 +92,12 @@ export async function handleDiscordCallback(req: Request, res: Response) {
     }
     
     const { code, state } = req.query;
-    logger.info('Discord callback received', `code=${!!code} state=${!!state} nonce=${!!req.query.nonce} origin=${origin ?? 'none'}`);
+    const sStr = typeof state === 'string' ? state : '';
+    const nStr = (req.query.nonce as string | undefined) || '';
+    logger.info(
+      'Discord callback received',
+      `code=${!!code} stateHead=${sStr.slice(0, 10)} stateLen=${sStr.length} nonceLen=${nStr.length} origin=${origin ?? 'none'}`,
+    );
 
     if (!code || typeof code !== 'string') {
       logger.warn('Discord callback: missing code');
