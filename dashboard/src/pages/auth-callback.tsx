@@ -30,7 +30,13 @@ export function AuthCallbackPage() {
       }
 
       try {
-        const response = await fetch(`${BOT_API_URL}/api/auth/discord/callback?code=${code}&state=${state}`, { headers: getAuthHeaders() })
+        // Echo back the CSRF nonce stashed when the flow started (same-session proof).
+        const nonce = sessionStorage.getItem('synqed_oauth_nonce') || ''
+        sessionStorage.removeItem('synqed_oauth_nonce')
+        const response = await fetch(
+          `${BOT_API_URL}/api/auth/discord/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}&nonce=${encodeURIComponent(nonce)}`,
+          { headers: getAuthHeaders() },
+        )
         if (!response.ok) {
           const errorData = await response.json()
           setStatus('error')

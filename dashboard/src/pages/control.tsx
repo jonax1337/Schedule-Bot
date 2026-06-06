@@ -110,8 +110,11 @@ export function ControlPage() {
       const next = new URLSearchParams(window.location.search).get('next')
       if (next) localStorage.setItem('pendingTeamHandoff', next)
       const res = await fetch(`${BOT_API_URL}/api/auth/discord`)
-      if (!res.ok) throw new Error((await res.json()).message || 'Discord login unavailable')
-      window.location.href = (await res.json()).url
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message || 'Discord login unavailable')
+      // Stash the CSRF nonce; the callback echoes it back to prove same-session.
+      if (data.nonce) sessionStorage.setItem('synqed_oauth_nonce', data.nonce)
+      window.location.href = data.url
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Discord login unavailable')
     }

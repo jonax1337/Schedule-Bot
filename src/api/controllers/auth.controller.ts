@@ -47,7 +47,12 @@ export async function initiateDiscordAuth(req: Request, res: Response) {
 
     // Stateless CSRF state: a short-lived signed token instead of an in-memory
     // store, so it survives redeploys and works across multiple replicas.
-    const state = jwt.sign({ kind: 'discord-oauth' }, JWT_SECRET, { expiresIn: '10m' });
+    // Bind the CSRF state to the caller's browser session (cookie-less): a random
+    // nonce is embedded in the signed state AND returned for the SPA to stash in
+    // sessionStorage and echo back on the callback. A forged or cross-victim
+    // callback can't supply the matching nonce → blocks login-CSRF.
+    const nonce = crypto.randomBytes(16).toString('hex');
+    const state = jwt.sign({ kind: 'discord-oauth', nonce }, JWT_SECRET, { expiresIn: '10m' });
 
     // Build OAuth URL. No prompt=none: a brand-new customer hasn't authorized the
     // app yet, and prompt=none would error instead of showing the consent screen.
@@ -60,8 +65,8 @@ export async function initiateDiscordAuth(req: Request, res: Response) {
     });
 
     const authUrl = `${DISCORD_OAUTH_URL}?${params.toString()}`;
-    
-    res.json({ url: authUrl });
+
+    res.json({ url: authUrl, nonce });
   } catch (error) {
     logger.error('Error initiating Discord auth:', String(error));
     res.status(500).json({ error: 'Failed to initiate authentication' });
@@ -96,10 +101,15 @@ export async function handleDiscordCallback(req: Request, res: Response) {
       return res.status(400).json({ error: 'Missing state parameter' });
     }
 
-    // Verify the signed state (CSRF). Stateless — survives redeploys/replicas.
+    // Verify the signed state (CSRF) AND that it's bound to this browser session:
+    // the nonce in the signed state must equal the one the SPA echoes back (which
+    // it stashed in sessionStorage when initiating). Stateless — no server store.
     try {
-      const decoded = jwt.verify(state, JWT_SECRET) as { kind?: string };
-      if (decoded.kind !== 'discord-oauth') throw new Error('wrong kind');
+      const decoded = jwt.verify(state, JWT_SECRET) as { kind?: string; nonce?: string };
+      const nonce = (req.query.nonce as string | undefined) || '';
+      if (decoded.kind !== 'discord-oauth' || !decoded.nonce || decoded.nonce !== nonce) {
+        throw new Error('state/nonce mismatch');
+      }
     } catch {
       return res.status(400).json({ error: 'Invalid or expired state' });
     }
