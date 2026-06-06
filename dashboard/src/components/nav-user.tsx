@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   DropdownMenu,
@@ -25,8 +25,11 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from '@/components/ui/sidebar'
-import { ChevronsUpDownIcon, LogOutIcon, GlobeIcon, CheckIcon } from 'lucide-react'
+import { ChevronsUpDownIcon, LogOutIcon, GlobeIcon, CheckIcon, Building2Icon } from 'lucide-react'
 import { useTimezone, getTimezoneAbbr } from '@/lib/timezone'
+import { BOT_API_URL } from '@/lib/config'
+import { getAuthHeaders } from '@/lib/auth'
+import { subdomainUrl, getTenantSlug } from '@/lib/tenant'
 
 export interface NavUserInfo {
   name: string
@@ -52,6 +55,25 @@ export function NavUser({ user, onLogout }: NavUserProps) {
   const { isMobile } = useSidebar()
   const { userTimezone, setUserTimezone } = useTimezone()
   const [tzSearch, setTzSearch] = useState('')
+
+  // Teams the account belongs to — powers the "Switch team" submenu. Each team is
+  // its own context, so switching navigates to that subdomain (separate login).
+  const currentSlug = getTenantSlug()
+  const [orgs, setOrgs] = useState<{ slug: string; name: string; role: string }[]>([])
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch(`${BOT_API_URL}/api/platform/orgs`, { headers: getAuthHeaders() })
+        if (!cancelled && res.ok) setOrgs((await res.json()).organizations ?? [])
+      } catch {
+        /* ignore — switcher just stays hidden */
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const initials = (user.name?.charAt(0) ?? '?').toUpperCase()
   const subline = user.role || user.email || ''
@@ -134,6 +156,29 @@ export function NavUser({ user, onLogout }: NavUserProps) {
                 </Command>
               </DropdownMenuSubContent>
             </DropdownMenuSub>
+
+            {orgs.length > 1 && (
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <Building2Icon />
+                  <span>Switch team</span>
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  {orgs.map((o) => (
+                    <DropdownMenuItem
+                      key={o.slug}
+                      onSelect={() => {
+                        if (o.slug !== currentSlug) window.location.href = subdomainUrl(o.slug, '/')
+                      }}
+                    >
+                      <CheckIcon className={o.slug === currentSlug ? 'opacity-100' : 'opacity-0'} />
+                      <span className="flex-1 truncate">{o.name}</span>
+                      <span className="text-muted-foreground ml-2 text-xs">{o.role.toLowerCase()}</span>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+            )}
 
             {onLogout && (
               <>

@@ -8,7 +8,6 @@ import {
 import { NavMain, type NavItem } from '@/components/nav-main'
 import { NavUser, type NavUserInfo } from '@/components/nav-user'
 import { SynqedBrand } from '@/components/synqed-brand'
-import { OrgSwitcher } from '@/components/org-switcher'
 
 export interface NavGroupConfig {
   label: string
@@ -33,7 +32,6 @@ export function AppSidebar({ brand, navGroups, footerExtra, user, onLogout, ...p
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
         <SynqedBrand subtitle={brand.subtitle} homeUrl={brand.homeUrl} />
-        <OrgSwitcher />
       </SidebarHeader>
       <SidebarContent>
         {navGroups.map((group) => (
