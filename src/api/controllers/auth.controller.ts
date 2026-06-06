@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import crypto from 'crypto';
 import { getUserMapping } from '../../repositories/user-mapping.repository.js';
+import { getCurrentOrgId } from '../../shared/tenancy/orgContext.js';
 import { logger } from '../../shared/utils/logger.js';
 
 interface OAuthState {
@@ -234,11 +235,25 @@ export async function getUserFromSession(req: Request, res: Response) {
     try {
       const { verifyTokenSync } = await import('../../shared/middleware/auth.js');
       const decoded = verifyTokenSync(token);
-      
+
       if (decoded) {
+        // On a team (org context resolved from the subdomain/X-Tenant), an
+        // account that OWNS or ADMINs the org gets admin access in the dashboard
+        // — independent of the legacy user_mappings roster. This is the authority
+        // for "am I admin here", since the JWT role is set tenant-agnostically at
+        // login on the control plane.
+        let role = decoded.role;
+        const orgId = getCurrentOrgId();
+        if (role !== 'admin' && orgId && decoded.accountId) {
+          try {
+            const { getMembershipRole } = await import('../../repositories/organization.repository.js');
+            const mRole = await getMembershipRole(decoded.accountId, orgId);
+            if (mRole === 'OWNER' || mRole === 'ADMIN') role = 'admin';
+          } catch { /* fall back to the JWT role */ }
+        }
         return res.json({
           username: decoded.username,
-          role: decoded.role,
+          role,
           valid: true,
         });
       }

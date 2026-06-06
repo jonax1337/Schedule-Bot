@@ -61,7 +61,7 @@ async function safeJsonParse<T>(response: Response, defaultValue: T): Promise<T>
 async function handleResponse<T>(response: Response): Promise<T> {
   if (response.status === 401) {
     removeAuthToken()
-    window.location.href = '/admin/login'
+    window.location.href = '/login'
     throw new ApiError(401, 'Unauthorized')
   }
 

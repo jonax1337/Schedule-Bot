@@ -123,8 +123,10 @@ export async function validateToken(): Promise<boolean> {
   if (!token) return false
 
   try {
+    // Include the tenant header so the server resolves the org and can return the
+    // membership-derived role (an org OWNER/ADMIN is treated as 'admin' here).
     const response = await fetch(`${BOT_API_URL}/api/auth/user`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: getAuthHeaders(),
     })
 
     if (response.status === 401 || response.status === 403) {

@@ -70,12 +70,27 @@ export function verifyToken(req: AuthRequest, res: Response, next: NextFunction)
   }
 }
 
-export function requireAdmin(req: AuthRequest, res: Response, next: NextFunction): void {
-  if (!req.user || req.user.role !== 'admin') {
-    res.status(403).json({ error: 'Admin access required' });
-    return;
+export async function requireAdmin(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  if (req.user?.role === 'admin') {
+    return next();
   }
-  next();
+  // Org owners/admins get admin access on their own team even without the legacy
+  // JWT 'admin' role (which only comes from a user_mappings is_admin entry). The
+  // org is resolved by the tenant middleware; membership is the authority.
+  const org = (req as AuthRequest & { org?: { id: string } }).org;
+  const accountId = req.user?.accountId;
+  if (org && accountId) {
+    try {
+      const { getMembershipRole } = await import('../../repositories/organization.repository.js');
+      const role = await getMembershipRole(accountId, org.id);
+      if (role === 'OWNER' || role === 'ADMIN') {
+        return next();
+      }
+    } catch (error) {
+      logger.error('Admin membership check failed', getErrorMessage(error));
+    }
+  }
+  res.status(403).json({ error: 'Admin access required' });
 }
 
 export function optionalAuth(req: AuthRequest, res: Response, next: NextFunction): void {

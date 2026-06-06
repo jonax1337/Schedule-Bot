@@ -42,7 +42,7 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
       </div>
     )
   }
-  if (status === 'unauth') return <Navigate to={requireAdmin ? '/admin/login' : '/login'} replace />
+  if (status === 'unauth') return <Navigate to="/login" replace />
   if (status === 'forbidden') return <Navigate to="/" replace />
   return <>{children}</>
 }

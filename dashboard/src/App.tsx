@@ -11,7 +11,6 @@ import { IS_DEV_MODE } from '@/lib/dev-mode'
 import { isApex } from '@/lib/tenant'
 import { AdminShell } from '@/components/shells/admin-shell'
 import { UserShell } from '@/components/shells/user-shell'
-import { AdminLoginPage } from '@/pages/admin-login'
 import { LoginPage } from '@/pages/login'
 import { AuthCallbackPage } from '@/pages/auth-callback'
 import { ControlPage } from '@/pages/control'
@@ -42,7 +41,6 @@ export default function App() {
                 <Routes>
                   <Route path="/control" element={<ControlPage />} />
                   <Route path="/login" element={<LoginPage />} />
-                  <Route path="/admin/login" element={<AdminLoginPage />} />
                   <Route path="/auth/callback" element={<AuthCallbackPage />} />
 
                   {/* Apex (synqed.org) is the SaaS entry → control plane.
