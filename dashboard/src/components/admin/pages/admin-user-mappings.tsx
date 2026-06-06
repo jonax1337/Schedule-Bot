@@ -6,7 +6,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SectionCard } from '@/components/ui/section-card';
 import { Field, FieldContent, FieldLabel, FieldDescription } from '@/components/ui/field';
-import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
@@ -19,7 +18,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { stagger, microInteractions } from '@/lib/animations';
-import { getAuthHeaders } from '@/lib/auth';
+import { getAuthHeaders, getUser } from '@/lib/auth';
 import { cn } from '@/lib/utils';
 import { BOT_API_URL } from '@/lib/config';
 import type { DiscordMember } from '@/lib/types';
@@ -248,6 +247,15 @@ export function UserMappings() {
   const [editTimezone, setEditTimezone] = useState('');
   const [editIsAdmin, setEditIsAdmin] = useState(false);
 
+  // Access-role management (Owner/Admin only): a person's dashboard permission
+  // tier (Membership), separate from their roster position.
+  const isOrgAdmin = (() => {
+    const r = getUser()?.orgRole;
+    return r === 'OWNER' || r === 'ADMIN';
+  })();
+  const [accessRoles, setAccessRoles] = useState<Record<string, string>>({});
+  const [editAccessRole, setEditAccessRole] = useState<'ADMIN' | 'MANAGER' | 'MEMBER'>('MEMBER');
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 8 },
@@ -295,6 +303,20 @@ export function UserMappings() {
       if (mappingsRes.ok) {
         const data = await mappingsRes.json();
         setMappings(data.mappings || []);
+      }
+
+      if (isOrgAdmin) {
+        try {
+          const memRes = await fetch(`${BOT_API_URL}/api/members`, { headers: getAuthHeaders() });
+          if (memRes.ok) {
+            const data = await memRes.json();
+            const map: Record<string, string> = {};
+            for (const m of data.members ?? []) if (m.discordId && m.accessRole) map[m.discordId] = m.accessRole;
+            setAccessRoles(map);
+          }
+        } catch {
+          /* access roles are optional context */
+        }
       }
     } catch (error) {
       console.error('Failed to load data:', error);
@@ -400,6 +422,8 @@ export function UserMappings() {
     setEditRole(mapping.role);
     setEditTimezone(mapping.timezone || '');
     setEditIsAdmin(!!mapping.isAdmin);
+    const ar = accessRoles[mapping.discordId];
+    setEditAccessRole(ar === 'ADMIN' || ar === 'MANAGER' ? ar : 'MEMBER');
     setEditDialogOpen(true);
   };
 
@@ -426,6 +450,14 @@ export function UserMappings() {
       });
 
       if (response.ok) {
+        // Owner/Admin can also set the access role (Membership) — skip the owner.
+        if (isOrgAdmin && editingMapping && accessRoles[editingMapping.discordId] !== 'OWNER') {
+          await fetch(`${BOT_API_URL}/api/members/role`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ discordId: editDiscordId, displayName: editDisplayName, role: editAccessRole }),
+          }).catch(() => {})
+        }
         toast.success('User mapping updated successfully!');
         setEditDialogOpen(false);
         setEditingMapping(null);
@@ -761,19 +793,31 @@ export function UserMappings() {
               </FieldLabel>
               <TimezonePicker value={editTimezone} onChange={setEditTimezone} className="w-full" />
             </Field>
-            <Field orientation="horizontal" className="rounded-lg border p-3">
-              <FieldContent>
-                <FieldLabel htmlFor="edit-is-admin">Admin Access</FieldLabel>
-                <FieldDescription>
-                  Allow this user to access the Admin Dashboard
-                </FieldDescription>
-              </FieldContent>
-              <Switch
-                id="edit-is-admin"
-                checked={editIsAdmin}
-                onCheckedChange={setEditIsAdmin}
-              />
-            </Field>
+            {isOrgAdmin &&
+              (accessRoles[editDiscordId] === 'OWNER' ? (
+                <Field orientation="horizontal" className="rounded-lg border p-3">
+                  <FieldContent>
+                    <FieldLabel>Access role</FieldLabel>
+                    <FieldDescription>This person is the team owner.</FieldDescription>
+                  </FieldContent>
+                  <Badge>Owner</Badge>
+                </Field>
+              ) : (
+                <Field>
+                  <FieldLabel htmlFor="edit-access-role">Access role</FieldLabel>
+                  <FieldDescription>Dashboard permissions — separate from the roster position.</FieldDescription>
+                  <Select value={editAccessRole} onValueChange={(v) => setEditAccessRole(v as 'ADMIN' | 'MANAGER' | 'MEMBER')}>
+                    <SelectTrigger id="edit-access-role" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent position="popper">
+                      <SelectItem value="MEMBER">Member — own availability only</SelectItem>
+                      <SelectItem value="MANAGER">Manager — schedules, scrims, roster</SelectItem>
+                      <SelectItem value="ADMIN">Admin — full team management</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+              ))}
           </div>
           <DialogFooter className="animate-fadeIn stagger-4">
             <Button

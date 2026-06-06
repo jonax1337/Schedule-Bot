@@ -129,6 +129,39 @@ export async function getAccountDiscordId(accountId: string): Promise<string | n
 
 export type OrgRoleValue = 'OWNER' | 'ADMIN' | 'MANAGER' | 'MEMBER';
 
+/** Memberships of an org with the account's Discord id + display name. */
+export async function getOrgMemberships(
+  organizationId: string,
+): Promise<Array<{ discordId: string | null; displayName: string; role: OrgRoleValue }>> {
+  const ms = await prisma.membership.findMany({
+    where: { organizationId },
+    include: { account: { select: { discordId: true, displayName: true } } },
+  });
+  return ms.map((m) => ({ discordId: m.account.discordId, displayName: m.account.displayName, role: m.role as OrgRoleValue }));
+}
+
+/** Upsert an account's access role in an org, addressed by Discord id. */
+export async function setMembershipRoleByDiscordId(
+  discordId: string,
+  displayName: string,
+  organizationId: string,
+  role: OrgRoleValue,
+): Promise<void> {
+  const accountId = await upsertAccountByDiscordId(discordId, displayName);
+  await prisma.membership.upsert({
+    where: { accountId_organizationId: { accountId, organizationId } },
+    update: { role },
+    create: { accountId, organizationId, role },
+  });
+}
+
+/** Revoke an account's membership in an org (by Discord id). */
+export async function removeMembershipByDiscordId(discordId: string, organizationId: string): Promise<void> {
+  const acc = await prisma.account.findUnique({ where: { discordId }, select: { id: true } });
+  if (!acc) return;
+  await prisma.membership.deleteMany({ where: { accountId: acc.id, organizationId } });
+}
+
 /** The account's role in an org, or null if it has no membership there. */
 export async function getMembershipRole(accountId: string, organizationId: string): Promise<OrgRoleValue | null> {
   const m = await prisma.membership.findUnique({

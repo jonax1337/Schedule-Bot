@@ -17,6 +17,7 @@ import strategyRoutes from './strategy.routes.js';
 import recurringAvailabilityRoutes from './recurring-availability.routes.js';
 import vodCommentRoutes from './vod-comment.routes.js';
 import platformRoutes from './platform.routes.js';
+import membersRoutes from './members.routes.js';
 
 const router = Router();
 
@@ -34,6 +35,7 @@ router.use('/strategies', strategyRoutes);
 router.use('/recurring-availability', recurringAvailabilityRoutes);
 router.use('/vod-comments', vodCommentRoutes);
 router.use('/platform', platformRoutes);
+router.use('/members', membersRoutes);
 
 // Schedule details routes (defined directly to avoid path issues)
 router.get('/schedule-details-batch', verifyToken, requireOrgMembership, async (req: AuthRequest, res) => {
