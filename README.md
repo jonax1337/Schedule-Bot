@@ -424,15 +424,10 @@ GET  /api/bot-status
 
 ---
 
-## Contributing
+## Development
 
-Contributions are welcome! Please:
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Commit your changes: `git commit -m "Add amazing feature"`
-4. Push to the branch: `git push origin feature/amazing-feature`
-5. Open a Pull Request
+This is a proprietary, closed-source project — it is **not** open for external
+contributions. The notes below are for authorized internal development only.
 
 ### Guidelines
 
@@ -445,7 +440,9 @@ Contributions are welcome! Please:
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+Proprietary — © 2025–2026 Jonas Laux. All rights reserved. This software is
+**not** open source; no use, copying, modification, or distribution is permitted
+without express written permission. See [LICENSE](LICENSE).
 
 ---
 
