@@ -9,6 +9,8 @@
 const STORAGE_KEY = 'poc-tenant'
 const DEFAULT_SLUG = 'default'
 const RESERVED = new Set(['www', 'app', 'api', 'admin', 'control', 'synqed'])
+/** The dedicated control-plane host: app.synqed.org (app.localhost in dev). */
+const CONTROL_PLANE_SUBDOMAIN = 'app'
 
 /** The subdomain label, or undefined on the apex. */
 function subdomainOf(hostname: string): string | undefined {
@@ -47,6 +49,37 @@ export function getTenantSlug(): string {
 export function isApex(): boolean {
   if (typeof window === 'undefined') return false
   return subdomainOf(window.location.hostname) === undefined
+}
+
+/** The raw first subdomain label, including reserved ones (app/api/…). */
+function rawSubdomainOf(hostname: string): string | undefined {
+  if (hostname.endsWith('.localhost')) return hostname.split('.')[0]
+  const parts = hostname.split('.')
+  return parts.length > 2 ? parts[0] : undefined
+}
+
+/** True on the dedicated control-plane host: app.synqed.org / app.localhost. */
+export function isControlPlaneHost(): boolean {
+  if (typeof window === 'undefined') return false
+  return rawSubdomainOf(window.location.hostname) === CONTROL_PLANE_SUBDOMAIN
+}
+
+/** True on the bare apex (synqed.org / localhost) — no subdomain at all. The
+ *  apex just redirects to the control-plane host. */
+export function isBareApex(): boolean {
+  if (typeof window === 'undefined') return false
+  return rawSubdomainOf(window.location.hostname) === undefined
+}
+
+/** URL of the control plane (app.<root>), preserving protocol/port. */
+export function controlPlaneUrl(path = '/'): string {
+  const { protocol, hostname, port } = window.location
+  const portPart = port ? `:${port}` : ''
+  const base =
+    hostname === 'localhost' || hostname.endsWith('.localhost')
+      ? 'localhost'
+      : hostname.split('.').slice(-2).join('.')
+  return `${protocol}//${CONTROL_PLANE_SUBDOMAIN}.${base}${portPart}${path}`
 }
 
 export function setTenantSlug(slug: string): void {
