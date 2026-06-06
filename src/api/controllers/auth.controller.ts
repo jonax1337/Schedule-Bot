@@ -92,12 +92,15 @@ export async function handleDiscordCallback(req: Request, res: Response) {
     }
     
     const { code, state } = req.query;
+    logger.info('Discord callback received', `code=${!!code} state=${!!state} nonce=${!!req.query.nonce} origin=${origin ?? 'none'}`);
 
     if (!code || typeof code !== 'string') {
+      logger.warn('Discord callback: missing code');
       return res.status(400).json({ error: 'Missing authorization code' });
     }
 
     if (!state || typeof state !== 'string') {
+      logger.warn('Discord callback: missing state');
       return res.status(400).json({ error: 'Missing state parameter' });
     }
 
@@ -108,9 +111,11 @@ export async function handleDiscordCallback(req: Request, res: Response) {
       const decoded = jwt.verify(state, JWT_SECRET) as { kind?: string; nonce?: string };
       const nonce = (req.query.nonce as string | undefined) || '';
       if (decoded.kind !== 'discord-oauth' || !decoded.nonce || decoded.nonce !== nonce) {
+        logger.warn('Discord callback: state/nonce mismatch', `kind=${decoded.kind} stateNonce=${!!decoded.nonce} provided=${!!nonce} match=${decoded.nonce === nonce}`);
         throw new Error('state/nonce mismatch');
       }
-    } catch {
+    } catch (e) {
+      logger.warn('Discord callback: state verify failed', String(e));
       return res.status(400).json({ error: 'Invalid or expired state' });
     }
 
