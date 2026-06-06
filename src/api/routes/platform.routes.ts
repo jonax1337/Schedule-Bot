@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { redeemHandoff } from '../../shared/utils/handoff.js';
 import { verifyToken, generateToken, AuthRequest } from '../../shared/middleware/auth.js';
 import {
-  getAccountOrganizations,
+  getAccountTeams,
   getOrganizationBySlug,
   getMembershipRole,
   bindGuild,
@@ -50,7 +50,7 @@ router.get('/orgs', verifyToken, async (req: AuthRequest, res) => {
   try {
     const accountId = req.user?.accountId;
     if (!accountId) return res.json({ success: true, organizations: [] });
-    const organizations = await getAccountOrganizations(accountId);
+    const organizations = await getAccountTeams(accountId);
     res.json({ success: true, organizations });
   } catch (error) {
     logger.error('Failed to list account organizations', getErrorMessage(error));

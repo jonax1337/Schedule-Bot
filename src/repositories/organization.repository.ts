@@ -127,7 +127,7 @@ export async function getAccountDiscordId(accountId: string): Promise<string | n
   return acc?.discordId ?? null;
 }
 
-export type OrgRoleValue = 'OWNER' | 'ADMIN' | 'MEMBER';
+export type OrgRoleValue = 'OWNER' | 'ADMIN' | 'MANAGER' | 'MEMBER';
 
 /** The account's role in an org, or null if it has no membership there. */
 export async function getMembershipRole(accountId: string, organizationId: string): Promise<OrgRoleValue | null> {
@@ -148,6 +148,45 @@ export async function getAccountOrganizations(
     orderBy: { organization: { name: 'asc' } },
   });
   return memberships.map((m) => ({ slug: m.organization.slug, name: m.organization.name, role: m.role as OrgRoleValue }));
+}
+
+export interface AccountTeam {
+  slug: string;
+  name: string;
+  /** The access role (OWNER/ADMIN/MANAGER/MEMBER) if the account is a member,
+   *  else the roster position (MAIN/SUB/COACH) if they're only on the roster. */
+  role: string;
+  /** How the account belongs: 'member' (Membership) or 'roster' (user_mapping). */
+  kind: 'member' | 'roster';
+}
+
+/**
+ * Every team the account belongs to — by Membership OR by being on the team
+ * roster (user_mapping, matched on the account's Discord id). Powers the team
+ * switcher + control-plane list so a roster-only player still sees their teams.
+ *
+ * The roster side is a deliberate account-level, cross-tenant lookup, so it uses
+ * a raw query (the tenant guard intentionally blocks cross-org model queries).
+ */
+export async function getAccountTeams(accountId: string): Promise<AccountTeam[]> {
+  const bySlug = new Map<string, AccountTeam>();
+
+  const discordId = await getAccountDiscordId(accountId);
+  if (discordId) {
+    const rosterOrgs = await prisma.$queryRaw<Array<{ slug: string; name: string; role: string }>>`
+      SELECT o.slug AS slug, o.name AS name, um.role AS role
+      FROM user_mappings um
+      JOIN organizations o ON o.id = um.organization_id
+      WHERE um.discord_id = ${discordId}
+    `;
+    for (const r of rosterOrgs) bySlug.set(r.slug, { slug: r.slug, name: r.name, role: r.role, kind: 'roster' });
+  }
+
+  // Memberships take precedence over a roster-only entry (access role wins).
+  const memberships = await getAccountOrganizations(accountId);
+  for (const m of memberships) bySlug.set(m.slug, { slug: m.slug, name: m.name, role: m.role, kind: 'member' });
+
+  return [...bySlug.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
 
 /**

@@ -16,7 +16,9 @@ import { subdomainUrl } from '@/lib/tenant'
 interface Org {
   slug: string
   name: string
-  role: 'OWNER' | 'ADMIN' | 'MEMBER'
+  /** Access role (OWNER/ADMIN/MANAGER/MEMBER) or roster position (MAIN/SUB/COACH). */
+  role: string
+  kind?: 'member' | 'roster'
 }
 
 const ORBITRON = { fontFamily: "'Orbitron', sans-serif" } as const
@@ -238,9 +240,11 @@ export function ControlPage() {
                           {o.slug}.synqed.org · {o.role.toLowerCase()}
                         </div>
                       </div>
-                      <Button size="sm" variant="outline" onClick={() => connectDiscord(o.slug)}>
-                        Connect Discord
-                      </Button>
+                      {(o.role === 'OWNER' || o.role === 'ADMIN') && (
+                        <Button size="sm" variant="outline" onClick={() => connectDiscord(o.slug)}>
+                          Connect Discord
+                        </Button>
+                      )}
                       <Button size="sm" onClick={() => openTeam(o.slug)}>
                         Open <ArrowRight className="size-4" />
                       </Button>
