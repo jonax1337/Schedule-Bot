@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { Loader2, CheckCircle2, XCircle } from 'lucide-react'
-import { FullWidthDivider } from '@/components/full-width-divider'
+import { AuthShell } from '@/components/auth/auth-shell'
 import { setAuthToken, setUser, getAuthHeaders } from '@/lib/auth'
 import { BOT_API_URL } from '@/lib/config'
 
@@ -78,44 +78,27 @@ export function AuthCallbackPage() {
       : 'bg-primary text-primary-foreground flex size-10 items-center justify-center rounded-md'
 
   return (
-    <div className="relative w-full overflow-hidden px-4 md:h-screen">
-      <div className="*:px-6 relative mx-auto flex min-h-screen w-full max-w-sm flex-col justify-center border-x">
-        <div className="flex flex-col space-y-6">
-          <div className="flex items-center gap-3">
-            <div className={iconWrapperClass}>
-              {status === 'loading' && <Loader2 className="size-5 animate-spin" />}
-              {status === 'success' && <CheckCircle2 className="size-5" />}
-              {status === 'error' && <XCircle className="size-5" />}
-            </div>
-            <div className="space-y-0.5">
-              <h1 className="text-xl font-semibold tracking-wide">{heading}</h1>
-              <p className="text-muted-foreground text-sm">{message}</p>
-            </div>
-          </div>
+    <AuthShell tagline="Almost there." subline="Hang tight — we're completing your Discord sign-in.">
+      <div className="flex items-center gap-3">
+        <div className={iconWrapperClass}>
+          {status === 'loading' && <Loader2 className="size-5 animate-spin" />}
+          {status === 'success' && <CheckCircle2 className="size-5" />}
+          {status === 'error' && <XCircle className="size-5" />}
         </div>
-
-        <div className="relative my-6 flex size-full flex-col gap-4 py-8">
-          <FullWidthDivider position="top" />
-          {status === 'loading' && (
-            <p className="text-muted-foreground text-center text-sm">
-              Please wait while we verify your Discord account…
-            </p>
-          )}
-          {status === 'success' && (
-            <p className="text-muted-foreground text-center text-sm">Redirecting to your dashboard…</p>
-          )}
-          {status === 'error' && (
-            <Button onClick={() => navigate('/login')} variant="outline" size="sm" className="w-full">
-              Back to login
-            </Button>
-          )}
-          <FullWidthDivider position="bottom" />
+        <div className="space-y-0.5">
+          <h1 className="text-xl font-semibold tracking-wide">{heading}</h1>
+          <p className="text-muted-foreground text-sm">{message}</p>
         </div>
-
-        <p className="text-muted-foreground text-center text-sm">
-          Connecting your Discord account to Synqed.
-        </p>
       </div>
-    </div>
+
+      {status === 'success' && (
+        <p className="text-muted-foreground text-sm">Redirecting to your dashboard…</p>
+      )}
+      {status === 'error' && (
+        <Button onClick={() => navigate('/login')} variant="outline" size="sm" className="w-full">
+          Back to login
+        </Button>
+      )}
+    </AuthShell>
   )
 }

@@ -2,11 +2,19 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { SynqedMark } from '@/components/synqed-brand'
+import { SynqedMark, Wordmark } from '@/components/synqed-brand'
+import { AuthShell } from '@/components/auth/auth-shell'
 import { AuthDivider } from '@/components/auth-divider'
-import { FloatingPaths } from '@/components/floating-paths'
 import { Loader2, Plus, ArrowRight, LogOut } from 'lucide-react'
 import { toast } from 'sonner'
 import { BOT_API_URL } from '@/lib/config'
@@ -19,16 +27,6 @@ interface Org {
   /** Access role (OWNER/ADMIN/MANAGER/MEMBER) or roster position (MAIN/SUB/COACH). */
   role: string
   kind?: 'member' | 'roster'
-}
-
-const ORBITRON = { fontFamily: "'Orbitron', sans-serif" } as const
-
-function Wordmark({ className = '' }: { className?: string }) {
-  return (
-    <span className={`lowercase font-bold tracking-tight ${className}`} style={ORBITRON}>
-      synqed
-    </span>
-  )
 }
 
 function DiscordIcon(props: React.ComponentProps<'svg'>) {
@@ -50,6 +48,7 @@ export function ControlPage() {
   const [slug, setSlug] = useState('')
   const [teamName, setTeamName] = useState('')
   const [busy, setBusy] = useState(false)
+  const [createOpen, setCreateOpen] = useState(false)
   const accountName = getUser()?.username
 
   async function loadOrgs(tok: string) {
@@ -117,6 +116,7 @@ export function ControlPage() {
       toast.success(`Team "${data.organization.name}" created`)
       setSlug('')
       setTeamName('')
+      setCreateOpen(false)
       loadOrgs(token)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Could not create team')
@@ -150,168 +150,148 @@ export function ControlPage() {
     setOrgs(null)
   }
 
-  // --- Signed out: premium split-screen (Efferd auth-5, branded for Synqed) ---
+  // --- Signed out: premium split-screen via the shared AuthShell ---
   if (!token) {
     return (
-      <main className="relative md:h-screen md:overflow-hidden lg:grid lg:grid-cols-2">
-        {/* Brand panel */}
-        <div className="bg-secondary dark:bg-secondary/20 relative hidden h-full flex-col overflow-hidden border-r p-10 lg:flex">
-          <div className="bg-linear-to-b absolute inset-0 from-transparent via-transparent to-background" />
-          <div className="absolute inset-0">
-            <FloatingPaths position={1} />
-            <FloatingPaths position={-1} />
-          </div>
-          <div className="z-10 flex items-center gap-2.5">
-            <SynqedMark className="text-foreground size-7" />
-            <Wordmark className="text-2xl" />
-          </div>
-          <div className="z-10 mt-auto space-y-3">
-            <h2 className="text-3xl font-semibold tracking-tight">Run your team like a pro.</h2>
-            <p className="text-muted-foreground max-w-md text-sm">
-              Scheduling, scrims, availability and your Discord bot — synced across your whole roster.
-              One account, every team.
-            </p>
-          </div>
+      <AuthShell tagline="Run your team like a pro.">
+        <div className="flex flex-col space-y-1">
+          <h1 className="text-2xl font-bold tracking-wide">
+            Welcome to <Wordmark />
+          </h1>
+          <p className="text-muted-foreground text-base">Sign in to manage your teams.</p>
         </div>
 
-        {/* Sign-in panel */}
-        <div className="relative flex min-h-screen flex-col justify-center px-8">
-          <div aria-hidden className="absolute inset-0 isolate -z-10 opacity-60 contain-strict">
-            <div className="absolute top-0 right-0 h-320 w-140 -translate-y-87.5 rounded-full bg-[radial-gradient(68.54%_68.72%_at_55.02%_31.46%,--theme(--color-foreground/.06)_0,hsla(0,0%,55%,.02)_50%,--theme(--color-foreground/.01)_80%)]" />
-          </div>
+        <Button type="button" className="w-full" onClick={discordLogin}>
+          <DiscordIcon className="size-4" /> Continue with Discord
+        </Button>
 
-          <div className="mx-auto w-full space-y-6 sm:w-sm">
-            <div className="flex items-center gap-3 lg:hidden">
-              <div className="bg-primary text-primary-foreground flex size-10 items-center justify-center rounded-md">
-                <SynqedMark className="size-6" />
-              </div>
-              <Wordmark className="text-xl" />
-            </div>
+        {import.meta.env.DEV && (
+          <>
+            <AuthDivider>OR DEV LOGIN</AuthDivider>
+            <form onSubmit={devLogin} className="flex gap-2">
+              <Input placeholder="Your name" value={devName} onChange={(e) => setDevName(e.target.value)} />
+              <Button type="submit" variant="secondary" disabled={busy}>
+                {busy ? <Loader2 className="size-4 animate-spin" /> : 'Dev login'}
+              </Button>
+            </form>
+          </>
+        )}
 
-            <div className="flex flex-col space-y-1">
-              <h1 className="text-2xl font-bold tracking-wide">
-                Welcome to <Wordmark />
-              </h1>
-              <p className="text-muted-foreground text-base">Sign in to manage your teams.</p>
-            </div>
-
-            <Button type="button" className="w-full" onClick={discordLogin}>
-              <DiscordIcon className="size-4" /> Continue with Discord
-            </Button>
-
-            {import.meta.env.DEV && (
-              <>
-                <AuthDivider>OR DEV LOGIN</AuthDivider>
-                <form onSubmit={devLogin} className="flex gap-2">
-                  <Input placeholder="Your name" value={devName} onChange={(e) => setDevName(e.target.value)} />
-                  <Button type="submit" variant="secondary" disabled={busy}>
-                    {busy ? <Loader2 className="size-4 animate-spin" /> : 'Dev login'}
-                  </Button>
-                </form>
-              </>
-            )}
-
-            <p className="text-muted-foreground text-xs">
-              Sign in with Discord — the same account works across all your teams.
-            </p>
-          </div>
-        </div>
-      </main>
+        <p className="text-muted-foreground text-xs">
+          Sign in with Discord — the same account works across all your teams.
+        </p>
+      </AuthShell>
     )
   }
 
-  // --- Signed in: teams + create ---
+  // --- Signed in: premium teams hub ---
+  const accountInitial = (accountName?.charAt(0) ?? '?').toUpperCase()
   return (
     <div className="bg-background relative min-h-screen">
       <div aria-hidden className="absolute inset-0 isolate -z-10 opacity-60 contain-strict">
         <div className="absolute top-0 right-0 h-320 w-140 -translate-y-87.5 rounded-full bg-[radial-gradient(68.54%_68.72%_at_55.02%_31.46%,--theme(--color-foreground/.05)_0,transparent_80%)]" />
       </div>
-      <div className="mx-auto flex min-h-screen w-full max-w-2xl flex-col gap-8 px-4 py-10">
+      <div className="mx-auto w-full max-w-3xl px-4 py-10 sm:py-14">
         <header className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <SynqedMark className="text-foreground size-7" />
             <div>
               <Wordmark className="text-xl" />
-              <div className="text-muted-foreground text-xs">Team scheduling control plane</div>
+              <div className="text-muted-foreground text-xs">Control plane</div>
             </div>
           </div>
-          <div className="flex items-center gap-3 text-sm">
-            {accountName && <span className="text-muted-foreground">{accountName}</span>}
+          <div className="flex items-center gap-2">
+            <Avatar className="size-7">
+              <AvatarFallback className="text-xs">{accountInitial}</AvatarFallback>
+            </Avatar>
+            {accountName && <span className="text-muted-foreground hidden text-sm sm:inline">{accountName}</span>}
             <Button variant="ghost" size="sm" onClick={signOut}>
               <LogOut className="size-4" /> Sign out
             </Button>
           </div>
         </header>
 
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Your teams</CardTitle>
-              <CardDescription>Open a team to manage it, or connect its Discord server.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {orgs === null ? (
-                <div className="flex justify-center py-6">
-                  <Loader2 className="text-muted-foreground size-5 animate-spin" />
-                </div>
-              ) : orgs.length === 0 ? (
-                <p className="text-muted-foreground py-2 text-sm">No teams yet — create your first one below.</p>
-              ) : (
-                <ul className="divide-border divide-y">
-                  {orgs.map((o) => (
-                    <li key={o.slug} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                      <Avatar className="size-9 rounded-md">
-                        <AvatarFallback className="bg-primary text-primary-foreground rounded-md">
-                          {o.name.charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate font-medium">{o.name}</div>
-                        <div className="text-muted-foreground text-xs">
-                          {o.slug}.synqed.org · {o.role.toLowerCase()}
-                        </div>
-                      </div>
-                      {(o.role === 'OWNER' || o.role === 'ADMIN') && (
-                        <Button size="sm" variant="outline" onClick={() => connectDiscord(o.slug)}>
-                          Connect Discord
-                        </Button>
-                      )}
-                      <Button size="sm" onClick={() => openTeam(o.slug)}>
-                        Open <ArrowRight className="size-4" />
-                      </Button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Create a team</CardTitle>
-              <CardDescription>Each team gets its own subdomain and Discord connection.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={createTeam} className="space-y-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="slug">Subdomain</Label>
-                  <div className="flex items-center gap-1.5">
-                    <Input id="slug" placeholder="my-team" value={slug} onChange={(e) => setSlug(e.target.value)} />
-                    <span className="text-muted-foreground text-sm">.synqed.org</span>
-                  </div>
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="name">Team name</Label>
-                  <Input id="name" placeholder="My Team" value={teamName} onChange={(e) => setTeamName(e.target.value)} />
-                </div>
-                <Button type="submit" disabled={busy || !slug}>
-                  {busy ? <Loader2 className="size-4 animate-spin" /> : <><Plus className="size-4" /> Create team</>}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
+        <div className="mt-12 mb-6">
+          <h1 className="text-2xl font-semibold tracking-tight">Your teams</h1>
+          <p className="text-muted-foreground text-sm">Open a team to manage it, or spin up a new one.</p>
         </div>
+
+        {orgs === null ? (
+          <div className="flex justify-center py-16">
+            <Loader2 className="text-muted-foreground size-5 animate-spin" />
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2">
+            {orgs.map((o) => (
+              <div
+                key={o.slug}
+                className="group bg-card hover:border-primary/40 relative flex flex-col gap-4 rounded-xl border p-5 transition-colors"
+              >
+                <div className="flex items-start gap-3">
+                  <Avatar className="size-11 rounded-lg">
+                    <AvatarFallback className="bg-primary text-primary-foreground rounded-lg text-base font-semibold">
+                      {o.name.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate font-semibold">{o.name}</div>
+                    <div className="text-muted-foreground truncate text-xs">{o.slug}.synqed.org</div>
+                  </div>
+                  <Badge variant="secondary" className="shrink-0 capitalize">
+                    {o.role.toLowerCase()}
+                  </Badge>
+                </div>
+                <div className="mt-auto flex items-center gap-2">
+                  <Button size="sm" className="flex-1" onClick={() => openTeam(o.slug)}>
+                    Open <ArrowRight className="size-4" />
+                  </Button>
+                  {(o.role === 'OWNER' || o.role === 'ADMIN') && (
+                    <Button size="sm" variant="outline" onClick={() => connectDiscord(o.slug)}>
+                      Connect Discord
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
+
+            <button
+              type="button"
+              onClick={() => setCreateOpen(true)}
+              className="text-muted-foreground hover:border-primary/40 hover:text-foreground flex min-h-[9.5rem] flex-col items-center justify-center gap-2 rounded-xl border border-dashed transition-colors"
+            >
+              <Plus className="size-6" />
+              <span className="text-sm font-medium">Create a team</span>
+            </button>
+          </div>
+        )}
       </div>
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="sm:max-w-[440px]">
+          <DialogHeader>
+            <DialogTitle>Create a team</DialogTitle>
+            <DialogDescription>Each team gets its own subdomain and Discord connection.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={createTeam} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="slug">Subdomain</Label>
+              <div className="flex items-center gap-1.5">
+                <Input id="slug" placeholder="my-team" value={slug} onChange={(e) => setSlug(e.target.value)} />
+                <span className="text-muted-foreground text-sm">.synqed.org</span>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="name">Team name</Label>
+              <Input id="name" placeholder="My Team" value={teamName} onChange={(e) => setTeamName(e.target.value)} />
+            </div>
+            <DialogFooter>
+              <Button type="submit" disabled={busy || !slug}>
+                {busy ? <Loader2 className="size-4 animate-spin" /> : (<><Plus className="size-4" /> Create team</>)}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

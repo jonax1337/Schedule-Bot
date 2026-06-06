@@ -18,6 +18,17 @@ const ACCENT = [
   '92.9 54.4 92.9 81.3 112.1 90.7 112.1 64.2',
 ]
 
+const ORBITRON = { fontFamily: "'Orbitron', sans-serif" } as const
+
+/** The "synqed" wordmark in the brand font (Orbitron, lowercase). */
+export function Wordmark({ className = '' }: { className?: string }) {
+  return (
+    <span className={`lowercase font-bold tracking-tight ${className}`} style={ORBITRON}>
+      synqed
+    </span>
+  )
+}
+
 export function SynqedMark({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 150 150" className={className} role="img" aria-label="Synqed">

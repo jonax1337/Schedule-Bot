@@ -1,26 +1,25 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Loader2, UserCircle } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { FullWidthDivider } from '@/components/full-width-divider'
+import { AuthShell } from '@/components/auth/auth-shell'
 import { getTenantSlug } from '@/lib/tenant'
 import { startDiscordLogin } from '@/lib/auth'
 
 /**
- * Team-subdomain sign-in. Teams never run their own OAuth — authentication lives
- * ONLY on the control plane (app.synqed.org), which holds the single Discord
- * redirect_uri. This bounces there with a handoff target (?next=<team slug>);
- * after signing in, the control plane hands the session straight back to the team.
+ * Team-subdomain sign-in. Same premium split look as the control plane (shared
+ * AuthShell), with team-flavoured copy. Teams never run their own OAuth —
+ * authentication round-trips through the neutral api callback and lands back
+ * here (no control-plane detour).
  */
 export function LoginForm() {
   const [redirecting, setRedirecting] = useState(false)
+  const slug = getTenantSlug()
 
   const handleSignIn = async () => {
     setRedirecting(true)
     try {
-      // Team login happens in THIS team's context: OAuth round-trips through the
-      // neutral api callback and lands back here (no control-plane detour).
-      await startDiscordLogin(getTenantSlug())
+      await startDiscordLogin(slug)
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Could not start sign-in')
       setRedirecting(false)
@@ -28,37 +27,29 @@ export function LoginForm() {
   }
 
   return (
-    <div className="relative w-full overflow-hidden px-4 md:h-screen">
-      <div className="*:px-6 relative mx-auto flex min-h-screen w-full max-w-sm flex-col justify-center border-x">
-        <div className="flex flex-col space-y-6">
-          <div className="flex items-center gap-3">
-            <div className="bg-primary text-primary-foreground flex size-10 items-center justify-center rounded-md">
-              <UserCircle className="size-5" />
-            </div>
-            <div className="space-y-0.5">
-              <h1 className="text-xl font-semibold tracking-wide">Sign in</h1>
-              <p className="text-muted-foreground text-sm">Continue with Discord to access this team.</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="relative my-6 flex size-full flex-col gap-4 py-8">
-          <FullWidthDivider position="top" />
-          <Button type="button" className="w-full" onClick={handleSignIn} disabled={redirecting}>
-            {redirecting ? (
-              <>
-                <Loader2 className="size-4 animate-spin" /> Redirecting…
-              </>
-            ) : (
-              <>
-                <DiscordIcon className="size-4" /> Continue with Discord
-              </>
-            )}
-          </Button>
-          <FullWidthDivider position="bottom" />
-        </div>
+    <AuthShell
+      tagline="Time to lock in."
+      subline="Your team's hub — schedules, scrims and availability, all synced. Sign in to jump in."
+    >
+      <div className="flex flex-col space-y-1">
+        <h1 className="text-2xl font-bold tracking-wide">
+          Sign in{slug ? <> to <span className="lowercase">{slug}</span></> : ''}
+        </h1>
+        <p className="text-muted-foreground text-base">Continue with Discord to access this team.</p>
       </div>
-    </div>
+
+      <Button type="button" className="w-full" onClick={handleSignIn} disabled={redirecting}>
+        {redirecting ? (
+          <>
+            <Loader2 className="size-4 animate-spin" /> Redirecting…
+          </>
+        ) : (
+          <>
+            <DiscordIcon className="size-4" /> Continue with Discord
+          </>
+        )}
+      </Button>
+    </AuthShell>
   )
 }
 
