@@ -90,9 +90,12 @@ router.post('/user/login', loginLimiter, async (req, res) => {
   }
 });
 
-// Discord OAuth routes
-router.get('/auth/discord', loginLimiter, initiateDiscordAuth);
-router.get('/auth/discord/callback', loginLimiter, handleDiscordCallback);
+// Discord OAuth routes. These are NOT credential endpoints (no password to brute
+// force — the callback exchanges a single-use Discord code), so they ride the
+// general API rate limit (100/min) instead of the strict login limiter. The
+// strict loginLimiter stays on the password routes (/admin/login, /user/login).
+router.get('/auth/discord', initiateDiscordAuth);
+router.get('/auth/discord/callback', handleDiscordCallback);
 router.get('/auth/user', getUserFromSession);
 router.post('/auth/logout', logout);
 
