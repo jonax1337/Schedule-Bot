@@ -56,8 +56,10 @@ const allowedOrigins = [
 // <slug>.synqed.org (prod); the *.localhost dev pattern is enabled only outside
 // production so it can never widen the prod allowlist.
 const allowedOriginPatterns = [
-  /^https:\/\/[a-z0-9-]+\.synqed\.org$/,
-  ...(process.env.NODE_ENV !== 'production' ? [/^http:\/\/[a-z0-9-]+\.localhost:3000$/] : []),
+  // Whole synqed.org zone: the bare apex AND any single-label subdomain
+  // (app.synqed.org control plane + every team's <slug>.synqed.org).
+  /^https:\/\/([a-z0-9-]+\.)?synqed\.org$/,
+  ...(process.env.NODE_ENV !== 'production' ? [/^http:\/\/([a-z0-9-]+\.)?localhost:3000$/] : []),
 ];
 
 app.use(cors({
