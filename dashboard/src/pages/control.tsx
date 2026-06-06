@@ -5,8 +5,8 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { SynqedMark } from '@/components/synqed-brand'
-import { FullWidthDivider } from '@/components/full-width-divider'
 import { AuthDivider } from '@/components/auth-divider'
+import { FloatingPaths } from '@/components/floating-paths'
 import { Loader2, Plus, ArrowRight, LogOut } from 'lucide-react'
 import { toast } from 'sonner'
 import { BOT_API_URL } from '@/lib/config'
@@ -150,30 +150,55 @@ export function ControlPage() {
     setOrgs(null)
   }
 
-  // --- Signed out: same centered look as the team-dashboard login ---
+  // --- Signed out: premium split-screen (Efferd auth-5, branded for Synqed) ---
   if (!token) {
     return (
-      <div className="relative w-full overflow-hidden px-4 md:h-screen">
-        <div className="*:px-6 relative mx-auto flex min-h-screen w-full max-w-sm flex-col justify-center border-x">
-          <div className="flex flex-col space-y-6">
-            <div className="flex items-center gap-3">
+      <main className="relative md:h-screen md:overflow-hidden lg:grid lg:grid-cols-2">
+        {/* Brand panel */}
+        <div className="bg-secondary dark:bg-secondary/20 relative hidden h-full flex-col overflow-hidden border-r p-10 lg:flex">
+          <div className="bg-linear-to-b absolute inset-0 from-transparent via-transparent to-background" />
+          <div className="absolute inset-0">
+            <FloatingPaths position={1} />
+            <FloatingPaths position={-1} />
+          </div>
+          <div className="z-10 flex items-center gap-2.5">
+            <SynqedMark className="text-foreground size-7" />
+            <Wordmark className="text-2xl" />
+          </div>
+          <div className="z-10 mt-auto space-y-3">
+            <h2 className="text-3xl font-semibold tracking-tight">Run your team like a pro.</h2>
+            <p className="text-muted-foreground max-w-md text-sm">
+              Scheduling, scrims, availability and your Discord bot — synced across your whole roster.
+              One account, every team.
+            </p>
+          </div>
+        </div>
+
+        {/* Sign-in panel */}
+        <div className="relative flex min-h-screen flex-col justify-center px-8">
+          <div aria-hidden className="absolute inset-0 isolate -z-10 opacity-60 contain-strict">
+            <div className="absolute top-0 right-0 h-320 w-140 -translate-y-87.5 rounded-full bg-[radial-gradient(68.54%_68.72%_at_55.02%_31.46%,--theme(--color-foreground/.06)_0,hsla(0,0%,55%,.02)_50%,--theme(--color-foreground/.01)_80%)]" />
+          </div>
+
+          <div className="mx-auto w-full space-y-6 sm:w-sm">
+            <div className="flex items-center gap-3 lg:hidden">
               <div className="bg-primary text-primary-foreground flex size-10 items-center justify-center rounded-md">
                 <SynqedMark className="size-6" />
               </div>
-              <div className="space-y-0.5">
-                <h1 className="text-xl tracking-wide">
-                  Welcome to <Wordmark />
-                </h1>
-                <p className="text-muted-foreground text-sm">Sign in to manage your teams.</p>
-              </div>
+              <Wordmark className="text-xl" />
             </div>
-          </div>
 
-          <div className="relative my-6 flex size-full flex-col gap-4 py-8">
-            <FullWidthDivider position="top" />
+            <div className="flex flex-col space-y-1">
+              <h1 className="text-2xl font-bold tracking-wide">
+                Welcome to <Wordmark />
+              </h1>
+              <p className="text-muted-foreground text-base">Sign in to manage your teams.</p>
+            </div>
+
             <Button type="button" className="w-full" onClick={discordLogin}>
               <DiscordIcon className="size-4" /> Continue with Discord
             </Button>
+
             {import.meta.env.DEV && (
               <>
                 <AuthDivider>OR DEV LOGIN</AuthDivider>
@@ -185,16 +210,22 @@ export function ControlPage() {
                 </form>
               </>
             )}
-            <FullWidthDivider position="bottom" />
+
+            <p className="text-muted-foreground text-xs">
+              Sign in with Discord — the same account works across all your teams.
+            </p>
           </div>
         </div>
-      </div>
+      </main>
     )
   }
 
   // --- Signed in: teams + create ---
   return (
-    <div className="bg-background min-h-screen">
+    <div className="bg-background relative min-h-screen">
+      <div aria-hidden className="absolute inset-0 isolate -z-10 opacity-60 contain-strict">
+        <div className="absolute top-0 right-0 h-320 w-140 -translate-y-87.5 rounded-full bg-[radial-gradient(68.54%_68.72%_at_55.02%_31.46%,--theme(--color-foreground/.05)_0,transparent_80%)]" />
+      </div>
       <div className="mx-auto flex min-h-screen w-full max-w-2xl flex-col gap-8 px-4 py-10">
         <header className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
