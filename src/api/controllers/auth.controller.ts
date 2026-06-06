@@ -26,6 +26,14 @@ const REDIRECT_URI = process.env.DISCORD_REDIRECT_URI || 'http://localhost:3000/
 const JWT_SECRET = process.env.JWT_SECRET as string;
 const DASHBOARD_URL = process.env.DASHBOARD_URL || 'http://localhost:3000';
 
+/** A return target is the literal 'control' or a clean team slug. `returnTo` is
+ *  interpolated into the redirect host, so anything else is an open redirect —
+ *  which would hand the single-use handoff code (the session) to an attacker
+ *  host. Validate at initiate AND callback (defense in depth). */
+function isValidReturnTo(returnTo: string): boolean {
+  return returnTo === 'control' || /^[a-z0-9](?:[a-z0-9-]{0,30}[a-z0-9])?$/.test(returnTo);
+}
+
 /** Origin for a login context: a team slug → its subdomain; 'control' → the
  *  control-plane host. Derived from DASHBOARD_URL, so prod (https://app.synqed.org)
  *  yields https://<slug>.synqed.org and dev (http://localhost:3000) works too. */
@@ -72,6 +80,10 @@ export async function initiateDiscordAuth(req: Request, res: Response) {
 
     const returnTo = (req.query.return as string | undefined)?.trim() || 'control';
     const csrf = (req.query.csrf as string | undefined)?.trim() || '';
+
+    if (!isValidReturnTo(returnTo)) {
+      return res.status(400).json({ error: 'Invalid return target' });
+    }
 
     // Signed, short-lived state carries the CSRF nonce + return target through the
     // Discord round-trip. Stateless → survives redeploys / multiple replicas.
@@ -121,6 +133,10 @@ export async function handleDiscordCallback(req: Request, res: Response) {
       logger.warn('Discord callback: state verify failed', String(e));
       return res.redirect(landingUrl(returnTo, false, '?error=auth'));
     }
+
+    // Defense in depth: the state is ours (validated at initiate), but never
+    // build a redirect host from an unvalidated target.
+    if (!isValidReturnTo(returnTo)) returnTo = 'control';
 
     if (typeof code !== 'string' || !code) {
       logger.warn('Discord callback: missing code');
