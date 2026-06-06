@@ -29,5 +29,5 @@ export function LoginPage() {
     check()
   }, [navigate, searchParams])
 
-  return <LoginForm redirectTo={searchParams.get('redirect')} />
+  return <LoginForm />
 }

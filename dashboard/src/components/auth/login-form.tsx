@@ -1,40 +1,21 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Loader2, UserCircle } from 'lucide-react'
-import { toast } from 'sonner'
 import { FullWidthDivider } from '@/components/full-width-divider'
-import { BOT_API_URL } from '@/lib/config'
-
-interface LoginFormProps {
-  redirectTo?: string | null
-}
+import { controlPlaneUrl, getTenantSlug } from '@/lib/tenant'
 
 /**
- * Team-subdomain sign-in. SaaS teams authenticate with Discord OAuth only — no
- * player-picker dropdown and no admin password. (Roster/user mappings are an
- * admin concern inside the app, not a login mechanism.)
+ * Team-subdomain sign-in. Teams never run their own OAuth — authentication lives
+ * ONLY on the control plane (app.synqed.org), which holds the single Discord
+ * redirect_uri. This bounces there with a handoff target (?next=<team slug>);
+ * after signing in, the control plane hands the session straight back to the team.
  */
-export function LoginForm({ redirectTo }: LoginFormProps) {
-  const [discordLoading, setDiscordLoading] = useState(false)
+export function LoginForm() {
+  const [redirecting, setRedirecting] = useState(false)
 
-  const handleDiscordLogin = async () => {
-    setDiscordLoading(true)
-    if (redirectTo) localStorage.setItem('loginRedirect', redirectTo)
-    try {
-      const response = await fetch(`${BOT_API_URL}/api/auth/discord`)
-      if (response.ok) {
-        const data = await response.json()
-        window.location.href = data.url
-      } else {
-        const errorData = await response.json()
-        toast.error(errorData.message || 'Failed to start Discord login')
-        setDiscordLoading(false)
-      }
-    } catch (e) {
-      console.error('discord init failed', e)
-      toast.error('Failed to connect to server')
-      setDiscordLoading(false)
-    }
+  const handleSignIn = () => {
+    setRedirecting(true)
+    window.location.href = controlPlaneUrl(`/control?next=${encodeURIComponent(getTenantSlug())}`)
   }
 
   return (
@@ -46,18 +27,18 @@ export function LoginForm({ redirectTo }: LoginFormProps) {
               <UserCircle className="size-5" />
             </div>
             <div className="space-y-0.5">
-              <h1 className="text-xl font-semibold tracking-wide">Welcome back</h1>
-              <p className="text-muted-foreground text-sm">Sign in with Discord to continue.</p>
+              <h1 className="text-xl font-semibold tracking-wide">Sign in</h1>
+              <p className="text-muted-foreground text-sm">Continue with Discord to access this team.</p>
             </div>
           </div>
         </div>
 
         <div className="relative my-6 flex size-full flex-col gap-4 py-8">
           <FullWidthDivider position="top" />
-          <Button type="button" className="w-full" onClick={handleDiscordLogin} disabled={discordLoading}>
-            {discordLoading ? (
+          <Button type="button" className="w-full" onClick={handleSignIn} disabled={redirecting}>
+            {redirecting ? (
               <>
-                <Loader2 className="size-4 animate-spin" /> Connecting…
+                <Loader2 className="size-4 animate-spin" /> Redirecting…
               </>
             ) : (
               <>

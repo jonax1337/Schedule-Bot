@@ -69,6 +69,19 @@ export function ControlPage() {
     if (bot) window.history.replaceState(null, '', window.location.pathname)
   }, [])
 
+  // Auth lives only here. If someone arrived from a team subdomain (?next=<slug>)
+  // — directly or after a Discord login that round-tripped through the control
+  // plane — hand the session straight back to that team instead of stopping here.
+  useEffect(() => {
+    if (!orgs) return
+    const pending =
+      new URLSearchParams(window.location.search).get('next') || localStorage.getItem('pendingTeamHandoff')
+    if (pending && orgs.some((o) => o.slug === pending)) {
+      localStorage.removeItem('pendingTeamHandoff')
+      openTeam(pending)
+    }
+  }, [orgs])
+
   async function devLogin(e: FormEvent) {
     e.preventDefault()
     setBusy(true)
@@ -93,6 +106,9 @@ export function ControlPage() {
 
   async function discordLogin() {
     try {
+      // Preserve a team handoff target across the OAuth round-trip.
+      const next = new URLSearchParams(window.location.search).get('next')
+      if (next) localStorage.setItem('pendingTeamHandoff', next)
       const res = await fetch(`${BOT_API_URL}/api/auth/discord`)
       if (!res.ok) throw new Error((await res.json()).message || 'Discord login unavailable')
       window.location.href = (await res.json()).url
