@@ -15,7 +15,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { SynqedMark, Wordmark } from '@/components/synqed-brand'
 import { AuthShell } from '@/components/auth/auth-shell'
 import { AuthDivider } from '@/components/auth-divider'
-import { Loader2, Plus, ArrowRight, LogOut } from 'lucide-react'
+import { Loader2, Plus, ArrowRight, LogOut, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
 import { BOT_API_URL } from '@/lib/config'
 import { getAuthToken, getUser, setAuthToken, setUser, removeAuthToken, startDiscordLogin } from '@/lib/auth'
@@ -49,6 +49,8 @@ export function ControlPage() {
   const [teamName, setTeamName] = useState('')
   const [busy, setBusy] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
+  const [renameTarget, setRenameTarget] = useState<Org | null>(null)
+  const [renameName, setRenameName] = useState('')
   const accountName = getUser()?.username
 
   async function loadOrgs(tok: string) {
@@ -120,6 +122,33 @@ export function ControlPage() {
       loadOrgs(token)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Could not create team')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  function startRename(o: Org) {
+    setRenameTarget(o)
+    setRenameName(o.name)
+  }
+
+  async function renameTeam(e: FormEvent) {
+    e.preventDefault()
+    if (!token || !renameTarget) return
+    setBusy(true)
+    try {
+      const res = await fetch(`${BOT_API_URL}/api/platform/organizations/${renameTarget.slug}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ name: renameName }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Could not rename team')
+      toast.success(`Renamed to "${data.organization.name}"`)
+      setRenameTarget(null)
+      loadOrgs(token)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not rename team')
     } finally {
       setBusy(false)
     }
@@ -234,7 +263,19 @@ export function ControlPage() {
                     </AvatarFallback>
                   </Avatar>
                   <div className="min-w-0 flex-1">
-                    <div className="truncate font-semibold">{o.name}</div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="truncate font-semibold">{o.name}</span>
+                      {(o.role === 'OWNER' || o.role === 'ADMIN') && (
+                        <button
+                          type="button"
+                          onClick={() => startRename(o)}
+                          aria-label="Rename team"
+                          className="text-muted-foreground hover:text-foreground shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+                        >
+                          <Pencil className="size-3.5" />
+                        </button>
+                      )}
+                    </div>
                     <div className="text-muted-foreground truncate text-xs">{o.slug}.synqed.org</div>
                   </div>
                   <Badge variant="secondary" className="shrink-0 capitalize">
@@ -265,6 +306,35 @@ export function ControlPage() {
           </div>
         )}
       </div>
+
+      <Dialog open={renameTarget !== null} onOpenChange={(open) => !open && setRenameTarget(null)}>
+        <DialogContent className="sm:max-w-[440px]">
+          <DialogHeader>
+            <DialogTitle>Rename team</DialogTitle>
+            <DialogDescription>
+              The display name for <span className="font-medium">{renameTarget?.slug}.synqed.org</span>. The
+              subdomain stays the same.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={renameTeam} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="rename">Team name</Label>
+              <Input
+                id="rename"
+                placeholder="My Team"
+                value={renameName}
+                onChange={(e) => setRenameName(e.target.value)}
+                autoFocus
+              />
+            </div>
+            <DialogFooter>
+              <Button type="submit" disabled={busy || !renameName.trim()}>
+                {busy ? <Loader2 className="size-4 animate-spin" /> : 'Save'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="sm:max-w-[440px]">

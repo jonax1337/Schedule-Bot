@@ -8,6 +8,7 @@ import {
   bindGuild,
   upsertAccountByDiscordId,
   createOrganizationWithOwner,
+  renameOrganization,
   SlugError,
 } from '../../repositories/organization.repository.js';
 import { buildBotInviteUrl, verifyBotInviteState } from '../../shared/utils/botInvite.js';
@@ -76,6 +77,31 @@ router.post('/organizations', verifyToken, async (req: AuthRequest, res) => {
     }
     logger.error('Failed to create organization', getErrorMessage(error));
     res.status(500).json({ error: 'Failed to create organization' });
+  }
+});
+
+/** Rename a team (sets org.name). Only the org's OWNER/ADMIN may rename it. */
+router.patch('/organizations/:slug', verifyToken, async (req: AuthRequest, res) => {
+  const accountId = req.user?.accountId;
+  if (!accountId) {
+    return res.status(403).json({ error: 'Token is not bound to an account' });
+  }
+  try {
+    const name = String(req.body?.name ?? '').trim();
+    if (!name) return res.status(400).json({ error: 'name is required' });
+    if (name.length > 50) return res.status(400).json({ error: 'name must be 50 characters or fewer' });
+    const org = await getOrganizationBySlug(String(req.params.slug));
+    if (!org) return res.status(404).json({ error: 'Team not found' });
+    const role = await getMembershipRole(accountId, org.id);
+    if (role !== 'OWNER' && role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Only the team owner or an admin can rename it' });
+    }
+    const updated = await renameOrganization(org.id, name);
+    logger.success('Organization renamed', `${updated.slug} → "${updated.name}" by ${accountId}`);
+    res.json({ success: true, organization: { slug: updated.slug, name: updated.name } });
+  } catch (error) {
+    logger.error('Failed to rename organization', getErrorMessage(error));
+    res.status(500).json({ error: 'Failed to rename organization' });
   }
 });
 

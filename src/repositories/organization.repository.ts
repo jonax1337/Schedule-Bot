@@ -110,6 +110,11 @@ export async function createOrganizationWithOwner(
   return org;
 }
 
+/** Rename a team (org.name). The control-plane display name shown in the hub + switcher. */
+export async function renameOrganization(organizationId: string, name: string): Promise<OrganizationData> {
+  return prisma.organization.update({ where: { id: organizationId }, data: { name: name.trim() } });
+}
+
 /** Bind a Discord guild to an org (set when the bot is invited). */
 export async function bindGuild(organizationId: string, guildId: string): Promise<void> {
   await prisma.organization.update({ where: { id: organizationId }, data: { discordGuildId: guildId } });
