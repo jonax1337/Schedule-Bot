@@ -86,7 +86,7 @@ export function AdminDashboard() {
 
   const checkBotStatus = async () => {
     try {
-      const response = await fetch(`${BOT_API_URL}/api/bot-status`);
+      const response = await fetch(`${BOT_API_URL}/api/bot-status`, { headers: getAuthHeaders() });
       const data = await response.json();
       setBotStatus(data);
       setStatusLoading(false);
