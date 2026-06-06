@@ -1,13 +1,9 @@
 import { Request, Response } from 'express';
 import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
 import { getUserMapping } from '../../repositories/user-mapping.repository.js';
 import { getCurrentOrgId } from '../../shared/tenancy/orgContext.js';
 import { logger } from '../../shared/utils/logger.js';
-
-interface OAuthState {
-  state: string;
-  timestamp: number;
-}
 
 interface OAuthSession {
   discordId: string;
@@ -15,8 +11,7 @@ interface OAuthSession {
   expiresAt: number;
 }
 
-// Store state tokens temporarily (in production, use Redis)
-const stateStore = new Map<string, OAuthState>();
+// Legacy session-token store (the JWT flow is the primary path).
 const sessionStore = new Map<string, OAuthSession>();
 
 const DISCORD_OAUTH_URL = 'https://discord.com/api/oauth2/authorize';
@@ -27,13 +22,10 @@ const DISCORD_USER_URL = 'https://discord.com/api/users/@me';
 const CLIENT_ID = process.env.DISCORD_CLIENT_ID;
 const CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
 const REDIRECT_URI = process.env.DISCORD_REDIRECT_URI || 'http://localhost:3000/api/auth/callback';
+const JWT_SECRET = process.env.JWT_SECRET as string;
 
 export function generateSessionToken(): string {
   return crypto.randomBytes(32).toString('hex');
-}
-
-function generateState(): string {
-  return crypto.randomBytes(16).toString('hex');
 }
 
 /**
@@ -53,29 +45,18 @@ export async function initiateDiscordAuth(req: Request, res: Response) {
       });
     }
 
-    // Generate state for CSRF protection
-    const state = generateState();
-    stateStore.set(state, {
-      state,
-      timestamp: Date.now(),
-    });
+    // Stateless CSRF state: a short-lived signed token instead of an in-memory
+    // store, so it survives redeploys and works across multiple replicas.
+    const state = jwt.sign({ kind: 'discord-oauth' }, JWT_SECRET, { expiresIn: '10m' });
 
-    // Clean up old states (older than 10 minutes)
-    const tenMinutesAgo = Date.now() - 10 * 60 * 1000;
-    for (const [key, value] of stateStore.entries()) {
-      if (value.timestamp < tenMinutesAgo) {
-        stateStore.delete(key);
-      }
-    }
-
-    // Build OAuth URL
+    // Build OAuth URL. No prompt=none: a brand-new customer hasn't authorized the
+    // app yet, and prompt=none would error instead of showing the consent screen.
     const params = new URLSearchParams({
       client_id: CLIENT_ID,
       redirect_uri: REDIRECT_URI,
       response_type: 'code',
       scope: 'identify',
       state,
-      prompt: 'none', // Skip consent screen if already authorized
     });
 
     const authUrl = `${DISCORD_OAUTH_URL}?${params.toString()}`;
@@ -115,12 +96,13 @@ export async function handleDiscordCallback(req: Request, res: Response) {
       return res.status(400).json({ error: 'Missing state parameter' });
     }
 
-    // Verify state
-    const storedState = stateStore.get(state);
-    if (!storedState) {
+    // Verify the signed state (CSRF). Stateless — survives redeploys/replicas.
+    try {
+      const decoded = jwt.verify(state, JWT_SECRET) as { kind?: string };
+      if (decoded.kind !== 'discord-oauth') throw new Error('wrong kind');
+    } catch {
       return res.status(400).json({ error: 'Invalid or expired state' });
     }
-    stateStore.delete(state);
 
     // Exchange code for access token
     const tokenResponse = await fetch(DISCORD_TOKEN_URL, {
